@@ -1,0 +1,199 @@
+generator client {
+  provider      = "prisma-client-js"
+  engineType    = "binary"
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-3.0.x", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Broker {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  candidates Candidate[]
+  createdAt  DateTime    @default(now())
+}
+
+model Candidate {
+  id                       String    @id @default(cuid())
+  shelfId                  String?
+  passportNumber           String    @unique
+  surname                  String
+  givenNames               String
+  dateOfBirth              DateTime
+  gender                   String
+  nationality              String
+  issuingCountry           String
+  dateOfIssue              DateTime
+  dateOfExpiry             DateTime
+  placeOfBirth             String
+  maritalStatus            String
+  numberOfChildren         Int       @default(0)
+  religion                 String
+  bloodType                String
+  height                   String?
+  weight                   String?
+  phone                    String?
+  additionalPhones         Json?
+  email                    String?
+  address                  String?
+  city                     String?
+  state                    String?
+  country                  String?
+  idNumber                 String?
+  job                      String?
+  educationLevel           String?
+  languages                Json?
+  workExperience           Json?
+  skills                   Json?
+  medicalStatus            String    @default("Pending")
+  biometricStatus          String    @default("Pending")
+  medicalDate              DateTime?
+  biometricDate            DateTime?
+  knownConditions          String?
+  cvDeadline               DateTime?
+  emergencyContactName     String?
+  emergencyContactRelation String?
+  emergencyContactPhone    String?
+  emergencyContactAddress  String?
+  passportImageUrl         String?
+  facePhotoUrl             String?
+  fullBodyPhotoUrl         String?
+  cocDocumentUrl           String?
+  medicalDocumentUrl       String?
+  candidateIdImageUrl      String?
+  relativeIdImageUrl       String?
+  labourIdUrl              String?
+  isRequested              Boolean   @default(false)
+  visaOrContractNumber     String?
+  isFlagged                Boolean   @default(false)
+  videoUrl                 String?
+  registeredAt             DateTime  @default(now())
+  status                   String    @default("pending")
+
+  broker                   Broker?   @relation(fields: [brokerId], references: [id])
+  brokerId                 String?
+
+  generatedCVs             GeneratedCV[]
+
+  @@index([passportNumber])
+  @@index([nationality])
+}
+
+model GeneratedCV {
+  id               String    @id @default(cuid())
+  candidateId      String
+  candidate        Candidate @relation(fields: [candidateId], references: [id])
+  templateId       String    // e.g., "alm", "ka7", "ku2", "ma", "ra"
+  facePhotoUrl     String?   @db.Text
+  fullBodyPhotoUrl String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([templateId])
+  @@index([candidateId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  candidateId String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([isRead])
+}
+
+// ── Better Auth Models ────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("user") // user | admin | super_admin | agency
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([providerId, accountId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// ── Quick Registration (Walk-in candidates for Musaned) ───────────────────────
+
+model QuickRegistration {
+  id               String   @id @default(cuid())
+  passportNumber   String
+  surname          String
+  givenNames       String
+  dateOfBirth      String?
+  gender           String?
+  nationality      String?
+  dateOfExpiry     String?
+  issuingCountry   String?
+  placeOfBirth     String?
+  educationLevel   String?
+  jobExperience    String?  @db.LongText
+  maritalStatus    String?
+  numberOfChildren Int      @default(0)
+  passportImageUrl String?  @db.LongText
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+}
