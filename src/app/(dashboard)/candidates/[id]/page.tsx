@@ -10,6 +10,16 @@ import {
 import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
+const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
+  <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10">
+    <div className="flex items-center gap-2 mb-1">
+      <Icon size={14} className="text-primary/60" />
+      <p className="text-[10px] text-text-tertiary uppercase tracking-[0.15em] font-bold">{label}</p>
+    </div>
+    <p className="text-[15px] text-text-primary font-semibold pl-5">{value || '—'}</p>
+  </div>
+);
+
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -68,15 +78,6 @@ export default function CandidateDetailPage() {
   const pd = c.passportData;
   const pi = c.personalInfo;
 
-  const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
-    <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10">
-      <div className="flex items-center gap-2 mb-1">
-        <Icon size={14} className="text-primary/60" />
-        <p className="text-[10px] text-text-tertiary uppercase tracking-[0.15em] font-bold">{label}</p>
-      </div>
-      <p className="text-[15px] text-text-primary font-semibold pl-5">{value || '—'}</p>
-    </div>
-  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in pb-10">
