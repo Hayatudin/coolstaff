@@ -57,14 +57,14 @@ export default function HomePage() {
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 30);
     window.addEventListener('scroll', fn);
-    
+
     const clickOutside = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
     };
     document.addEventListener('mousedown', clickOutside);
-    
+
     return () => {
       window.removeEventListener('scroll', fn);
       document.removeEventListener('mousedown', clickOutside);
@@ -107,7 +107,7 @@ export default function HomePage() {
               <div className="px-4 py-2"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
             ) : session ? (
               <div className="relative" ref={profileRef}>
-                <button 
+                <button
                   onClick={() => setProfileOpen(!profileOpen)}
                   className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
                 >
@@ -128,7 +128,7 @@ export default function HomePage() {
                         <LayoutDashboard size={14} /> Dashboard
                       </Link>
                     )}
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-4 py-2 text-[13px] text-red-500 hover:bg-red-50 transition-colors"
                     >
@@ -191,7 +191,7 @@ export default function HomePage() {
 
             <h1 className="text-[2.8rem] md:text-[3.5rem] lg:text-[3.8rem] font-black leading-[1.08] tracking-tight mb-6">
               <span className="text-gray-900">Connecting </span>
-              <span style={{ color: BRAND }}>Ethiopian Talent</span>
+              <span style={{ color: BRAND }}>Melaverse Talent</span>
               <span className="text-gray-900"> with Gulf Careers</span>
             </h1>
 
@@ -234,7 +234,7 @@ export default function HomePage() {
           <div className="flex-1 flex justify-center lg:justify-end relative">
             <div className="relative w-full max-w-[580px]">
               {/* Glow behind image */}
-            
+
               <img
                 src="/HERO.png"
                 alt="DAERA Hero"

@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "node server.js",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate || true && npx playwright install chromium"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -26,9 +26,12 @@
     "lucide-react": "^1.9.0",
     "mammoth": "^1.12.0",
     "mrz": "^5.0.2",
-    "next": "16.2.4",
+    "next": "15.1.4",
     "pdf-parse": "^1.1.1",
     "pizzip": "^3.2.0",
+    "playwright": "^1.50.0",
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "sharp": "^0.34.5",
@@ -36,18 +39,17 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "prisma": "^6.4.1",
-    "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   },
   "prisma": {
+    "schema": "prisma/schema.prisma",
     "seed": "node prisma/seed.js"
   }
 }

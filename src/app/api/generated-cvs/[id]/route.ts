@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { templateId } = await request.json();
@@ -49,7 +49,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } | Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const resolvedParams = await params;
