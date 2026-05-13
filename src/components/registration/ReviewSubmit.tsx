@@ -13,23 +13,25 @@ interface ReviewSubmitProps {
   passportImage?: string | null;
 }
 
-export default function ReviewSubmit({ passportData, personalInfo, facePhoto, passportImage }: ReviewSubmitProps) {
-  const Section = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
-    <div className="border border-border rounded-xl p-5 hover:shadow-md transition-shadow duration-200">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-1.5 rounded-lg bg-primary-50">{icon}</div>
-        <h4 className="font-semibold text-text-primary">{title}</h4>
-      </div>
-      {children}
+const Section = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="border border-border rounded-xl p-5 hover:shadow-md transition-shadow duration-200">
+    <div className="flex items-center gap-2 mb-4">
+      <div className="p-1.5 rounded-lg bg-primary-50">{icon}</div>
+      <h4 className="font-semibold text-text-primary">{title}</h4>
     </div>
-  );
+    {children}
+  </div>
+);
 
-  const Field = ({ label, value }: { label: string; value: string | number | undefined }) => (
-    <div>
-      <p className="text-xs text-text-tertiary mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-text-primary">{value || '—'}</p>
-    </div>
-  );
+const Field = ({ label, value }: { label: string; value: string | number | undefined }) => (
+  <div>
+    <p className="text-xs text-text-tertiary mb-0.5">{label}</p>
+    <p className="text-sm font-medium text-text-primary">{value || '—'}</p>
+  </div>
+);
+
+export default function ReviewSubmit({ passportData, personalInfo, facePhoto, passportImage }: ReviewSubmitProps) {
+
 
   return (
     <div className="space-y-6 animate-slide-in-right">
