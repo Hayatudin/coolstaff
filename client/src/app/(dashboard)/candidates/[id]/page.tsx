@@ -8,7 +8,7 @@ import {
   Heart, GraduationCap, Globe, Shield, FileText, Eye, Loader2, Clock
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
@@ -98,7 +98,7 @@ export default function CandidateDetailPage() {
           <div className="relative shrink-0">
             <div className="w-40 h-40 rounded-full bg-white shadow-xl shadow-black/5 flex items-center justify-center overflow-hidden border-[6px] border-white ring-1 ring-black/5">
               {c.facePhotoUrl ? (
-                <img src={c.facePhotoUrl} alt="Face" className="w-full h-full object-cover" />
+                <img src={getFileUrl(c.facePhotoUrl)} alt="Face" className="w-full h-full object-cover" crossOrigin="anonymous" />
               ) : (
                 <span className="text-primary font-black text-5xl">{pd.givenNames.charAt(0)}{pd.surname.charAt(0)}</span>
               )}
@@ -336,37 +336,37 @@ export default function CandidateDetailPage() {
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">COC Certificate</span>
                 {c.cocDocumentUrl ? (
-                  <button onClick={() => setViewDoc(c.cocDocumentUrl!)} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                  <button onClick={() => setViewDoc(getFileUrl(c.cocDocumentUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
                 ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Medical Report</span>
                 {c.medicalDocumentUrl ? (
-                  <button onClick={() => setViewDoc(c.medicalDocumentUrl!)} className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                  <button onClick={() => setViewDoc(getFileUrl(c.medicalDocumentUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
                 ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Passport Scan</span>
                 {c.passportImageUrl ? (
-                  <button onClick={() => setViewDoc(c.passportImageUrl!)} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                  <button onClick={() => setViewDoc(getFileUrl(c.passportImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
                 ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Candidate ID</span>
                 {c.candidateIdImageUrl ? (
-                  <button onClick={() => setViewDoc(c.candidateIdImageUrl!)} className="text-[11px] uppercase tracking-[0.1em] text-blue-600 hover:text-blue-800 font-black px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                  <button onClick={() => setViewDoc(getFileUrl(c.candidateIdImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-blue-600 hover:text-blue-800 font-black px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
                 ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Relative ID</span>
                 {c.relativeIdImageUrl ? (
-                  <button onClick={() => setViewDoc(c.relativeIdImageUrl!)} className="text-[11px] uppercase tracking-[0.1em] text-amber-600 hover:text-amber-800 font-black px-3 py-1.5 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                  <button onClick={() => setViewDoc(getFileUrl(c.relativeIdImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-amber-600 hover:text-amber-800 font-black px-3 py-1.5 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
                 ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Labour ID</span>
                 {c.labourIdUrl ? (
-                  <button onClick={() => setViewDoc(c.labourIdUrl!)} className="text-[11px] uppercase tracking-[0.1em] text-violet-600 hover:text-violet-800 font-black px-3 py-1.5 bg-violet-100 hover:bg-violet-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                  <button onClick={() => setViewDoc(getFileUrl(c.labourIdUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-violet-600 hover:text-violet-800 font-black px-3 py-1.5 bg-violet-100 hover:bg-violet-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
                 ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
               </div>
             </div>

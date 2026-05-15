@@ -1,5 +1,8 @@
-export function cn(...classes: (string | boolean | undefined | null)[]): string {
-  return classes.filter(Boolean).join(' ');
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
 export function formatDate(dateString: string): string {
@@ -10,6 +13,17 @@ export function formatDate(dateString: string): string {
     month: 'long',
     day: 'numeric',
   });
+}
+
+export function getFileUrl(path: string | null | undefined) {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+  
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
+  
+  // Ensure the path uses our new secure proxy route
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  return `${baseUrl}/api/assets/${cleanPath}`;
 }
 
 export function generateId(): string {

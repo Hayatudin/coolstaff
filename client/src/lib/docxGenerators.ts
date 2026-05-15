@@ -1,11 +1,13 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, AlignmentType, VerticalAlign, BorderStyle, WidthType, HeightRule, TextDirection, Header, TableAnchorType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionAlign, TextWrappingType, ShadingType } from 'docx';
+import { getFileUrl } from './utils';
 import { Candidate } from '../types';
 
 // Helper to fetch image as ArrayBuffer
 async function fetchImageBuffer(url: string): Promise<ArrayBuffer | null> {
   if (!url) return null;
+  const fullUrl = getFileUrl(url);
   try {
-    const res = await fetch(url);
+    const res = await fetch(fullUrl);
     if (!res.ok) return null;
     return await res.arrayBuffer();
   } catch (err) {

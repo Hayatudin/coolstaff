@@ -2,10 +2,12 @@
  * Central API helper for the frontend to communicate with the standalone backend.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
 
 export async function api(path: string, options: RequestInit = {}) {
-  const url = `${API_BASE_URL}${path}`;
+  // Ensure path starts with a slash
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${API_BASE_URL}${cleanPath}`;
   
   const isFormData = options.body instanceof FormData;
   
@@ -15,7 +17,7 @@ export async function api(path: string, options: RequestInit = {}) {
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     },
-    // Ensure cookies are sent for authentication
+    // Ensure cookies are sent for authentication across domains
     credentials: 'include',
   };
 

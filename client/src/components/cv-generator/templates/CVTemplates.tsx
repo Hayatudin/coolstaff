@@ -11,7 +11,7 @@ export function TemplateClassic({ candidate, facePhoto }: TemplateProps) {
   return (
     <div className="bg-white w-full aspect-[210/297] p-8 text-[10px] leading-relaxed" style={{fontFamily:'Georgia, serif'}}>
       <div className="border-b-2 border-gray-800 pb-4 mb-4 flex items-start gap-4">
-        {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover border border-gray-300" />}
+        {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover border border-gray-300" crossOrigin="anonymous" />}
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">{p.givenNames} {p.surname}</h1>
           <p className="text-gray-600 mt-1">{pi.phone} • {pi.email}</p>
@@ -43,7 +43,7 @@ export function TemplateModern({ candidate, facePhoto }: TemplateProps) {
   return (
     <div className="bg-white w-full aspect-[210/297] text-[10px] leading-relaxed overflow-hidden" style={{fontFamily:'Inter, sans-serif'}}>
       <div className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-6 flex items-center gap-4">
-        {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover rounded-lg border-2 border-white/30" />}
+        {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover rounded-lg border-2 border-white/30" crossOrigin="anonymous" />}
         <div><h1 className="text-xl font-bold">{p.givenNames} {p.surname}</h1><p className="text-indigo-100 mt-1">{p.nationality} • {p.gender}</p><p className="text-indigo-200 text-[9px]">{pi.phone} | {pi.email}</p></div>
       </div>
       <div className="p-6 space-y-4">
@@ -66,7 +66,7 @@ export function TemplateProfessional({ candidate, facePhoto, fullBodyPhoto }: Te
   return (
     <div className="bg-white w-full aspect-[210/297] flex text-[10px] leading-relaxed overflow-hidden" style={{fontFamily:'Inter, sans-serif'}}>
       <div className="w-1/3 bg-gray-900 text-white p-5 flex flex-col items-center">
-        {facePhoto && <img src={facePhoto} alt="Photo" className="w-24 h-28 object-cover rounded-xl mb-3 border-2 border-gray-700" />}
+        {facePhoto && <img src={facePhoto} alt="Photo" className="w-24 h-28 object-cover rounded-xl mb-3 border-2 border-gray-700" crossOrigin="anonymous" />}
         <h2 className="text-sm font-bold text-center">{p.givenNames}</h2><p className="text-gray-400 text-center">{p.surname}</p>
         <div className="w-full mt-4 space-y-3">
           <div><p className="text-[8px] text-gray-500 uppercase">Phone</p><p>{pi.phone}</p></div>
@@ -74,7 +74,7 @@ export function TemplateProfessional({ candidate, facePhoto, fullBodyPhoto }: Te
           <div><p className="text-[8px] text-gray-500 uppercase">Location</p><p>{pi.city}, {pi.country}</p></div>
           <div><p className="text-[8px] text-gray-500 uppercase">Languages</p>{pi.languages.map(l=><p key={l} className="text-gray-300">{l}</p>)}</div>
         </div>
-        {fullBodyPhoto && <img src={fullBodyPhoto} alt="Full body" className="w-full h-32 object-cover rounded-lg mt-auto border border-gray-700" />}
+        {fullBodyPhoto && <img src={fullBodyPhoto} alt="Full body" className="w-full h-32 object-cover rounded-lg mt-auto border border-gray-700" crossOrigin="anonymous" />}
       </div>
       <div className="flex-1 p-6 space-y-4">
         <h1 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2">CURRICULUM VITAE</h1>
@@ -95,7 +95,7 @@ export function TemplateMinimal({ candidate, facePhoto }: TemplateProps) {
   return (
     <div className="bg-white w-full aspect-[210/297] p-10 text-[10px] leading-loose" style={{fontFamily:'Inter, sans-serif'}}>
       <div className="flex items-center gap-5 mb-6">
-        {facePhoto && <img src={facePhoto} alt="Photo" className="w-16 h-20 object-cover rounded-md" />}
+        {facePhoto && <img src={facePhoto} alt="Photo" className="w-16 h-20 object-cover rounded-md" crossOrigin="anonymous" />}
         <div><h1 className="text-2xl font-light text-gray-900 tracking-wide">{p.givenNames} {p.surname}</h1><p className="text-gray-400 mt-1">{pi.email} • {pi.phone}</p></div>
       </div>
       <div className="h-px bg-gray-200 mb-6" />
@@ -116,8 +116,8 @@ export function TemplateElegant({ candidate, facePhoto, fullBodyPhoto }: Templat
       <div className="p-7">
         <div className="text-center border-b-2 border-amber-500/30 pb-4 mb-5">
           <div className="flex justify-center gap-4 mb-3">
-            {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover rounded-lg border-2 border-amber-200" />}
-            {fullBodyPhoto && <img src={fullBodyPhoto} alt="Full body" className="w-20 h-24 object-cover rounded-lg border-2 border-amber-200" />}
+            {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover rounded-lg border-2 border-amber-200" crossOrigin="anonymous" />}
+            {fullBodyPhoto && <img src={fullBodyPhoto} alt="Full body" className="w-20 h-24 object-cover rounded-lg border-2 border-amber-200" crossOrigin="anonymous" />}
           </div>
           <h1 className="text-xl font-bold text-gray-900">{p.givenNames} {p.surname}</h1>
           <p className="text-amber-600 mt-1">{p.nationality} • {pi.educationLevel}</p>

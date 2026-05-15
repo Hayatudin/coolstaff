@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
 import { DownloadFormat, Candidate } from '@/types';
 import CandidateSelector from '@/components/cv-generator/CandidateSelector';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { FileText, CheckCircle2, User, Download, ChevronDown, FileDown, Image as ImageIcon, Camera } from 'lucide-react';
 import TemplateGrid from '@/components/cv-generator/TemplateGrid';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -42,6 +42,9 @@ function CVGeneratorContent() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [generatedCvs, setGeneratedCvs] = useState<any[]>([]);
   const [alreadyGeneratedTemplate, setAlreadyGeneratedTemplate] = useState<string | null>(null);
+  const [facePhotoB64, setFacePhotoB64] = useState<string | null>(null);
+  const [fullBodyPhotoB64, setFullBodyPhotoB64] = useState<string | null>(null);
+  const [isPreloading, setIsPreloading] = useState(false);
 
   React.useEffect(() => {
     api('/api/generated-cvs')
@@ -81,26 +84,59 @@ function CVGeneratorContent() {
 
   const selectedCandidate = candidates.find(c => c.id === selectedCandidateId) || null;
 
-  const getFullUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    if (path.startsWith('http') || path.startsWith('data:')) return path;
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
-  };
+  // Pre-load images as Base64 to avoid CORS issues with html-to-image
+  React.useEffect(() => {
+    if (!selectedCandidate) {
+      setFacePhotoB64(null);
+      setFullBodyPhotoB64(null);
+      return;
+    }
 
-  const facePhoto = getFullUrl(selectedCandidate?.facePhotoUrl || selectedCandidate?.passportImageUrl);
-  const fullBodyPhoto = getFullUrl(selectedCandidate?.fullBodyPhotoUrl);
-  const passportImageUrl = getFullUrl(selectedCandidate?.passportImageUrl);
+    const convertImages = async () => {
+      setIsPreloading(true);
+      const convert = async (url?: string) => {
+        if (!url) return null;
+        try {
+          const absoluteUrl = getFileUrl(url);
+          const res = await fetch(absoluteUrl);
+          if (!res.ok) throw new Error('Fetch failed');
+          const blob = await res.blob();
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          console.warn('Failed to convert image to B64:', url, e);
+          return getFileUrl(url); // Fallback to raw URL
+        }
+      };
+
+      const [face, body] = await Promise.all([
+        convert(selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl),
+        convert(selectedCandidate.fullBodyPhotoUrl)
+      ]);
+      setFacePhotoB64(face);
+      setFullBodyPhotoB64(body);
+      setIsPreloading(false);
+    };
+
+    convertImages();
+  }, [selectedCandidate]);
+
+  const facePhoto = getFileUrl(selectedCandidate?.facePhotoUrl || selectedCandidate?.passportImageUrl);
+  const fullBodyPhoto = getFileUrl(selectedCandidate?.fullBodyPhotoUrl);
+  const passportImageUrl = getFileUrl(selectedCandidate?.passportImageUrl);
 
   // We should also update the candidate object passed to templates to have full URLs
   const candidateWithFullUrls = selectedCandidate ? {
     ...selectedCandidate,
-    passportImageUrl: getFullUrl(selectedCandidate.passportImageUrl),
-    facePhotoUrl: getFullUrl(selectedCandidate.facePhotoUrl),
-    fullBodyPhotoUrl: getFullUrl(selectedCandidate.fullBodyPhotoUrl),
-    cocDocumentUrl: getFullUrl(selectedCandidate.cocDocumentUrl),
-    medicalDocumentUrl: getFullUrl(selectedCandidate.medicalDocumentUrl),
-  } : null;
+    passportImageUrl: getFileUrl(selectedCandidate.passportImageUrl),
+    facePhotoUrl: getFileUrl(selectedCandidate.facePhotoUrl),
+    fullBodyPhotoUrl: getFileUrl(selectedCandidate.fullBodyPhotoUrl),
+    cocDocumentUrl: getFileUrl(selectedCandidate.cocDocumentUrl),
+    medicalDocumentUrl: getFileUrl(selectedCandidate.medicalDocumentUrl),
+  } as Candidate : null;
 
   const handleDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
     if (!cvRef.current || !selectedCandidate) return;
@@ -126,10 +162,14 @@ function CVGeneratorContent() {
       cvRef.current.style.height = 'auto';
       cvRef.current.style.overflow = 'visible';
 
+      // Wait a tiny bit for images to be absolutely ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const dataUrl = await htmlToImage.toJpeg(cvRef.current, {
         quality: 0.95,
         backgroundColor: '#ffffff',
         pixelRatio: 2, // High resolution
+        cacheBust: true, // Bypass browser cache for fresh images
       });
 
       // Restore styles
@@ -190,10 +230,9 @@ function CVGeneratorContent() {
           fullBodyPhoto
         };
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/cv/generate`, {
+        const response = await api('/api/cv/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify(payload)
         });
 
@@ -372,13 +411,22 @@ function CVGeneratorContent() {
                 <div id="cv-print-area" ref={cvRef}>
                   {candidateWithFullUrls ? (
                     <>
-                      {selectedTemplateId === 'ussus' && <UssusTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'al-shablan' && <AlShablanTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'alm' && <ALMTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ka7' && <KA7Template candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ku2' && <KU2Template candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ma' && <MATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ra' && <RATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {isPreloading ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-white min-h-[700px]">
+                           <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
+                           <p className="text-sm text-text-secondary">Loading high-res photos...</p>
+                        </div>
+                      ) : (
+                        <>
+                          {selectedTemplateId === 'ussus' && <UssusTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'al-shablan' && <AlShablanTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'alm' && <ALMTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'ka7' && <KA7Template candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'ku2' && <KU2Template candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'ma' && <MATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'ra' && <RATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                        </>
+                      )}
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-center bg-white min-h-[700px] print:hidden">

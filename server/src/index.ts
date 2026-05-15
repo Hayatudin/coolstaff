@@ -1,19 +1,35 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// CORS & cookies first (they don't consume the request body)
-app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true,
-}));
+// 1. ULTIMATE CORS FIX - Allow everything correctly with credentials
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // Fallback for requests without Origin header (like same-origin or direct)
+    // We don't use '*' because it breaks with Credentials: true
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).send();
+  }
+  next();
+});
+
 app.use(cookieParser());
 
 // Better Auth handler — MUST come before body parsers
@@ -31,6 +47,20 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
+// UNBLOCKABLE ASSET PROXY (Fixes cPanel CORS issues)
+app.get('/api/assets/*', (req: Request, res: Response) => {
+  const assetPath = (req.params as any)[0];
+  const fullPath = path.join(process.cwd(), 'public', assetPath);
+  
+  if (fs.existsSync(fullPath)) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    return res.sendFile(fullPath);
+  }
+  res.status(404).send('Asset not found');
+});
 
 // Routes
 import candidateRoutes from './routes/candidates';
@@ -59,9 +89,27 @@ app.use('/api/search', searchRoutes);
 app.use('/api/cron', cronRoutes);
 app.use('/api/quick-registrations', quickRegistrationRoutes);
 
-// Routes placeholder
+// Root route
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'COOLSTAFF API is running' });
+});
+
+// --- GLOBAL ERROR HANDLER ---
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('SERVER ERROR:', err);
+  
+  // Ensure CORS headers are present even on error
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  res.status(500).json({ 
+    error: 'Internal Server Error', 
+    message: err.message || 'Unknown error',
+    code: err.code 
+  });
 });
 
 // Start server

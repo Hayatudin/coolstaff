@@ -9,7 +9,7 @@ import {
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
   FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -175,8 +175,8 @@ function ChangeTemplateModal({
                     <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
                       <TC
                         candidate={cv.candidate}
-                        facePhoto={cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
-                        fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl}
+                        facePhoto={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
+                        fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)}
                       />
                     </div>
                     {isSelected && (
@@ -505,8 +505,8 @@ export default function GeneratedCVsPage() {
             templateId: `tmpl-${downloadingCv.templateId}`,
             format: 'doc',
             deadline: downloadingCv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
-            facePhoto: downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl,
-            fullBodyPhoto: downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl
+            facePhoto: getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl),
+            fullBodyPhoto: getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)
           };
 
           const response = await api('/api/cv/generate', {
@@ -600,7 +600,7 @@ export default function GeneratedCVsPage() {
                     {folder.cvs.slice(0, 4).map(cv => (
                       <div key={cv.id} className="w-7 h-7 rounded-full ring-2 ring-surface overflow-hidden bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
-                          ? <img src={cv.facePhotoUrl || cv.candidate.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                           : cv.candidate.givenNames.charAt(0)}
                       </div>
                     ))}
@@ -668,8 +668,8 @@ export default function GeneratedCVsPage() {
           root.render(
             React.createElement(TC, {
               candidate: cv.candidate,
-              facePhoto: cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl,
-              fullBodyPhoto: cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl,
+              facePhoto: getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl),
+              fullBodyPhoto: getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl),
             })
           );
           setTimeout(resolve, 500);
@@ -690,8 +690,8 @@ export default function GeneratedCVsPage() {
             templateId: `tmpl-${selectedFolder}`,
             format: 'doc',
             deadline: cv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
-            facePhoto: cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl,
-            fullBodyPhoto: cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl
+            facePhoto: getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl),
+            fullBodyPhoto: getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)
           };
           const response = await api('/api/cv/generate', {
             method: 'POST',
@@ -866,8 +866,8 @@ export default function GeneratedCVsPage() {
                   <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
                     <TC
                       candidate={cv.candidate}
-                      facePhoto={cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
-                      fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl}
+                      facePhoto={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
+                      fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)}
                     />
                   </div>
                   {/* Hover overlay */}
@@ -884,7 +884,7 @@ export default function GeneratedCVsPage() {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden border border-border bg-primary-50 text-primary flex items-center justify-center font-bold text-sm">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
-                          ? <img src={cv.facePhotoUrl || cv.candidate.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                           : cv.candidate.givenNames.charAt(0)}
                       </div>
                       <div className="min-w-0">
@@ -954,8 +954,8 @@ export default function GeneratedCVsPage() {
               <div ref={cvRenderRef}>
                 <DlTemplate
                   candidate={downloadingCv.candidate}
-                  facePhoto={downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl}
-                  fullBodyPhoto={downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl}
+                  facePhoto={getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
+                  fullBodyPhoto={getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
                 />
               </div>
             </div>

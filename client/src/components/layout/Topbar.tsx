@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, ChevronDown, User, FileText, X, Loader2, CheckCheck, Menu } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { useSession } from '@/lib/auth-client';
 import { api } from '@/lib/api';
 
@@ -154,7 +154,7 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
                   >
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-primary font-bold overflow-hidden border border-border/50 group-hover:border-primary/30">
                       {candidate.facePhotoUrl ? (
-                        <img src={candidate.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={getFileUrl(candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                       ) : (
                         <span>{candidate.givenNames.charAt(0)}</span>
                       )}

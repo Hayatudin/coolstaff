@@ -186,32 +186,53 @@ router.post('/generate', async (req: Request, res: Response) => {
     const fetchImageAsBase64 = async (url: string) => {
       if (!url) return '';
       
-      // Handle remote URLs
-      if (url.startsWith('http')) {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) return '';
-          const arrayBuffer = await res.arrayBuffer();
-          return Buffer.from(arrayBuffer).toString('base64');
-        } catch (e) {
-          console.warn(`Failed to fetch remote image: ${url}`);
-          return '';
-        }
-      }
-
-      // Handle local paths or data URLs
+      // If it's already a base64 data URL, just strip the prefix
       if (url.startsWith('data:')) {
         return url.split(',')[1] || url;
       }
 
-      // Handle local relative paths (e.g. /uploads/...)
+      // Try local file system first (faster and more reliable on cPanel)
       try {
-        const localPath = path.join(process.cwd(), 'public', url.startsWith('/') ? url.slice(1) : url);
-        if (fs.existsSync(localPath)) {
-          return fs.readFileSync(localPath, 'base64');
+        // Handle both relative paths and absolute-looking relative paths
+        let cleanUrl = url.startsWith('http') ? new URL(url).pathname : url;
+        
+        // If it uses our new proxy route /api/assets/..., strip it to get the real path
+        if (cleanUrl.includes('/api/assets/')) {
+          cleanUrl = cleanUrl.split('/api/assets/')[1];
+        }
+
+        const relativePath = cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl;
+        
+        // Try common locations: root/public/uploads or root/uploads
+        const pathsToTry = [
+          path.join(process.cwd(), 'public', relativePath),
+          path.join(process.cwd(), relativePath),
+          path.join(process.cwd(), '..', 'public', relativePath),
+          path.join(process.cwd(), 'public', 'uploads', relativePath),
+        ];
+
+        for (const localPath of pathsToTry) {
+          if (fs.existsSync(localPath)) {
+            console.log(`[DOCX] Found local image at: ${localPath}`);
+            return fs.readFileSync(localPath, 'base64');
+          }
         }
       } catch (e) {
-        console.warn(`Failed to read local image: ${url}`);
+        console.warn(`[DOCX] Local read failed for: ${url}`, e);
+      }
+
+      // Fallback to remote fetch if local fails
+      if (url.startsWith('http')) {
+        try {
+          console.log(`[DOCX] Fetching remote image: ${url}`);
+          const res = await fetch(url);
+          if (res.ok) {
+            const arrayBuffer = await res.arrayBuffer();
+            return Buffer.from(arrayBuffer).toString('base64');
+          }
+        } catch (e) {
+          console.warn(`[DOCX] Remote fetch failed: ${url}`);
+        }
       }
       
       return '';
