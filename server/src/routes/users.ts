@@ -46,7 +46,7 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
     const assignedRole = VALID_ROLES.includes(role) ? role : 'user';
 
     // Use Better Auth's sign-up API
-    const authRes = await auth.api.signUpEmail({
+    const authRes: any = await auth.api.signUpEmail({
       body: { name, email, password },
     });
 

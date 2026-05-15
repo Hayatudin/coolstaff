@@ -23,18 +23,18 @@ import {
 
 // Base nav items shown to all dashboard roles
 const baseNavItems = [
-  { label: 'Dashboard',        href: '/dashboard',      icon: LayoutDashboard },
-  { label: 'Candidates',       href: '/candidates',     icon: Users           },
-  { label: 'Visa Selected',    href: '/requested',      icon: ClipboardList   },
-  { label: 'Fit Candidates',   href: '/fit-candidates', icon: UserCheck       },
-  { label: 'Brokers',          href: '/brokers',        icon: Users           },
-  { label: 'Registration',     href: '/registration',   icon: UserPlus        },
+  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Candidates', href: '/candidates', icon: Users },
   { label: 'Quick Registration', href: '/quick-registration', icon: ClipboardList },
-  { label: 'Quick Registered', href: '/quick-registered', icon: Users       },
-  { label: 'CV Generator',     href: '/cv-generator',   icon: FileText        },
-  { label: 'Generated CVs',    href: '/generated-cvs',  icon: FolderOpen      },
-  { label: 'Backup CVs',       href: '/backup',         icon: FolderOpen      },
-  { label: 'Settings',         href: '/settings',       icon: Settings        },
+  { label: 'Quick Registered', href: '/quick-registered', icon: Users },
+  { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
+  { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
+  { label: 'Registration', href: '/registration', icon: UserPlus },
+  { label: 'CV Generator', href: '/cv-generator', icon: FileText },
+  { label: 'Generated CVs', href: '/generated-cvs', icon: FolderOpen },
+  { label: 'Brokers', href: '/brokers', icon: Users },
+  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Backup CVs', href: '/backup', icon: FolderOpen },
 ];
 
 // Extra nav item visible only to super_admin
@@ -52,14 +52,14 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavigate }: SidebarProps) {
-  const pathname  = usePathname();
-  const router    = useRouter();
+  const pathname = usePathname();
+  const router = useRouter();
   const { data: session, isPending } = useSession();
 
-  const role      = (session?.user as any)?.role ?? 'user';
+  const role = (session?.user as any)?.role ?? 'user';
   const isSuperAdmin = role === 'super_admin';
 
-  const navItems  = isSuperAdmin
+  const navItems = isSuperAdmin
     ? [...baseNavItems, superAdminNavItem]
     : baseNavItems;
 
@@ -104,9 +104,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
           <span className={cn(
             'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider',
             role === 'super_admin' ? 'bg-amber-400/20 text-amber-300' :
-            role === 'admin'       ? 'bg-indigo-400/20 text-indigo-300' :
-            role === 'agency'      ? 'bg-cyan-400/20 text-cyan-300'     :
-                                     'bg-white/10 text-white/40'
+              role === 'admin' ? 'bg-indigo-400/20 text-indigo-300' :
+                role === 'agency' ? 'bg-cyan-400/20 text-cyan-300' :
+                  'bg-white/10 text-white/40'
           )}>
             <ShieldCheck size={10} />
             {role.replace('_', ' ')}

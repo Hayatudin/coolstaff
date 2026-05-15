@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, AlignmentType, VerticalAlign, BorderStyle, WidthType, HeightRule, Header, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType, ShadingType, HorizontalPositionAlign, VerticalPositionAlign } from 'docx';
+siimport { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, AlignmentType, VerticalAlign, BorderStyle, WidthType, HeightRule, Header, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType, ShadingType, HorizontalPositionAlign, VerticalPositionAlign } from 'docx';
 import fs from 'fs';
 import path from 'path';
 
@@ -602,7 +602,9 @@ async function generateTemplates() {
     });
 
     const blob = await Packer.toBuffer(doc);
-    fs.writeFileSync(path.join(__dirname, `../../templates/CV ${t.id}.docx`), blob);
+    const targetDir = path.join(__dirname, `../../server/templates`);
+    if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+    fs.writeFileSync(path.join(targetDir, `CV ${t.id}.docx`), blob);
     console.log(`Saved CV ${t.id}.docx`);
   }
 }

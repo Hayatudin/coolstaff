@@ -82,7 +82,7 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     // DOCX formatting (docxtemplater logic)
     if (format === 'doc' || format === 'docx') {
-      const templatePath = path.join(process.cwd(), '../templates', templateRef);
+      const templatePath = path.join(process.cwd(), 'templates', templateRef);
       if (!fs.existsSync(templatePath)) {
         return res.status(404).json({ error: `Template file not found: ${templateRef}` });
       }
@@ -185,6 +185,8 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     const fetchImageAsBase64 = async (url: string) => {
       if (!url) return '';
+      
+      // Handle remote URLs
       if (url.startsWith('http')) {
         try {
           const res = await fetch(url);
@@ -192,10 +194,27 @@ router.post('/generate', async (req: Request, res: Response) => {
           const arrayBuffer = await res.arrayBuffer();
           return Buffer.from(arrayBuffer).toString('base64');
         } catch (e) {
+          console.warn(`Failed to fetch remote image: ${url}`);
           return '';
         }
       }
-      return url.split(',')[1] || url;
+
+      // Handle local paths or data URLs
+      if (url.startsWith('data:')) {
+        return url.split(',')[1] || url;
+      }
+
+      // Handle local relative paths (e.g. /uploads/...)
+      try {
+        const localPath = path.join(process.cwd(), 'public', url.startsWith('/') ? url.slice(1) : url);
+        if (fs.existsSync(localPath)) {
+          return fs.readFileSync(localPath, 'base64');
+        }
+      } catch (e) {
+        console.warn(`Failed to read local image: ${url}`);
+      }
+      
+      return '';
     };
 
     const facePhotoData = await fetchImageAsBase64(facePhoto || candidate.passportImageUrl || '');
@@ -238,8 +257,8 @@ router.post('/generate', async (req: Request, res: Response) => {
       skills: skillsArray.join(', ') || '-',
       medicalStatus: formatValue(candidate.medicalStatus),
       knownConditions: formatValue(candidate.knownConditions),
-      emergencyName: formatValue(candidate.emergencyName),
-      emergencyPhone: formatValue(candidate.emergencyPhone),
+      emergencyName: formatValue(candidate.emergencyContactName),
+      emergencyPhone: formatValue(candidate.emergencyContactPhone),
       job: formatValue(candidate.job),
       age: calculateAge(candidate.dateOfBirth),
       
@@ -291,8 +310,6 @@ router.post('/generate', async (req: Request, res: Response) => {
       SKILLS: skillsArray.join(', ') || '-',
       PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
       AGE: calculateAge(candidate.dateOfBirth),
-      expCountry: '-',
-      expPeriod: '-',
       expPosition: '-',
     };
 

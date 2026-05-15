@@ -1,25 +1,17 @@
-# Large files
-*.zip
-
 # dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
+node_modules/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
-# production
-/build
+# production builds
+dist/
+build/
+
+# Large files
+*.zip
+*.pack
 
 # misc
 .DS_Store
@@ -42,4 +34,20 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# uploads (user data, not code)
+server/public/uploads/
+
+# generated prisma
 /src/generated/prisma
+
+# yarn
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+coverage/

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Candidate } from '@/types';
-import { QRCodeSVG } from 'qrcode.react';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -147,18 +146,17 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
               </p>
             </div>
 
+            {/* QR Code Section */}
             {candidate.videoUrl && (
-              <div className="mt-8 flex flex-col items-center gap-2">
-                <div className="p-2 bg-white border border-primary/20 rounded-xl shadow-md">
-                  <QRCodeSVG 
-                    value={candidate.videoUrl} 
-                    size={110}
-                    level="H"
+              <div className="mt-4 flex flex-col items-center gap-1 border-t border-gray-200 pt-4">
+                <p className="text-[11px] font-bold uppercase text-gray-500">Video Introduction</p>
+                <div className="w-24 h-24 bg-white p-1 shadow-sm">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
+                    alt="Video QR" 
+                    className="w-full h-full"
                   />
                 </div>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-tighter opacity-70">
-                  Scan to watch video
-                </p>
               </div>
             )}
           </div>

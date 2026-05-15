@@ -81,8 +81,26 @@ function CVGeneratorContent() {
 
   const selectedCandidate = candidates.find(c => c.id === selectedCandidateId) || null;
 
-  const facePhoto = selectedCandidate?.facePhotoUrl || selectedCandidate?.passportImageUrl || null;
-  const fullBodyPhoto = selectedCandidate?.fullBodyPhotoUrl || null;
+  const getFullUrl = (path: string | null | undefined) => {
+    if (!path) return null;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  const facePhoto = getFullUrl(selectedCandidate?.facePhotoUrl || selectedCandidate?.passportImageUrl);
+  const fullBodyPhoto = getFullUrl(selectedCandidate?.fullBodyPhotoUrl);
+  const passportImageUrl = getFullUrl(selectedCandidate?.passportImageUrl);
+
+  // We should also update the candidate object passed to templates to have full URLs
+  const candidateWithFullUrls = selectedCandidate ? {
+    ...selectedCandidate,
+    passportImageUrl: getFullUrl(selectedCandidate.passportImageUrl),
+    facePhotoUrl: getFullUrl(selectedCandidate.facePhotoUrl),
+    fullBodyPhotoUrl: getFullUrl(selectedCandidate.fullBodyPhotoUrl),
+    cocDocumentUrl: getFullUrl(selectedCandidate.cocDocumentUrl),
+    medicalDocumentUrl: getFullUrl(selectedCandidate.medicalDocumentUrl),
+  } : null;
 
   const handleDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
     if (!cvRef.current || !selectedCandidate) return;
@@ -220,7 +238,7 @@ function CVGeneratorContent() {
       console.warn('Download Error:', err.message || err);
       // Show the actual error message from the server if available
       const errorMessage = err.message || 'Failed to generate file. Please try again.';
-      alert(errorMessage);
+      alert(`CV Generation Failed: ${errorMessage}`);
     } finally {
       setIsDownloading(false);
       setTimeout(() => setToast(null), 3000);
@@ -352,15 +370,15 @@ function CVGeneratorContent() {
             <div className="border border-border rounded-xl overflow-hidden shadow-inner bg-gray-100 p-4">
               <div className="max-w-[800px] mx-auto shadow-2xl overflow-hidden">
                 <div id="cv-print-area" ref={cvRef}>
-                  {selectedCandidate ? (
+                  {candidateWithFullUrls ? (
                     <>
-                      {selectedTemplateId === 'ussus' && <UssusTemplate candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'al-shablan' && <AlShablanTemplate candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'alm' && <ALMTemplate candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ka7' && <KA7Template candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ku2' && <KU2Template candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ma' && <MATemplate candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
-                      {selectedTemplateId === 'ra' && <RATemplate candidate={selectedCandidate} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'ussus' && <UssusTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'al-shablan' && <AlShablanTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'alm' && <ALMTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'ka7' && <KA7Template candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'ku2' && <KU2Template candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'ma' && <MATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
+                      {selectedTemplateId === 'ra' && <RATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhoto} fullBodyPhoto={fullBodyPhoto} />}
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-center bg-white min-h-[700px] print:hidden">

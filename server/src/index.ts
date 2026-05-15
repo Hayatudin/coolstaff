@@ -29,6 +29,9 @@ app.all('/api/auth/*', (req, res) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Static files
+app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
 // Routes
 import candidateRoutes from './routes/candidates';
 import brokerRoutes from './routes/brokers';

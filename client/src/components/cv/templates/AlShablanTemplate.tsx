@@ -1,6 +1,5 @@
 import React from 'react';
 import { Candidate } from '@/types';
-import { QRCodeSVG } from 'qrcode.react';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -45,13 +44,11 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
   let expPeriod = '0 YEAR';
   let expCountry = '';
-  let expPosition = '';
   if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
     const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
     if (exps.length > 0) {
       expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
       expCountry = exps.map(e => e.country).join(', ');
-      expPosition = exps.map(e => e.position || candidate.personalInfo?.job || '').join(', ');
     }
   }
 
@@ -93,7 +90,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                 <tbody>
                   <tr>
                     <td className={`border border-black px-2 py-1.5 font-bold w-[35%] ${beigeBg}`}>Reference No</td>
-                    <td className="border border-black px-2 py-1.5 text-center font-bold">-</td>
+                    <td className="border border-black px-2 py-1.5 text-center font-bold">124764987</td>
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Full Name</td>
@@ -134,21 +131,21 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
               <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
                 <thead>
                   <tr>
-                    <th colSpan={3} className="border border-black text-left px-2 py-1 font-bold uppercase">Overseas Experience</th>
+                    <th colSpan={3} className="border border-black text-left px-2 py-1 font-bold">Overseas Experience</th>
                   </tr>
                   <tr>
-                    <th className="border border-black px-2 py-1 font-bold uppercase">country</th>
-                    <th className="border border-black px-2 py-1 font-bold uppercase">Period</th>
-                    <th className="border border-black px-2 py-1 font-bold uppercase">position</th>
+                    <th className="border border-black px-2 py-1 font-bold">country</th>
+                    <th className="border border-black px-2 py-1 font-bold">Period</th>
+                    <th className="border border-black px-2 py-1 font-bold">position</th>
                   </tr>
                 </thead>
                 <tbody>
                   {candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience').length > 0 ? (
                     candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience').map((exp, idx) => (
                       <tr key={idx}>
-                        <td className="border border-black px-2 py-1 text-center capitalize">{exp.country || '-'}</td>
-                        <td className="border border-black px-2 py-1 text-center">{exp.yearsOfExperience || '-'}</td>
-                        <td className="border border-black px-2 py-1 text-center capitalize">{exp.position || candidate.personalInfo?.job || '-'}</td>
+                        <td className="border border-black px-2 py-1 text-center capitalize">{exp.country}</td>
+                        <td className="border border-black px-2 py-1 text-center">{exp.yearsOfExperience}</td>
+                        <td className="border border-black px-2 py-1 text-center capitalize">{candidate.personalInfo?.job || 'House Maid'}</td>
                       </tr>
                     ))
                   ) : (
@@ -157,6 +154,11 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                         <td className="border border-black px-2 py-1 text-center h-6">-</td>
                         <td className="border border-black px-2 py-1 text-center">-</td>
                         <td className="border border-black px-2 py-1 text-center">-</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-black px-2 py-1 text-center h-6"></td>
+                        <td className="border border-black px-2 py-1 text-center"></td>
+                        <td className="border border-black px-2 py-1 text-center"></td>
                       </tr>
                     </>
                   )}
@@ -327,6 +329,20 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                 )}
               </div>
 
+              {/* QR Code Section */}
+              {candidate.videoUrl && (
+                <div className="mt-2 p-2 border border-black bg-white flex flex-col items-center gap-1">
+                  <p className="text-[9px] font-bold uppercase">Candidate Video</p>
+                  <div className="w-20 h-20 bg-white border border-gray-100 flex items-center justify-center">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
+                      alt="Video QR" 
+                      className="w-full h-full"
+                    />
+                  </div>
+                </div>
+              )}
+
             </div>
 
           </div>
@@ -335,29 +351,11 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       </div>
 
       {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative flex flex-col items-center justify-center break-before-page p-8 bg-white">
+      <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
         {candidate.passportImageUrl ? (
-          <div className="flex flex-col items-center gap-8 w-full">
-            <img src={candidate.passportImageUrl} alt="Passport" className="max-w-full max-h-[800px] object-contain shadow-sm border border-border rounded-lg" />
-            
-            {candidate.videoUrl && (
-              <div className="flex flex-col items-center gap-3 mt-10">
-                <div className="p-3 bg-white border-2 border-primary/20 rounded-2xl shadow-xl">
-                  <QRCodeSVG 
-                    value={candidate.videoUrl} 
-                    size={150}
-                    level="H"
-                    includeMargin={true}
-                  />
-                </div>
-                <p className="text-sm font-bold text-primary uppercase tracking-widest bg-primary/5 px-4 py-1.5 rounded-full border border-primary/10">
-                  Scan to watch video
-                </p>
-              </div>
-            )}
-          </div>
+          <img src={candidate.passportImageUrl} alt="Passport" className="max-w-full max-h-full object-contain" />
         ) : (
-          <div className="text-gray-400 text-lg border-2 border-dashed border-gray-300 w-full h-full flex items-center justify-center rounded-2xl">
+          <div className="text-gray-400 text-lg border-2 border-dashed border-gray-300 w-full h-full flex items-center justify-center">
             Passport Image Not Available
           </div>
         )}

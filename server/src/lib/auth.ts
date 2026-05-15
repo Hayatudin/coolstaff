@@ -32,7 +32,7 @@ export const auth = betterAuth({
 
   advanced: {
     basePath: '/api/auth',
-  },
+  } as any,
   user: {
     additionalFields: {
       role: {
