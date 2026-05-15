@@ -1,0 +1,96 @@
+import { Router, Request, Response } from 'express';
+
+const router = Router();
+
+const COUNTRY_MAP: Record<string, string> = {
+  ETH: 'Ethiopia', KEN: 'Kenya', UGA: 'Uganda', TZA: 'Tanzania',
+  NGA: 'Nigeria', GHA: 'Ghana', EGY: 'Egypt', ZAF: 'South Africa',
+  IND: 'India', PAK: 'Pakistan', BGD: 'Bangladesh', LKA: 'Sri Lanka',
+  NPL: 'Nepal', PHL: 'Philippines', IDN: 'Indonesia', MMR: 'Myanmar',
+  SAU: 'Saudi Arabia', ARE: 'United Arab Emirates', KWT: 'Kuwait',
+  QAT: 'Qatar', BHR: 'Bahrain', OMN: 'Oman', JOR: 'Jordan',
+  USA: 'United States', GBR: 'United Kingdom', CAN: 'Canada',
+  SOM: 'Somalia', SDN: 'Sudan', SSD: 'South Sudan', ERI: 'Eritrea',
+  DJI: 'Djibouti', CMR: 'Cameroon', COD: 'DR Congo', MDG: 'Madagascar',
+};
+
+function formatDate(raw: string): string {
+  const cleaned = raw.replace(/[^0-9]/g, '').substring(0, 6);
+  if (cleaned.length !== 6) return '';
+  const year = parseInt(cleaned.substring(0, 2));
+  const month = parseInt(cleaned.substring(2, 4));
+  const day = parseInt(cleaned.substring(4, 6));
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12 || isNaN(day) || day < 1 || day > 31) return '';
+  const fullYear = year > 30 ? 1900 + year : 2000 + year;
+  return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function normalizeLine(raw: string): string {
+  let cleaned = raw.toUpperCase().replace(/[^A-Z0-9<]/g, '');
+  cleaned = cleaned.replace(/<+[A-Z]?<+/g, '<<');
+  return cleaned.padEnd(44, '<').substring(0, 44);
+}
+
+function mrzScore(raw: string): number {
+  const cleaned = raw.replace(/[^A-Z0-9<]/gi, '').toUpperCase();
+  let score = 0;
+  if (cleaned.length >= 40 && cleaned.length <= 48) score += 30;
+  else if (cleaned.length >= 35 && cleaned.length <= 52) score += 10;
+  else return 0;
+  score += Math.min((cleaned.match(/</g) || []).length * 3, 30);
+  score += Math.min((cleaned.match(/\d/g) || []).length * 2, 20);
+  if (/REPUBLIC|PASSPORT|FEDERAL/i.test(raw)) score -= 50;
+  return score;
+}
+
+function findMrzLines(text: string): [string, string] | null {
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const scored = lines.map((line, index) => ({ line, index, score: mrzScore(line), cleaned: line.replace(/[^A-Z0-9<]/gi, '').toUpperCase() })).filter(s => s.score > 0);
+  for (const l1 of scored.sort((a, b) => b.score - a.score)) {
+    if (!l1.cleaned.startsWith('P')) continue;
+    for (const l2 of scored) {
+      if (l2.index <= l1.index) continue;
+      if ((l2.cleaned.match(/\d/g) || []).length >= 6) {
+        const line1 = normalizeLine(l1.cleaned);
+        const line2 = normalizeLine(l2.cleaned);
+        if (line1.length === 44 && line2.length === 44) return [line1, line2];
+      }
+    }
+  }
+  return null;
+}
+
+function cleanName(name: string): string {
+  return name.replace(/<+/g, ' ').replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+router.post('/passport', async (req: Request, res: Response) => {
+  try {
+    const { ocrText } = req.body;
+    if (!ocrText) return res.status(400).json({ error: 'No OCR text provided' });
+    const mrz = findMrzLines(ocrText);
+    if (!mrz) return res.status(422).json({ error: 'MRZ not detected' });
+    const [line1, line2] = mrz;
+    const issuingCountry = line1.substring(2, 5).replace(/</g, '');
+    const parts = line1.substring(5).split('<<');
+    const surname = cleanName(parts[0] || '');
+    const givenNames = cleanName(parts[1] || '');
+    const passportNumber = line2.substring(0, 9).replace(/</g, '');
+    const nationality = line2.substring(10, 13).replace(/</g, '');
+    const genderRaw = line2[20];
+    const result = {
+      passportNumber,
+      surname,
+      givenNames,
+      dateOfBirth: formatDate(line2.substring(13, 19)),
+      gender: genderRaw === 'M' ? 'Male' : genderRaw === 'F' ? 'Female' : '',
+      nationality: COUNTRY_MAP[nationality || issuingCountry] || nationality || issuingCountry,
+      dateOfExpiry: formatDate(line2.substring(21, 27)),
+    };
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to parse passport' });
+  }
+});
+
+export default router;
