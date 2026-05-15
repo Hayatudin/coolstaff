@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
 
 // Roles that are allowed to access the dashboard
-const DASHBOARD_ROLES = ['super_admin', 'admin', 'agency'];
+// const DASHBOARD_ROLES = ['super_admin', 'admin', 'agency'];
 
 // Dashboard route prefixes to protect
 const PROTECTED_PATHS = [

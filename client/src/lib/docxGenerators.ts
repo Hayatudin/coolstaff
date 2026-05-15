@@ -142,7 +142,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
   const bgBuffer = await fetchImageBuffer('/Al-shablan.png');
   const faceBuffer = facePhoto ? await fetchImageBuffer(facePhoto) : null;
   const fullBodyBuffer = fullBodyPhoto ? await fetchImageBuffer(fullBodyPhoto) : null;
-  const passportBuffer = candidate.passportData?.documentUrl ? await fetchImageBuffer(candidate.passportData.documentUrl) : null;
+  const passportBuffer = candidate.passportImageUrl ? await fetchImageBuffer(candidate.passportImageUrl) : null;
 
   const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim().toUpperCase();
   const age = calculateAge(candidate.passportData?.dateOfBirth);
