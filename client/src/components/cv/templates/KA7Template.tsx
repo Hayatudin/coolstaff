@@ -51,7 +51,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
     if (exps.length > 0) {
       expCountry = exps.map(e => e.country).join(', ');
       expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(', ');
-      expPosition = exps.map(e => e.position || candidate.personalInfo?.job || '').join(', ');
+      expPosition = exps.map(e => (e as any).position || candidate.personalInfo?.job || '').join(', ');
     }
   }
 

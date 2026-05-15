@@ -49,7 +49,7 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
     if (exps.length > 0) {
       expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
       expCountry = exps.map(e => e.country).join(', ');
-      expPosition = exps.map(e => e.position || candidate.personalInfo?.job || '').join(', ');
+      expPosition = exps.map(e => (e as any).position || candidate.personalInfo?.job || '').join(', ');
     }
   }
 
