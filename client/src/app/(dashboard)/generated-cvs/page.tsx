@@ -330,6 +330,10 @@ export default function GeneratedCVsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
+  // Bulk select
+  const [selectedCVIds, setSelectedCVIds] = useState<Set<string>>(new Set());
+  const [bulkChangeOpen, setBulkChangeOpen] = useState(false);
+
   // Download state
   const [downloadingCv, setDownloadingCv] = useState<any | null>(null);
   const [downloadFormat, setDownloadFormat] = useState<'pdf' | 'jpg' | 'doc' | null>(null);
@@ -352,6 +356,7 @@ export default function GeneratedCVsPage() {
         c.candidate.medicalStatus !== 'Unfit' && 
         !c.candidate.visaSelected
       ));
+      setSelectedCVIds(new Set()); // clear selection on refresh
     } catch {
       showToast('Failed to load CVs', 'error');
     } finally {
@@ -406,6 +411,33 @@ export default function GeneratedCVsPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // ── Bulk Change Template ───────────────────────────────────────────────────
+  const handleBulkChangeTemplate = async (newTemplateId: string) => {
+    if (selectedCVIds.size === 0) return;
+    setActionLoading(true);
+    setBulkChangeOpen(false);
+    const ids = Array.from(selectedCVIds);
+    let successCount = 0;
+    for (const id of ids) {
+      try {
+        const res = await api(`/api/generated-cvs/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ templateId: newTemplateId }),
+        });
+        if (res.ok) {
+          successCount++;
+          setCvs(prev => prev.map(c => c.id === id ? { ...c, templateId: newTemplateId } : c));
+        }
+      } catch { /* continue */ }
+    }
+    setSelectedCVIds(new Set());
+    setActionLoading(false);
+    const newTemplateName = TEMPLATES.find(t => t.id === newTemplateId)?.name;
+    showToast(`${successCount} CV${successCount !== 1 ? 's' : ''} moved to "${newTemplateName}"`);
+    setSelectedFolder(newTemplateId);
   };
 
   const handleDownloadAndChange = async (newTemplateId: string, format: 'pdf' | 'jpg' | 'doc') => {
@@ -638,6 +670,9 @@ export default function GeneratedCVsPage() {
   });
   const TC = activeTemplate.component;
 
+  const allSelected = activeCVs.length > 0 && activeCVs.every(cv => selectedCVIds.has(cv.id));
+  const someSelected = selectedCVIds.size > 0;
+
   // ── Download All as ZIP ────────────────────────────────────────────────────
   const handleDownloadAll = async (format: 'pdf' | 'jpg' | 'doc') => {
     if (activeCVs.length === 0) return;
@@ -768,6 +803,25 @@ export default function GeneratedCVsPage() {
 
           {/* Right side: Religion filter + Download All */}
           <div className="flex items-center gap-3">
+            {/* Bulk action bar */}
+            {someSelected && (
+              <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
+                <span className="text-sm font-semibold text-primary">{selectedCVIds.size} selected</span>
+                <button
+                  onClick={() => setBulkChangeOpen(true)}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <LayoutTemplate size={13} /> Change Template
+                </button>
+                <button
+                  onClick={() => setSelectedCVIds(new Set())}
+                  className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             {/* Religion Filter */}
             <div className="w-36">
               <select
@@ -854,9 +908,47 @@ export default function GeneratedCVsPage() {
             )}
           </div>
         ) : (
+          <>
+            {/* Select All row */}
+            <div className="flex items-center gap-3 pb-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => {
+                    if (allSelected) {
+                      setSelectedCVIds(prev => {
+                        const next = new Set(prev);
+                        activeCVs.forEach(cv => next.delete(cv.id));
+                        return next;
+                      });
+                    } else {
+                      setSelectedCVIds(prev => {
+                        const next = new Set(prev);
+                        activeCVs.forEach(cv => next.add(cv.id));
+                        return next;
+                      });
+                    }
+                  }}
+                  className="w-4 h-4 accent-primary rounded cursor-pointer"
+                />
+                <span className="text-sm font-medium text-text-secondary">
+                  {allSelected ? 'Deselect All' : 'Select All'}
+                </span>
+              </label>
+              {someSelected && (
+                <span className="text-xs text-primary font-semibold bg-primary/10 px-2 py-0.5 rounded-full">
+                  {selectedCVIds.size} of {activeCVs.length} selected
+                </span>
+              )}
+            </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {activeCVs.map(cv => (
-              <div key={cv.id} className="bg-surface border border-border/50 rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-shadow flex flex-col">
+            {activeCVs.map(cv => {
+              const isSelected = selectedCVIds.has(cv.id);
+              return (
+              <div key={cv.id} className={`bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col ${
+                isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50'
+              }`}>
                 {/* Live Preview */}
                 <div
                   className="relative h-56 bg-gray-100 overflow-hidden cursor-pointer group border-b border-border"
@@ -880,7 +972,22 @@ export default function GeneratedCVsPage() {
 
                 {/* Card Body */}
                 <div className="p-4 flex-1 flex flex-col">
+                  {/* Per-card checkbox */}
                   <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setSelectedCVIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(cv.id)) next.delete(cv.id); else next.add(cv.id);
+                            return next;
+                          });
+                        }}
+                        className="w-4 h-4 accent-primary rounded cursor-pointer"
+                      />
+                    </label>
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden border border-border bg-primary-50 text-primary flex items-center justify-center font-bold text-sm">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
@@ -942,8 +1049,10 @@ export default function GeneratedCVsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
+          </>
         )}
 
         {/* Hidden full-resolution CV render for download capture */}
@@ -972,6 +1081,56 @@ export default function GeneratedCVsPage() {
           onClose={() => !actionLoading && setChangeTarget(null)}
           isLoading={actionLoading}
         />
+      )}
+      {/* Bulk Change Template Modal */}
+      {bulkChangeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setBulkChangeOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div>
+                <h2 className="text-lg font-bold text-text-primary">Bulk Change Template</h2>
+                <p className="text-sm text-text-secondary mt-0.5">Move <strong>{selectedCVIds.size} selected CV{selectedCVIds.size !== 1 ? 's' : ''}</strong> to a new template</p>
+              </div>
+              <button onClick={() => setBulkChangeOpen(false)} className="p-2 rounded-lg hover:bg-surface transition-colors text-text-tertiary hover:text-text-primary"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {TEMPLATES.filter(t => t.id !== selectedFolder).map(template => {
+                  const TC = template.component;
+                  const sampleCv = activeCVs.find(c => selectedCVIds.has(c.id));
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => handleBulkChangeTemplate(template.id)}
+                      disabled={actionLoading}
+                      className="relative rounded-xl border-2 border-border overflow-hidden hover:border-primary hover:shadow-md transition-all text-left group cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="h-36 bg-gray-100 overflow-hidden relative">
+                        {sampleCv && (
+                          <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
+                            <TC
+                              candidate={sampleCv.candidate}
+                              facePhoto={getFileUrl(sampleCv.facePhotoUrl || sampleCv.candidate.facePhotoUrl)}
+                              fullBodyPhoto={getFileUrl(sampleCv.fullBodyPhotoUrl || sampleCv.candidate.fullBodyPhotoUrl)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-3 py-2 flex items-center gap-2 bg-white">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${template.color}`} />
+                        <span className="text-sm font-medium text-text-primary truncate">{template.name}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-gray-50/50">
+              <button onClick={() => setBulkChangeOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface transition-colors border border-border">Cancel</button>
+              <p className="text-xs text-text-tertiary">Click a template above to move all selected CVs</p>
+            </div>
+          </div>
+        </div>
       )}
       {deleteTarget && (
         <DeleteModal

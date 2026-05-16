@@ -28,6 +28,8 @@ export default function CandidatesPage() {
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [visaModalId, setVisaModalId] = useState<string | null>(null);
   const [visaNumberInput, setVisaNumberInput] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Close menu on outside click
   useEffect(() => {
@@ -170,6 +172,12 @@ export default function CandidatesPage() {
     return result;
   }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter]);
 
+  // Reset to page 1 whenever filters change
+  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedCandidates = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Header */}
@@ -280,7 +288,7 @@ export default function CandidatesPage() {
               ) : error ? (
                 <tr><td colSpan={8} className="px-6 py-10 text-center text-danger">Error: {error}</td></tr>
               ) : filtered.length > 0 ? (
-                filtered.map((candidate) => (
+                paginatedCandidates.map((candidate) => (
                   <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
                     {/* Shelf ID */}
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -414,6 +422,54 @@ export default function CandidatesPage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {!isLoading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          {/* Prev arrow */}
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold"
+          >
+            ‹
+          </button>
+
+          {/* Page numbers */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            // Show first, last, current, current±1
+            if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border ${
+                    page === currentPage
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            }
+            // Show ellipsis
+            if (page === currentPage - 2 || page === currentPage + 2) {
+              return <span key={page} className="text-text-tertiary px-1 font-bold">…</span>;
+            }
+            return null;
+          })}
+
+          {/* Next arrow */}
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold"
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       {/* Document Viewer Modal */}
       {viewDoc && (
