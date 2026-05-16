@@ -7,13 +7,24 @@ const router = Router();
 // GET /api/candidates
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const dbCandidates = await prisma.candidate.findMany({
-      orderBy: { registeredAt: 'desc' },
-      include: {
-        generatedCVs: { select: { templateId: true } },
-        registeredBy: { select: { name: true } }
-      }
-    });
+    let dbCandidates;
+    try {
+      dbCandidates = await prisma.candidate.findMany({
+        orderBy: { registeredAt: 'desc' },
+        include: {
+          generatedCVs: { select: { templateId: true } },
+          registeredBy: { select: { name: true } }
+        }
+      });
+    } catch (schemaError: any) {
+      console.warn('Prisma schema out of sync (registeredBy missing). Falling back to basic fetch.');
+      dbCandidates = await prisma.candidate.findMany({
+        orderBy: { registeredAt: 'desc' },
+        include: {
+          generatedCVs: { select: { templateId: true } }
+        }
+      });
+    }
 
     const candidates = dbCandidates.map((c: any) => {
       const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
@@ -129,8 +140,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const nextShelfId = body.shelfId || String(count + 1).padStart(3, '0');
 
-    const candidate = await prisma.candidate.create({
-      data: {
+    const candidateData: any = {
         shelfId: nextShelfId,
         passportNumber: body.passportData.passportNumber,
         surname: body.passportData.surname,
@@ -183,9 +193,23 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: body.videoUrl || null,
         status: body.status || 'pending',
-        registeredById: body.registeredById || null,
-      },
-    });
+    };
+
+    let candidate;
+    try {
+      candidate = await prisma.candidate.create({
+        data: { ...candidateData, registeredById: body.registeredById || null }
+      });
+    } catch (createError: any) {
+      if (createError.message && createError.message.includes('registeredById')) {
+        console.warn('Prisma schema out of sync (registeredById missing). Falling back to basic create.');
+        candidate = await prisma.candidate.create({
+          data: candidateData
+        });
+      } else {
+        throw createError;
+      }
+    }
 
     // Save salary separately with graceful fallback (in case column doesn't exist in DB yet)
     try {
