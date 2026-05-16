@@ -259,7 +259,11 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           </div>
 
           {/* Row 5 */}
+          <Input label="Height (cm)" type="text" value={data.height || ''} onChange={e => onChange('height', e.target.value)} placeholder="e.g. 165" />
+          <Input label="Weight (kg)" type="text" value={data.weight || ''} onChange={e => onChange('weight', e.target.value)} placeholder="e.g. 60" />
           <Input label="Number Of Children" type="number" value={String(data.numberOfChildren || '')} onChange={e => onChange('numberOfChildren', parseInt(e.target.value) || 0)} required />
+
+          {/* Row 6 */}
           <Input label="E-Mail" type="email" value={data.email} onChange={e => onChange('email', e.target.value.toLowerCase())} placeholder="email@example.com" required />
 
           {/* Broker Dropdown */}
