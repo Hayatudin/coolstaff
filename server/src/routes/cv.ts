@@ -13,7 +13,7 @@ const router = Router();
 
 const TEMPLATE_MAP: Record<string, string> = {
   'tmpl-alm': 'CV ALM.docx',
-  'tmpl-ka7': 'CV KA-7.docx',
+  'tmpl-ka7': 'CV KA-7-fixed.docx',
   'tmpl-ku2': 'CV KU2.docx',
   'tmpl-ma': 'CV MA.docx',
   'tmpl-ra': 'CV RA.docx',
@@ -246,6 +246,7 @@ router.post('/generate', async (req: Request, res: Response) => {
     const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
 
     const data = {
+      refNumber: candidate.id.slice(-6).toUpperCase(),
       givenNames: formatValue(candidate.givenNames),
       surname: formatValue(candidate.surname),
       fullName: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
