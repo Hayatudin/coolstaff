@@ -73,7 +73,7 @@ export interface Candidate {
   isFlagged?: boolean;
   videoUrl?: string | null;
   registeredAt: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'visa selected';
   cvDeadline?: string;
   brokerId?: string;
   broker?: Broker;
