@@ -106,6 +106,7 @@ import accountRoutes from './routes/account';
 import searchRoutes from './routes/search';
 import cronRoutes from './routes/cron';
 import quickRegistrationRoutes from './routes/quick-registrations';
+import invoiceRoutes from './routes/invoices';
 
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/brokers', brokerRoutes);
@@ -119,6 +120,7 @@ app.use('/api/account', accountRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/cron', cronRoutes);
 app.use('/api/quick-registrations', quickRegistrationRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Root route
 app.get('/', (req: Request, res: Response) => {

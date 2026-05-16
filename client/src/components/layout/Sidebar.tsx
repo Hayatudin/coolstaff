@@ -32,6 +32,7 @@ const baseNavItems = [
   { label: 'Registration', href: '/registration', icon: UserPlus },
   { label: 'CV Generator', href: '/cv-generator', icon: FileText },
   { label: 'Generated CVs', href: '/generated-cvs', icon: FolderOpen },
+  { label: 'Invoice', href: '/invoice', icon: FileText },
   { label: 'Brokers', href: '/brokers', icon: Users },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Backup CVs', href: '/backup', icon: FolderOpen },

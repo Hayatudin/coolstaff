@@ -239,6 +239,7 @@ function RegistrationContent() {
 
   const handleSubmit = async () => {
     try {
+      console.log('SUBMITTING CANDIDATE. Session user ID:', session?.user?.id);
       setIsSubmitting(true);
 
       if (!facePhoto || !fullBodyPhoto) {

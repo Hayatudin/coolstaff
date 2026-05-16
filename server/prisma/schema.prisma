@@ -83,6 +83,7 @@ model Candidate {
   registeredById           String?
 
   generatedCVs             GeneratedCV[]
+  invoices                 Invoice[]
 
   @@index([passportNumber])
   @@index([nationality])
@@ -209,4 +210,19 @@ model QuickRegistration {
 
   @@index([createdAt])
   @@index([brokerId])
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  candidateId     String
+  candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  lmisQrCodeUrl   String    @db.Text
+  insuranceUrl    String    @db.Text
+  ticketUrl       String    @db.Text
+  price           String
+  isDelivered     Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([candidateId])
 }

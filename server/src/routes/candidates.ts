@@ -196,12 +196,16 @@ router.post('/', async (req: Request, res: Response) => {
     };
 
     let candidate;
+    console.log('--- CANDIDATE CREATION DEBUG ---');
+    console.log('body.registeredById:', body.registeredById);
     try {
       candidate = await prisma.candidate.create({
         data: { ...candidateData, registeredById: body.registeredById || null }
       });
+      console.log('Candidate created successfully with ID:', candidate.id);
     } catch (createError: any) {
-      if (createError.message && createError.message.includes('registeredById')) {
+      console.error('Prisma Create Error:', createError);
+      if (createError.message && (createError.message.includes('registeredById') || createError.message.includes('Unknown arg'))) {
         console.warn('Prisma schema out of sync (registeredById missing). Falling back to basic create.');
         candidate = await prisma.candidate.create({
           data: candidateData
