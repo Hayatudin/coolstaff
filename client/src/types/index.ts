@@ -69,6 +69,7 @@ export interface Candidate {
   relativeIdImageUrl?: string;
   labourIdUrl?: string;
   isRequested?: boolean;
+  visaSelected?: boolean;
   visaOrContractNumber?: string | null;
   isFlagged?: boolean;
   videoUrl?: string | null;
