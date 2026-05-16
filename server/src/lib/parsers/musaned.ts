@@ -16,6 +16,8 @@ export interface ExtractedMusanedData {
   educationLevel?: string;
   skills?: string;
   languages?: string;
+  height?: string;
+  weight?: string;
   numberOfChildren?: string;
   city?: string;
   address?: string;
@@ -35,7 +37,7 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   const labelsToSeparate = [
     'ID number:', 'DoB:', 'Gender:', 'Marital status:', 'Religion:', 
     'Job:', 'Mobile:', 'Skills:', 'Education level:', 'E-Mail:', 
-    'Languages:', 'Number of Children:', 'Passport No:', 
+    'Languages:', 'Height:', 'Weight:', 'Number of Children:', 'Passport No:', 
     'Expiration date:', 'Issue date:', 'Issue place:', 
     'Country:', 'City:', 'Address:', 'Name:', 'Kinship:', 
     'Mobile No:', 'Address Information', 'Emergency Contact',
@@ -151,6 +153,12 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
 
   // Education Level
   data.educationLevel = extract(/Education level:\s*([A-Za-z\s]+?)(?=\s+(?:E-Mail|Languages|Number|Skills|$))/i);
+
+  // Height
+  data.height = extract(/Height:\s*(\d+)/i);
+
+  // Weight
+  data.weight = extract(/Weight:\s*(\d+)/i);
 
   // Languages
   data.languages = extract(/Languages:\s*([A-Za-z,\s&]+?)(?=\s+(?:Education|E-Mail|Number|Skills|$))/i);

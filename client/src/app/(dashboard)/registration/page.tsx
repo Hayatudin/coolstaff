@@ -202,6 +202,8 @@ function RegistrationContent() {
         email: data.email || prev.email,
         educationLevel: data.educationLevel || prev.educationLevel,
         numberOfChildren: data.numberOfChildren ? parseInt(data.numberOfChildren) : prev.numberOfChildren,
+        height: data.height || prev.height,
+        weight: data.weight || prev.weight,
         city: data.city || prev.city,
         address: data.address || prev.address,
         country: data.nationality ? data.nationality.toUpperCase() : prev.country,
