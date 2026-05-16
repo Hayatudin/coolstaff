@@ -246,7 +246,7 @@ export const mockCandidates: Candidate[] = [
       state: 'Tigray',
       country: 'Ethiopia',
       educationLevel: 'Bachelor Degree',
-      languages: ['Tigrinya', 'Amharic', 'English', 'Arabic'],
+      languages: ['Arabic', 'English', 'Afan Oromo', 'Amharic', 'Tigrinya', 'Somali'],
       workExperience: [{ experienceStatus: 'No experience', country: '', yearsOfExperience: '0' }],
       skills: ['Cooking', 'Cleaning', 'Computer Skills', 'Driving'],
       medicalStatus: 'Fit',
@@ -314,7 +314,7 @@ export const cvTemplates: CVTemplate[] = [
 ];
 
 export const languageOptions = [
-  'Arabic', 'English',
+  'Arabic', 'English', 'Afan Oromo', 'Amharic', 'Tigrinya', 'Somali',
 ];
 
 export const skillOptions = [
@@ -335,11 +335,11 @@ export const educationLevels = [
 ];
 
 export const maritalStatusOptions = [
-  'Single', 'Married', 'Divorced', 'Widowed', 'Separated',
+  'Single', 'Married',
 ];
 
 export const religionOptions = [
-  'Islam', 'Orthodox Christian', 'Protestant', 'Catholic', 'Other',
+  'Islam', 'Non muslim',
 ];
 
 export const bloodTypeOptions = [

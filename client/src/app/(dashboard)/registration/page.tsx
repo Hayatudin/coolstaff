@@ -98,6 +98,7 @@ function RegistrationContent() {
       setPersonalInfo(c.personalInfo);
       setPassportImage(c.passportImageUrl || null);
       setFacePhoto(c.facePhotoUrl || null);
+      setFullBodyPhoto(c.fullBodyPhotoUrl || null);
       setVideoUrl(c.videoUrl || '');
       setProcessingComplete(true);
     }
@@ -180,11 +181,22 @@ function RegistrationContent() {
         gender: data.gender || prev.gender,
       }));
 
+      const mapReligion = (r?: string): string => {
+        if (!r) return '';
+        const upper = r.toUpperCase();
+        if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Islam';
+        if (upper.includes('ORTHODOX')) return 'Orthodox Christian';
+        if (upper.includes('PROTESTANT')) return 'Protestant';
+        if (upper.includes('CATHOLIC')) return 'Catholic';
+        if (upper.includes('CHRISTIAN')) return 'Orthodox Christian'; // Default to Orthodox if general Christian
+        return r;
+      };
+
       setPersonalInfo(prev => ({
         ...prev,
         idNumber: data.passportNumber || prev.idNumber,
         job: data.job ? data.job.toUpperCase() : prev.job,
-        religion: data.religion || prev.religion,
+        religion: mapReligion(data.religion) || prev.religion,
         maritalStatus: data.maritalStatus || prev.maritalStatus,
         phone: data.phone || prev.phone,
         email: data.email || prev.email,
@@ -193,7 +205,8 @@ function RegistrationContent() {
         city: data.city || prev.city,
         address: data.address || prev.address,
         country: data.nationality ? data.nationality.toUpperCase() : prev.country,
-        skills: data.skills ? data.skills.split(',').map((s: string) => s.trim()) : prev.skills,
+        languages: data.languages ? data.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.languages,
+        skills: data.skills ? data.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
         emergencyContactName: data.emergencyContactName || prev.emergencyContactName,
         emergencyContactRelation: data.emergencyContactRelation || prev.emergencyContactRelation,
         emergencyContactPhone: data.emergencyContactPhone || prev.emergencyContactPhone,
@@ -513,7 +526,7 @@ function RegistrationContent() {
               </Button>
             ) : (
               <Button onClick={handleSubmit} loading={isSubmitting} icon={<CheckCircle2 size={16} />}>
-                Register
+                {isEditMode ? 'Save' : 'Register'}
               </Button>
             )}
           </div>

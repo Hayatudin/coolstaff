@@ -7,7 +7,7 @@ import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { CandidatePersonalInfo, PassportData, WorkExperienceEntry } from '@/types';
 import {
-  educationLevels, languageOptions, skillOptions
+  educationLevels, languageOptions, skillOptions, religionOptions
 } from '@/data/mockData';
 import { allCountries } from '@/data/countries';
 import { Plus, Trash2, Calendar, Upload } from 'lucide-react';
@@ -205,15 +205,14 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-text-secondary">Religion <span className="text-danger">*</span></label>
-            <div className="flex gap-4 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="radio" name="religion" value="Muslim" checked={data.religion === 'Muslim'} onChange={() => onChange('religion', 'Muslim')} className="accent-primary w-4 h-4" /> Muslim
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="radio" name="religion" value="Non-Muslim" checked={data.religion === 'Non-Muslim'} onChange={() => onChange('religion', 'Non-Muslim')} className="accent-primary w-4 h-4" /> Non Muslim
-              </label>
-            </div>
+            <Select
+              label="Religion"
+              required
+              options={religionOptions.map(r => ({ value: r, label: r }))}
+              value={data.religion}
+              onChange={v => onChange('religion', v)}
+              placeholder="Select religion"
+            />
           </div>
 
           {/* Row 3 */}
@@ -266,6 +265,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           {/* Broker Dropdown */}
           <Select
             label="Broker / Source"
+            required
             options={brokers.map(b => ({ value: b.id, label: b.name }))}
             value={data.brokerId || ''}
             onChange={v => onChange('brokerId', v)}
@@ -545,26 +545,32 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
             </div>
           </div>
 
-          {/* Labour ID (PDF) */}
+          {/* Labour ID (Image) */}
           <div>
-            <label className="text-sm font-medium text-text-secondary block mb-2">Labour ID (PDF)</label>
+            <label className="text-sm font-medium text-text-secondary block mb-2">Labour ID (Image)</label>
             <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
               {data.labourIdUrl ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-center h-32">
-                    <div className="text-center">
-                      <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-2"><svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>
-                      <p className="text-xs text-text-secondary font-medium">PDF Uploaded</p>
-                    </div>
+                  <div className="w-full h-32 rounded-lg overflow-hidden bg-slate-100 relative">
+                    {data.labourIdUrl.startsWith('data:image') ? (
+                      <Image src={data.labourIdUrl} alt="Labour ID" fill className="object-contain" />
+                    ) : (
+                      <div className="flex items-center justify-center h-32">
+                        <div className="text-center">
+                          <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-2"><Upload size={18} className="text-violet-600" /></div>
+                          <p className="text-xs text-text-secondary font-medium">Uploaded</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <button type="button" onClick={() => onChange('labourIdUrl', '')} className="text-xs text-danger hover:underline font-medium">Remove</button>
                 </div>
               ) : (
                 <label className="cursor-pointer block">
-                  <input type="file" accept=".pdf,application/pdf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 10*1024*1024) { alert('Max 10MB'); return; } const reader = new FileReader(); reader.onload = (ev) => { if (ev.target?.result) onChange('labourIdUrl', ev.target.result as string); }; reader.readAsDataURL(file); }}} />
-                  <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-2"><svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 10*1024*1024) { alert('Max 10MB'); return; } const reader = new FileReader(); reader.onload = (ev) => { if (ev.target?.result) onChange('labourIdUrl', ev.target.result as string); }; reader.readAsDataURL(file); }}} />
+                  <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-2"><Upload size={18} className="text-violet-600" /></div>
                   <p className="text-xs font-medium text-text-primary">Upload Labour ID</p>
-                  <p className="text-[10px] text-text-tertiary mt-1">PDF only — Max 10MB</p>
+                  <p className="text-[10px] text-text-tertiary mt-1">Image only — Max 10MB</p>
                 </label>
               )}
             </div>

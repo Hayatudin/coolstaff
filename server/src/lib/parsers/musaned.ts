@@ -15,6 +15,7 @@ export interface ExtractedMusanedData {
   email?: string;
   educationLevel?: string;
   skills?: string;
+  languages?: string;
   numberOfChildren?: string;
   city?: string;
   address?: string;
@@ -119,7 +120,7 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   data.job = extract(/Job:\s*([A-Za-z\s]+?)(?=\s+(?:Skills|ID number|Gender|Religion|Mobile|Education|Languages|$))/i);
 
   // Religion
-  data.religion = extract(/Religion:\s*([A-Za-z]+)/i);
+  data.religion = extract(/Religion:\s*([A-Za-z\s]+?)(?=\s+(?:Skills|ID number|Gender|Job|Mobile|Education|Languages|$))/i);
 
   // Marital Status
   data.maritalStatus = extract(/Marital status:\s*([A-Za-z]+)/i);
@@ -150,6 +151,9 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
 
   // Education Level
   data.educationLevel = extract(/Education level:\s*([A-Za-z\s]+?)(?=\s+(?:E-Mail|Languages|Number|Skills|$))/i);
+
+  // Languages
+  data.languages = extract(/Languages:\s*([A-Za-z,\s&]+?)(?=\s+(?:Education|E-Mail|Number|Skills|$))/i);
 
   // Skills
   data.skills = extract(/Skills:\s*([A-Za-z,\s&]+?)(?=\s+(?:Education|E-Mail|Languages|Number|$))/i);
