@@ -349,6 +349,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         ...(relativeIdImageUrl && { relativeIdImageUrl }),
         ...(labourIdUrl && { labourIdUrl }),
         videoUrl: body.videoUrl || null,
+        status: body.status,
+        isRequested: body.isRequested,
+        visaSelected: body.visaSelected,
       },
     });
 

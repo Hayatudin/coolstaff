@@ -260,7 +260,9 @@ function RegistrationContent() {
           facePhotoUrl: compressedFace,
           fullBodyPhotoUrl: compressedFullBody,
           videoUrl: videoUrl || null,
-          status: 'pending',
+          status: isEditMode ? (candidates.find(c => c.id === editId)?.status || 'pending') : 'pending',
+          isRequested: isEditMode ? (candidates.find(c => c.id === editId)?.isRequested || false) : false,
+          visaSelected: isEditMode ? (candidates.find(c => c.id === editId)?.visaSelected || false) : false,
         }),
       });
 

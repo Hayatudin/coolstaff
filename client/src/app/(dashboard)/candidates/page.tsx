@@ -47,7 +47,8 @@ export default function CandidatesPage() {
     try {
       const bodyPayload: any = { 
         isRequested: !current,
-        visaSelected: !current
+        visaSelected: !current,
+        status: !current ? 'visa selected' : 'pending'
       };
       if (!current && visaNum) {
         bodyPayload.visaOrContractNumber = visaNum;
@@ -70,6 +71,7 @@ export default function CandidatesPage() {
         ...c, 
         isRequested: !current, 
         visaSelected: !current,
+        status: !current ? 'visa selected' : 'pending',
         visaOrContractNumber: bodyPayload.visaOrContractNumber 
       } : c));
     } catch (err: any) { 
@@ -208,7 +210,13 @@ export default function CandidatesPage() {
           <div className="flex w-full md:w-auto items-center gap-3">
             <div className="w-full md:w-40"><Input type="date" value={customDate} onChange={(e) => setCustomDate(e.target.value)} /></div>
             <div className="w-full md:w-40">
-              <Select value={statusFilter} onChange={(v) => setStatusFilter(v)} options={[{ value: '', label: 'All Statuses' }, { value: 'approved', label: 'Approved' }, { value: 'pending', label: 'Pending' }, { value: 'rejected', label: 'Rejected' }]} />
+              <Select value={statusFilter} onChange={(v) => setStatusFilter(v)} options={[
+                { value: '', label: 'All Statuses' }, 
+                { value: 'approved', label: 'Approved' }, 
+                { value: 'pending', label: 'Pending' }, 
+                { value: 'rejected', label: 'Rejected' },
+                { value: 'visa selected', label: 'Visa Selected' }
+              ]} />
             </div>
             <div className="w-full md:w-40">
               <Select value={sortOrder} onChange={(v) => setSortOrder(v)} options={[{ value: 'new_to_old', label: 'Newest First' }, { value: 'old_to_new', label: 'Oldest First' }]} />

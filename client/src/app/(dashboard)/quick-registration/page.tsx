@@ -64,6 +64,26 @@ export default function QuickRegistrationPage() {
     fetchBrokers();
   }, []);
 
+  const handleCreateBroker = async (name: string) => {
+    try {
+      const res = await api('/api/brokers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      if (res.ok) {
+        const newBroker = await res.json();
+        setBrokers(prev => [...prev, newBroker].sort((a, b) => a.name.localeCompare(b.name)));
+        setSelectedBrokerId(newBroker.id);
+      } else {
+        alert('Failed to create broker');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error creating broker');
+    }
+  };
+
   // ── OCR Logic (exact copy from registration page) ──
   const performOCR = useCallback(async (imageUrl: string) => {
     setPassportImage(imageUrl);
@@ -257,19 +277,17 @@ export default function QuickRegistrationPage() {
             </div>
 
             {/* Broker */}
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Broker</label>
-              <select
+            <div className="flex flex-col">
+              <Select
+                label="Broker"
+                options={brokers.map(b => ({ value: b.id, label: b.name }))}
                 value={selectedBrokerId}
-                onChange={e => setSelectedBrokerId(e.target.value)}
+                onChange={setSelectedBrokerId}
                 disabled={brokersLoading}
-                className="w-full px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 disabled:opacity-50"
-              >
-                <option value="">Select broker...</option>
-                {brokers.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+                placeholder="Select or add broker..."
+                searchable
+                onCreate={handleCreateBroker}
+              />
             </div>
 
             {/* Education Level */}
