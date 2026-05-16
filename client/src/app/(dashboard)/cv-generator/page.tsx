@@ -138,146 +138,45 @@ function CVGeneratorContent() {
     medicalDocumentUrl: getFileUrl(selectedCandidate.medicalDocumentUrl),
   } as Candidate : null;
 
-  const handleDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
-    if (!cvRef.current || !selectedCandidate) return;
+  const handleSave = async () => {
+    if (!selectedCandidate) return;
     if (alreadyGeneratedTemplate) {
-      setToast(`Cannot generate: CV already exists in ${alreadyGeneratedTemplate}`);
+      setToast(`Template already saved as ${alreadyGeneratedTemplate}`);
       return;
     }
-
+    
     setIsDownloading(true);
-    setIsDownloadOpen(false);
 
     try {
-      const htmlToImage = await import('html-to-image');
-
-      // Fix: Ensure surname is safely extracted and sanitized for filename
-      const rawSurname = selectedCandidate.passportData?.surname || 'Candidate';
-      const safeSurname = rawSurname.replace(/[^a-zA-Z0-9]/g, '');
-      const fileName = `CV_${safeSurname}_${selectedTemplateId.toUpperCase()}`;
-
-      // Temporarily expand container to capture full height
-      const originalHeight = cvRef.current.style.height;
-      const originalOverflow = cvRef.current.style.overflow;
-      cvRef.current.style.height = 'auto';
-      cvRef.current.style.overflow = 'visible';
-
-      // Wait a tiny bit for images to be absolutely ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const dataUrl = await htmlToImage.toJpeg(cvRef.current, {
-        quality: 0.95,
-        backgroundColor: '#ffffff',
-        pixelRatio: 2, // High resolution
-        cacheBust: true, // Bypass browser cache for fresh images
+      const response = await api('/api/generated-cvs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId: selectedCandidateId,
+          templateId: selectedTemplateId,
+          facePhotoUrl: facePhoto,
+          fullBodyPhotoUrl: fullBodyPhoto
+        })
       });
 
-      // Restore styles
-      cvRef.current.style.height = originalHeight;
-      cvRef.current.style.overflow = originalOverflow;
-
-      // Helper function for safe blob download
-      const downloadBlob = (blob: Blob, filename: string) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-
-        // Critical: Delay cleanup so browser download manager has time to read the 'download' attribute
-        setTimeout(() => {
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        }, 2000);
-      };
-
-      if (format === 'jpg') {
-        // Convert large dataUrl to blob to avoid Chrome URL length limits which break the 'download' attribute
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        downloadBlob(blob, `${fileName}.jpg`);
-        setToast('CV Downloaded as JPG');
+      if (response.status === 409) {
+        const errData = await response.json().catch(() => ({}));
+        const existingTemplateId = errData.templateId || 'another';
+        const templateName = TEMPLATES.find(t => t.id === existingTemplateId)?.name || existingTemplateId;
+        setToast(`Already saved in ${templateName} template.`);
+      } else if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Status ${response.status}: ${errText}`);
+      } else {
+        const data = await response.json();
+        setToast(`CV Saved in ${TEMPLATES.find(t => t.id === selectedTemplateId)?.name} template!`);
+        // Refresh generated list
+        const refreshed = await api('/api/generated-cvs').then(r => r.json());
+        if (Array.isArray(refreshed)) setGeneratedCvs(refreshed);
       }
-      else if (format === 'pdf') {
-        const { jsPDF } = await import('jspdf');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-
-        const imgProps = pdf.getImageProperties(dataUrl);
-        const ratio = imgProps.width / pdfWidth;
-        const totalHeightInMm = imgProps.height / ratio;
-
-        pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, totalHeightInMm);
-
-        if (totalHeightInMm > pdfHeight + 10) {
-          pdf.addPage();
-          pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfWidth, totalHeightInMm);
-        }
-
-        const pdfBlob = pdf.output('blob');
-        downloadBlob(pdfBlob, `${fileName}.pdf`);
-        setToast('CV Downloaded as PDF');
-      }
-      else if (format === 'doc') {
-        const payload = {
-          candidateId: selectedCandidateId,
-          templateId: `tmpl-${selectedTemplateId}`,
-          format: 'doc',
-          facePhoto,
-          fullBodyPhoto
-        };
-
-        const response = await api('/api/cv/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to generate DOCX' }));
-          throw new Error(errorData.error || 'Failed to generate DOCX');
-        }
-
-        const blob = await response.blob();
-        downloadBlob(blob, `${fileName}.docx`);
-        setToast('Editable DOCX Downloaded!');
-      }
-
-      // Auto-save the generated CV to the database
-      try {
-        const saveRes = await api('/api/generated-cvs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            candidateId: selectedCandidateId,
-            templateId: selectedTemplateId,
-            facePhotoUrl: facePhoto,
-            fullBodyPhotoUrl: fullBodyPhoto
-          })
-        });
-
-        if (saveRes.status === 409) {
-          const errData = await saveRes.json().catch(() => ({}));
-          const existingTemplateId = errData.templateId || 'another';
-          const templateName = TEMPLATES.find(t => t.id === existingTemplateId)?.name || existingTemplateId;
-          setToast(`CV is already generated in the ${templateName} template.`);
-        } else if (!saveRes.ok) {
-          const errText = await saveRes.text();
-          throw new Error(`Status ${saveRes.status}: ${errText}`);
-        }
-      } catch (saveErr: any) {
-        console.warn('Failed to auto-save generated CV:', saveErr.message || saveErr);
-        // Don't show error to user since download succeeded
-      }
-
     } catch (err: any) {
-      console.warn('Download Error:', err.message || err);
-      // Show the actual error message from the server if available
-      const errorMessage = err.message || 'Failed to generate file. Please try again.';
-      alert(`CV Generation Failed: ${errorMessage}`);
+      console.warn('Save Error:', err.message || err);
+      alert(`Failed to save: ${err.message || 'Please try again.'}`);
     } finally {
       setIsDownloading(false);
       setTimeout(() => setToast(null), 3000);
@@ -320,50 +219,23 @@ function CVGeneratorContent() {
             </div>
             CV Generator
           </h1>
-          <p className="text-text-secondary mt-1 ml-12">Generate professional CVs using your Word templates</p>
+          <p className="text-text-secondary mt-1 ml-12">Select and save a CV template for the candidate</p>
         </div>
         {isReady && (
           <div className="relative print:hidden">
             <Button
-              onClick={() => setIsDownloadOpen(!isDownloadOpen)}
+              onClick={handleSave}
               className="flex items-center gap-2"
               disabled={isDownloading || !!alreadyGeneratedTemplate}
-              title={alreadyGeneratedTemplate ? `Already generated in ${alreadyGeneratedTemplate}` : ''}
+              title={alreadyGeneratedTemplate ? `Already saved in ${alreadyGeneratedTemplate}` : ''}
             >
               {isDownloading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <Download size={18} />
+                <CheckCircle2 size={18} />
               )}
-              {isDownloading ? 'Generating...' : 'Download CV'}
-              <ChevronDown size={16} className={cn("transition-transform", isDownloadOpen && "rotate-180")} />
+              {isDownloading ? 'Saving...' : 'Save'}
             </Button>
-
-            {isDownloadOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                <button
-                  onClick={() => handleDownload('pdf')}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface transition-colors text-left text-sm font-medium text-text-primary"
-                >
-                  <FileText size={16} className="text-red-500" />
-                  Download as PDF
-                </button>
-                <button
-                  onClick={() => handleDownload('jpg')}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface transition-colors text-left text-sm font-medium text-text-primary border-t border-border"
-                >
-                  <ImageIcon size={16} className="text-emerald-500" />
-                  Download as JPG
-                </button>
-                <button
-                  onClick={() => handleDownload('doc')}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface transition-colors text-left text-sm font-medium text-text-primary border-t border-border"
-                >
-                  <FileDown size={16} className="text-blue-500" />
-                  Download as DOCX
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>

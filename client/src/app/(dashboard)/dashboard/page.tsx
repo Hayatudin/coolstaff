@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
-import { Users, UserPlus, ExternalLink, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, ClipboardList } from 'lucide-react';
+import { Users, UserPlus, ExternalLink, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, ClipboardList, Flag } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import { Candidate } from '@/types';
@@ -37,7 +37,11 @@ export default function DashboardPage() {
     setVisaModalId(null);
     setVisaNumberInput('');
     try {
-      const bodyPayload: any = { isRequested: !current };
+      const bodyPayload: any = { 
+        isRequested: !current,
+        visaSelected: !current,
+        status: !current ? 'visa selected' : 'pending'
+      };
       if (!current && visaNum) {
         bodyPayload.visaOrContractNumber = visaNum;
       } else if (current) {
@@ -50,7 +54,13 @@ export default function DashboardPage() {
         body: JSON.stringify(bodyPayload),
       });
       if (!res.ok) throw new Error();
-      setAllCandidates(prev => prev.map(c => c.id === id ? { ...c, isRequested: !current, visaOrContractNumber: bodyPayload.visaOrContractNumber } : c));
+      setAllCandidates(prev => prev.map(c => c.id === id ? { 
+        ...c, 
+        isRequested: !current, 
+        visaSelected: !current,
+        status: !current ? 'visa selected' : 'pending',
+        visaOrContractNumber: bodyPayload.visaOrContractNumber 
+      } : c));
     } catch { alert('Failed to update status'); }
   };
 
@@ -153,7 +163,10 @@ export default function DashboardPage() {
                             <span className="text-primary font-bold text-sm">{candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}</span>
                           </div>
                           <div>
-                            <p className="font-semibold text-text-primary">{candidate.passportData.givenNames} {candidate.passportData.surname}</p>
+                            <p className="font-semibold text-text-primary flex items-center gap-2">
+                              {candidate.passportData.givenNames} {candidate.passportData.surname}
+                              {candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500" />}
+                            </p>
                             <p className="text-xs text-text-tertiary">{candidate.personalInfo.email}</p>
                           </div>
                         </div>
@@ -253,7 +266,10 @@ export default function DashboardPage() {
                             <span className="text-green-600 font-bold text-sm">{candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}</span>
                           </div>
                           <div>
-                            <p className="font-semibold text-text-primary">{candidate.passportData.givenNames} {candidate.passportData.surname}</p>
+                            <p className="font-semibold text-text-primary flex items-center gap-2">
+                              {candidate.passportData.givenNames} {candidate.passportData.surname}
+                              {candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500" />}
+                            </p>
                             <p className="text-xs text-text-tertiary">{candidate.personalInfo.email}</p>
                           </div>
                         </div>

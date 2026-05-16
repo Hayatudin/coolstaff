@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search } from 'lucide-react';
+import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
@@ -110,7 +110,10 @@ export default function RequestedPage() {
                           <span className="text-green-600 font-bold text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="font-semibold text-text-primary">{c.passportData.givenNames} {c.passportData.surname}</p>
+                          <p className="font-semibold text-text-primary flex items-center gap-2">
+                            {c.passportData.givenNames} {c.passportData.surname}
+                            {c.isFlagged && <Flag size={14} className="text-red-500 fill-red-500" />}
+                          </p>
                           <p className="text-xs text-text-tertiary">{c.personalInfo.email}</p>
                         </div>
                       </div>

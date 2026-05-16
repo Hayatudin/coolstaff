@@ -380,11 +380,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    if (body.isRequested === false) {
-      const current = await prisma.candidate.findUnique({ where: { id }, select: { medicalStatus: true } });
-      if (current?.medicalStatus === 'Unfit') {
-        body.medicalStatus = 'Pending';
-      }
+    // Ensure isFlagged is handled correctly if passed
+    if (body.isFlagged !== undefined) {
+      body.isFlagged = Boolean(body.isFlagged);
     }
 
     const updated = await prisma.candidate.update({
