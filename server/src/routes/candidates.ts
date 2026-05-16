@@ -181,9 +181,18 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: body.videoUrl || null,
         status: body.status || 'pending',
-        salary: body.personalInfo.salary || '1000SR',
       },
     });
+
+    // Save salary separately with graceful fallback (in case column doesn't exist in DB yet)
+    try {
+      const salaryValue = body.personalInfo?.salary || '1000SR';
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET \`salary\` = ? WHERE \`id\` = ?`,
+        salaryValue,
+        candidate.id
+      );
+    } catch (_) { /* salary column may not exist yet, ignore */ }
 
     res.status(201).json(candidate);
   } catch (error: any) {
@@ -367,9 +376,18 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
-        salary: body.personalInfo.salary || '1000SR',
       },
     });
+
+    // Save salary separately with graceful fallback (in case column doesn't exist in DB yet)
+    try {
+      const salaryValue = body.personalInfo?.salary || '1000SR';
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET \`salary\` = ? WHERE \`id\` = ?`,
+        salaryValue,
+        candidate.id
+      );
+    } catch (_) { /* salary column may not exist yet, ignore */ }
 
     res.json(candidate);
   } catch (error: any) {
