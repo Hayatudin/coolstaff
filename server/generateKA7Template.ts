@@ -11,7 +11,7 @@ const c = (options: any) => {
     rowSpan: options.rspan || 1,
     shading: options.fill ? { fill: options.fill, type: ShadingType.CLEAR, color: "auto" } : undefined,
     verticalAlign: options.vAlign || VerticalAlign.CENTER,
-    margins: { top: 60, bottom: 60, left: 60, right: 60 },
+    margins: { top: 30, bottom: 30, left: 60, right: 60 },
     children: [
       new Paragraph({
         alignment: options.align || AlignmentType.LEFT,
@@ -20,7 +20,7 @@ const c = (options: any) => {
             text: options.text || "",
             bold: options.bold || false,
             color: options.color || "000000",
-            size: options.size || 20, // 10pt
+            size: options.size || 18, // 9pt
             font: "Arial"
           })
         ]
@@ -156,6 +156,6 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then((buffer) => {
-  fs.writeFileSync("templates/CV KA-7-fixed.docx", buffer);
-  console.log("Document CV KA-7-fixed.docx updated successfully in templates/");
+  fs.writeFileSync("templates/CV KA-7-v2.docx", buffer);
+  console.log("Document CV KA-7-v2.docx updated successfully in templates/");
 }).catch((e) => console.error(e));

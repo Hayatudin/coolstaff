@@ -13,7 +13,7 @@ const router = Router();
 
 const TEMPLATE_MAP: Record<string, string> = {
   'tmpl-alm': 'CV ALM.docx',
-  'tmpl-ka7': 'CV KA-7-fixed.docx',
+  'tmpl-ka7': 'CV KA-7-v2.docx',
   'tmpl-ku2': 'CV KU2.docx',
   'tmpl-ma': 'CV MA.docx',
   'tmpl-ra': 'CV RA.docx',
@@ -142,6 +142,8 @@ router.post('/generate', async (req: Request, res: Response) => {
             maxWidth = 350; maxHeight = 545;
           } else if (templateId === 'tmpl-al-shablan' || templateId === 'tmpl-ussus') {
             maxWidth = 280; maxHeight = 460;
+          } else if (templateId === 'tmpl-ka7') {
+            maxWidth = 300; maxHeight = 450;
           } else {
             maxWidth = 550; maxHeight = 750;
           }
