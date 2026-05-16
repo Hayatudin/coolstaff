@@ -13,7 +13,7 @@ const router = Router();
 
 const TEMPLATE_MAP: Record<string, string> = {
   'tmpl-alm': 'CV ALM.docx',
-  'tmpl-ka7': 'CV KA-7-v2.docx',
+  'tmpl-ka7': 'CV KA-7-v3.docx',
   'tmpl-ku2': 'CV KU2.docx',
   'tmpl-ma': 'CV MA.docx',
   'tmpl-ra': 'CV RA.docx',
@@ -153,8 +153,19 @@ router.post('/generate', async (req: Request, res: Response) => {
 
         try {
           const dimensions = sizeOf(img);
+          console.log(`[DOCX] Image ${tagName} original size: ${dimensions.width}x${dimensions.height}`);
           const ratio = dimensions.width / dimensions.height;
           
+          // Special handling for KA-7 full body to prevent stretching
+          if (templateId === 'tmpl-ka7' && tagName === 'fullBodyPhoto') {
+            const targetWidth = 280;
+            const targetHeight = Math.round(targetWidth / ratio);
+            if (targetHeight > 450) {
+              return [Math.round(450 * ratio), 450];
+            }
+            return [targetWidth, targetHeight];
+          }
+
           if (ratio > maxWidth / maxHeight) {
             // Limited by width
             return [maxWidth, Math.round(maxWidth / ratio)];
@@ -163,6 +174,7 @@ router.post('/generate', async (req: Request, res: Response) => {
             return [Math.round(maxHeight * ratio), maxHeight];
           }
         } catch (e) {
+          console.warn(`[DOCX] Failed to get dimensions for ${tagName}`, e);
           return [maxWidth, maxHeight];
         }
       },

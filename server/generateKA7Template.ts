@@ -101,7 +101,7 @@ const doc = new Document({
             new TableRow({ children: [ c({ cspan: 3, fill: LIGHT_BLUE, text: "Height/Weight" }), c({ cspan: 3, text: "{height} / {weight}" }), c({ cspan: 2, fill: LIGHT_BLUE, text: "الوزن والطول", align: AlignmentType.RIGHT }), c({ cspan: 4, fill: LIGHT_BLUE, text: "Next of Kin number" }), c({ cspan: 4, text: "{emergencyPhone}" }), c({ cspan: 2, fill: LIGHT_BLUE, text: "رتب", align: AlignmentType.RIGHT }) ] }),
 
             // Row 15
-            new TableRow({ children: [ c({ cspan: 3, fill: LIGHT_BLUE, text: "Education Qualifications" }), c({ cspan: 3, text: "{educationLevel}" }), c({ cspan: 2, fill: LIGHT_BLUE, text: "المستوى التعليمي", align: AlignmentType.RIGHT }), c({ cspan: 10, rspan: 13, text: "{%fullBodyPhoto}", align: AlignmentType.CENTER }) ] }),
+            new TableRow({ children: [ c({ cspan: 3, fill: LIGHT_BLUE, text: "Education Qualifications" }), c({ cspan: 3, text: "{educationLevel}" }), c({ cspan: 2, fill: LIGHT_BLUE, text: "المستوى التعليمي", align: AlignmentType.RIGHT }), c({ cspan: 10, rspan: 13, text: "{%fullBodyPhoto}", align: AlignmentType.CENTER, vAlign: VerticalAlign.TOP }) ] }),
 
             // Row 16
             new TableRow({ children: [ c({ cspan: 3, fill: LIGHT_BLUE, text: "Tel. Number" }), c({ cspan: 3, text: "{phone}" }), c({ cspan: 2, fill: LIGHT_BLUE, text: "رقم التواصل", align: AlignmentType.RIGHT }) ] }),
@@ -156,6 +156,6 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then((buffer) => {
-  fs.writeFileSync("templates/CV KA-7-v2.docx", buffer);
-  console.log("Document CV KA-7-v2.docx updated successfully in templates/");
+  fs.writeFileSync("templates/CV KA-7-v3.docx", buffer);
+  console.log("Document CV KA-7-v3.docx updated successfully in templates/");
 }).catch((e) => console.error(e));
