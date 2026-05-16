@@ -80,8 +80,8 @@ export default function RequestedPage() {
         <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
       </div>
 
-      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
+        <div className="overflow-visible">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
@@ -90,7 +90,6 @@ export default function RequestedPage() {
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
                 <th className="px-6 py-4 font-semibold">Job / Skills</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold">COC</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -132,14 +131,13 @@ export default function RequestedPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {c.cocDocumentUrl ? (
-                        <button onClick={() => setViewDoc(c.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
-                      ) : <span className="text-xs text-text-tertiary">—</span>}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {c.medicalDocumentUrl ? (
-                        <button onClick={() => setViewDoc(c.medicalDocumentUrl!)} className="text-sm text-emerald-600 hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
-                      ) : <span className="text-xs text-text-tertiary">—</span>}
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        c.personalInfo.medicalStatus === 'Fit' ? "bg-emerald-100 text-emerald-700" :
+                        c.personalInfo.medicalStatus === 'Unfit' ? "bg-red-100 text-red-700" :
+                        "bg-amber-100 text-amber-700"
+                      }`}>
+                        {c.personalInfo.medicalStatus || 'Pending'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="relative inline-block" data-action-menu>
@@ -148,6 +146,11 @@ export default function RequestedPage() {
                         </button>
                         {openMenuId === c.id && (
                           <div className="absolute right-0 top-full mt-1 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                            <button onClick={() => {}} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary">
+                              <CheckCircle size={16} />
+                              <span>Proceed</span>
+                            </button>
+                            <div className="border-t border-border my-1" />
                             <button onClick={() => cancelVisa(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                               <CheckCircle size={16} className="text-amber-500" />
                               <span>Cancelled</span>

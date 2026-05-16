@@ -218,11 +218,13 @@ function ChangeTemplateModal({
 // ── Delete Confirm Modal ──────────────────────────────────────────────────────
 function DeleteModal({
   cv,
+  bulkCount,
   onConfirm,
   onClose,
   isLoading,
 }: {
-  cv: any;
+  cv?: any;
+  bulkCount?: number;
   onConfirm: () => void;
   onClose: () => void;
   isLoading: boolean;
@@ -248,11 +250,16 @@ function DeleteModal({
           <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <AlertTriangle size={28} className="text-red-500" />
           </div>
-          <h2 className="text-lg font-bold text-text-primary mb-2">Delete Generated CV?</h2>
+          <h2 className="text-lg font-bold text-text-primary mb-2">
+            {bulkCount ? `Delete ${bulkCount} Generated CVs?` : 'Delete Generated CV?'}
+          </h2>
           <p className="text-sm text-text-secondary">
-            This will permanently remove the generated CV record for{' '}
-            <strong>{cv.candidate.givenNames} {cv.candidate.surname}</strong> from the database.
-            This action cannot be undone.
+            {bulkCount ? (
+              <>This will permanently remove <strong>{bulkCount} selected CVs</strong> from the database.</>
+            ) : (
+              <>This will permanently remove the generated CV record for <strong>{cv?.candidate.givenNames} {cv?.candidate.surname}</strong> from the database.</>
+            )}
+            <br/>This action cannot be undone.
           </p>
         </div>
         <div className="flex items-center gap-3 px-6 pb-6">
@@ -340,16 +347,34 @@ export default function GeneratedCVsPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setActionLoading(true);
-    try {
-      const res = await api(`/api/generated-cvs/${deleteTarget.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed');
-      setCvs(prev => prev.filter(c => c.id !== deleteTarget.id));
-      showToast('CV record deleted successfully');
-    } catch {
-      showToast('Failed to delete CV record', 'error');
-    } finally {
-      setActionLoading(false);
-      setDeleteTarget(null);
+    
+    if (deleteTarget === 'bulk') {
+      try {
+        const ids = Array.from(selectedCVIds);
+        for (const id of ids) {
+          await api(`/api/generated-cvs/${id}`, { method: 'DELETE' });
+        }
+        setCvs(prev => prev.filter(c => !selectedCVIds.has(c.id)));
+        setSelectedCVIds(new Set());
+        showToast(`Deleted ${ids.length} CVs successfully`);
+      } catch (err) {
+        showToast('Failed to delete some CVs', 'error');
+      } finally {
+        setActionLoading(false);
+        setDeleteTarget(null);
+      }
+    } else {
+      try {
+        const res = await api(`/api/generated-cvs/${deleteTarget.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed');
+        setCvs(prev => prev.filter(c => c.id !== deleteTarget.id));
+        showToast('CV record deleted successfully');
+      } catch {
+        showToast('Failed to delete CV record', 'error');
+      } finally {
+        setActionLoading(false);
+        setDeleteTarget(null);
+      }
     }
   };
 
@@ -442,22 +467,9 @@ export default function GeneratedCVsPage() {
 
 
 
-  const handleBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedCVIds.size} CVs?`)) return;
-    setActionLoading(true);
-    try {
-      const ids = Array.from(selectedCVIds);
-      for (const id of ids) {
-        await api(`/api/generated-cvs/${id}`, { method: 'DELETE' });
-      }
-      setCvs(prev => prev.filter(c => !selectedCVIds.has(c.id)));
-      setSelectedCVIds(new Set());
-      showToast(`Deleted ${ids.length} CVs successfully`);
-    } catch (err) {
-      showToast('Failed to delete some CVs', 'error');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleBulkDelete = () => {
+    if (selectedCVIds.size === 0) return;
+    setDeleteTarget('bulk');
   };
 
   // ── Toggle Flag ────────────────────────────────────────────────────────────
@@ -576,6 +588,20 @@ export default function GeneratedCVsPage() {
   const folders = TEMPLATES.map(t => ({ ...t, cvs: cvs.filter(c => c.templateId === t.id) }));
 
   const someSelected = selectedCVIds.size > 0;
+
+  // ── Keyboard Shortcuts ──────────────────────────────────────────────────
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'Delete' && selectedCVIds.size > 0 && !deleteTarget) {
+        setDeleteTarget('bulk');
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [selectedCVIds, deleteTarget]);
 
   // ── Folder View ───────────────────────────────────────────────────────────
   if (!selectedFolder) {
@@ -1176,12 +1202,14 @@ export default function GeneratedCVsPage() {
           </div>
         </div>
       )}
+        {/* Delete Modal */}
       {deleteTarget && (
         <DeleteModal
-          cv={deleteTarget}
-          onConfirm={handleConfirmDelete}
-          onClose={() => !actionLoading && setDeleteTarget(null)}
+          cv={deleteTarget === 'bulk' ? undefined : deleteTarget}
+          bulkCount={deleteTarget === 'bulk' ? selectedCVIds.size : undefined}
           isLoading={actionLoading}
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeleteTarget(null)}
         />
       )}
       {/* Preview Modal */}
