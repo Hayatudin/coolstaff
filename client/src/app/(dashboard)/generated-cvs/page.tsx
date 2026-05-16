@@ -575,6 +575,8 @@ export default function GeneratedCVsPage() {
   // ── Group by template ──────────────────────────────────────────────────────
   const folders = TEMPLATES.map(t => ({ ...t, cvs: cvs.filter(c => c.templateId === t.id) }));
 
+  const someSelected = selectedCVIds.size > 0;
+
   // ── Folder View ───────────────────────────────────────────────────────────
   if (!selectedFolder) {
     return (
@@ -687,7 +689,6 @@ export default function GeneratedCVsPage() {
   const TC = activeTemplate.component;
 
   const allSelected = activeCVs.length > 0 && activeCVs.every(cv => selectedCVIds.has(cv.id));
-  const someSelected = selectedCVIds.size > 0;
 
   // ── Download All as ZIP ────────────────────────────────────────────────────
   const handleDownloadAll = async (format: 'pdf' | 'jpg' | 'doc') => {
