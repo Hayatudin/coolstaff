@@ -501,7 +501,12 @@ export default function GeneratedCVsPage() {
 
         const origH = el.style.height; const origO = el.style.overflow;
         el.style.height = 'auto'; el.style.overflow = 'visible';
-        const dataUrl = await htmlToImage.toJpeg(el, { quality: 0.95, backgroundColor: '#ffffff', pixelRatio: 2 });
+        const dataUrl = await htmlToImage.toJpeg(el, { 
+          quality: 0.95, 
+          backgroundColor: '#ffffff', 
+          pixelRatio: 2,
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+        });
         el.style.height = origH; el.style.overflow = origO;
 
         if (cancelled) return;
@@ -633,6 +638,24 @@ export default function GeneratedCVsPage() {
             </div>
           )}
         </div>
+
+        {/* Floating Bulk Action Bar for Delete */}
+        {someSelected && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
+            <div className="bg-white px-6 py-3 rounded-full shadow-2xl border border-border flex items-center gap-4">
+              <span className="text-sm font-bold text-text-primary">{selectedCVIds.size} selected</span>
+              <div className="w-px h-6 bg-border" />
+              <button
+                onClick={handleBulkDelete}
+                disabled={actionLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-bold hover:bg-red-700 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-red-500/20"
+              >
+                <Trash2 size={16} /> Delete CV{selectedCVIds.size !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        )}
+
         {toast && <Toast msg={toast.msg} type={toast.type} />}
       </>
     );
@@ -700,14 +723,20 @@ export default function GeneratedCVsPage() {
               fullBodyPhoto: getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl),
             })
           );
-          setTimeout(resolve, 500);
+          // Wait briefly for React to render DOM, htmlToImage will wait for images
+          setTimeout(resolve, 50);
         });
 
         const origH = wrapper.style.height;
         const origO = wrapper.style.overflow;
         wrapper.style.height = 'auto';
         wrapper.style.overflow = 'visible';
-        const dataUrl = await htmlToImage.toJpeg(wrapper, { quality: 0.92, backgroundColor: '#ffffff', pixelRatio: 2 });
+        const dataUrl = await htmlToImage.toJpeg(wrapper, { 
+          quality: 0.92, 
+          backgroundColor: '#ffffff', 
+          pixelRatio: 2,
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+        });
         wrapper.style.height = origH;
         wrapper.style.overflow = origO;
 
@@ -808,13 +837,6 @@ export default function GeneratedCVsPage() {
                   <LayoutTemplate size={13} /> Change Template
                 </button>
                 <button
-                  onClick={handleBulkDelete}
-                  disabled={actionLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50 ml-1"
-                >
-                  <Trash2 size={13} /> Delete
-                </button>
-                <button
                   onClick={() => setSelectedCVIds(new Set())}
                   className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors"
                 >
@@ -849,22 +871,25 @@ export default function GeneratedCVsPage() {
             </div>
 
             {/* Age Filter */}
-            <div className="flex items-center gap-1 w-32 bg-surface border border-border rounded-xl px-2">
-              <input
-                type="number"
-                placeholder="Min"
-                value={minAgeFilter}
-                onChange={e => setMinAgeFilter(e.target.value)}
-                className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
-              />
-              <span className="text-text-tertiary">-</span>
-              <input
-                type="number"
-                placeholder="Max"
-                value={maxAgeFilter}
-                onChange={e => setMaxAgeFilter(e.target.value)}
-                className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
-              />
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-text-secondary">Age:</span>
+              <div className="flex items-center gap-1 w-32 bg-surface border border-border rounded-xl px-2">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={minAgeFilter}
+                  onChange={e => setMinAgeFilter(e.target.value)}
+                  className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
+                />
+                <span className="text-text-tertiary">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={maxAgeFilter}
+                  onChange={e => setMaxAgeFilter(e.target.value)}
+                  className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
+                />
+              </div>
             </div>
 
             {/* Download All */}
