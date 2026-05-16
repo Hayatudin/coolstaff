@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
-  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag
+  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -110,30 +110,29 @@ function ActionMenu({
 function ChangeTemplateModal({
   cv,
   currentTemplateId,
-  onDownload,
+  onChange,
   onClose,
   isLoading,
 }: {
   cv: any;
   currentTemplateId: string;
-  onDownload: (newTemplateId: string, format: 'pdf' | 'jpg' | 'doc') => void;
+  onChange: (newTemplateId: string) => void;
   onClose: () => void;
   isLoading: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [dlOpen, setDlOpen] = useState(false);
   const others = TEMPLATES.filter(t => t.id !== currentTemplateId);
 
   // Add Enter key trigger
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && selected && !isLoading) {
-        onDownload(selected, 'pdf');
+        onChange(selected);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selected, isLoading, onDownload]);
+  }, [selected, isLoading, onChange]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -195,53 +194,21 @@ function ChangeTemplateModal({
           </div>
         </div>
 
-        {/* Footer — Download dropdown like CV Generator */}
+        {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-gray-50/50">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface transition-colors border border-border">
             Cancel
           </button>
-
-          <div className="relative">
-            <div className={cn('flex rounded-xl overflow-hidden border', selected ? 'border-primary' : 'border-border opacity-50 pointer-events-none')}>
-              {/* Main download button */}
-              <button
-                onClick={() => selected && onDownload(selected, 'pdf')}
-                disabled={!selected || isLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {isLoading
-                  ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  : <Download size={15} />}
-                {isLoading ? 'Processing…' : 'Download PDF'}
-              </button>
-              {/* Dropdown arrow */}
-              <button
-                onClick={() => setDlOpen(p => !p)}
-                disabled={!selected || isLoading}
-                className="px-2 py-2 bg-primary/90 text-white border-l border-white/20 hover:bg-primary/80 transition-colors"
-              >
-                <ChevronDown size={14} className={cn('transition-transform', dlOpen && 'rotate-180')} />
-              </button>
-            </div>
-
-            {/* Format dropdown */}
-            {dlOpen && selected && (
-              <div className="absolute right-0 bottom-full mb-2 w-44 bg-white border border-border rounded-xl shadow-xl overflow-hidden z-10">
-                <button onClick={() => { setDlOpen(false); onDownload(selected, 'pdf'); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors">
-                  <FileDown size={14} className="text-red-500" /> Download as PDF
-                </button>
-                <button onClick={() => { setDlOpen(false); onDownload(selected, 'jpg'); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border">
-                  <ImageIcon size={14} className="text-emerald-500" /> Download as JPG
-                </button>
-                <button onClick={() => { setDlOpen(false); onDownload(selected, 'doc'); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border">
-                  <FileText size={14} className="text-blue-500" /> Download as DOCX
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => selected && onChange(selected)}
+            disabled={!selected || isLoading}
+            className="flex items-center gap-2 px-6 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 rounded-xl"
+          >
+            {isLoading
+              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <LayoutTemplate size={15} />}
+            {isLoading ? 'Changing…' : 'Change Template'}
+          </button>
         </div>
       </div>
     </div>
@@ -321,8 +288,10 @@ export default function GeneratedCVsPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [religionFilter, setReligionFilter] = useState<string>('');
   const [flagFilter, setFlagFilter] = useState<'all' | 'flagged' | 'unflagged'>('all');
+  const [ageFilter, setAgeFilter] = useState<string>('all');
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [previewCv, setPreviewCv] = useState<any | null>(null);
 
   // Modals
   const [changeTarget, setChangeTarget] = useState<any | null>(null);
@@ -440,42 +409,7 @@ export default function GeneratedCVsPage() {
     setSelectedFolder(newTemplateId);
   };
 
-  const handleDownloadAndChange = async (newTemplateId: string, format: 'pdf' | 'jpg' | 'doc') => {
-    if (!changeTarget) return;
-    setActionLoading(true);
-    try {
-      const res = await api(`/api/generated-cvs/${changeTarget.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId: newTemplateId }),
-      });
-      
-      if (res.status === 409) {
-        showToast('Candidate already generated in that template', 'error');
-        setChangeTarget(null);
-        return;
-      }
-      
-      if (!res.ok) throw new Error('Failed to update database');
-      
-      const newTemplateName = TEMPLATES.find(t => t.id === newTemplateId)?.name;
-      const updatedCv = { ...changeTarget, templateId: newTemplateId };
-      
-      setCvs(prev => prev.map(c => c.id === changeTarget.id ? updatedCv : c));
-      showToast(`Moved to "${newTemplateName}" folder`);
-      
-      // Start download of the NEW CV
-      startDownload(updatedCv, format as any);
-      
-      setChangeTarget(null);
-      setSelectedFolder(newTemplateId); // jump to new folder
-    } catch (error) {
-      console.error('Change template error:', error);
-      showToast('Failed to change template', 'error');
-    } finally {
-      setActionLoading(false);
-    }
-  };
+
 
   // ── Toggle Flag ────────────────────────────────────────────────────────────
   const toggleFlag = async (cvId: string, candidateId: string, currentFlagStatus: boolean) => {
@@ -666,6 +600,16 @@ export default function GeneratedCVsPage() {
     }
     if (flagFilter === 'flagged' && !cv.candidate.isFlagged) return false;
     if (flagFilter === 'unflagged' && cv.candidate.isFlagged) return false;
+
+    if (ageFilter !== 'all') {
+      if (!cv.candidate.dateOfBirth) return false;
+      const age = new Date().getFullYear() - new Date(cv.candidate.dateOfBirth).getFullYear();
+      if (ageFilter === '18-25' && (age < 18 || age > 25)) return false;
+      if (ageFilter === '26-35' && (age < 26 || age > 35)) return false;
+      if (ageFilter === '36-45' && (age < 36 || age > 45)) return false;
+      if (ageFilter === '46+' && age < 46) return false;
+    }
+
     return true;
   });
   const TC = activeTemplate.component;
@@ -848,6 +792,21 @@ export default function GeneratedCVsPage() {
               </select>
             </div>
 
+            {/* Age Filter */}
+            <div className="w-32">
+              <select
+                value={ageFilter}
+                onChange={e => setAgeFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
+              >
+                <option value="all">All Ages</option>
+                <option value="18-25">18-25</option>
+                <option value="26-35">26-35</option>
+                <option value="36-45">36-45</option>
+                <option value="46+">46+</option>
+              </select>
+            </div>
+
             {/* Download All */}
             <div className="relative">
               <button
@@ -952,7 +911,7 @@ export default function GeneratedCVsPage() {
                 {/* Live Preview */}
                 <div
                   className="relative h-56 bg-gray-100 overflow-hidden cursor-pointer group border-b border-border"
-                  onClick={() => { setDownloadingCv(cv); }}
+                  onClick={() => { setPreviewCv(cv); }}
                 >
                   {/* Scaled live template render */}
                   <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
@@ -965,7 +924,7 @@ export default function GeneratedCVsPage() {
                   {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-gray-900 rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg font-medium text-sm">
-                      <Download size={15} /> Download
+                      <Eye size={15} /> Preview
                     </div>
                   </div>
                 </div>
@@ -1077,7 +1036,7 @@ export default function GeneratedCVsPage() {
         <ChangeTemplateModal
           cv={changeTarget}
           currentTemplateId={changeTarget.templateId}
-          onDownload={handleDownloadAndChange}
+          onChange={handleConfirmChange}
           onClose={() => !actionLoading && setChangeTarget(null)}
           isLoading={actionLoading}
         />
@@ -1140,6 +1099,27 @@ export default function GeneratedCVsPage() {
           isLoading={actionLoading}
         />
       )}
+      {/* Preview Modal */}
+      {previewCv && (() => {
+        const PrevTemplate = TEMPLATES.find(t => t.id === previewCv.templateId)?.component || ALMTemplate;
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewCv(null)}>
+            <div className="relative max-h-[95vh] overflow-auto bg-white rounded-xl shadow-2xl flex items-start justify-center" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setPreviewCv(null)} className="absolute top-4 right-4 z-10 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors backdrop-blur-md">
+                <X size={20} />
+              </button>
+              <div className="w-[800px] shrink-0 bg-white shadow-xl relative">
+                <PrevTemplate
+                  candidate={previewCv.candidate}
+                  facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
+                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl)}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </>
   );

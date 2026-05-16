@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import { Broker, Candidate } from '@/types';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
+import { getFileUrl } from '@/lib/utils';
 
 type Interval = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
 
@@ -203,7 +204,7 @@ export default function BrokerCandidatesPage() {
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-primary font-black text-sm border border-border group-hover:border-primary/30 group-hover:scale-105 transition-all duration-300 overflow-hidden">
                           {candidate.facePhotoUrl ? (
-                            <img src={candidate.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                            <img src={getFileUrl(candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <span>{candidate.givenNames.charAt(0)}{candidate.surname.charAt(0)}</span>
                           )}
