@@ -53,6 +53,7 @@ export interface CandidatePersonalInfo {
   relativeIdImageUrl?: string;
   labourIdUrl?: string;
   brokerId?: string;
+  salary?: string;
 }
 
 export interface Candidate {
@@ -70,6 +71,7 @@ export interface Candidate {
   labourIdUrl?: string;
   isRequested?: boolean;
   visaSelected?: boolean;
+  salary?: string;
   visaOrContractNumber?: string | null;
   isFlagged?: boolean;
   videoUrl?: string | null;

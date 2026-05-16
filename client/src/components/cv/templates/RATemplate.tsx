@@ -109,7 +109,7 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
               </tr>
               <tr>
                 <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Salary</td>
-                <td className="border border-black px-2 py-1 font-bold uppercase">1000SR.</td>
+                <td className="border border-black px-2 py-1 font-bold uppercase">{candidate.salary || candidate.personalInfo?.salary || '1000SR'}</td>
                 <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الراتب</td>
               </tr>
               <tr>

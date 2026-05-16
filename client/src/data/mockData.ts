@@ -339,7 +339,7 @@ export const maritalStatusOptions = [
 ];
 
 export const religionOptions = [
-  'Islam', 'Non muslim',
+  'Muslim', 'Non muslim',
 ];
 
 export const bloodTypeOptions = [

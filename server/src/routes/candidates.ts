@@ -68,6 +68,7 @@ router.get('/', async (req: Request, res: Response) => {
           candidateIdImageUrl: c.candidateIdImageUrl || '',
           relativeIdImageUrl: c.relativeIdImageUrl || '',
           labourIdUrl: c.labourIdUrl || '',
+          salary: c.salary || '1000SR',
         },
         brokerId: c.brokerId,
         passportImageUrl: c.passportImageUrl || '',
@@ -85,6 +86,7 @@ router.get('/', async (req: Request, res: Response) => {
         registeredAt: c.registeredAt.toISOString(),
         status: c.status,
         visaSelected: c.visaSelected,
+        salary: c.salary || '1000SR',
         generatedCVs: c.generatedCVs?.map((cv: any) => cv.templateId) || [],
       };
     });
@@ -179,6 +181,7 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: body.videoUrl || null,
         status: body.status || 'pending',
+        salary: body.personalInfo.salary || '1000SR',
       },
     });
 
@@ -256,6 +259,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         candidateIdImageUrl: c.candidateIdImageUrl || '',
         relativeIdImageUrl: c.relativeIdImageUrl || '',
         labourIdUrl: c.labourIdUrl || '',
+        salary: c.salary || '1000SR',
       },
       passportImageUrl: c.passportImageUrl || '',
       facePhotoUrl: c.facePhotoUrl || '',
@@ -272,6 +276,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       registeredAt: c.registeredAt.toISOString(),
       broker: c.broker,
       visaSelected: c.visaSelected,
+      salary: c.salary || '1000SR',
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
     };
     res.json(candidate);
@@ -362,6 +367,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
+        salary: body.personalInfo.salary || '1000SR',
       },
     });
 

@@ -109,7 +109,7 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
             </div>
             <div>
               <span className="font-bold">MONTHLY SALARY: </span>
-              <span className="font-extrabold text-black">1000 SAR</span>
+              <span className="font-extrabold text-black uppercase">{candidate.salary || candidate.personalInfo?.salary || '1000 SAR'}</span>
             </div>
             <div>
               <span className="font-bold">PHONE NUMBER: </span>

@@ -21,11 +21,11 @@ const emptyPassportData: PassportData = {
 
 const emptyPersonalInfo: CandidatePersonalInfo = {
   idNumber: '', job: '', maritalStatus: '', numberOfChildren: 0, religion: '', bloodType: '',
-  height: '', weight: '', phone: '', email: '', address: '', city: '',
+  height: '160', weight: '55', phone: '', email: '', address: '', city: '',
   state: '', country: '', educationLevel: '', languages: [],
   workExperience: [], skills: [], medicalStatus: 'Pending', knownConditions: '',
   emergencyContactName: '', emergencyContactRelation: '', emergencyContactPhone: '', emergencyContactAddress: '',
-  additionalPhones: [], brokerId: '',
+  additionalPhones: [], brokerId: '', salary: '1000SR',
 };
 
 function RegistrationContent() {
@@ -184,7 +184,7 @@ function RegistrationContent() {
       const mapReligion = (r?: string): string => {
         if (!r) return '';
         const upper = r.toUpperCase();
-        if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Islam';
+        if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
         if (upper.includes('ORTHODOX')) return 'Orthodox Christian';
         if (upper.includes('PROTESTANT')) return 'Protestant';
         if (upper.includes('CATHOLIC')) return 'Catholic';

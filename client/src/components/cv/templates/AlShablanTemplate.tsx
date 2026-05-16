@@ -106,7 +106,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Salary</td>
-                    <td className="border border-black px-2 py-1.5 text-center">-</td>
+                    <td className="border border-black px-2 py-1.5 text-center font-bold">{candidate.salary || candidate.personalInfo?.salary || '1000SR'}</td>
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Age</td>
