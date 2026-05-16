@@ -79,6 +79,9 @@ model Candidate {
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?
 
+  registeredBy             User?     @relation(fields: [registeredById], references: [id])
+  registeredById           String?
+
   generatedCVs             GeneratedCV[]
 
   @@index([passportNumber])
@@ -125,6 +128,7 @@ model User {
 
   sessions      Session[]
   accounts      Account[]
+  candidates    Candidate[]
 
   @@index([email])
   @@index([role])

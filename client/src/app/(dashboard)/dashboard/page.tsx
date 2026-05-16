@@ -133,8 +133,8 @@ export default function DashboardPage() {
           <Link href="/candidates" className="text-sm text-primary hover:underline font-medium">View All →</Link>
         </div>
 
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
+          <div className="overflow-visible min-h-[300px] pb-32">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
@@ -236,8 +236,8 @@ export default function DashboardPage() {
           <Link href="/requested" className="text-sm text-primary hover:underline font-medium">View All →</Link>
         </div>
 
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
+          <div className="overflow-visible min-h-[300px] pb-32">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">

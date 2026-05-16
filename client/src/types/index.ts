@@ -82,6 +82,7 @@ export interface Candidate {
   broker?: Broker;
   latestCVTemplate?: string | null;
   generatedCVs?: string[];
+  registeredBy?: string;
 }
 
 export interface Broker {

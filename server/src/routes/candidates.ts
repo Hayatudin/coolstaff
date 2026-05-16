@@ -10,7 +10,8 @@ router.get('/', async (req: Request, res: Response) => {
     const dbCandidates = await prisma.candidate.findMany({
       orderBy: { registeredAt: 'desc' },
       include: {
-        generatedCVs: { select: { templateId: true } }
+        generatedCVs: { select: { templateId: true } },
+        registeredBy: { select: { name: true } }
       }
     });
 
@@ -88,6 +89,7 @@ router.get('/', async (req: Request, res: Response) => {
         visaSelected: c.visaSelected,
         salary: c.salary || '1000SR',
         generatedCVs: c.generatedCVs?.map((cv: any) => cv.templateId) || [],
+        registeredBy: c.registeredBy?.name || 'Admin',
       };
     });
 
@@ -181,6 +183,7 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: body.videoUrl || null,
         status: body.status || 'pending',
+        registeredById: body.registeredById || null,
       },
     });
 

@@ -288,7 +288,8 @@ export default function GeneratedCVsPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [religionFilter, setReligionFilter] = useState<string>('');
   const [flagFilter, setFlagFilter] = useState<'all' | 'flagged' | 'unflagged'>('all');
-  const [ageFilter, setAgeFilter] = useState<string>('all');
+  const [minAgeFilter, setMinAgeFilter] = useState<string>('');
+  const [maxAgeFilter, setMaxAgeFilter] = useState<string>('');
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
@@ -353,6 +354,36 @@ export default function GeneratedCVsPage() {
   };
 
   // ── Change Template ────────────────────────────────────────────────────────
+  // Drag selection
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragAction, setDragAction] = useState<'select' | 'deselect' | null>(null);
+
+  useEffect(() => {
+    const handleMouseUp = () => { setIsDragging(false); setDragAction(null); };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const handleCardMouseDown = (cvId: string, currentSelected: boolean) => {
+    setIsDragging(true);
+    const action = currentSelected ? 'deselect' : 'select';
+    setDragAction(action);
+    setSelectedCVIds(prev => {
+      const next = new Set(prev);
+      if (action === 'select') next.add(cvId); else next.delete(cvId);
+      return next;
+    });
+  };
+
+  const handleCardMouseEnter = (cvId: string) => {
+    if (!isDragging || !dragAction) return;
+    setSelectedCVIds(prev => {
+      const next = new Set(prev);
+      if (dragAction === 'select') next.add(cvId); else next.delete(cvId);
+      return next;
+    });
+  };
+
   const handleConfirmChange = async (newTemplateId: string) => {
     if (!changeTarget) return;
     setActionLoading(true);
@@ -410,6 +441,24 @@ export default function GeneratedCVsPage() {
   };
 
 
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedCVIds.size} CVs?`)) return;
+    setActionLoading(true);
+    try {
+      const ids = Array.from(selectedCVIds);
+      for (const id of ids) {
+        await api(`/api/generated-cvs/${id}`, { method: 'DELETE' });
+      }
+      setCvs(prev => prev.filter(c => !selectedCVIds.has(c.id)));
+      setSelectedCVIds(new Set());
+      showToast(`Deleted ${ids.length} CVs successfully`);
+    } catch (err) {
+      showToast('Failed to delete some CVs', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // ── Toggle Flag ────────────────────────────────────────────────────────────
   const toggleFlag = async (cvId: string, candidateId: string, currentFlagStatus: boolean) => {
@@ -601,13 +650,13 @@ export default function GeneratedCVsPage() {
     if (flagFilter === 'flagged' && !cv.candidate.isFlagged) return false;
     if (flagFilter === 'unflagged' && cv.candidate.isFlagged) return false;
 
-    if (ageFilter !== 'all') {
+    const min = minAgeFilter ? parseInt(minAgeFilter) : null;
+    const max = maxAgeFilter ? parseInt(maxAgeFilter) : null;
+    if (min !== null || max !== null) {
       if (!cv.candidate.dateOfBirth) return false;
       const age = new Date().getFullYear() - new Date(cv.candidate.dateOfBirth).getFullYear();
-      if (ageFilter === '18-25' && (age < 18 || age > 25)) return false;
-      if (ageFilter === '26-35' && (age < 26 || age > 35)) return false;
-      if (ageFilter === '36-45' && (age < 36 || age > 45)) return false;
-      if (ageFilter === '46+' && age < 46) return false;
+      if (min !== null && age < min) return false;
+      if (max !== null && age > max) return false;
     }
 
     return true;
@@ -759,6 +808,13 @@ export default function GeneratedCVsPage() {
                   <LayoutTemplate size={13} /> Change Template
                 </button>
                 <button
+                  onClick={handleBulkDelete}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50 ml-1"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+                <button
                   onClick={() => setSelectedCVIds(new Set())}
                   className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors"
                 >
@@ -793,18 +849,22 @@ export default function GeneratedCVsPage() {
             </div>
 
             {/* Age Filter */}
-            <div className="w-32">
-              <select
-                value={ageFilter}
-                onChange={e => setAgeFilter(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
-              >
-                <option value="all">All Ages</option>
-                <option value="18-25">18-25</option>
-                <option value="26-35">26-35</option>
-                <option value="36-45">36-45</option>
-                <option value="46+">46+</option>
-              </select>
+            <div className="flex items-center gap-1 w-32 bg-surface border border-border rounded-xl px-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={minAgeFilter}
+                onChange={e => setMinAgeFilter(e.target.value)}
+                className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
+              />
+              <span className="text-text-tertiary">-</span>
+              <input
+                type="number"
+                placeholder="Max"
+                value={maxAgeFilter}
+                onChange={e => setMaxAgeFilter(e.target.value)}
+                className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
+              />
             </div>
 
             {/* Download All */}
@@ -905,9 +965,14 @@ export default function GeneratedCVsPage() {
             {activeCVs.map(cv => {
               const isSelected = selectedCVIds.has(cv.id);
               return (
-              <div key={cv.id} className={`bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col ${
-                isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50'
-              }`}>
+              <div 
+                key={cv.id} 
+                className={`bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col select-none ${
+                  isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50'
+                }`}
+                onMouseDown={() => handleCardMouseDown(cv.id, isSelected)}
+                onMouseEnter={() => handleCardMouseEnter(cv.id)}
+              >
                 {/* Live Preview */}
                 <div
                   className="relative h-56 bg-gray-100 overflow-hidden cursor-pointer group border-b border-border"
@@ -937,14 +1002,8 @@ export default function GeneratedCVsPage() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => {
-                          setSelectedCVIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(cv.id)) next.delete(cv.id); else next.add(cv.id);
-                            return next;
-                          });
-                        }}
-                        className="w-4 h-4 accent-primary rounded cursor-pointer"
+                        readOnly
+                        className="w-4 h-4 accent-primary rounded cursor-pointer pointer-events-none"
                       />
                     </label>
                     <div className="flex items-center gap-2.5 min-w-0">

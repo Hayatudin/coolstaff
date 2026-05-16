@@ -10,11 +10,14 @@ import { Candidate } from '@/types';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { authClient } from '@/lib/auth-client';
 
 import { useCandidates } from '@/hooks/useCandidates';
 
 export default function CandidatesPage() {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const isSuperAdmin = (session?.user as any)?.role === 'super_admin';
   const { candidates, isLoading, error, mutate: setCandidates } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -267,8 +270,8 @@ export default function CandidatesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
+        <div className="overflow-visible min-h-[300px] pb-32">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
@@ -277,7 +280,7 @@ export default function CandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
                 <th className="px-6 py-4 font-semibold">Job / Skills</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
-                <th className="px-6 py-4 font-semibold">COC</th>
+                <th className="px-6 py-4 font-semibold">{isSuperAdmin ? 'Registrar' : 'COC'}</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -339,12 +342,21 @@ export default function CandidatesPage() {
                       )}
                     </td>
 
-                    {/* COC */}
+                    {/* COC / Registrar */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.cocDocumentUrl ? (
-                        <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
+                      {isSuperAdmin ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                            {candidate.registeredBy ? candidate.registeredBy.charAt(0).toUpperCase() : 'A'}
+                          </div>
+                          <span className="text-sm font-medium text-text-primary">{candidate.registeredBy || 'Admin'}</span>
+                        </div>
                       ) : (
-                        <span className="text-xs text-text-tertiary">—</span>
+                        candidate.cocDocumentUrl ? (
+                          <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
+                        ) : (
+                          <span className="text-xs text-text-tertiary">—</span>
+                        )
                       )}
                     </td>
 

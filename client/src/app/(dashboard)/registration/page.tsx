@@ -12,6 +12,7 @@ import PersonalInfoForm from '@/components/registration/PersonalInfoForm';
 import Button from '@/components/ui/Button';
 import { ArrowRight, ArrowLeft, CheckCircle2, UserPlus, ScanLine, Upload, FileText, UploadCloud, Loader2 } from 'lucide-react';
 import { useCandidates } from '@/hooks/useCandidates';
+import { authClient } from '@/lib/auth-client';
 
 const emptyPassportData: PassportData = {
   passportNumber: '', surname: '', givenNames: '', dateOfBirth: '',
@@ -57,6 +58,9 @@ function RegistrationContent() {
   const [musanedSuccess, setMusanedSuccess] = useState(false);
   const musanedFileRef = React.useRef<HTMLInputElement>(null);
 
+  const { data: session } = authClient.useSession();
+  const { candidates } = useCandidates();
+
   useEffect(() => {
     async function fetchBrokers() {
       try {
@@ -87,8 +91,6 @@ function RegistrationContent() {
       alert('Error creating broker');
     }
   };
-
-  const { candidates } = useCandidates();
 
   useEffect(() => {
     if (!editId || candidates.length === 0) return;
@@ -278,6 +280,7 @@ function RegistrationContent() {
           status: isEditMode ? (candidates.find(c => c.id === editId)?.status || 'pending') : 'pending',
           isRequested: isEditMode ? (candidates.find(c => c.id === editId)?.isRequested || false) : false,
           visaSelected: isEditMode ? (candidates.find(c => c.id === editId)?.visaSelected || false) : false,
+          registeredById: session?.user?.id || null,
         }),
       });
 
