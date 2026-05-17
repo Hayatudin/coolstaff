@@ -31,7 +31,7 @@ export default function InvoicePage() {
     }
   }, [editingInvoice]);
 
-  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: Function) => {
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (value: any) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
