@@ -235,7 +235,15 @@ router.post('/', async (req: Request, res: Response) => {
         data: { ...candidateData, registeredById: registeredById }
       });
     } catch (createError: any) {
-      throw new Error(`Database Error: ${createError.message}`);
+      console.error('[DEBUG] Prisma Create Error:', createError);
+      if (createError.message && (createError.message.includes('registeredById') || createError.message.includes('Unknown arg'))) {
+        console.warn('[DEBUG] Prisma schema out of sync (registeredById missing). Falling back to basic create.');
+        candidate = await prisma.candidate.create({
+          data: candidateData
+        });
+      } else {
+        throw new Error(`Database Error: ${createError.message}`);
+      }
     }
 
     // Save salary separately with graceful fallback (in case column doesn't exist in DB yet)
@@ -483,9 +491,21 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
-        ...((!existingCandidate?.registeredById && registeredById) && { registeredById }),
       },
     });
+
+    // Save registeredById separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    if (!existingCandidate?.registeredById && registeredById) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`registeredById\` = ? WHERE \`id\` = ?`,
+          registeredById,
+          candidate.id
+        );
+      } catch (e) {
+        console.warn('[DEBUG] Failed to save registeredById via raw SQL (schema may be out of sync):', e);
+      }
+    }
 
     // Save visaDate separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
     try {
