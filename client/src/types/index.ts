@@ -80,9 +80,10 @@ export interface Candidate {
   cvDeadline?: string;
   brokerId?: string;
   broker?: Broker;
-  latestCVTemplate?: string | null;
+   latestCVTemplate?: string | null;
   generatedCVs?: string[];
   registeredBy?: string;
+  visaDate?: string | null;
 }
 
 export interface Broker {

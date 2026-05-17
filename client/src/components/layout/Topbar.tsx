@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, ChevronDown, User, FileText, X, Loader2, CheckCheck, Menu } from 'lucide-react';
+import { Search, Bell, ChevronDown, User, FileText, X, Loader2, CheckCheck, Menu, RotateCw } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { useSession } from '@/lib/auth-client';
 import { api } from '@/lib/api';
@@ -196,6 +196,15 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-1 sm:gap-2 md:gap-4 shrink-0">
+        {/* Instant Reload Button */}
+        <button 
+          onClick={() => window.location.reload()}
+          title="Refresh Website"
+          className="p-2 sm:p-2.5 rounded-xl hover:bg-primary/5 transition-all duration-200 group active:scale-[0.95]"
+        >
+          <RotateCw size={18} className="text-text-secondary group-hover:text-primary group-hover:rotate-180 transition-all duration-500 sm:w-5 sm:h-5" />
+        </button>
+
         {/* Notification */}
         <div className="relative" ref={notifRef}>
           <button 

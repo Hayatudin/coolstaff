@@ -133,9 +133,11 @@ export default function RequestedPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm text-text-primary font-semibold">
-                        {(c as any).visaDate 
-                          ? new Date((c as any).visaDate).toLocaleDateString()
-                          : 'Pending'}
+                        {c.visaDate 
+                          ? new Date(c.visaDate).toLocaleDateString()
+                          : c.registeredAt 
+                            ? new Date(c.registeredAt).toLocaleDateString()
+                            : 'Pending'}
                       </p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

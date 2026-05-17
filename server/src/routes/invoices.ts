@@ -178,4 +178,106 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// PUT /api/invoices/:id
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { price, lmisQrCodeUrl, insuranceUrl, ticketUrl } = req.body;
+
+    if (!price) {
+      return res.status(400).json({ error: 'Price is required' });
+    }
+
+    // Process new file uploads if passed as base64
+    let lmisPath = lmisQrCodeUrl;
+    let insurancePath = insuranceUrl;
+    let ticketPath = ticketUrl;
+
+    const uploadPromises = [];
+    if (lmisQrCodeUrl && lmisQrCodeUrl.startsWith('data:')) {
+      uploadPromises.push(
+        uploadToLocal(lmisQrCodeUrl, 'invoices/lmis').then(p => { if (p) lmisPath = p; })
+      );
+    }
+    if (insuranceUrl && insuranceUrl.startsWith('data:')) {
+      uploadPromises.push(
+        uploadToLocal(insuranceUrl, 'invoices/insurance').then(p => { if (p) insurancePath = p; })
+      );
+    }
+    if (ticketUrl && ticketUrl.startsWith('data:')) {
+      uploadPromises.push(
+        uploadToLocal(ticketUrl, 'invoices/ticket').then(p => { if (p) ticketPath = p; })
+      );
+    }
+
+    if (uploadPromises.length > 0) {
+      await Promise.all(uploadPromises);
+    }
+
+    const now = new Date();
+
+    try {
+      // Standard Prisma Update
+      const updated = await prisma.invoice.update({
+        where: { id },
+        data: {
+          price,
+          lmisQrCodeUrl: lmisPath || '',
+          insuranceUrl: insurancePath || '',
+          ticketUrl: ticketPath || '',
+        },
+        include: {
+          candidate: true
+        }
+      });
+      return res.json(updated);
+    } catch (prismaErr: any) {
+      console.warn('Prisma invoice update failed, falling back to raw SQL update:', prismaErr.message || prismaErr);
+      
+      // Raw SQL Update fallback
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Invoice\` 
+         SET \`price\` = ?, \`lmisQrCodeUrl\` = ?, \`insuranceUrl\` = ?, \`ticketUrl\` = ?, \`updatedAt\` = ?
+         WHERE \`id\` = ?`,
+        price,
+        lmisPath || '',
+        insurancePath || '',
+        ticketPath || '',
+        now,
+        id
+      );
+
+      // Fetch the updated candidate to join in return payload
+      const candidateInfo = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT c.givenNames, c.surname, c.email, c.passportNumber, c.registeredAt, c.visaDate
+         FROM \`Candidate\` c
+         JOIN \`Invoice\` i ON i.candidateId = c.id
+         WHERE i.id = ?`,
+        id
+      );
+
+      const candidate = candidateInfo[0] ? {
+        givenNames: candidateInfo[0].givenNames,
+        surname: candidateInfo[0].surname,
+        email: candidateInfo[0].email,
+        passportNumber: candidateInfo[0].passportNumber,
+        registeredAt: candidateInfo[0].registeredAt,
+        visaDate: candidateInfo[0].visaDate,
+      } : {};
+
+      return res.json({
+        id,
+        price,
+        lmisQrCodeUrl: lmisPath || '',
+        insuranceUrl: insurancePath || '',
+        ticketUrl: ticketPath || '',
+        candidate
+      });
+    }
+  } catch (error: any) {
+    console.error('Failed to update invoice:', error);
+    res.status(500).json({ error: 'Failed to update invoice', message: error.message });
+  }
+});
+
 export default router;

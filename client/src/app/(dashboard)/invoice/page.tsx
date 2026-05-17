@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { FileText, Loader2, Search, CheckCircle2, Eye, Download, AlertCircle, FileCheck, Circle } from 'lucide-react';
+import { FileText, Loader2, Search, CheckCircle2, Eye, Download, AlertCircle, FileCheck, Circle, Edit3 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
@@ -13,6 +13,36 @@ export default function InvoicePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Edit Invoice States
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editLmisFile, setEditLmisFile] = useState<any | null>(null);
+  const [editInsuranceFile, setEditInsuranceFile] = useState<any | null>(null);
+  const [editTicketFile, setEditTicketFile] = useState<any | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (editingInvoice) {
+      setEditPrice(editingInvoice.price || '');
+      setEditLmisFile(null);
+      setEditInsuranceFile(null);
+      setEditTicketFile(null);
+    }
+  }, [editingInvoice]);
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: Function) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setter({
+        name: file.name,
+        base64: reader.result as string
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -117,11 +147,12 @@ export default function InvoicePage() {
                 <th className="px-6 py-4 font-semibold text-center">LMIS QR Code</th>
                 <th className="px-6 py-4 font-semibold text-center">Insurance</th>
                 <th className="px-6 py-4 font-semibold text-center">Ticket</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <TableSkeleton rows={6} cols={8} />
+                <TableSkeleton rows={6} cols={9} />
               ) : filtered.length > 0 ? (
                 filtered.map(inv => (
                   <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
@@ -210,11 +241,22 @@ export default function InvoicePage() {
                         <Eye size={14} /> View
                       </button>
                     </td>
+
+                    {/* Action Column */}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => setEditingInvoice(inv)}
+                        className="text-primary hover:text-primary-700 transition-colors p-2 rounded-lg hover:bg-primary-50 inline-flex items-center gap-1"
+                      >
+                        <Edit3 size={15} />
+                        <span>Edit</span>
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-text-tertiary">
+                  <td colSpan={9} className="px-6 py-10 text-center text-text-tertiary">
                     No candidates with generated invoices. Mark candidates as &quot;Visa Selected&quot; and click Proceed to create invoices.
                   </td>
                 </tr>
@@ -267,6 +309,173 @@ export default function InvoicePage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editingInvoice && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col animate-scale-in border border-white/10">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50/50">
+              <h3 className="font-semibold text-text-primary flex items-center gap-2 text-lg">
+                <Edit3 size={20} className="text-primary" />
+                <span>Edit Invoice Details</span>
+              </h3>
+              <button
+                onClick={() => setEditingInvoice(null)}
+                className="text-text-tertiary hover:text-text-primary text-xl font-bold px-2 hover:bg-gray-100 rounded transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setIsSaving(true);
+                try {
+                  const payload: any = {
+                    price: editPrice,
+                  };
+                  if (editLmisFile?.base64) payload.lmisQrCodeUrl = editLmisFile.base64;
+                  if (editInsuranceFile?.base64) payload.insuranceUrl = editInsuranceFile.base64;
+                  if (editTicketFile?.base64) payload.ticketUrl = editTicketFile.base64;
+
+                  const res = await api(`/api/invoices/${editingInvoice.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+
+                  if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to update invoice');
+                  }
+
+                  const updatedInvoice = await res.json();
+                  
+                  // Update the local list
+                  setInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? { 
+                    ...inv, 
+                    price: updatedInvoice.price,
+                    lmisQrCodeUrl: updatedInvoice.lmisQrCodeUrl,
+                    insuranceUrl: updatedInvoice.insuranceUrl,
+                    ticketUrl: updatedInvoice.ticketUrl,
+                  } : inv));
+
+                  setEditingInvoice(null);
+                  alert('Invoice details updated successfully!');
+                } catch (err: any) {
+                  alert(err.message || 'Failed to save changes');
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+              className="p-6 space-y-4 overflow-y-auto max-h-[75vh]"
+            >
+              {/* Candidate Info Card */}
+              <div className="p-4 bg-gray-50 border border-border/60 rounded-xl">
+                <p className="text-[10px] text-text-tertiary uppercase tracking-wider font-semibold">Candidate</p>
+                <h4 className="font-bold text-text-primary text-base mt-0.5">
+                  {editingInvoice.candidate.givenNames} {editingInvoice.candidate.surname}
+                </h4>
+                <p className="text-xs text-text-secondary mt-0.5">Passport: {editingInvoice.candidate.passportNumber}</p>
+              </div>
+
+              {/* Price Field */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Invoice Price</label>
+                <Input
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  placeholder="e.g. 1500 USD"
+                  required
+                />
+              </div>
+
+              {/* LMIS QR Code Upload */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  LMIS QR Code (Leave empty to keep existing)
+                </label>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleEditFileChange(e, setEditLmisFile)}
+                    className="block w-full text-xs text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary hover:file:bg-primary-100"
+                  />
+                  {editLmisFile?.name && (
+                    <span className="text-[11px] text-green-600 font-semibold">✓ Ready: {editLmisFile.name}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Insurance Upload */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  Insurance (Leave empty to keep existing)
+                </label>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleEditFileChange(e, setEditInsuranceFile)}
+                    className="block w-full text-xs text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary hover:file:bg-primary-100"
+                  />
+                  {editInsuranceFile?.name && (
+                    <span className="text-[11px] text-green-600 font-semibold">✓ Ready: {editInsuranceFile.name}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Ticket Upload */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  Ticket (Leave empty to keep existing)
+                </label>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleEditFileChange(e, setEditTicketFile)}
+                    className="block w-full text-xs text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary hover:file:bg-primary-100"
+                  />
+                  {editTicketFile?.name && (
+                    <span className="text-[11px] text-green-600 font-semibold">✓ Ready: {editTicketFile.name}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingInvoice(null)}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-700 hover:to-indigo-600 text-white font-bold rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
