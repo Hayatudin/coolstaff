@@ -121,14 +121,9 @@ router.post('/', async (req: Request, res: Response) => {
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
     try {
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-
+      const { fromNodeHeaders } = require('better-auth/node');
       const session = await auth.api.getSession({
-        headers: webHeaders,
+        headers: fromNodeHeaders(req.headers),
       });
       if (session?.user?.id) {
         registeredById = session.user.id;
@@ -218,23 +213,12 @@ router.post('/', async (req: Request, res: Response) => {
     };
 
     let candidate;
-    console.log('--- CANDIDATE CREATION DEBUG ---');
-    console.log('body.registeredById:', body.registeredById, 'resolved registeredById:', registeredById);
     try {
       candidate = await prisma.candidate.create({
         data: { ...candidateData, registeredById: registeredById }
       });
-      console.log('Candidate created successfully with ID:', candidate.id);
     } catch (createError: any) {
-      console.error('Prisma Create Error:', createError);
-      if (createError.message && (createError.message.includes('registeredById') || createError.message.includes('Unknown arg'))) {
-        console.warn('Prisma schema out of sync (registeredById missing). Falling back to basic create.');
-        candidate = await prisma.candidate.create({
-          data: candidateData
-        });
-      } else {
-        throw createError;
-      }
+      throw new Error(`Database Error: ${createError.message}`);
     }
 
     // Save salary separately with graceful fallback (in case column doesn't exist in DB yet)
