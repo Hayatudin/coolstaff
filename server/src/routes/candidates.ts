@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
+import { auth } from '../lib/auth';
 
 const router = Router();
 
@@ -117,6 +118,20 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const body = req.body;
 
+    // Resolve logged in user from session to populate registeredById
+    let registeredById = body.registeredById || null;
+    try {
+      const session = await auth.api.getSession({
+        headers: req.headers as any,
+      });
+      if (session?.user?.id) {
+        registeredById = session.user.id;
+        console.log('Resolved registeredById from server session:', registeredById);
+      }
+    } catch (sessionError) {
+      console.error('Failed to get session in POST candidate route:', sessionError);
+    }
+
     const [
       passportImageUrl,
       facePhotoUrl,
@@ -198,10 +213,10 @@ router.post('/', async (req: Request, res: Response) => {
 
     let candidate;
     console.log('--- CANDIDATE CREATION DEBUG ---');
-    console.log('body.registeredById:', body.registeredById);
+    console.log('body.registeredById:', body.registeredById, 'resolved registeredById:', registeredById);
     try {
       candidate = await prisma.candidate.create({
-        data: { ...candidateData, registeredById: body.registeredById || null }
+        data: { ...candidateData, registeredById: registeredById }
       });
       console.log('Candidate created successfully with ID:', candidate.id);
     } catch (createError: any) {
@@ -244,7 +259,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       where: { id },
       include: { 
         broker: true,
-        generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 }
+        generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 },
+        registeredBy: { select: { name: true } }
       }
     });
     if (!c) return res.status(404).json({ error: 'Not found' });
@@ -320,6 +336,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       visaDate: c.visaDate ? c.visaDate.toISOString() : null,
       salary: c.salary || '1000SR',
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
+      registeredBy: (c as any).registeredBy?.name || 'Admin',
     };
     res.json(candidate);
   } catch (error) {
@@ -332,6 +349,20 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const body = req.body;
+
+    // Resolve logged in user from session to populate registeredById
+    let registeredById = body.registeredById || null;
+    try {
+      const session = await auth.api.getSession({
+        headers: req.headers as any,
+      });
+      if (session?.user?.id) {
+        registeredById = session.user.id;
+        console.log('Resolved registeredById from server session in PUT:', registeredById);
+      }
+    } catch (sessionError) {
+      console.error('Failed to get session in PUT candidate route:', sessionError);
+    }
 
     const [
       passportImageUrl,
@@ -416,6 +447,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
+        ...((!existingCandidate?.registeredById && registeredById) && { registeredById }),
       },
     });
 

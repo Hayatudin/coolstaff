@@ -360,7 +360,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
           <Input label="Passport Number" value={passportData.passportNumber} onChange={e => handlePassportChangeUpper('passportNumber', e.target.value)} required />
-          <Input label="Place of Birth" value={data.city} onChange={e => handlePassportChangeUpper('placeOfBirth', e.target.value)} required />
+          <Input label="Place of Birth" value={passportData.placeOfBirth} onChange={e => handlePassportChangeUpper('placeOfBirth', e.target.value)} required />
           <Input label="Passport Issue Place" value={passportData.issuingCountry} onChange={e => handlePassportChangeUpper('issuingCountry', e.target.value)} required />
           <Input label="Passport Issue Date" type="date" value={passportData.dateOfIssue} onChange={e => onPassportChange('dateOfIssue', e.target.value)} required />
           <Input label="Passport Expiry Date" type="date" value={passportData.dateOfExpiry} onChange={e => onPassportChange('dateOfExpiry', e.target.value)} required />
@@ -373,7 +373,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
           <Select label="Country" searchable options={allCountries.map(c => ({ value: c.toUpperCase(), label: c.toUpperCase() }))} value={data.country} onChange={v => onChange('country', v)} placeholder="Select country" />
-          <Input label="City" value={data.city} onChange={e => { handleChangeUpper('city', e.target.value); handlePassportChangeUpper('placeOfBirth', e.target.value); }} required />
+          <Input label="City" value={data.city} onChange={e => handleChangeUpper('city', e.target.value)} required />
           <Input label="Address" value={data.address} onChange={e => handleChangeUpper('address', e.target.value)} required />
         </div>
       </section>

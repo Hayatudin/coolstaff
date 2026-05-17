@@ -25,6 +25,7 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -198,11 +199,22 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
       <div className="flex items-center gap-1 sm:gap-2 md:gap-4 shrink-0">
         {/* Instant Reload Button */}
         <button 
-          onClick={() => window.location.reload()}
-          title="Refresh Website"
+          onClick={() => {
+            setIsRefreshing(true);
+            window.dispatchEvent(new CustomEvent('app-refresh'));
+            setTimeout(() => setIsRefreshing(false), 800);
+          }}
+          title="Refresh Content"
           className="p-2 sm:p-2.5 rounded-xl hover:bg-primary/5 transition-all duration-200 group active:scale-[0.95]"
         >
-          <RotateCw size={18} className="text-text-secondary group-hover:text-primary group-hover:rotate-180 transition-all duration-500 sm:w-5 sm:h-5" />
+          <RotateCw 
+            size={18} 
+            className={
+              isRefreshing 
+                ? "animate-spin text-primary sm:w-5 sm:h-5" 
+                : "text-text-secondary group-hover:text-primary group-hover:rotate-180 transition-all duration-500 sm:w-5 sm:h-5"
+            } 
+          />
         </button>
 
         {/* Notification */}

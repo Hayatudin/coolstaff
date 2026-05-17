@@ -21,6 +21,17 @@ export function useCandidates(initialForceRefresh = false) {
   const [refreshToggle, setRefreshToggle] = useState(0);
 
   useEffect(() => {
+    function handleGlobalRefresh() {
+      clearCandidatesCache();
+      setRefreshToggle(prev => prev + 1);
+    }
+    window.addEventListener('app-refresh', handleGlobalRefresh);
+    return () => {
+      window.removeEventListener('app-refresh', handleGlobalRefresh);
+    };
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     const forceRefresh = initialForceRefresh || refreshToggle > 0;
 
