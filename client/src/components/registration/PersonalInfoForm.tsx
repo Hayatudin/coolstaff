@@ -11,6 +11,8 @@ import {
 } from '@/data/mockData';
 import { allCountries } from '@/data/countries';
 import { Plus, Trash2, Calendar, Upload } from 'lucide-react';
+import { getFileUrl, cn } from '@/lib/utils';
+import FileUpload from '@/components/ui/FileUpload';
 
 const jobOptions = ['House Maid', 'Driver', 'Babysitter', 'Cook', 'Nurse', 'Cleaner', 'Caregiver'];
 
@@ -32,9 +34,19 @@ interface PersonalInfoFormProps {
 }
 
 export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange }: PersonalInfoFormProps) {
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const faceInputRef = React.useRef<HTMLInputElement>(null);
-  const fullBodyInputRef = React.useRef<HTMLInputElement>(null);
+  const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Max file size is 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        callback(ev.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Work Experience Handlers
   const addExperience = () => {
@@ -61,54 +73,17 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
   const handleChangeUpper = (field: keyof CandidatePersonalInfo, value: string) => onChange(field, value.toUpperCase());
   const handlePassportChangeUpper = (field: keyof PassportData, value: string) => onPassportChange(field, value.toUpperCase());
 
-  // Education level needs to handle arrays now, but our types expect string. We'll join them by commas if needed, or update the DB to array. 
-  // Wait, I will just cast `educationLevel` to handle arrays and store it as a comma separated string since schema expects String.
+  const [isCocDragOver, setIsCocDragOver] = React.useState(false);
+  const [isMedicalDragOver, setIsMedicalDragOver] = React.useState(false);
+  const [isCandidateIdDragOver, setIsCandidateIdDragOver] = React.useState(false);
+  const [isRelativeIdDragOver, setIsRelativeIdDragOver] = React.useState(false);
+  const [isLabourIdDragOver, setIsLabourIdDragOver] = React.useState(false);
+
+  // Education level handler
   const handleEducationChange = (values: string[]) => {
     onChange('educationLevel', values.join(', '));
   };
   const selectedEducation = data.educationLevel ? data.educationLevel.split(',').map(s => s.trim()).filter(Boolean) : [];
-
-  const handlePhotoClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onPassportImageChange) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Please upload an image with Max 5MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          onPassportImageChange(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleFaceClick = () => {
-    faceInputRef.current?.click();
-  };
-
-  const handleFaceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onFacePhotoChange) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Please upload an image with Max 5MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          onFacePhotoChange(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   // Multiple Phone Handlers
   const addPhone = () => {
@@ -137,40 +112,27 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         <h3 className="text-xl font-bold text-text-primary mb-6">Personal Information</h3>
 
         {/* Profile Photos - Face & Full Body */}
-        <div className="flex items-start gap-8 mb-8">
+        <div className="flex flex-col sm:flex-row items-start gap-8 mb-8">
           {/* Face Photo */}
-          <div className="flex flex-col items-center gap-2">
-            <input type="file" ref={faceInputRef} onChange={handleFaceChange} accept="image/*" className="hidden" />
-            <div className="w-20 h-20 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center border-2 border-primary/20 relative cursor-pointer" onClick={handleFaceClick}>
-              {facePhoto ? (
-                <Image src={facePhoto} alt="Profile Photo" fill className="object-cover" />
-              ) : (
-                <span className="text-slate-400 text-xs text-center px-2">Profile<br />Photo</span>
-              )}
-            </div>
-            <button type="button" onClick={handleFaceClick} className="text-xs text-primary hover:underline font-medium">Face Photo <span className="text-danger">*</span></button>
-          </div>
+          <FileUpload
+            label="Face Photo *"
+            shape="circle"
+            preview={facePhoto ? getFileUrl(facePhoto) : null}
+            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFacePhotoChange?.(base64))}
+            onClear={onFacePhotoChange ? () => onFacePhotoChange('') : undefined}
+            helperText="Circle — Max 10MB"
+          />
 
           {/* Full Body Photo */}
-          <div className="flex flex-col items-center gap-2">
-            <input type="file" ref={fullBodyInputRef} onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                if (file.size > 10 * 1024 * 1024) { alert('Max file size is 10MB'); return; }
-                const reader = new FileReader();
-                reader.onload = (ev) => { if (ev.target?.result && onFullBodyPhotoChange) onFullBodyPhotoChange(ev.target.result as string); };
-                reader.readAsDataURL(file);
-              }
-            }} accept="image/*" className="hidden" />
-            <div className="w-20 h-28 rounded-xl bg-slate-200 overflow-hidden flex items-center justify-center border-2 border-primary/20 relative cursor-pointer" onClick={() => fullBodyInputRef.current?.click()}>
-              {fullBodyPhoto ? (
-                <Image src={fullBodyPhoto} alt="Full Body" fill className="object-cover" />
-              ) : (
-                <span className="text-slate-400 text-xs text-center px-2">Full<br />Body</span>
-              )}
-            </div>
-            <button type="button" onClick={() => fullBodyInputRef.current?.click()} className="text-xs text-primary hover:underline font-medium">Full Body <span className="text-danger">*</span></button>
-          </div>
+          <FileUpload
+            label="Full Body Photo *"
+            shape="rect"
+            compact
+            preview={fullBodyPhoto ? getFileUrl(fullBodyPhoto) : null}
+            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFullBodyPhotoChange?.(base64))}
+            onClear={onFullBodyPhotoChange ? () => onFullBodyPhotoChange('') : undefined}
+            helperText="Rectangle — Max 10MB"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
@@ -345,17 +307,16 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
       <section className="pt-4 border-t border-slate-100">
         <h3 className="text-xl font-bold text-text-primary mb-6">Passport</h3>
 
-        {/* Passport Preview */}
-        <div className="flex items-center gap-4 mb-8">
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-          <div className="w-24 h-16 rounded-lg bg-slate-200 overflow-hidden flex items-center justify-center border border-border relative">
-            {passportImage ? (
-              <Image src={passportImage} alt="Passport Scan" fill className="object-cover" />
-            ) : (
-              <span className="text-slate-400 text-xs">No Scan</span>
-            )}
-          </div>
-          <button type="button" onClick={handlePhotoClick} className="text-sm text-primary hover:underline font-medium">Change passport photo</button>
+        <div className="mb-8 max-w-md">
+          <FileUpload
+            label="Passport Scan"
+            shape="rect"
+            compact
+            preview={passportImage ? getFileUrl(passportImage) : null}
+            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onPassportImageChange?.(base64))}
+            onClear={onPassportImageChange ? () => onPassportImageChange('') : undefined}
+            helperText="Passport Image — Max 10MB"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
@@ -386,7 +347,22 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           {/* COC Document */}
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">COC (Certificate of Competence) <span className="text-danger">*</span></label>
-            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsCocDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setIsCocDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsCocDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  handleFileAsDataURL(file, (base64) => onChange('cocDocumentUrl', base64));
+                }
+              }}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/40 transition-colors",
+                isCocDragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border"
+              )}
+            >
               {data.cocDocumentUrl ? (
                 <div className="space-y-3">
                   <div className="w-full h-40 rounded-lg overflow-hidden bg-slate-100 relative">
@@ -420,17 +396,14 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.size > 10 * 1024 * 1024) { alert('Max file size is 10MB'); return; }
-                        const reader = new FileReader();
-                        reader.onload = (ev) => { if (ev.target?.result) onChange('cocDocumentUrl', ev.target.result as string); };
-                        reader.readAsDataURL(file);
+                        handleFileAsDataURL(file, (base64) => onChange('cocDocumentUrl', base64));
                       }
                     }}
                   />
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3">
                     <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
-                  <p className="text-sm font-medium text-text-primary">Click to upload COC</p>
+                  <p className="text-sm font-medium text-text-primary">Click or drag here to upload COC</p>
                   <p className="text-xs text-text-tertiary mt-1">Image or PDF — Max 10MB</p>
                 </label>
               )}
@@ -440,7 +413,22 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           {/* Medical Confirmation Document */}
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Medical Confirmation <span className="text-danger">*</span></label>
-            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsMedicalDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setIsMedicalDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsMedicalDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  handleFileAsDataURL(file, (base64) => onChange('medicalDocumentUrl', base64));
+                }
+              }}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/40 transition-colors",
+                isMedicalDragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border"
+              )}
+            >
               {data.medicalDocumentUrl ? (
                 <div className="space-y-3">
                   <div className="w-full h-40 rounded-lg overflow-hidden bg-slate-100 relative">
@@ -474,17 +462,14 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (file.size > 10 * 1024 * 1024) { alert('Max file size is 10MB'); return; }
-                        const reader = new FileReader();
-                        reader.onload = (ev) => { if (ev.target?.result) onChange('medicalDocumentUrl', ev.target.result as string); };
-                        reader.readAsDataURL(file);
+                        handleFileAsDataURL(file, (base64) => onChange('medicalDocumentUrl', base64));
                       }
                     }}
                   />
                   <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-3">
                     <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
-                  <p className="text-sm font-medium text-text-primary">Click to upload Medical</p>
+                  <p className="text-sm font-medium text-text-primary">Click or drag here to upload Medical</p>
                   <p className="text-xs text-text-tertiary mt-1">Image or PDF — Max 10MB</p>
                 </label>
               )}
@@ -501,7 +486,22 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           {/* Candidate ID Image */}
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Candidate ID Image</label>
-            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsCandidateIdDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setIsCandidateIdDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsCandidateIdDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  handleFileAsDataURL(file, (base64) => onChange('candidateIdImageUrl', base64));
+                }
+              }}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/40 transition-colors",
+                isCandidateIdDragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border"
+              )}
+            >
               {data.candidateIdImageUrl ? (
                 <div className="space-y-3">
                   <div className="w-full h-32 rounded-lg overflow-hidden bg-slate-100 relative">
@@ -515,9 +515,9 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
                 </div>
               ) : (
                 <label className="cursor-pointer block">
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 10*1024*1024) { alert('Max 10MB'); return; } const reader = new FileReader(); reader.onload = (ev) => { if (ev.target?.result) onChange('candidateIdImageUrl', ev.target.result as string); }; reader.readAsDataURL(file); }}} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { handleFileAsDataURL(file, (base64) => onChange('candidateIdImageUrl', base64)); } }} />
                   <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-2"><Upload size={18} className="text-blue-600" /></div>
-                  <p className="text-xs font-medium text-text-primary">Upload Candidate ID</p>
+                  <p className="text-xs font-medium text-text-primary">Click or drag here to upload</p>
                   <p className="text-[10px] text-text-tertiary mt-1">Image — Max 10MB</p>
                 </label>
               )}
@@ -527,7 +527,22 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           {/* Relative ID Image */}
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Relative ID Image</label>
-            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsRelativeIdDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setIsRelativeIdDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsRelativeIdDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  handleFileAsDataURL(file, (base64) => onChange('relativeIdImageUrl', base64));
+                }
+              }}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/40 transition-colors",
+                isRelativeIdDragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border"
+              )}
+            >
               {data.relativeIdImageUrl ? (
                 <div className="space-y-3">
                   <div className="w-full h-32 rounded-lg overflow-hidden bg-slate-100 relative">
@@ -541,9 +556,9 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
                 </div>
               ) : (
                 <label className="cursor-pointer block">
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 10*1024*1024) { alert('Max 10MB'); return; } const reader = new FileReader(); reader.onload = (ev) => { if (ev.target?.result) onChange('relativeIdImageUrl', ev.target.result as string); }; reader.readAsDataURL(file); }}} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { handleFileAsDataURL(file, (base64) => onChange('relativeIdImageUrl', base64)); } }} />
                   <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mx-auto mb-2"><Upload size={18} className="text-amber-600" /></div>
-                  <p className="text-xs font-medium text-text-primary">Upload Relative ID</p>
+                  <p className="text-xs font-medium text-text-primary">Click or drag here to upload</p>
                   <p className="text-[10px] text-text-tertiary mt-1">Image — Max 10MB</p>
                 </label>
               )}
@@ -553,7 +568,22 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           {/* Labour ID (Image) */}
           <div>
             <label className="text-sm font-medium text-text-secondary block mb-2">Labour ID (Image)</label>
-            <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/40 transition-colors">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsLabourIdDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setIsLabourIdDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsLabourIdDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  handleFileAsDataURL(file, (base64) => onChange('labourIdUrl', base64));
+                }
+              }}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/40 transition-colors",
+                isLabourIdDragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border"
+              )}
+            >
               {data.labourIdUrl ? (
                 <div className="space-y-3">
                   <div className="w-full h-32 rounded-lg overflow-hidden bg-slate-100 relative">
@@ -572,9 +602,9 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
                 </div>
               ) : (
                 <label className="cursor-pointer block">
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { if (file.size > 10*1024*1024) { alert('Max 10MB'); return; } const reader = new FileReader(); reader.onload = (ev) => { if (ev.target?.result) onChange('labourIdUrl', ev.target.result as string); }; reader.readAsDataURL(file); }}} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { handleFileAsDataURL(file, (base64) => onChange('labourIdUrl', base64)); } }} />
                   <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mx-auto mb-2"><Upload size={18} className="text-violet-600" /></div>
-                  <p className="text-xs font-medium text-text-primary">Upload Labour ID</p>
+                  <p className="text-xs font-medium text-text-primary">Click or drag here to upload</p>
                   <p className="text-[10px] text-text-tertiary mt-1">Image only — Max 10MB</p>
                 </label>
               )}

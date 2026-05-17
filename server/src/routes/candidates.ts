@@ -255,14 +255,26 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const c = await prisma.candidate.findUnique({ 
-      where: { id },
-      include: { 
-        broker: true,
-        generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 },
-        registeredBy: { select: { name: true } }
-      }
-    });
+    let c;
+    try {
+      c = await prisma.candidate.findUnique({ 
+        where: { id },
+        include: { 
+          broker: true,
+          generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 },
+          registeredBy: { select: { name: true } }
+        }
+      });
+    } catch (schemaError) {
+      console.warn('Prisma schema out of sync (registeredBy missing) in GET /:id. Falling back.');
+      c = await prisma.candidate.findUnique({ 
+        where: { id },
+        include: { 
+          broker: true,
+          generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 }
+        }
+      });
+    }
     if (!c) return res.status(404).json({ error: 'Not found' });
 
     const candidate = {

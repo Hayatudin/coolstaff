@@ -37,8 +37,8 @@ export function delay(ms: number): Promise<void> {
 export async function compressImage(dataUrl: string, maxWidth = 1200, quality = 0.7): Promise<string> {
   return new Promise((resolve, _reject) => {
     if (!dataUrl) return resolve(dataUrl);
-    // If it's already a hosted URL, don't try to compress it (avoids CORS tainted canvas errors)
-    if (dataUrl.startsWith('http')) return resolve(dataUrl);
+    // If it's already a hosted URL or a server-relative path, don't try to compress it
+    if (dataUrl.startsWith('http') || dataUrl.startsWith('uploads/') || dataUrl.startsWith('/uploads/')) return resolve(dataUrl);
 
     const img = new Image();
     img.onload = () => {
