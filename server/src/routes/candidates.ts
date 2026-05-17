@@ -120,17 +120,34 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
+    console.log('[DEBUG] POST /candidates - body.registeredById:', body.registeredById);
+
     try {
-      const { fromNodeHeaders } = require('better-auth/node');
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
+      // Build proper Web Request for Better Auth
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+      
+      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
+        method: req.method,
+        headers: webHeaders,
       });
+
+      const session = await auth.api.getSession({
+        headers: webHeaders,
+        request: request
+      } as any);
+
       if (session?.user?.id) {
         registeredById = session.user.id;
-        console.log('Resolved registeredById from server session:', registeredById);
+        console.log('[DEBUG] Resolved registeredById from server session:', registeredById, 'User Name:', session.user.name);
+      } else {
+        console.log('[DEBUG] Server session returned null or no user ID.');
       }
     } catch (sessionError) {
-      console.error('Failed to get session in POST candidate route:', sessionError);
+      console.error('[DEBUG] Failed to get session in POST candidate route:', sessionError);
     }
 
     const [
@@ -354,16 +371,33 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
+    console.log('[DEBUG] PUT /candidates/:id - body.registeredById:', body.registeredById);
+
     try {
-      const session = await auth.api.getSession({
-        headers: req.headers as any,
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+      
+      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
+        method: req.method,
+        headers: webHeaders,
       });
+
+      const session = await auth.api.getSession({
+        headers: webHeaders,
+        request: request
+      } as any);
+
       if (session?.user?.id) {
         registeredById = session.user.id;
-        console.log('Resolved registeredById from server session in PUT:', registeredById);
+        console.log('[DEBUG] Resolved registeredById from server session in PUT:', registeredById);
+      } else {
+        console.log('[DEBUG] Server session returned null or no user ID in PUT.');
       }
     } catch (sessionError) {
-      console.error('Failed to get session in PUT candidate route:', sessionError);
+      console.error('[DEBUG] Failed to get session in PUT candidate route:', sessionError);
     }
 
     const [
