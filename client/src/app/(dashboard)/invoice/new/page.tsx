@@ -179,7 +179,7 @@ function NewInvoiceContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Price input */}
             <div className="space-y-1.5 md:col-span-2">
-              <label className="text-sm font-bold text-text-secondary">Price (Text Field)</label>
+              <label className="text-sm font-bold text-text-secondary">Price</label>
               <Input
                 placeholder="Enter final invoice price (e.g. 5000 SR)"
                 value={price}

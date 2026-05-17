@@ -58,9 +58,13 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     res.status(201).json(invoice);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving invoice:', error);
-    res.status(500).json({ error: 'Failed to save invoice' });
+    res.status(500).json({ 
+      error: 'Failed to save invoice', 
+      message: error.message || 'Unknown error',
+      details: error
+    });
   }
 });
 

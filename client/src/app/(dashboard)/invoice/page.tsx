@@ -168,7 +168,9 @@ export default function InvoicePage() {
                     {/* Visa Selected Date */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm text-text-secondary font-medium">
-                        {new Date(inv.candidate.registeredAt).toLocaleDateString()}
+                        {inv.candidate.visaDate 
+                          ? new Date(inv.candidate.visaDate).toLocaleDateString()
+                          : new Date(inv.candidate.registeredAt).toLocaleDateString()}
                       </p>
                     </td>
 

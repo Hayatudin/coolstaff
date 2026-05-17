@@ -74,6 +74,7 @@ model Candidate {
   registeredAt             DateTime  @default(now())
   status                   String    @default("pending")
   visaSelected             Boolean   @default(false)
+  visaDate                 DateTime?
   salary                   String?   @default("1000SR")
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])

@@ -98,6 +98,7 @@ router.get('/', async (req: Request, res: Response) => {
         registeredAt: c.registeredAt.toISOString(),
         status: c.status,
         visaSelected: c.visaSelected,
+        visaDate: c.visaDate ? c.visaDate.toISOString() : null,
         salary: c.salary || '1000SR',
         generatedCVs: c.generatedCVs?.map((cv: any) => cv.templateId) || [],
         registeredBy: c.registeredBy?.name || 'Admin',
@@ -316,6 +317,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       registeredAt: c.registeredAt.toISOString(),
       broker: c.broker,
       visaSelected: c.visaSelected,
+      visaDate: c.visaDate ? c.visaDate.toISOString() : null,
       salary: c.salary || '1000SR',
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
     };
@@ -350,6 +352,14 @@ router.put('/:id', async (req: Request, res: Response) => {
       uploadToLocal(body.personalInfo.relativeIdImageUrl, 'relative-id'),
       uploadToLocal(body.personalInfo.labourIdUrl, 'labour-id')
     ]);
+
+    const existingCandidate = await prisma.candidate.findUnique({ where: { id } });
+    let visaDateVal = existingCandidate?.visaDate;
+    if (body.visaSelected) {
+      visaDateVal = existingCandidate?.visaDate || new Date();
+    } else if (body.visaSelected === false) {
+      visaDateVal = null;
+    }
 
     const candidate = await prisma.candidate.update({
       where: { id },
@@ -407,6 +417,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
+        visaDate: visaDateVal,
       },
     });
 
@@ -448,6 +459,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
     // Ensure isFlagged is handled correctly if passed
     if (body.isFlagged !== undefined) {
       body.isFlagged = Boolean(body.isFlagged);
+    }
+
+    if (body.visaSelected) {
+      const existing = await prisma.candidate.findUnique({ where: { id } });
+      body.visaDate = existing?.visaDate || new Date();
+    } else if (body.visaSelected === false) {
+      body.visaDate = null;
     }
 
     const updated = await prisma.candidate.update({
