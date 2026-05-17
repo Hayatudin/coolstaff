@@ -37,7 +37,7 @@ router.get('/', async (req: Request, res: Response) => {
           invoiceMap.set(inv.candidateId, existing);
         }
         for (const cand of dbCandidates) {
-          cand.invoices = invoiceMap.get(cand.id) || [];
+          (cand as any).invoices = invoiceMap.get(cand.id) || [];
         }
       } catch (invErr) {
         console.warn('Could not fetch invoices for candidates:', invErr);
