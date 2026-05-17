@@ -413,13 +413,22 @@ router.put('/:id', async (req: Request, res: Response) => {
         ...(candidateIdImageUrl && { candidateIdImageUrl }),
         ...(relativeIdImageUrl && { relativeIdImageUrl }),
         ...(labourIdUrl && { labourIdUrl }),
-        videoUrl: body.videoUrl || null,
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
-        visaDate: visaDateVal,
       },
     });
+
+    // Save visaDate separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET \`visaDate\` = ? WHERE \`id\` = ?`,
+        visaDateVal,
+        candidate.id
+      );
+    } catch (e) {
+      console.error('Failed to save visaDate via raw SQL:', e);
+    }
 
     // Save salary separately with graceful fallback (in case column doesn't exist in DB yet)
     try {
@@ -461,17 +470,34 @@ router.patch('/:id', async (req: Request, res: Response) => {
       body.isFlagged = Boolean(body.isFlagged);
     }
 
+    let visaDateVal: any = undefined;
     if (body.visaSelected) {
       const existing = await prisma.candidate.findUnique({ where: { id } });
-      body.visaDate = existing?.visaDate || new Date();
+      visaDateVal = existing?.visaDate || new Date();
     } else if (body.visaSelected === false) {
-      body.visaDate = null;
+      visaDateVal = null;
     }
+
+    // Strip visaDate from the payload to prevent Prisma Client validation error on stale client builds
+    delete body.visaDate;
 
     const updated = await prisma.candidate.update({
       where: { id },
       data: body,
     });
+
+    if (visaDateVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`visaDate\` = ? WHERE \`id\` = ?`,
+          visaDateVal,
+          id
+        );
+        updated.visaDate = visaDateVal;
+      } catch (e) {
+        console.error('Failed to save visaDate via raw SQL:', e);
+      }
+    }
 
     res.json(updated);
   } catch (error: any) {
