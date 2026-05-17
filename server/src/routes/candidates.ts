@@ -19,14 +19,29 @@ router.get('/', async (req: Request, res: Response) => {
         }
       });
     } catch (schemaError: any) {
-      console.warn('Prisma schema out of sync (registeredBy missing). Falling back to basic fetch.');
+      console.warn('Prisma schema out of sync. Falling back to basic fetch.');
       dbCandidates = await prisma.candidate.findMany({
         orderBy: { registeredAt: 'desc' },
         include: {
-          generatedCVs: { select: { templateId: true } },
-          invoices: { select: { isDelivered: true } }
+          generatedCVs: { select: { templateId: true } }
         }
       });
+      
+      // Fetch invoices safely
+      try {
+        const invoices = await prisma.$queryRawUnsafe<any[]>(`SELECT candidateId, isDelivered FROM \`Invoice\``);
+        const invoiceMap = new Map<string, any[]>();
+        for (const inv of invoices) {
+          const existing = invoiceMap.get(inv.candidateId) || [];
+          existing.push({ isDelivered: Boolean(inv.isDelivered) });
+          invoiceMap.set(inv.candidateId, existing);
+        }
+        for (const cand of dbCandidates) {
+          cand.invoices = invoiceMap.get(cand.id) || [];
+        }
+      } catch (invErr) {
+        console.warn('Could not fetch invoices for candidates:', invErr);
+      }
     }
 
     const candidates = dbCandidates.map((c: any) => {
