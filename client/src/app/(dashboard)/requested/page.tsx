@@ -68,12 +68,23 @@ export default function RequestedPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-green-50"><ClipboardList size={22} className="text-green-600" /></div>
-          Requested Candidates
-        </h1>
-        <p className="text-text-secondary mt-1 ml-12">Candidates marked as requested — remove to unrequest</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-green-50"><ClipboardList size={22} className="text-green-600" /></div>
+            Requested Candidates
+          </h1>
+          <p className="text-text-secondary mt-1 ml-12">Candidates marked as requested — remove to unrequest</p>
+        </div>
+
+        {/* Generate Report Button */}
+        <button
+          onClick={() => alert('Generate Report layout configuration will be integrated in the next update!')}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-700 hover:to-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-blue-600/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+        >
+          <ClipboardList size={18} />
+          <span>Generate Report</span>
+        </button>
       </div>
 
       <div className="w-full md:w-96">
@@ -88,7 +99,7 @@ export default function RequestedPage() {
                 <th className="px-6 py-4 font-semibold">Shelf ID</th>
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
-                <th className="px-6 py-4 font-semibold">Job / Skills</th>
+                <th className="px-6 py-4 font-semibold">Selected Date</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
@@ -120,9 +131,12 @@ export default function RequestedPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm font-medium text-text-primary">{c.passportData.passportNumber}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-text-primary font-medium">{c.personalInfo.job || 'N/A'}</p>
-                      <p className="text-xs text-text-tertiary truncate max-w-[180px]">{c.personalInfo.skills.slice(0, 3).join(', ')}</p>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-sm text-text-primary font-semibold">
+                        {(c as any).visaDate 
+                          ? new Date((c as any).visaDate).toLocaleDateString()
+                          : 'Pending'}
+                      </p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="success">✓ Visa Selected</Badge>
