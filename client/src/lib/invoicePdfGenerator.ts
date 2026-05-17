@@ -206,21 +206,21 @@ export async function generateInvoicePdf(
   doc.setFontSize(8);
   doc.text('SIGNATURE', marginL, y);
 
-  y += 2;
-  const sigW = 40;
-  const sigH = 20;
+  y += 4;
+  const sigW = 30;
+  const sigH = 15;
   doc.addImage(signatureImg, 'PNG', marginL, y, sigW, sigH);
 
-  y += sigH + 3;
+  const textY = y + sigH + 5;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text('G. MANAGER IBRAHIM ABDURAHMAN', marginL, y);
+  doc.text('G. MANAGER IBRAHIM ABDURAHMAN', marginL, textY);
 
   // Stamp (positioned to the right)
   const stampW = 35;
   const stampH = 35;
   const stampX = pageW - marginR - stampW;
-  const stampY = y - sigH - 8;
+  const stampY = y - 4; // Position stamp alongside the signature
 
   doc.text('STAMP', stampX + stampW / 2, stampY - 2, { align: 'center' });
   doc.addImage(stampImg, 'PNG', stampX, stampY, stampW, stampH);
