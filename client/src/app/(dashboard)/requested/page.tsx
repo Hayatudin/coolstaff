@@ -29,10 +29,19 @@ export default function RequestedPage() {
 
   const candidates = allCandidates.filter(c => c.isRequested);
 
-  const cancelVisa = async (id: string) => {
+  const cancelVisa = async (c: any) => {
     setOpenMenuId(null);
+    if (c.isInvoiceDelivered) {
+      alert('This candidate\'s invoice is already delivered. You cannot cancel the visa.');
+      return;
+    }
+    if (c.hasInvoice) {
+      alert('An invoice has already been generated for this candidate. You cannot cancel the visa.');
+      return;
+    }
+    
     try {
-      const res = await api(`/api/candidates/${id}`, {
+      const res = await api(`/api/candidates/${c.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -43,13 +52,13 @@ export default function RequestedPage() {
         }),
       });
       if (!res.ok) throw new Error();
-      mutate(prev => prev.map(c => c.id === id ? { 
-        ...c, 
+      mutate(prev => prev.map(cand => cand.id === c.id ? { 
+        ...cand, 
         isRequested: false, 
         visaSelected: false, 
         visaOrContractNumber: null,
         status: 'pending'
-      } : c));
+      } : cand));
     } catch { alert('Failed to update status'); }
   };
 
@@ -169,7 +178,7 @@ export default function RequestedPage() {
                               <span>Proceed</span>
                             </button>
                             <div className="border-t border-border my-1" />
-                            <button onClick={() => cancelVisa(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                            <button onClick={() => cancelVisa(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                               <CheckCircle size={16} className="text-amber-500" />
                               <span>Cancelled</span>
                             </button>

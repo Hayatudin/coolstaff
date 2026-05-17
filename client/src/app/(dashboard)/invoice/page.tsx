@@ -16,6 +16,7 @@ const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'ku2': { name: 'KU-2 Format', fullName: 'KHUZAM  RECRUITMENT COMPANY' },
   'ma': { name: 'MA Standard', fullName: 'NAKHLAH RECRUITMENT COMPANY' },
   'ra': { name: 'RA Custom', fullName: 'RAYAAT RECRUITMENT COMPANY' },
+  'other': { name: 'Other / No CV', fullName: 'OTHER RECRUITMENT COMPANY' },
 };
 
 export default function InvoicePage() {
@@ -109,8 +110,17 @@ export default function InvoicePage() {
     // 1. Filter by template
     if (selectedTemplateId !== 'all') {
       const cvs = inv.candidate?.generatedCVs || [];
-      const hasTemplate = cvs.some((cv: any) => cv.templateId === selectedTemplateId);
-      if (!hasTemplate) return false;
+      if (selectedTemplateId === 'other') {
+        const hasStandardTemplate = cvs.some((cv: any) => 
+          TEMPLATES[cv.templateId] && cv.templateId !== 'all' && cv.templateId !== 'other'
+        );
+        if (hasStandardTemplate) return false;
+      } else {
+        const hasTemplate = cvs.some((cv: any) => 
+          cv.templateId.toLowerCase() === selectedTemplateId.toLowerCase()
+        );
+        if (!hasTemplate) return false;
+      }
     }
 
     // 2. Filter by search query

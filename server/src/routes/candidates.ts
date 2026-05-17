@@ -14,7 +14,8 @@ router.get('/', async (req: Request, res: Response) => {
         orderBy: { registeredAt: 'desc' },
         include: {
           generatedCVs: { select: { templateId: true } },
-          registeredBy: { select: { name: true } }
+          registeredBy: { select: { name: true } },
+          invoices: { select: { isDelivered: true } }
         }
       });
     } catch (schemaError: any) {
@@ -22,7 +23,8 @@ router.get('/', async (req: Request, res: Response) => {
       dbCandidates = await prisma.candidate.findMany({
         orderBy: { registeredAt: 'desc' },
         include: {
-          generatedCVs: { select: { templateId: true } }
+          generatedCVs: { select: { templateId: true } },
+          invoices: { select: { isDelivered: true } }
         }
       });
     }
@@ -103,6 +105,8 @@ router.get('/', async (req: Request, res: Response) => {
         salary: c.salary || '1000SR',
         generatedCVs: c.generatedCVs?.map((cv: any) => cv.templateId) || [],
         registeredBy: c.registeredBy?.name || 'Admin',
+        hasInvoice: c.invoices && c.invoices.length > 0,
+        isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
       };
     });
 
