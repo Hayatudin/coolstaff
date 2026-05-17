@@ -38,7 +38,8 @@ export default function RequestedPage() {
         body: JSON.stringify({ 
           isRequested: false, 
           visaSelected: false, 
-          visaOrContractNumber: null 
+          visaOrContractNumber: null,
+          status: 'pending'
         }),
       });
       if (!res.ok) throw new Error();
@@ -46,7 +47,8 @@ export default function RequestedPage() {
         ...c, 
         isRequested: false, 
         visaSelected: false, 
-        visaOrContractNumber: null 
+        visaOrContractNumber: null,
+        status: 'pending'
       } : c));
     } catch { alert('Failed to update status'); }
   };

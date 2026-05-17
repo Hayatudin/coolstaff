@@ -90,9 +90,11 @@ export function useCandidates(initialForceRefresh = false) {
     }
 
     if (typeof updater === 'function') {
-      const newData = updater(candidates);
-      cachedCandidates = newData;
-      setCandidates(newData);
+      setCandidates(prev => {
+        const newData = updater(prev);
+        cachedCandidates = newData;
+        return newData;
+      });
     } else {
       cachedCandidates = updater;
       setCandidates(updater);
