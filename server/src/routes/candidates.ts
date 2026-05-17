@@ -121,8 +121,14 @@ router.post('/', async (req: Request, res: Response) => {
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
     try {
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+
       const session = await auth.api.getSession({
-        headers: req.headers as any,
+        headers: webHeaders,
       });
       if (session?.user?.id) {
         registeredById = session.user.id;
