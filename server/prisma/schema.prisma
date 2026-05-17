@@ -206,6 +206,13 @@ model QuickRegistration {
   relativePhones   Json?
   createdAt        DateTime @default(now())
 
+  verificationStatus  String   @default("pending")
+  musanedCvUrl        String?  @db.LongText
+  verificationNotes   String?
+  verifiedAt          DateTime?
+  promotedAt          DateTime?
+  promotedCandidateId String?
+
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?
 
@@ -222,6 +229,7 @@ model Invoice {
   ticketUrl       String    @db.Text
   price           String
   isDelivered     Boolean   @default(false)
+  deployedDate    DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

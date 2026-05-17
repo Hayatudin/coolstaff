@@ -11,7 +11,11 @@ router.get('/', async (req: Request, res: Response) => {
     try {
       const invoices = await prisma.invoice.findMany({
         include: {
-          candidate: true,
+          candidate: {
+            include: {
+              generatedCVs: { select: { templateId: true } },
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -35,6 +39,17 @@ router.get('/', async (req: Request, res: Response) => {
          ORDER BY i.createdAt DESC`
       );
 
+      // Fetch all generatedCVs to attach templateIds
+      const allCVs = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT candidateId, templateId FROM \`GeneratedCV\``
+      );
+      const cvMap = new Map<string, string[]>();
+      for (const cv of allCVs) {
+        const existing = cvMap.get(cv.candidateId) || [];
+        existing.push(cv.templateId);
+        cvMap.set(cv.candidateId, existing);
+      }
+
       // Reformat the rows to match the include object expected by the frontend
       const mapped = invoices.map(row => ({
         id: row.id,
@@ -44,6 +59,7 @@ router.get('/', async (req: Request, res: Response) => {
         ticketUrl: row.ticketUrl,
         price: row.price,
         isDelivered: Boolean(row.isDelivered),
+        deployedDate: row.deployedDate || null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         candidate: {
@@ -53,6 +69,7 @@ router.get('/', async (req: Request, res: Response) => {
           passportNumber: row.candidate_passportNumber,
           registeredAt: row.candidate_registeredAt,
           visaDate: row.candidate_visaDate,
+          generatedCVs: (cvMap.get(row.candidateId) || []).map((tid: string) => ({ templateId: tid })),
         }
       }));
       return res.json(mapped);
@@ -155,22 +172,25 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'isDelivered must be a boolean' });
     }
 
+    const deployedDate = isDelivered ? new Date() : null;
+
     try {
       const invoice = await prisma.invoice.update({
         where: { id },
-        data: { isDelivered },
+        data: { isDelivered, deployedDate },
       });
       return res.json(invoice);
     } catch (prismaErr: any) {
       console.warn('Prisma invoice update failed, falling back to raw SQL:', prismaErr.message || prismaErr);
       
       await prisma.$executeRawUnsafe(
-        `UPDATE \`Invoice\` SET \`isDelivered\` = ? WHERE \`id\` = ?`,
+        `UPDATE \`Invoice\` SET \`isDelivered\` = ?, \`deployedDate\` = ? WHERE \`id\` = ?`,
         isDelivered ? 1 : 0,
+        deployedDate,
         id
       );
       
-      return res.json({ id, isDelivered });
+      return res.json({ id, isDelivered, deployedDate });
     }
   } catch (error: any) {
     console.error('Error updating invoice:', error);

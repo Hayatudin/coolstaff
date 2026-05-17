@@ -2,10 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { FileText, Loader2, Search, CheckCircle2, Eye, Download, AlertCircle, FileCheck, Circle, Edit3 } from 'lucide-react';
+import { FileText, Loader2, CheckCircle2, Eye, Download, AlertCircle, FileCheck, Circle, Edit3, Filter } from 'lucide-react';
 import Input from '@/components/ui/Input';
-import Badge from '@/components/ui/Badge';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { generateInvoicePdf } from '@/lib/invoicePdfGenerator';
+
+const TEMPLATES: Record<string, { name: string; fullName: string }> = {
+  'all': { name: 'ALL', fullName: '' },
+  'ussus': { name: 'USSUS Layout', fullName: 'USSUS ALENJAZ RECRUITMENT COMPANY' },
+  'al-shablan': { name: 'AL-Shablan', fullName: 'AL-SHABLAN RECRUITMENT COMPANY' },
+  'alm': { name: 'ALM Agency', fullName: 'ALEM RECRUITMENT AGENCY' },
+  'ka7': { name: 'KA-7 Layout', fullName: 'KAAFAAT ALAALAM RECRUITMENT COMPANY' },
+  'ku2': { name: 'KU-2 Format', fullName: 'KHUZAM  RECRUITMENT COMPANY' },
+  'ma': { name: 'MA Standard', fullName: 'NAKHLAH RECRUITMENT COMPANY' },
+  'ra': { name: 'RA Custom', fullName: 'RAYAAT RECRUITMENT COMPANY' },
+};
 
 export default function InvoicePage() {
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -13,6 +24,14 @@ export default function InvoicePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Template filter state
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('all');
+
+  // Download Invoice Modal states
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Edit Invoice States
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
@@ -71,8 +90,14 @@ export default function InvoicePage() {
         body: JSON.stringify({ isDelivered: !currentStatus }),
       });
       if (!res.ok) throw new Error();
-      
-      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, isDelivered: !currentStatus } : inv));
+
+      const updated = await res.json();
+
+      setInvoices(prev => prev.map(inv =>
+        inv.id === invoiceId
+          ? { ...inv, isDelivered: updated.isDelivered, deployedDate: updated.deployedDate }
+          : inv
+      ));
     } catch {
       alert('Failed to update delivery status');
     } finally {
@@ -81,13 +106,19 @@ export default function InvoicePage() {
   };
 
   const filtered = invoices.filter(inv => {
+    // 1. Filter by template
+    if (selectedTemplateId !== 'all') {
+      const cvs = inv.candidate?.generatedCVs || [];
+      const hasTemplate = cvs.some((cv: any) => cv.templateId === selectedTemplateId);
+      if (!hasTemplate) return false;
+    }
+
+    // 2. Filter by search query
     const name = `${inv.candidate.givenNames} ${inv.candidate.surname}`.toLowerCase();
     const passport = inv.candidate.passportNumber.toLowerCase();
     const query = searchQuery.toLowerCase();
     return name.includes(query) || passport.includes(query);
   });
-
-  const hasAnyDelivered = invoices.some(inv => inv.isDelivered);
 
   const getFileUrl = (pathStr: string) => {
     if (!pathStr) return '';
@@ -95,6 +126,57 @@ export default function InvoicePage() {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     return `${backendUrl}${pathStr}`;
   };
+
+  const handleDownloadInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invoiceNumber.trim()) return;
+
+    setIsGeneratingPdf(true);
+    try {
+      // Get delivered candidates in the current filtered list
+      const deliveredInvoices = filtered.filter(inv => inv.isDelivered);
+
+      if (deliveredInvoices.length === 0) {
+        alert("No delivered candidates to include in the invoice.");
+        return;
+      }
+
+      // Map to the format needed by the PDF generator
+      const candidatesToInvoice = deliveredInvoices.map((inv, index) => {
+        let priceNum = parseFloat(inv.price.replace(/[^0-9.]/g, ''));
+        if (isNaN(priceNum)) priceNum = 0;
+
+        let formattedDate = 'N/A';
+        if (inv.deployedDate) {
+          const d = new Date(inv.deployedDate);
+          const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+          formattedDate = `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        return {
+          name: `${inv.candidate.givenNames} ${inv.candidate.surname}`,
+          passportNumber: inv.candidate.passportNumber,
+          deployedDate: formattedDate,
+          price: priceNum,
+        };
+      });
+
+      const templateFullName = TEMPLATES[selectedTemplateId]?.fullName || '';
+
+      await generateInvoicePdf(candidatesToInvoice, templateFullName, invoiceNumber);
+
+      setShowDownloadModal(false);
+      setInvoiceNumber('');
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to generate PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Only show download button if a specific template is selected and there's at least one delivered candidate in this view
+  const canDownload = selectedTemplateId !== 'all' && filtered.some(inv => inv.isDelivered);
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -112,10 +194,10 @@ export default function InvoicePage() {
           </p>
         </div>
 
-        {/* Download Invoice Button (Only appears if at least 1 candidate is delivered) */}
-        {hasAnyDelivered && (
+        {/* Download Invoice Button */}
+        {canDownload && (
           <button
-            onClick={() => alert('Download Invoice layout configuration will be integrated in the next update!')}
+            onClick={() => setShowDownloadModal(true)}
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-green-600/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
           >
             <Download size={18} />
@@ -124,13 +206,33 @@ export default function InvoicePage() {
         )}
       </div>
 
-      {/* Search Input */}
-      <div className="w-full md:w-96">
-        <Input
-          placeholder="Search by name or passport..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
+      {/* Template Tabs & Search */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-4 rounded-[1.5rem] shadow-sm border border-border/50">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 xl:pb-0 hide-scrollbar">
+          <div className="flex items-center gap-2 mr-2 text-text-tertiary">
+            <Filter size={16} />
+            <span className="text-xs font-bold uppercase tracking-wider">Filter by CV:</span>
+          </div>
+          {Object.entries(TEMPLATES).map(([id, t]) => (
+            <button
+              key={id}
+              onClick={() => setSelectedTemplateId(id)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${selectedTemplateId === id
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
+                }`}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+        <div className="w-full xl:w-80 shrink-0">
+          <Input
+            placeholder="Search by name or passport..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Table Container */}
@@ -199,7 +301,7 @@ export default function InvoicePage() {
                     {/* Visa Selected Date */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm text-text-secondary font-medium">
-                        {inv.candidate.visaDate 
+                        {inv.candidate.visaDate
                           ? new Date(inv.candidate.visaDate).toLocaleDateString()
                           : new Date(inv.candidate.registeredAt).toLocaleDateString()}
                       </p>
@@ -257,7 +359,7 @@ export default function InvoicePage() {
               ) : (
                 <tr>
                   <td colSpan={9} className="px-6 py-10 text-center text-text-tertiary">
-                    No candidates with generated invoices. Mark candidates as &quot;Visa Selected&quot; and click Proceed to create invoices.
+                    No candidates found.
                   </td>
                 </tr>
               )}
@@ -265,6 +367,54 @@ export default function InvoicePage() {
           </table>
         </div>
       </div>
+
+      {/* Download Invoice Modal */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowDownloadModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-border bg-gray-50 flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-xl text-green-600">
+                <Download size={20} />
+              </div>
+              <h3 className="font-bold text-text-primary text-lg">Generate PDF</h3>
+            </div>
+            <form onSubmit={handleDownloadInvoice} className="p-5 space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-text-secondary">Invoice Number</label>
+                <Input
+                  required
+                  autoFocus
+                  placeholder="e.g. KU0050"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value.toUpperCase())}
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl">
+                <p className="text-xs text-blue-800 font-medium leading-relaxed">
+                  Generating invoice for <strong>{filtered.filter(i => i.isDelivered).length}</strong> delivered candidates under <strong>{TEMPLATES[selectedTemplateId]?.name}</strong>.
+                </p>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDownloadModal(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isGeneratingPdf || !invoiceNumber}
+                  className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-2"
+                >
+                  {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  <span>Download</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Document Viewer Modal */}
       {viewDoc && (
@@ -356,10 +506,10 @@ export default function InvoicePage() {
                   }
 
                   const updatedInvoice = await res.json();
-                  
+
                   // Update the local list
-                  setInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? { 
-                    ...inv, 
+                  setInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? {
+                    ...inv,
                     price: updatedInvoice.price,
                     lmisQrCodeUrl: updatedInvoice.lmisQrCodeUrl,
                     insuranceUrl: updatedInvoice.insuranceUrl,
