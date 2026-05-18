@@ -57,7 +57,7 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(body.relativeIdImageUrl, 'relative-id'),
     ]);
 
-    const registration = await prisma.quickRegistration.create({
+    const registration: any = await prisma.quickRegistration.create({
       data: {
         passportNumber: body.passportNumber || '',
         surname: body.surname || '',
@@ -75,16 +75,37 @@ router.post('/', async (req: Request, res: Response) => {
         passportImageUrl,
         religion: body.religion || null,
         broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
-        relativePhones: body.relativePhones || null,
-        cocDocumentUrl,
-        labourIdUrl,
-        candidateIdImageUrl,
-        relativeIdImageUrl,
       },
       include: {
         broker: { select: { id: true, name: true } },
       },
     });
+
+    // Safe Raw SQL Update for new columns (bypasses out-of-sync Prisma Client cache completely)
+    try {
+      const relPhonesString = body.relativePhones ? JSON.stringify(body.relativePhones) : null;
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`QuickRegistration\` 
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?
+         WHERE \`id\` = ?`,
+        cocDocumentUrl || null,
+        labourIdUrl || null,
+        candidateIdImageUrl || null,
+        relativeIdImageUrl || null,
+        relPhonesString,
+        registration.id
+      );
+
+      // Attach new fields to the returned object
+      registration.cocDocumentUrl = cocDocumentUrl || null;
+      registration.labourIdUrl = labourIdUrl || null;
+      registration.candidateIdImageUrl = candidateIdImageUrl || null;
+      registration.relativeIdImageUrl = relativeIdImageUrl || null;
+      registration.relativePhones = body.relativePhones || null;
+    } catch (rawError) {
+      console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
+    }
+
     res.status(201).json(registration);
   } catch (error: any) {
     console.error('Error creating quick registration:', error);
@@ -142,19 +163,63 @@ router.put('/:id', async (req: Request, res: Response) => {
         updateData.broker = { connect: { id: body.brokerId } };
       }
     }
-    if (body.relativePhones !== undefined) updateData.relativePhones = body.relativePhones;
-    if (cocDocumentUrl !== undefined) updateData.cocDocumentUrl = cocDocumentUrl;
-    if (labourIdUrl !== undefined) updateData.labourIdUrl = labourIdUrl;
-    if (candidateIdImageUrl !== undefined) updateData.candidateIdImageUrl = candidateIdImageUrl;
-    if (relativeIdImageUrl !== undefined) updateData.relativeIdImageUrl = relativeIdImageUrl;
-
-    const updated = await prisma.quickRegistration.update({
+    const updated: any = await prisma.quickRegistration.update({
       where: { id },
       data: updateData,
       include: {
         broker: { select: { id: true, name: true } },
       },
     });
+
+    // Safe Raw SQL Update for new columns (bypasses out-of-sync Prisma Client cache completely)
+    if (
+      cocDocumentUrl !== undefined ||
+      labourIdUrl !== undefined ||
+      candidateIdImageUrl !== undefined ||
+      relativeIdImageUrl !== undefined ||
+      body.relativePhones !== undefined
+    ) {
+      try {
+        const setClauses: string[] = [];
+        const queryParams: any[] = [];
+
+        if (cocDocumentUrl !== undefined) {
+          setClauses.push('`cocDocumentUrl` = ?');
+          queryParams.push(cocDocumentUrl);
+          updated.cocDocumentUrl = cocDocumentUrl;
+        }
+        if (labourIdUrl !== undefined) {
+          setClauses.push('`labourIdUrl` = ?');
+          queryParams.push(labourIdUrl);
+          updated.labourIdUrl = labourIdUrl;
+        }
+        if (candidateIdImageUrl !== undefined) {
+          setClauses.push('`candidateIdImageUrl` = ?');
+          queryParams.push(candidateIdImageUrl);
+          updated.candidateIdImageUrl = candidateIdImageUrl;
+        }
+        if (relativeIdImageUrl !== undefined) {
+          setClauses.push('`relativeIdImageUrl` = ?');
+          queryParams.push(relativeIdImageUrl);
+          updated.relativeIdImageUrl = relativeIdImageUrl;
+        }
+        if (body.relativePhones !== undefined) {
+          setClauses.push('`relativePhones` = ?');
+          queryParams.push(body.relativePhones ? JSON.stringify(body.relativePhones) : null);
+          updated.relativePhones = body.relativePhones;
+        }
+
+        if (setClauses.length > 0) {
+          queryParams.push(id);
+          await prisma.$executeRawUnsafe(
+            `UPDATE \`QuickRegistration\` SET ${setClauses.join(', ')} WHERE \`id\` = ?`,
+            ...queryParams
+          );
+        }
+      } catch (rawError) {
+        console.error('Failed to run raw SQL update for QuickRegistration PUT new fields:', rawError);
+      }
+    }
 
     res.json(updated);
   } catch (error: any) {
