@@ -859,13 +859,6 @@ export default function GeneratedCVsPage() {
                   <LayoutTemplate size={13} /> Change Template
                 </button>
                 <button
-                  onClick={handleBulkDelete}
-                  disabled={actionLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  <Trash2 size={13} /> Delete Selected
-                </button>
-                <button
                   onClick={() => setSelectedCVIds(new Set())}
                   className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors"
                 >
@@ -1142,6 +1135,17 @@ export default function GeneratedCVsPage() {
             </div>
           );
         })()}
+
+        {/* Sticky Floating Delete Selected Button */}
+        {someSelected && (
+          <button
+            onClick={handleBulkDelete}
+            disabled={actionLoading}
+            className="fixed bottom-8 right-8 z-50 flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 hover:scale-[1.03] active:scale-[0.97] transition-all disabled:opacity-50"
+          >
+            <Trash2 size={16} /> Delete Selected ({selectedCVIds.size})
+          </button>
+        )}
       </div>
 
       {/* Modals */}

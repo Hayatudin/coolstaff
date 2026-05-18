@@ -1,4 +1,5 @@
 import React from 'react';
+import { getFileUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
 
@@ -331,7 +332,7 @@ export default function ALMTemplate({ candidate, facePhoto, fullBodyPhoto }: CVT
       <div className="p-[10mm] min-h-[297mm] box-border relative flex flex-col items-center justify-center gap-6 break-before-page">
         <CVVideoFooter videoUrl={candidate.videoUrl} />
         {candidate.passportImageUrl ? (
-          <img src={candidate.passportImageUrl} alt="Passport Scan" className="max-w-full max-h-[240mm] object-contain shadow-md print:shadow-none" />
+          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport Scan" className="max-w-full max-h-[240mm] object-contain shadow-md print:shadow-none" />
         ) : (
           <div className="text-[#9ca3af] text-lg flex items-center justify-center w-full h-[240mm] border-2 border-dashed border-gray-300">
             Passport Image Not Available
