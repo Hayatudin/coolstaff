@@ -122,6 +122,39 @@ app.use('/api/cron', cronRoutes);
 app.use('/api/quick-registrations', quickRegistrationRoutes);
 app.use('/api/invoices', invoiceRoutes);
 
+// Database Debug Endpoint (Direct Browser Diagnostics)
+app.get('/api/debug-db', async (req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    const { default: prisma } = await import('./lib/prisma');
+    
+    // Test count on core tables
+    const userCount = await prisma.user.count();
+    const candidateCount = await prisma.candidate.count();
+    
+    res.json({ 
+      status: 'success', 
+      message: 'Database is CONNECTED and working perfectly!', 
+      environment: {
+        DATABASE_URL_length: process.env.DATABASE_URL?.length || 0,
+        NODE_ENV: process.env.NODE_ENV || 'production'
+      },
+      userCount, 
+      candidateCount 
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Database connection failed inside debug route!', 
+      errorMessage: error?.message || String(error),
+      code: error?.code,
+      meta: error?.meta,
+      stack: error?.stack
+    });
+  }
+});
+
 // Root route
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'COOLSTAFF API is running' });
