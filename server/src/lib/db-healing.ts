@@ -7,7 +7,8 @@ export async function ensureDatabaseSchema() {
   const candidateColumns = [
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
     { name: 'visaDate', type: 'DATETIME(3) NULL' },
-    { name: 'salary', type: "VARCHAR(191) NULL DEFAULT '1000SR'" }
+    { name: 'salary', type: "VARCHAR(191) NULL DEFAULT '1000SR'" },
+    { name: 'videoUrl', type: 'VARCHAR(191) NULL' }
   ];
 
   for (const col of candidateColumns) {

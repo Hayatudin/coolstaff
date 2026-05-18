@@ -63,11 +63,19 @@ export default function FileUpload({
           compact && shape !== 'circle' && 'h-40',
           !compact && shape !== 'circle' && 'h-52'
         )}>
-          <img
-            src={preview}
-            alt={label || 'Uploaded file'}
-            className="w-full h-full object-cover"
-          />
+          {preview.startsWith('data:video/') || preview.match(/\.(mp4|webm|mov|avi|ogg)/i) || preview.includes('/videos/') ? (
+            <video
+              src={preview}
+              controls
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img
+              src={preview}
+              alt={label || 'Uploaded file'}
+              className="w-full h-full object-cover"
+            />
+          )}
           {onClear && (
             <button
               type="button"

@@ -184,6 +184,7 @@ router.post('/', async (req: Request, res: Response) => {
       candidateIdImageUrl,
       relativeIdImageUrl,
       labourIdUrl,
+      videoUrl,
       count
     ] = await Promise.all([
       uploadToLocal(body.passportImageUrl, 'passports'),
@@ -194,6 +195,7 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(body.personalInfo.candidateIdImageUrl, 'candidate-id'),
       uploadToLocal(body.personalInfo.relativeIdImageUrl, 'relative-id'),
       uploadToLocal(body.personalInfo.labourIdUrl, 'labour-id'),
+      uploadToLocal(body.videoUrl, 'videos'),
       prisma.candidate.count()
     ]);
 
@@ -250,7 +252,7 @@ router.post('/', async (req: Request, res: Response) => {
         candidateIdImageUrl,
         relativeIdImageUrl,
         labourIdUrl,
-        videoUrl: body.videoUrl || null,
+        videoUrl: videoUrl || null,
         status: body.status || 'pending',
     };
 
@@ -458,7 +460,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       medicalDocumentUrl,
       candidateIdImageUrl,
       relativeIdImageUrl,
-      labourIdUrl
+      labourIdUrl,
+      videoUrl
     ] = await Promise.all([
       uploadToLocal(body.passportImageUrl, 'passports'),
       uploadToLocal(body.facePhotoUrl, 'faces'),
@@ -467,7 +470,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       uploadToLocal(body.personalInfo.medicalDocumentUrl, 'medical'),
       uploadToLocal(body.personalInfo.candidateIdImageUrl, 'candidate-id'),
       uploadToLocal(body.personalInfo.relativeIdImageUrl, 'relative-id'),
-      uploadToLocal(body.personalInfo.labourIdUrl, 'labour-id')
+      uploadToLocal(body.personalInfo.labourIdUrl, 'labour-id'),
+      uploadToLocal(body.videoUrl, 'videos')
     ]);
 
     const existingCandidate = await prisma.candidate.findUnique({ where: { id } });
@@ -530,6 +534,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         ...(candidateIdImageUrl && { candidateIdImageUrl }),
         ...(relativeIdImageUrl && { relativeIdImageUrl }),
         ...(labourIdUrl && { labourIdUrl }),
+        ...(videoUrl && { videoUrl }),
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,

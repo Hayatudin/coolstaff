@@ -177,6 +177,26 @@ export default function CandidateDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Candidate Video */}
+          {c.videoUrl && (
+            <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+              <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
+                <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Candidate Video Profile
+              </h2>
+              <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
+                <video
+                  src={getFileUrl(c.videoUrl)}
+                  controls
+                  className="w-full h-full object-contain"
+                  crossOrigin="anonymous"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Passport Information */}
           <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
             <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
