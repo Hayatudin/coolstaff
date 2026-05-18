@@ -146,10 +146,18 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server ready at http://localhost:${PORT}`);
   
-  // Self-healing: Automatically regenerate Prisma client on startup to prevent "Unknown argument" mismatches
+  // 1. Run database self-healing checks to inject missing tables/columns
+  try {
+    const { ensureDatabaseSchema } = await import('./lib/db-healing');
+    await ensureDatabaseSchema();
+  } catch (dbErr) {
+    console.error('❌ Failed to run database self-healing check on startup:', dbErr);
+  }
+
+  // 2. Self-healing: Automatically regenerate Prisma client on startup to prevent "Unknown argument" mismatches
   import('child_process').then(({ exec }) => {
     console.log('🔄 Checking and generating Prisma Client to sync with production database...');
     exec('npx prisma generate', { cwd: process.cwd() }, (err, stdout, stderr) => {
