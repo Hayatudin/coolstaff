@@ -233,7 +233,13 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
   try {
     const { passportNumber } = req.params;
     const registration = await prisma.quickRegistration.findFirst({
-      where: { passportNumber },
+      where: {
+        OR: [
+          { passportNumber: passportNumber },
+          { passportNumber: passportNumber.toUpperCase() },
+          { passportNumber: passportNumber.toLowerCase() }
+        ]
+      },
       include: {
         broker: { select: { id: true, name: true } },
       },

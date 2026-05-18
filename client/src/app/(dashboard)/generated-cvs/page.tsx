@@ -147,7 +147,7 @@ function ChangeTemplateModal({
           <div>
             <h2 className="text-lg font-bold text-text-primary">Change Template</h2>
             <p className="text-sm text-text-secondary mt-0.5">
-              Select a new template for <strong>{cv.candidate.givenNames} {cv.candidate.surname}</strong>
+              Select a new template for <strong>{cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}</strong>
             </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-surface transition-colors text-text-tertiary hover:text-text-primary">
@@ -344,6 +344,10 @@ export default function GeneratedCVsPage() {
   };
 
   useEffect(() => { fetchCVs(); }, []);
+
+  useEffect(() => {
+    setSelectedCVIds(new Set());
+  }, [selectedFolder]);
 
   // ── Delete ─────────────────────────────────────────────────────────────────
   const handleConfirmDelete = async () => {
@@ -651,7 +655,7 @@ export default function GeneratedCVsPage() {
                       <div key={cv.id} className="w-7 h-7 rounded-full ring-2 ring-surface overflow-hidden bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
                           ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                          : cv.candidate.givenNames.charAt(0)}
+                          : cv.candidate.passportData?.givenNames?.charAt(0) || ''}
                       </div>
                     ))}
                     {folder.cvs.length > 4 && (
@@ -669,22 +673,7 @@ export default function GeneratedCVsPage() {
           )}
         </div>
 
-        {/* Floating Bulk Action Bar for Delete */}
-        {someSelected && (
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
-            <div className="bg-white px-6 py-3 rounded-full shadow-2xl border border-border flex items-center gap-4">
-              <span className="text-sm font-bold text-text-primary">{selectedCVIds.size} selected</span>
-              <div className="w-px h-6 bg-border" />
-              <button
-                onClick={handleBulkDelete}
-                disabled={actionLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-sm font-bold hover:bg-red-700 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-red-500/20"
-              >
-                <Trash2 size={16} /> Delete CV{selectedCVIds.size !== 1 ? 's' : ''}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Bulk Action Bar removed from top level page view to let the inside-folder one take care of it */}
 
         {toast && <Toast msg={toast.msg} type={toast.type} />}
       </>
@@ -696,7 +685,7 @@ export default function GeneratedCVsPage() {
   const allFolderCVs = cvs.filter(c => c.templateId === selectedFolder);
   const activeCVs = allFolderCVs.filter(cv => {
     if (religionFilter) {
-      const rel = (cv.candidate.religion || '').toLowerCase();
+      const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase();
       if (religionFilter === 'muslim' && rel !== 'muslim') return false;
       if (religionFilter === 'non-muslim' && (rel === 'muslim' || rel === '')) return false;
     }
@@ -706,8 +695,8 @@ export default function GeneratedCVsPage() {
     const min = minAgeFilter ? parseInt(minAgeFilter) : null;
     const max = maxAgeFilter ? parseInt(maxAgeFilter) : null;
     if (min !== null || max !== null) {
-      if (!cv.candidate.dateOfBirth) return false;
-      const age = new Date().getFullYear() - new Date(cv.candidate.dateOfBirth).getFullYear();
+      if (!cv.candidate.passportData?.dateOfBirth) return false;
+      const age = new Date().getFullYear() - new Date(cv.candidate.passportData.dateOfBirth).getFullYear();
       if (min !== null && age < min) return false;
       if (max !== null && age > max) return false;
     }
@@ -739,8 +728,8 @@ export default function GeneratedCVsPage() {
 
       for (let i = 0; i < cvsToDownload.length; i++) {
         const cv = cvsToDownload[i];
-        const safeName = `${cv.candidate.givenNames}_${cv.candidate.surname}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${cvsToDownload.length}: ${cv.candidate.givenNames}...`);
+        const safeName = `${cv.candidate.passportData?.givenNames || ''}_${cv.candidate.passportData?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        showToast(`Processing ${i + 1}/${cvsToDownload.length}: ${cv.candidate.passportData?.givenNames || ''}...`);
 
         // Render the CV template into the hidden container
         const { createRoot } = await import('react-dom/client');
@@ -868,6 +857,13 @@ export default function GeneratedCVsPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   <LayoutTemplate size={13} /> Change Template
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={13} /> Delete Selected
                 </button>
                 <button
                   onClick={() => setSelectedCVIds(new Set())}
@@ -1069,18 +1065,13 @@ export default function GeneratedCVsPage() {
                         className="w-4 h-4 accent-primary rounded cursor-pointer pointer-events-none"
                       />
                     </label>
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden border border-border bg-primary-50 text-primary flex items-center justify-center font-bold text-sm">
-                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
-                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                          : cv.candidate.givenNames.charAt(0)}
-                      </div>
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-text-primary truncate flex items-center gap-1.5">
-                          {cv.candidate.givenNames} {cv.candidate.surname}
+                          {cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}
                           {cv.candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500 shrink-0" />}
                         </p>
-                        <p className="text-xs text-text-tertiary">{cv.candidate.passportNumber}</p>
+                        <p className="text-xs text-text-tertiary">{cv.candidate.passportData?.passportNumber}</p>
                       </div>
                     </div>
 
