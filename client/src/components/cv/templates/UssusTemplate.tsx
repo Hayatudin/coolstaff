@@ -167,12 +167,11 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
       </div>
 
       {/* PAGE 2: Passport Scan */}
-      <div className="p-[10mm] min-h-[297mm] box-border relative flex flex-col items-center justify-center gap-6 break-before-page">
-        <CVVideoFooter videoUrl={candidate.videoUrl} />
+      <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
         {candidate.passportImageUrl ? (
-          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport Scan" className="max-w-full max-h-[240mm] object-contain shadow-md print:shadow-none" />
+          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="max-w-full max-h-full object-contain" />
         ) : (
-          <div className="text-[#9ca3af] text-lg flex items-center justify-center w-full h-[240mm] border-2 border-dashed border-gray-300">
+          <div className="text-gray-400 text-lg border-2 border-dashed border-gray-300 w-full h-full flex items-center justify-center">
             Passport Image Not Available
           </div>
         )}

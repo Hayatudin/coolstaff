@@ -98,6 +98,7 @@ function ActionMenu({
   return (
     <div className="relative">
       <button ref={btnRef} onClick={(e) => { e.stopPropagation(); setOpen(p => !p); }}
+        onMouseDown={(e) => e.stopPropagation()}
         className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors"
         title="Actions"
       >
@@ -714,6 +715,13 @@ export default function GeneratedCVsPage() {
       : activeCVs;
 
     if (cvsToDownload.length === 0) return;
+    
+    if (cvsToDownload.length === 1) {
+      setDownloadAllOpen(false);
+      startDownload(cvsToDownload[0], format);
+      return;
+    }
+
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
     try {
@@ -1085,7 +1093,8 @@ export default function GeneratedCVsPage() {
                     {/* Format Picker */}
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => { startDownload(cv, 'pdf'); }}
+                        onClick={(e) => { e.stopPropagation(); startDownload(cv, 'pdf'); }}
+                        onMouseDown={(e) => e.stopPropagation()}
                         disabled={isDownloading}
                         className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
                         title="Download as PDF"
@@ -1094,7 +1103,8 @@ export default function GeneratedCVsPage() {
                       </button>
                       <span className="text-border">|</span>
                       <button
-                        onClick={() => { startDownload(cv, 'jpg'); }}
+                        onClick={(e) => { e.stopPropagation(); startDownload(cv, 'jpg'); }}
+                        onMouseDown={(e) => e.stopPropagation()}
                         disabled={isDownloading}
                         className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
                         title="Download as JPG"
@@ -1103,7 +1113,8 @@ export default function GeneratedCVsPage() {
                       </button>
                       <span className="text-border">|</span>
                       <button
-                        onClick={() => { startDownload(cv, 'doc'); }}
+                        onClick={(e) => { e.stopPropagation(); startDownload(cv, 'doc'); }}
+                        onMouseDown={(e) => e.stopPropagation()}
                         disabled={isDownloading}
                         className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
                         title="Download as DOCX"
