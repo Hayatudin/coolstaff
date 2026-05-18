@@ -327,4 +327,28 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /api/invoices/:id
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if exists
+    const existing = await prisma.$queryRawUnsafe<any[]>(`SELECT id FROM \`Invoice\` WHERE id = ?`, id);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    try {
+      await prisma.invoice.delete({ where: { id } });
+    } catch (prismaErr) {
+      await prisma.$executeRawUnsafe(`DELETE FROM \`Invoice\` WHERE id = ?`, id);
+    }
+    
+    return res.json({ success: true, id });
+  } catch (error: any) {
+    console.error('Failed to delete invoice:', error);
+    res.status(500).json({ error: 'Failed to delete invoice', message: error.message });
+  }
+});
+
 export default router;

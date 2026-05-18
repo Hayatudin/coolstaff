@@ -173,10 +173,17 @@ export default function RequestedPage() {
                         </button>
                         {openMenuId === c.id && (
                           <div className="absolute right-0 top-full mt-1 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
-                            <button onClick={() => router.push(`/invoice/new?candidateId=${c.id}`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary">
-                              <CheckCircle size={16} />
-                              <span>Proceed</span>
-                            </button>
+                            {c.hasInvoice ? (
+                              <button disabled className="w-full flex items-center gap-3 px-4 py-2.5 text-sm bg-gray-50 text-left text-green-600 font-medium cursor-not-allowed">
+                                <CheckCircle size={16} />
+                                <span>Invoice Generated</span>
+                              </button>
+                            ) : (
+                              <button onClick={() => router.push(`/invoice/new?candidateId=${c.id}`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary">
+                                <CheckCircle size={16} />
+                                <span>Proceed (Generate Invoice)</span>
+                              </button>
+                            )}
                             <div className="border-t border-border my-1" />
                             <button onClick={() => cancelVisa(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                               <CheckCircle size={16} className="text-amber-500" />

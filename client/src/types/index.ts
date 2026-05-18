@@ -83,6 +83,8 @@ export interface Candidate {
    latestCVTemplate?: string | null;
   generatedCVs?: string[];
   registeredBy?: string;
+  hasInvoice?: boolean;
+  isInvoiceDelivered?: boolean;
   visaDate?: string | null;
 }
 

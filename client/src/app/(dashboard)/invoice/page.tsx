@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { FileText, Loader2, CheckCircle2, Eye, Download, AlertCircle, FileCheck, Circle, Edit3, Filter } from 'lucide-react';
+import { FileText, Loader2, CheckCircle2, Eye, Download, AlertCircle, FileCheck, Circle, Edit3, Filter, Trash2 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { generateInvoicePdf } from '@/lib/invoicePdfGenerator';
@@ -44,7 +44,6 @@ export default function InvoicePage() {
 
   useEffect(() => {
     if (editingInvoice) {
-      setEditPrice(editingInvoice.price || '');
       setEditLmisFile(null);
       setEditInsuranceFile(null);
       setEditTicketFile(null);
@@ -101,6 +100,23 @@ export default function InvoicePage() {
       ));
     } catch {
       alert('Failed to update delivery status');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    setActionLoading(invoiceId);
+    try {
+      const res = await api(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to delete invoice');
+      }
+      setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    } catch (err: any) {
+      alert(err.message || 'Something went wrong while deleting');
     } finally {
       setActionLoading(null);
     }
@@ -255,7 +271,6 @@ export default function InvoicePage() {
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
                 <th className="px-6 py-4 font-semibold">Visa Date</th>
-                <th className="px-6 py-4 font-semibold">Price</th>
                 <th className="px-6 py-4 font-semibold text-center">LMIS QR Code</th>
                 <th className="px-6 py-4 font-semibold text-center">Insurance</th>
                 <th className="px-6 py-4 font-semibold text-center">Ticket</th>
@@ -264,7 +279,7 @@ export default function InvoicePage() {
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <TableSkeleton rows={6} cols={9} />
+                <TableSkeleton rows={6} cols={8} />
               ) : filtered.length > 0 ? (
                 filtered.map(inv => (
                   <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
@@ -317,13 +332,6 @@ export default function InvoicePage() {
                       </p>
                     </td>
 
-                    {/* Invoice Price */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold border border-amber-200">
-                        {inv.price}
-                      </span>
-                    </td>
-
                     {/* LMIS File Preview */}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button
@@ -356,19 +364,29 @@ export default function InvoicePage() {
 
                     {/* Action Column */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => setEditingInvoice(inv)}
-                        className="text-primary hover:text-primary-700 transition-colors p-2 rounded-lg hover:bg-primary-50 inline-flex items-center gap-1"
-                      >
-                        <Edit3 size={15} />
-                        <span>Edit</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setEditingInvoice(inv)}
+                          className="text-primary hover:text-primary-700 transition-colors p-2 rounded-lg hover:bg-primary-50 inline-flex items-center gap-1"
+                        >
+                          <Edit3 size={15} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteInvoice(inv.id)}
+                          disabled={actionLoading === inv.id}
+                          className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50 inline-flex items-center gap-1"
+                          title="Delete Invoice"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-6 py-10 text-center text-text-tertiary">
+                  <td colSpan={8} className="px-6 py-10 text-center text-text-tertiary">
                     No candidates found.
                   </td>
                 </tr>
@@ -497,9 +515,7 @@ export default function InvoicePage() {
                 e.preventDefault();
                 setIsSaving(true);
                 try {
-                  const payload: any = {
-                    price: editPrice,
-                  };
+                  const payload: any = {};
                   if (editLmisFile?.base64) payload.lmisQrCodeUrl = editLmisFile.base64;
                   if (editInsuranceFile?.base64) payload.insuranceUrl = editInsuranceFile.base64;
                   if (editTicketFile?.base64) payload.ticketUrl = editTicketFile.base64;
@@ -520,7 +536,6 @@ export default function InvoicePage() {
                   // Update the local list
                   setInvoices(prev => prev.map(inv => inv.id === editingInvoice.id ? {
                     ...inv,
-                    price: updatedInvoice.price,
                     lmisQrCodeUrl: updatedInvoice.lmisQrCodeUrl,
                     insuranceUrl: updatedInvoice.insuranceUrl,
                     ticketUrl: updatedInvoice.ticketUrl,
@@ -543,17 +558,6 @@ export default function InvoicePage() {
                   {editingInvoice.candidate.givenNames} {editingInvoice.candidate.surname}
                 </h4>
                 <p className="text-xs text-text-secondary mt-0.5">Passport: {editingInvoice.candidate.passportNumber}</p>
-              </div>
-
-              {/* Price Field */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Invoice Price</label>
-                <Input
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  placeholder="e.g. 1500 USD"
-                  required
-                />
               </div>
 
               {/* LMIS QR Code Upload */}
