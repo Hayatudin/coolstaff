@@ -36,7 +36,8 @@ export async function ensureDatabaseSchema() {
     { name: 'cocDocumentUrl', type: 'LONGTEXT NULL' },
     { name: 'labourIdUrl', type: 'LONGTEXT NULL' },
     { name: 'candidateIdImageUrl', type: 'LONGTEXT NULL' },
-    { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' }
+    { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
+    { name: 'videoUrl', type: 'VARCHAR(500) NULL' }
   ];
 
   for (const col of quickRegColumns) {

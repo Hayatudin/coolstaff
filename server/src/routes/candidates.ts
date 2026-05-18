@@ -138,6 +138,114 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/candidates/promote-from-quick
+// Pushes documents from a verified QuickRegistration into the matching Candidate record
+router.post('/promote-from-quick', async (req: Request, res: Response) => {
+  try {
+    const { quickRegistrationId } = req.body;
+    if (!quickRegistrationId) {
+      return res.status(400).json({ error: 'quickRegistrationId is required' });
+    }
+
+    // 1. Fetch the QuickRegistration record (including raw videoUrl)
+    const qr: any = await prisma.quickRegistration.findUnique({
+      where: { id: quickRegistrationId },
+    });
+    if (!qr) {
+      return res.status(404).json({ error: 'Quick registration not found' });
+    }
+
+    // Also fetch raw videoUrl which may not be in Prisma Client cache
+    let videoUrl = qr.videoUrl || null;
+    try {
+      const rawRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT \`videoUrl\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        quickRegistrationId
+      );
+      if (rawRows.length > 0 && rawRows[0].videoUrl) {
+        videoUrl = rawRows[0].videoUrl;
+      }
+    } catch (_) { /* column may not exist yet */ }
+
+    // 2. Find the matching Candidate by passport number
+    const candidate = await prisma.candidate.findFirst({
+      where: {
+        OR: [
+          { passportNumber: qr.passportNumber },
+          { passportNumber: qr.passportNumber?.toUpperCase() },
+          { passportNumber: qr.passportNumber?.toLowerCase() },
+        ]
+      }
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ error: `No candidate found with passport number ${qr.passportNumber}. Please complete full registration first.` });
+    }
+
+    // 3. Push documents from QR into Candidate via raw SQL (safe for stale Prisma cache)
+    const setClauses: string[] = [];
+    const params: any[] = [];
+
+    if (qr.cocDocumentUrl) {
+      setClauses.push('`cocDocumentUrl` = ?');
+      params.push(qr.cocDocumentUrl);
+    }
+    if (qr.labourIdUrl) {
+      setClauses.push('`labourIdUrl` = ?');
+      params.push(qr.labourIdUrl);
+    }
+    if (qr.candidateIdImageUrl) {
+      setClauses.push('`candidateIdImageUrl` = ?');
+      params.push(qr.candidateIdImageUrl);
+    }
+    if (qr.relativeIdImageUrl) {
+      setClauses.push('`relativeIdImageUrl` = ?');
+      params.push(qr.relativeIdImageUrl);
+    }
+    if (videoUrl) {
+      setClauses.push('`videoUrl` = ?');
+      params.push(videoUrl);
+    }
+
+    if (setClauses.length > 0) {
+      params.push(candidate.id);
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET ${setClauses.join(', ')} WHERE \`id\` = ?`,
+        ...params
+      );
+      console.log(`[PROMOTE] Pushed ${setClauses.length} document fields from QR ${quickRegistrationId} to Candidate ${candidate.id}`);
+    }
+
+    // 4. Mark QR as promoted
+    try {
+      await prisma.quickRegistration.update({
+        where: { id: quickRegistrationId },
+        data: {
+          promotedAt: new Date(),
+          promotedCandidateId: candidate.id,
+          verificationStatus: 'promoted',
+        },
+      });
+    } catch (e) {
+      // Fallback raw SQL in case Prisma cache is stale
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`QuickRegistration\` SET \`promotedAt\` = NOW(), \`promotedCandidateId\` = ?, \`verificationStatus\` = 'promoted' WHERE \`id\` = ?`,
+        candidate.id,
+        quickRegistrationId
+      );
+    }
+
+    res.json({
+      success: true,
+      candidateId: candidate.id,
+      message: `Documents successfully pushed to candidate ${candidate.passportNumber}`,
+    });
+  } catch (error: any) {
+    console.error('Failed to promote quick registration:', error);
+    res.status(500).json({ error: error?.message || 'Failed to promote quick registration' });
+  }
+});
+
 // POST /api/candidates
 router.post('/', async (req: Request, res: Response) => {
   try {

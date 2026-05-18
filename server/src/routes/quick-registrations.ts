@@ -48,13 +48,15 @@ router.post('/', async (req: Request, res: Response) => {
       cocDocumentUrl,
       labourIdUrl,
       candidateIdImageUrl,
-      relativeIdImageUrl
+      relativeIdImageUrl,
+      videoUrl
     ] = await Promise.all([
       uploadToLocal(body.passportImageUrl, 'passports'),
       uploadToLocal(body.cocDocumentUrl, 'coc'),
       uploadToLocal(body.labourIdUrl, 'labour-id'),
       uploadToLocal(body.candidateIdImageUrl, 'candidate-id'),
       uploadToLocal(body.relativeIdImageUrl, 'relative-id'),
+      uploadToLocal(body.videoUrl, 'videos'),
     ]);
 
     const registration: any = await prisma.quickRegistration.create({
@@ -86,13 +88,14 @@ router.post('/', async (req: Request, res: Response) => {
       const relPhonesString = body.relativePhones ? JSON.stringify(body.relativePhones) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
         candidateIdImageUrl || null,
         relativeIdImageUrl || null,
         relPhonesString,
+        videoUrl || null,
         registration.id
       );
 
@@ -102,6 +105,7 @@ router.post('/', async (req: Request, res: Response) => {
       registration.candidateIdImageUrl = candidateIdImageUrl || null;
       registration.relativeIdImageUrl = relativeIdImageUrl || null;
       registration.relativePhones = body.relativePhones || null;
+      registration.videoUrl = videoUrl || null;
     } catch (rawError) {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
@@ -131,13 +135,15 @@ router.put('/:id', async (req: Request, res: Response) => {
       cocDocumentUrl,
       labourIdUrl,
       candidateIdImageUrl,
-      relativeIdImageUrl
+      relativeIdImageUrl,
+      videoUrl
     ] = await Promise.all([
       body.passportImageUrl !== undefined ? uploadToLocal(body.passportImageUrl, 'passports') : undefined,
       body.cocDocumentUrl !== undefined ? uploadToLocal(body.cocDocumentUrl, 'coc') : undefined,
       body.labourIdUrl !== undefined ? uploadToLocal(body.labourIdUrl, 'labour-id') : undefined,
       body.candidateIdImageUrl !== undefined ? uploadToLocal(body.candidateIdImageUrl, 'candidate-id') : undefined,
       body.relativeIdImageUrl !== undefined ? uploadToLocal(body.relativeIdImageUrl, 'relative-id') : undefined,
+      body.videoUrl !== undefined ? uploadToLocal(body.videoUrl, 'videos') : undefined,
     ]);
 
     const updateData: any = {};
@@ -177,7 +183,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       labourIdUrl !== undefined ||
       candidateIdImageUrl !== undefined ||
       relativeIdImageUrl !== undefined ||
-      body.relativePhones !== undefined
+      body.relativePhones !== undefined ||
+      videoUrl !== undefined
     ) {
       try {
         const setClauses: string[] = [];
@@ -207,6 +214,11 @@ router.put('/:id', async (req: Request, res: Response) => {
           setClauses.push('`relativePhones` = ?');
           queryParams.push(body.relativePhones ? JSON.stringify(body.relativePhones) : null);
           updated.relativePhones = body.relativePhones;
+        }
+        if (videoUrl !== undefined) {
+          setClauses.push('`videoUrl` = ?');
+          queryParams.push(videoUrl);
+          updated.videoUrl = videoUrl;
         }
 
         if (setClauses.length > 0) {

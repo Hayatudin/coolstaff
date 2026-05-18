@@ -48,6 +48,7 @@ export default function QuickRegistrationPage() {
   const [labourIdUrl, setLabourIdUrl] = useState<string | null>(null);
   const [candidateIdImageUrl, setCandidateIdImageUrl] = useState<string | null>(null);
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   // Broker list
   const [brokers, setBrokers] = useState<Broker[]>([]);
@@ -216,6 +217,7 @@ export default function QuickRegistrationPage() {
           labourIdUrl,
           candidateIdImageUrl,
           relativeIdImageUrl,
+          videoUrl,
         }),
       });
 
@@ -506,6 +508,16 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setRelativeIdImageUrl(base64))}
               onClear={() => setRelativeIdImageUrl(null)}
               helperText="Relative ID Image — Max 10MB"
+            />
+            <FileUpload
+              label="Candidate Video"
+              accept="video/*"
+              shape="rect"
+              compact
+              preview={videoUrl}
+              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
+              onClear={() => setVideoUrl(null)}
+              helperText="MP4, WebM or MOV — Max 10MB"
             />
           </div>
         </div>

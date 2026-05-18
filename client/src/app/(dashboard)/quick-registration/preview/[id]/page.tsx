@@ -3,7 +3,8 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
+import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video } from 'lucide-react';
+import { getFileUrl } from '@/lib/utils';
 
 interface QuickRegistration {
   id: string;
@@ -27,6 +28,7 @@ interface QuickRegistration {
   labourIdUrl: string | null;
   candidateIdImageUrl: string | null;
   relativeIdImageUrl: string | null;
+  videoUrl: string | null;
   createdAt: string;
 }
 
@@ -74,6 +76,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   const [labourId, setLabourId] = useState<string | null>(null);
   const [candidateIdImg, setCandidateIdImg] = useState<string | null>(null);
   const [relativeIdImg, setRelativeIdImg] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<string | null>(null);
   const [isSavingDocs, setIsSavingDocs] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -88,6 +91,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         setLabourId(json.labourIdUrl);
         setCandidateIdImg(json.candidateIdImageUrl);
         setRelativeIdImg(json.relativeIdImageUrl);
+        setVideoFile(json.videoUrl);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -97,7 +101,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     fetchData();
   }, [id]);
 
-  const handleFileChange = (field: 'coc' | 'labour' | 'candidateId' | 'relativeId', file: File) => {
+  const handleFileChange = (field: 'coc' | 'labour' | 'candidateId' | 'relativeId' | 'video', file: File) => {
     if (file.size > 10 * 1024 * 1024) {
       alert('Max file size is 10MB');
       return;
@@ -110,6 +114,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         if (field === 'labour') setLabourId(base64);
         if (field === 'candidateId') setCandidateIdImg(base64);
         if (field === 'relativeId') setRelativeIdImg(base64);
+        if (field === 'video') setVideoFile(base64);
       }
     };
     reader.readAsDataURL(file);
@@ -127,6 +132,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
           labourIdUrl: labourId,
           candidateIdImageUrl: candidateIdImg,
           relativeIdImageUrl: relativeIdImg,
+          videoUrl: videoFile,
         }),
       });
       if (!res.ok) {
@@ -139,6 +145,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       setLabourId(updated.labourIdUrl);
       setCandidateIdImg(updated.candidateIdImageUrl);
       setRelativeIdImg(updated.relativeIdImageUrl);
+      setVideoFile(updated.videoUrl);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
@@ -153,7 +160,8 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       cocDoc !== data.cocDocumentUrl ||
       labourId !== data.labourIdUrl ||
       candidateIdImg !== data.candidateIdImageUrl ||
-      relativeIdImg !== data.relativeIdImageUrl
+      relativeIdImg !== data.relativeIdImageUrl ||
+      videoFile !== data.videoUrl
     );
 
   if (loading) {
@@ -455,6 +463,54 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileChange('relativeId', file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Candidate Video */}
+          <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50 sm:col-span-2">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary flex items-center gap-1.5"><Video size={12} /> Candidate Video</p>
+                {videoFile && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
+              </div>
+              <div className="h-48 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
+                {videoFile ? (
+                  videoFile.startsWith('data:video/') || videoFile.match(/\.(mp4|webm|mov|avi|ogg)/i) || videoFile.includes('/videos/') ? (
+                    <video src={videoFile.startsWith('/uploads') ? getFileUrl(videoFile) : videoFile} controls className="w-full h-full object-contain" />
+                  ) : videoFile.startsWith('data:image') || videoFile.startsWith('http') || videoFile.startsWith('/uploads') ? (
+                    <img src={videoFile} alt="Video thumbnail" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
+                      <Video className="text-primary/40" size={24} />
+                      <span>Video file</span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                    <AlertCircle className="text-amber-500/80" size={20} />
+                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+                <Upload size={14} />
+                {videoFile ? 'Change Video' : 'Upload Video'}
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileChange('video', file);
                   }}
                 />
               </label>

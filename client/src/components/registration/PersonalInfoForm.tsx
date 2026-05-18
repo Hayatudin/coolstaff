@@ -357,40 +357,18 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         </div>
       </section>
 
-      {/* 7. Candidate Video (Import File or Add Link) */}
+      {/* 7. Video Link for QR Code */}
       <section className="pt-4 border-t border-slate-100">
-        <h3 className="text-xl font-bold text-text-primary mb-2">Candidate Video</h3>
-        <p className="text-sm text-text-secondary mb-6">Upload a video of the candidate or add an external video link. A QR code will be automatically generated on the CV.</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          {/* File Uploader */}
-          <div>
-            <FileUpload
-              label="Upload Video File"
-              accept="video/*"
-              shape="rect"
-              compact
-              preview={videoUrl && (videoUrl.startsWith('data:video/') || videoUrl.match(/\.(mp4|webm|mov|avi|ogg)/i) || videoUrl.includes('/videos/')) ? getFileUrl(videoUrl) : null}
-              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onVideoUrlChange?.(base64))}
-              onClear={onVideoUrlChange ? () => onVideoUrlChange('') : undefined}
-              helperText="MP4, WebM or MOV — Max 10MB"
-            />
-          </div>
-
-          {/* External URL Input */}
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl">
-              <span className="text-xs font-bold text-primary uppercase tracking-wider block mb-1">Option 2: External Link</span>
-              <p className="text-xs text-text-tertiary">If the video is already hosted elsewhere (e.g. YouTube, Vimeo, or a cloud drive), paste the link below.</p>
-            </div>
-            <Input 
-              label="Video URL" 
-              type="url"
-              value={videoUrl && !videoUrl.startsWith('data:') ? videoUrl : ''} 
-              onChange={e => onVideoUrlChange?.(e.target.value)} 
-              placeholder="https://youtube.com/watch?v=..." 
-            />
-          </div>
+        <h3 className="text-xl font-bold text-text-primary mb-2">Video Link</h3>
+        <p className="text-sm text-text-secondary mb-4">Add a video URL for this candidate. A QR code will be automatically generated on the CV.</p>
+        <div className="max-w-xl">
+          <Input 
+            label="Video URL" 
+            type="url"
+            value={videoUrl || ''} 
+            onChange={e => onVideoUrlChange?.(e.target.value)} 
+            placeholder="https://youtube.com/watch?v=..." 
+          />
         </div>
       </section>
 
