@@ -25,12 +25,35 @@ router.get('/generate-client', (req: Request, res: Response) => {
 // GET /api/quick-registrations
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const registrations = await prisma.quickRegistration.findMany({
+    let registrations = await prisma.quickRegistration.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         broker: { select: { id: true, name: true } },
       },
     });
+
+    try {
+      const rawRows = await prisma.$queryRawUnsafe<any[]>(`SELECT id, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId FROM \`QuickRegistration\``);
+      const rawMap = new Map();
+      for (const row of rawRows) {
+        rawMap.set(row.id, row);
+      }
+      registrations = registrations.map((reg: any) => {
+        const raw = rawMap.get(reg.id);
+        if (raw) {
+          reg.cocDocumentUrl = raw.cocDocumentUrl;
+          reg.labourIdUrl = raw.labourIdUrl;
+          reg.candidateIdImageUrl = raw.candidateIdImageUrl;
+          reg.relativeIdImageUrl = raw.relativeIdImageUrl;
+          reg.videoUrl = raw.videoUrl;
+          reg.relativePhones = raw.relativePhones ? JSON.parse(raw.relativePhones) : null;
+          reg.verificationStatus = raw.verificationStatus;
+          reg.promotedCandidateId = raw.promotedCandidateId;
+        }
+        return reg;
+      });
+    } catch (_) { /* ignore if columns don't exist */ }
+
     res.json(registrations);
   } catch (error) {
     console.error('Failed to fetch quick registrations:', error);
@@ -42,6 +65,40 @@ router.get('/', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const body = req.body;
+
+    if (!body.passportNumber) {
+      return res.status(400).json({ error: 'Passport number is required' });
+    }
+
+    // Check for duplicates in QuickRegistration
+    const existingQr = await prisma.quickRegistration.findFirst({
+      where: {
+        OR: [
+          { passportNumber: body.passportNumber },
+          { passportNumber: body.passportNumber.toUpperCase() },
+          { passportNumber: body.passportNumber.toLowerCase() }
+        ]
+      }
+    });
+
+    if (existingQr) {
+      return res.status(400).json({ error: 'A quick registration with this passport number already exists.' });
+    }
+
+    // Check for duplicates in full Candidates
+    const existingCandidate = await prisma.candidate.findFirst({
+      where: {
+        OR: [
+          { passportNumber: body.passportNumber },
+          { passportNumber: body.passportNumber.toUpperCase() },
+          { passportNumber: body.passportNumber.toLowerCase() }
+        ]
+      }
+    });
+
+    if (existingCandidate) {
+      return res.status(400).json({ error: 'A full candidate registration with this passport number already exists.' });
+    }
 
     const [
       passportImageUrl,
@@ -244,7 +301,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 router.get('/by-passport/:passportNumber', async (req: Request, res: Response) => {
   try {
     const { passportNumber } = req.params;
-    const registration = await prisma.quickRegistration.findFirst({
+    let registration: any = await prisma.quickRegistration.findFirst({
       where: {
         OR: [
           { passportNumber: passportNumber },
@@ -257,6 +314,25 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
       },
     });
     if (!registration) return res.status(404).json({ error: 'Not found' });
+
+    try {
+      const rawRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        registration.id
+      );
+      if (rawRows.length > 0) {
+        const raw = rawRows[0];
+        registration.cocDocumentUrl = raw.cocDocumentUrl;
+        registration.labourIdUrl = raw.labourIdUrl;
+        registration.candidateIdImageUrl = raw.candidateIdImageUrl;
+        registration.relativeIdImageUrl = raw.relativeIdImageUrl;
+        registration.videoUrl = raw.videoUrl;
+        registration.relativePhones = raw.relativePhones ? JSON.parse(raw.relativePhones) : null;
+        registration.verificationStatus = raw.verificationStatus;
+        registration.promotedCandidateId = raw.promotedCandidateId;
+      }
+    } catch (_) { /* ignore */ }
+
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration by passport:', error);
@@ -268,17 +344,56 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const registration = await prisma.quickRegistration.findUnique({
+    let registration: any = await prisma.quickRegistration.findUnique({
       where: { id },
       include: {
         broker: { select: { id: true, name: true } },
       },
     });
     if (!registration) return res.status(404).json({ error: 'Not found' });
+
+    try {
+      const rawRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        registration.id
+      );
+      if (rawRows.length > 0) {
+        const raw = rawRows[0];
+        registration.cocDocumentUrl = raw.cocDocumentUrl;
+        registration.labourIdUrl = raw.labourIdUrl;
+        registration.candidateIdImageUrl = raw.candidateIdImageUrl;
+        registration.relativeIdImageUrl = raw.relativeIdImageUrl;
+        registration.videoUrl = raw.videoUrl;
+        registration.relativePhones = raw.relativePhones ? JSON.parse(raw.relativePhones) : null;
+        registration.verificationStatus = raw.verificationStatus;
+        registration.promotedCandidateId = raw.promotedCandidateId;
+      }
+    } catch (_) { /* ignore */ }
+
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration:', error);
     res.status(500).json({ error: 'Failed to fetch quick registration' });
+  }
+});
+
+// DELETE /api/quick-registrations/:id
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Quick verify it exists
+    const existing = await prisma.quickRegistration.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+
+    await prisma.quickRegistration.delete({ where: { id } });
+    
+    res.json({ success: true, message: 'Deleted successfully' });
+  } catch (error: any) {
+    console.error('Failed to delete quick registration:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete registration' });
   }
 });
 
