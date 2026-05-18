@@ -133,6 +133,16 @@ app.get('/api/debug-db', async (req: Request, res: Response) => {
     const userCount = await prisma.user.count();
     const candidateCount = await prisma.candidate.count();
     
+    let invoiceCount = 0;
+    let invoiceStatus = 'healthy';
+    let invoiceError = null;
+    try {
+      invoiceCount = await prisma.invoice.count();
+    } catch (invErr: any) {
+      invoiceStatus = 'error';
+      invoiceError = invErr.message || String(invErr);
+    }
+    
     res.json({ 
       status: 'success', 
       message: 'Database is CONNECTED and working perfectly!', 
@@ -141,7 +151,12 @@ app.get('/api/debug-db', async (req: Request, res: Response) => {
         NODE_ENV: process.env.NODE_ENV || 'production'
       },
       userCount, 
-      candidateCount 
+      candidateCount,
+      invoice: {
+        status: invoiceStatus,
+        count: invoiceCount,
+        error: invoiceError
+      }
     });
   } catch (error: any) {
     res.status(500).json({ 

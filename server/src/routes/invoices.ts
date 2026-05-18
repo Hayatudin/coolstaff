@@ -141,6 +141,7 @@ router.post('/', async (req: Request, res: Response) => {
       // Fallback standard Prisma insert
       const invoice = await prisma.invoice.create({
         data: {
+          id, // Explicitly pass the pre-generated ID to prevent primary key field missing warnings
           candidateId,
           price,
           lmisQrCodeUrl: lmisPath || '',

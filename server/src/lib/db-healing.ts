@@ -72,7 +72,28 @@ export async function ensureDatabaseSchema() {
     `);
     console.log(`✅ Verified/Created 'Invoice' table.`);
   } catch (e: any) {
-    console.error('❌ Failed to verify/create Invoice table:', e.message || e);
+    console.warn('⚠️ Standard Invoice table creation failed. Trying highly-compatible SQL fallback...', e.message || e);
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`Invoice\` (
+          \`id\` VARCHAR(191) NOT NULL,
+          \`candidateId\` VARCHAR(191) NOT NULL,
+          \`lmisQrCodeUrl\` TEXT NOT NULL,
+          \`insuranceUrl\` TEXT NOT NULL,
+          \`ticketUrl\` TEXT NOT NULL,
+          \`price\` VARCHAR(191) NOT NULL,
+          \`isDelivered\` TINYINT(1) NOT NULL DEFAULT 0,
+          \`deployedDate\` DATETIME NULL,
+          \`createdAt\` DATETIME NOT NULL,
+          \`updatedAt\` DATETIME NOT NULL,
+          PRIMARY KEY (\`id\`),
+          FOREIGN KEY (\`candidateId\`) REFERENCES \`Candidate\`(\`id\`) ON DELETE CASCADE ON UPDATE CASCADE
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      console.log(`✅ Successfully created 'Invoice' table using highly-compatible fallback.`);
+    } catch (fallbackErr: any) {
+      console.error('❌ Failed to create Invoice table even with fallback:', fallbackErr.message || fallbackErr);
+    }
   }
 
   console.log('✅ Database self-healing complete.');
