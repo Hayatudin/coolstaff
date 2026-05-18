@@ -83,9 +83,9 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/invoices
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { candidateId, price, lmisQrCodeUrl, insuranceUrl, ticketUrl } = req.body;
+    const { candidateId, lmisQrCodeUrl, insuranceUrl, ticketUrl } = req.body;
 
-    if (!candidateId || !price || !lmisQrCodeUrl || !insuranceUrl || !ticketUrl) {
+    if (!candidateId || !lmisQrCodeUrl || !insuranceUrl || !ticketUrl) {
       return res.status(400).json({ error: 'Missing required invoice fields' });
     }
 
@@ -96,6 +96,25 @@ router.post('/', async (req: Request, res: Response) => {
     if (!candidate) {
       return res.status(404).json({ error: 'Candidate not found' });
     }
+
+    // Determine price based on the most recent generated CV template for this candidate
+    let price = "0";
+    try {
+      const cvs = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT templateId FROM \`GeneratedCV\` WHERE candidateId = ? ORDER BY createdAt DESC LIMIT 1`,
+        candidateId
+      );
+      if (cvs.length > 0) {
+        const latestTemplate = cvs[0].templateId;
+        const prices = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT price FROM \`TemplatePrice\` WHERE templateId = ?`,
+          latestTemplate
+        );
+        if (prices.length > 0) {
+          price = prices[0].price;
+        }
+      }
+    } catch (_) { /* ignore if no table or no CVs */ }
 
     // Upload files
     const [lmisPath, insurancePath, ticketPath] = await Promise.all([
@@ -205,8 +224,15 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { price, lmisQrCodeUrl, insuranceUrl, ticketUrl } = req.body;
 
-    if (!price) {
-      return res.status(400).json({ error: 'Price is required' });
+    // Price is now optional on PUT because it can just be kept as is if not provided
+    // Wait, the UI doesn't have price field anymore, so we shouldn't fail if price is not passed on PUT.
+    let updatedPrice = price;
+    if (!updatedPrice) {
+      // Just keep existing price
+      try {
+        const current = await prisma.$queryRawUnsafe<any[]>(`SELECT price FROM \`Invoice\` WHERE id = ?`, id);
+        if (current.length > 0) updatedPrice = current[0].price;
+      } catch (_) {}
     }
 
     // Process new file uploads if passed as base64
@@ -242,7 +268,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       const updated = await prisma.invoice.update({
         where: { id },
         data: {
-          price,
+          price: updatedPrice || '0',
           lmisQrCodeUrl: lmisPath || '',
           insuranceUrl: insurancePath || '',
           ticketUrl: ticketPath || '',
@@ -260,7 +286,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         `UPDATE \`Invoice\` 
          SET \`price\` = ?, \`lmisQrCodeUrl\` = ?, \`insuranceUrl\` = ?, \`ticketUrl\` = ?, \`updatedAt\` = ?
          WHERE \`id\` = ?`,
-        price,
+        updatedPrice || '0',
         lmisPath || '',
         insurancePath || '',
         ticketPath || '',
@@ -288,7 +314,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
       return res.json({
         id,
-        price,
+        price: updatedPrice || '0',
         lmisQrCodeUrl: lmisPath || '',
         insuranceUrl: insurancePath || '',
         ticketUrl: ticketPath || '',

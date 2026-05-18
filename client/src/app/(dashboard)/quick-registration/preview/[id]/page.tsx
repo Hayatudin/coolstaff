@@ -191,21 +191,6 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     }
   }
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this quick registration? This action cannot be undone.')) return;
-    
-    try {
-      const res = await api(`/api/quick-registrations/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to delete');
-      }
-      router.push('/quick-registered');
-    } catch (err: any) {
-      alert(err.message || 'Something went wrong while deleting');
-    }
-  };
-
   return (
     <div className="max-w-2xl mx-auto pb-10">
       {/* Header */}
@@ -226,21 +211,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleDelete}
-            className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 text-sm font-semibold rounded-xl transition-colors shadow-sm flex items-center gap-1.5"
-            title="Delete Registration"
-          >
-            <Trash2 size={16} /> Delete
-          </button>
-          <button
-            onClick={() => router.push(`/registration?quick_reg_id=${data.id}`)}
-            className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2"
-          >
-            <User size={16} /> Complete Full Registration
-          </button>
-        </div>
+        <button
+          onClick={() => router.push(`/registration?quick_reg_id=${data.id}`)}
+          className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2 shrink-0"
+        >
+          <User size={16} /> Complete Full Registration
+        </button>
       </div>
 
       {/* Passport Info */}

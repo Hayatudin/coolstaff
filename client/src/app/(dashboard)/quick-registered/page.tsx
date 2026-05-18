@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText } from 'lucide-react';
+import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2 } from 'lucide-react';
 
 interface QuickReg {
   id: string;
@@ -136,6 +136,20 @@ export default function QuickRegisteredPage() {
       setVerifyError(err.message || 'Failed to push documents to candidate.');
     } finally {
       setIsPromoting(false);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete the quick registration for ${name}? This action cannot be undone.`)) return;
+    try {
+      const res = await api(`/api/quick-registrations/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to delete');
+      }
+      setRegistrations(prev => prev.filter(r => r.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Something went wrong while deleting');
     }
   };
 
@@ -284,6 +298,13 @@ export default function QuickRegisteredPage() {
                               <ArrowRight size={16} />
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDelete(r.id, `${r.givenNames} ${r.surname}`)}
+                            className="p-2 rounded-lg hover:bg-red-100 text-text-tertiary hover:text-red-700 transition-colors ml-1"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </td>
                     </tr>

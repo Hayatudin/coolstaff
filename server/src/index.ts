@@ -107,6 +107,7 @@ import searchRoutes from './routes/search';
 import cronRoutes from './routes/cron';
 import quickRegistrationRoutes from './routes/quick-registrations';
 import invoiceRoutes from './routes/invoices';
+import settingsRoutes from './routes/settings';
 
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/brokers', brokerRoutes);
@@ -121,6 +122,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/cron', cronRoutes);
 app.use('/api/quick-registrations', quickRegistrationRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Database Debug Endpoint (Direct Browser Diagnostics)
 app.get('/api/debug-db', async (req: Request, res: Response) => {

@@ -98,5 +98,20 @@ export async function ensureDatabaseSchema() {
     }
   }
 
+  // 4. TemplatePrice Table creation (for Super Admin Settings)
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`TemplatePrice\` (
+        \`templateId\` VARCHAR(191) NOT NULL,
+        \`price\` VARCHAR(191) NOT NULL,
+        \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`templateId\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    `);
+    console.log(`✅ Verified/Created 'TemplatePrice' table.`);
+  } catch (e: any) {
+    console.warn('⚠️ TemplatePrice table creation failed:', e.message || e);
+  }
+
   console.log('✅ Database self-healing complete.');
 }

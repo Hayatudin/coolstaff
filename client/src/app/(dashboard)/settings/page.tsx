@@ -8,7 +8,8 @@ import {
   Globe, 
   Lock,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  DollarSign
 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -53,6 +54,38 @@ export default function SettingsPage() {
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [notifications, setNotifications] = useState({ cvDeadlines: true, newRegistrations: true, systemUpdates: false });
   const [preferences, setPreferences] = useState({ language: 'en', timezone: 'Asia/Riyadh', dateFormat: 'YYYY-MM-DD' });
+
+  const templates = [
+    { id: 'alm', name: 'ALM Template' },
+    { id: 'alshablan', name: 'Al Shablan Template' },
+    { id: 'ka7', name: 'KA-7 Template' },
+    { id: 'ku2', name: 'KU-2 Template' },
+    { id: 'ma', name: 'MA Template' },
+    { id: 'ra', name: 'RA Template' },
+    { id: 'ussus', name: 'Ussus Template' },
+    { id: 'vision', name: 'Vision Template' }
+  ];
+  const [agencyPrices, setAgencyPrices] = useState<Record<string, string>>({});
+
+  // Fetch prices on mount
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await api('/api/settings/prices');
+        const data = await res.json();
+        const priceMap: Record<string, string> = {};
+        if (Array.isArray(data)) {
+          data.forEach((row: any) => {
+            priceMap[row.templateId] = row.price;
+          });
+        }
+        setAgencyPrices(priceMap);
+      } catch (err) {
+        console.error('Failed to fetch prices', err);
+      }
+    };
+    fetchPrices();
+  }, []);
 
   // Load profile from session
   useEffect(() => {
@@ -116,11 +149,39 @@ export default function SettingsPage() {
     }
   };
 
-  const tabs = [
+  const handleSavePrices = async () => {
+    setIsSaving(true);
+    try {
+      const res = await api('/api/settings/prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prices: agencyPrices }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update prices');
+      showToast('Agency prices updated successfully');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  let tabs = [
     { id: 'profile', label: 'Profile Settings', icon: User },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: Globe },
-  ] as const;
+  ];
+  
+  if (profile.role === 'super_admin') {
+    tabs.splice(1, 0, { id: 'agency', label: 'Agency Price', icon: DollarSign });
+  }
+
+  const getSaveHandler = () => {
+    if (activeTab === 'profile') return handleSaveProfile;
+    if (activeTab === 'agency') return handleSavePrices;
+    return () => showToast('Settings saved');
+  };
 
   return (
     <div className="space-y-6 animate-fade-in pb-10 max-w-5xl mx-auto">
@@ -136,7 +197,7 @@ export default function SettingsPage() {
           <p className="text-text-secondary mt-1 ml-12">Manage your account and agency preferences</p>
         </div>
         <Button 
-          onClick={activeTab === 'profile' ? handleSaveProfile : () => showToast('Settings saved')} 
+          onClick={getSaveHandler()} 
           disabled={isSaving || isPending}
           icon={isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={16} />}
         >
@@ -220,6 +281,37 @@ export default function SettingsPage() {
                 >
                   {isSaving ? 'Updating...' : 'Update Password'}
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Agency Settings */}
+          {activeTab === 'agency' && profile.role === 'super_admin' && (
+            <div className="space-y-8 animate-fade-in">
+              <div>
+                <h2 className="text-lg font-bold text-text-primary mb-1 flex items-center gap-2">
+                  <DollarSign size={18} className="text-primary" /> Default Invoice Pricing
+                </h2>
+                <p className="text-sm text-text-secondary mb-6">Set the default invoice price (in USD) for each CV template. This price will be automatically applied when generating an invoice for a candidate using that specific template.</p>
+                
+                <div className="bg-gray-50/50 rounded-xl border border-border p-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    {templates.map(t => (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-white border border-border/60 rounded-lg hover:border-primary/30 transition-colors">
+                        <span className="font-semibold text-text-primary text-sm">{t.name}</span>
+                        <div className="w-32">
+                          <Input 
+                            type="number"
+                            placeholder="e.g. 1500" 
+                            value={agencyPrices[t.id] || ''} 
+                            onChange={(e) => setAgencyPrices({...agencyPrices, [t.id]: e.target.value})}
+                            icon={<DollarSign size={14} className="text-text-tertiary" />}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}

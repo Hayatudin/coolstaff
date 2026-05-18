@@ -14,7 +14,6 @@ function NewInvoiceContent() {
 
   const [candidate, setCandidate] = useState<any | null>(null);
   const [loadingCandidate, setLoadingCandidate] = useState(true);
-  const [price, setPrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,7 +77,7 @@ function NewInvoiceContent() {
   };
 
   const handleSave = async () => {
-    if (!candidateId || !price || !lmis || !insurance || !ticket) return;
+    if (!candidateId || !lmis || !insurance || !ticket) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -89,7 +88,6 @@ function NewInvoiceContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateId,
-          price,
           lmisQrCodeUrl: lmis.base64,
           insuranceUrl: insurance.base64,
           ticketUrl: ticket.base64,
@@ -175,18 +173,8 @@ function NewInvoiceContent() {
             </div>
           )}
 
-          {/* 4 Inputs */}
+          {/* 3 Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Price input */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-sm font-bold text-text-secondary">Price</label>
-              <Input
-                placeholder="Enter final invoice price (e.g. 5000 SR)"
-                value={price}
-                onChange={e => setPrice(e.target.value)}
-              />
-            </div>
-
             {/* LMIS File Upload */}
             <div className="space-y-1.5">
               <label className="text-sm font-bold text-text-secondary flex items-center justify-between">
