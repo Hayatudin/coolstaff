@@ -1,5 +1,6 @@
 import React from 'react';
 import { Candidate } from '@/types';
+import { getFileUrl } from '@/lib/utils';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -353,7 +354,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       {/* PAGE 2: Passport Scan */}
       <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
         {candidate.passportImageUrl ? (
-          <img src={candidate.passportImageUrl} alt="Passport" className="max-w-full max-h-full object-contain" />
+          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="max-w-full max-h-full object-contain" />
         ) : (
           <div className="text-gray-400 text-lg border-2 border-dashed border-gray-300 w-full h-full flex items-center justify-center">
             Passport Image Not Available

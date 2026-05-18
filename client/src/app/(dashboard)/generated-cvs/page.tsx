@@ -720,7 +720,11 @@ export default function GeneratedCVsPage() {
 
   // ── Download All as ZIP ────────────────────────────────────────────────────
   const handleDownloadAll = async (format: 'pdf' | 'jpg' | 'doc') => {
-    if (activeCVs.length === 0) return;
+    const cvsToDownload = selectedCVIds.size > 0 
+      ? activeCVs.filter(c => selectedCVIds.has(c.id)) 
+      : activeCVs;
+
+    if (cvsToDownload.length === 0) return;
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
     try {
@@ -733,10 +737,10 @@ export default function GeneratedCVsPage() {
       container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;z-index:-1;';
       document.body.appendChild(container);
 
-      for (let i = 0; i < activeCVs.length; i++) {
-        const cv = activeCVs[i];
+      for (let i = 0; i < cvsToDownload.length; i++) {
+        const cv = cvsToDownload[i];
         const safeName = `${cv.candidate.givenNames}_${cv.candidate.surname}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${activeCVs.length}: ${cv.candidate.givenNames}...`);
+        showToast(`Processing ${i + 1}/${cvsToDownload.length}: ${cv.candidate.givenNames}...`);
 
         // Render the CV template into the hidden container
         const { createRoot } = await import('react-dom/client');
@@ -815,11 +819,11 @@ export default function GeneratedCVsPage() {
       const url = window.URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${activeTemplate.name.replace(/\s+/g, '_')}_CVs${religionFilter ? '_' + religionFilter : ''}.zip`;
+      a.download = `${activeTemplate.name.replace(/\s+/g, '_')}_CVs${selectedCVIds.size > 0 ? '_Selected' : ''}${religionFilter ? '_' + religionFilter : ''}.zip`;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-      showToast(`Downloaded ${activeCVs.length} CVs as ZIP!`);
+      showToast(`Downloaded ${cvsToDownload.length} CVs as ZIP!`);
     } catch (err) {
       console.error('Download all error:', err);
       showToast('Failed to download all CVs', 'error');
@@ -921,7 +925,7 @@ export default function GeneratedCVsPage() {
               </div>
             </div>
 
-            {/* Download All */}
+            {/* Download */}
             <div className="relative">
               <button
                 onClick={() => setDownloadAllOpen(p => !p)}
@@ -938,7 +942,12 @@ export default function GeneratedCVsPage() {
                 ) : (
                   <PackageOpen size={16} />
                 )}
-                {isDownloadingAll ? 'Creating ZIP...' : `Download All (${activeCVs.length})`}
+                {isDownloadingAll 
+                  ? 'Creating ZIP...' 
+                  : selectedCVIds.size > 0 
+                    ? `Download Selected (${selectedCVIds.size})` 
+                    : `Download All (${activeCVs.length})`
+                }
                 <ChevronDown size={14} className={cn('transition-transform', downloadAllOpen && 'rotate-180')} />
               </button>
               {downloadAllOpen && (
@@ -947,19 +956,19 @@ export default function GeneratedCVsPage() {
                     onClick={() => handleDownloadAll('pdf')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors whitespace-nowrap"
                   >
-                    <FileDown size={14} className="text-red-500 shrink-0" /> All as PDF
+                    <FileDown size={14} className="text-red-500 shrink-0" /> {selectedCVIds.size > 0 ? 'Selected as PDF' : 'All as PDF'}
                   </button>
                   <button
                     onClick={() => handleDownloadAll('jpg')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
                   >
-                    <ImageIcon size={14} className="text-emerald-500 shrink-0" /> All as JPG
+                    <ImageIcon size={14} className="text-emerald-500 shrink-0" /> {selectedCVIds.size > 0 ? 'Selected as JPG' : 'All as JPG'}
                   </button>
                   <button
                     onClick={() => handleDownloadAll('doc')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
                   >
-                    <FileText size={14} className="text-blue-500 shrink-0" /> All as DOCX
+                    <FileText size={14} className="text-blue-500 shrink-0" /> {selectedCVIds.size > 0 ? 'Selected as DOCX' : 'All as DOCX'}
                   </button>
                 </div>
               )}

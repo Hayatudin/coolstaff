@@ -16,8 +16,7 @@ const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'ku2': { name: 'KU-2 Format', fullName: 'KHUZAM  RECRUITMENT COMPANY' },
   'ma': { name: 'MA Standard', fullName: 'NAKHLAH RECRUITMENT COMPANY' },
   'ra': { name: 'RA Custom', fullName: 'RAYAAT RECRUITMENT COMPANY' },
-  'vision': { name: 'Vision Office', fullName: 'VISION RECRUITMENT OFFICE' },
-  'other': { name: 'Other / No CV', fullName: 'OTHER RECRUITMENT COMPANY' },
+  'vision': { name: 'Vision Office', fullName: 'VISION RECRUITMENT OFFICE' }
 };
 
 export default function InvoicePage() {
@@ -112,12 +111,12 @@ export default function InvoicePage() {
     if (selectedTemplateId !== 'all') {
       const cvs = inv.candidate?.generatedCVs || [];
       if (selectedTemplateId === 'other') {
-        const hasStandardTemplate = cvs.some((cv: any) => 
+        const hasStandardTemplate = cvs.some((cv: any) =>
           TEMPLATES[cv.templateId] && cv.templateId !== 'all' && cv.templateId !== 'other'
         );
         if (hasStandardTemplate) return false;
       } else {
-        const hasTemplate = cvs.some((cv: any) => 
+        const hasTemplate = cvs.some((cv: any) =>
           cv.templateId.toLowerCase() === selectedTemplateId.toLowerCase()
         );
         if (!hasTemplate) return false;
@@ -229,8 +228,8 @@ export default function InvoicePage() {
               key={id}
               onClick={() => setSelectedTemplateId(id)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${selectedTemplateId === id
-                  ? 'bg-primary text-white shadow-md shadow-primary/20'
-                  : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
+                ? 'bg-primary text-white shadow-md shadow-primary/20'
+                : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
                 }`}
             >
               {t.name}

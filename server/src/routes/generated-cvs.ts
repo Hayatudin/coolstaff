@@ -4,6 +4,83 @@ import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
+const formatCandidate = (c: any) => {
+  if (!c) return null;
+  const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
+  return {
+    id: c.id,
+    shelfId: c.shelfId,
+    cvDeadline: formatDate(c.cvDeadline),
+    passportData: {
+      passportNumber: c.passportNumber,
+      surname: c.surname,
+      givenNames: c.givenNames,
+      dateOfBirth: formatDate(c.dateOfBirth),
+      gender: c.gender,
+      nationality: c.nationality,
+      issuingCountry: c.issuingCountry,
+      dateOfIssue: formatDate(c.dateOfIssue),
+      dateOfExpiry: formatDate(c.dateOfExpiry),
+      placeOfBirth: c.placeOfBirth,
+    },
+    personalInfo: {
+      idNumber: c.idNumber || c.passportNumber,
+      job: c.job || '',
+      maritalStatus: c.maritalStatus,
+      numberOfChildren: c.numberOfChildren,
+      religion: c.religion,
+      bloodType: c.bloodType,
+      height: c.height,
+      weight: c.weight,
+      phone: c.phone,
+      email: c.email,
+      address: c.address,
+      city: c.city,
+      state: c.state,
+      country: c.country,
+      educationLevel: c.educationLevel,
+      languages: c.languages,
+      workExperience: c.workExperience || [],
+      skills: c.skills,
+      medicalStatus: c.medicalStatus,
+      biometricStatus: c.biometricStatus,
+      medicalDate: formatDate(c.medicalDate),
+      biometricDate: formatDate(c.biometricDate),
+      knownConditions: c.knownConditions,
+      emergencyContactName: c.emergencyContactName,
+      emergencyContactRelation: c.emergencyContactRelation,
+      emergencyContactPhone: c.emergencyContactPhone,
+      emergencyContactAddress: c.emergencyContactAddress,
+      additionalPhones: c.additionalPhones,
+      brokerId: c.brokerId || '',
+      cocDocumentUrl: c.cocDocumentUrl || '',
+      medicalDocumentUrl: c.medicalDocumentUrl || '',
+      candidateIdImageUrl: c.candidateIdImageUrl || '',
+      relativeIdImageUrl: c.relativeIdImageUrl || '',
+      labourIdUrl: c.labourIdUrl || '',
+      salary: c.salary || '1000SR',
+    },
+    brokerId: c.brokerId,
+    passportImageUrl: c.passportImageUrl || '',
+    facePhotoUrl: c.facePhotoUrl || '',
+    fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
+    cocDocumentUrl: c.cocDocumentUrl || '',
+    medicalDocumentUrl: c.medicalDocumentUrl || '',
+    candidateIdImageUrl: c.candidateIdImageUrl || '',
+    relativeIdImageUrl: c.relativeIdImageUrl || '',
+    labourIdUrl: c.labourIdUrl || '',
+    isRequested: c.isRequested || false,
+    visaOrContractNumber: c.visaOrContractNumber || null,
+    isFlagged: c.isFlagged || false,
+    videoUrl: c.videoUrl || null,
+    registeredAt: c.registeredAt instanceof Date ? c.registeredAt.toISOString() : c.registeredAt,
+    status: c.status,
+    visaSelected: c.visaSelected,
+    visaDate: c.visaDate ? (c.visaDate instanceof Date ? c.visaDate.toISOString() : c.visaDate) : null,
+    salary: c.salary || '1000SR',
+  };
+};
+
 // GET /api/generated-cvs
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -16,7 +93,12 @@ router.get('/', async (req: Request, res: Response) => {
       }
     });
     
-    res.json(generatedCVs);
+    const mappedCVs = generatedCVs.map((cv: any) => ({
+      ...cv,
+      candidate: formatCandidate(cv.candidate)
+    }));
+    
+    res.json(mappedCVs);
   } catch (error) {
     console.error('Error fetching generated CVs:', error);
     res.status(500).json({ error: 'Failed to fetch generated CVs' });
