@@ -218,21 +218,13 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
 
     // 4. Mark QR as promoted
     try {
-      await prisma.quickRegistration.update({
-        where: { id: quickRegistrationId },
-        data: {
-          promotedAt: new Date(),
-          promotedCandidateId: candidate.id,
-          verificationStatus: 'promoted',
-        },
-      });
-    } catch (e) {
-      // Fallback raw SQL in case Prisma cache is stale
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` SET \`promotedAt\` = NOW(), \`promotedCandidateId\` = ?, \`verificationStatus\` = 'promoted' WHERE \`id\` = ?`,
         candidate.id,
         quickRegistrationId
       );
+    } catch (e) {
+      console.error(`Failed to update QuickRegistration promotion via raw SQL:`, e);
     }
 
     res.json({
@@ -394,14 +386,11 @@ router.post('/', async (req: Request, res: Response) => {
     // If quickRegistrationId is provided, mark it as promoted
     if (body.quickRegistrationId) {
       try {
-        await prisma.quickRegistration.update({
-          where: { id: body.quickRegistrationId },
-          data: {
-            promotedAt: new Date(),
-            promotedCandidateId: candidate.id,
-            verificationStatus: 'promoted',
-          },
-        });
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`QuickRegistration\` SET \`promotedAt\` = NOW(), \`promotedCandidateId\` = ?, \`verificationStatus\` = 'promoted' WHERE \`id\` = ?`,
+          candidate.id,
+          body.quickRegistrationId
+        );
         console.log(`[DEBUG] Successfully promoted QuickRegistration ID ${body.quickRegistrationId} to Candidate ID ${candidate.id}`);
       } catch (promotionError) {
         console.error(`[DEBUG] Failed to update QuickRegistration promotion:`, promotionError);
