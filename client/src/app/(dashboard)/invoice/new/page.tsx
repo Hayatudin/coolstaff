@@ -107,7 +107,7 @@ function NewInvoiceContent() {
     }
   };
 
-  const isFormValid = price.trim() !== '' && lmis !== null && insurance !== null && ticket !== null;
+  const isFormValid = lmis !== null && insurance !== null && ticket !== null;
 
   if (loadingCandidate) {
     return (

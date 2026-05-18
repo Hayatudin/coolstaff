@@ -214,7 +214,7 @@ export default function SettingsPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
                   isActive 
@@ -305,7 +305,6 @@ export default function SettingsPage() {
                             placeholder="e.g. 1500" 
                             value={agencyPrices[t.id] || ''} 
                             onChange={(e) => setAgencyPrices({...agencyPrices, [t.id]: e.target.value})}
-                            icon={<DollarSign size={14} className="text-text-tertiary" />}
                           />
                         </div>
                       </div>

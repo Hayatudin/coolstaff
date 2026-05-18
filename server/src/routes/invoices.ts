@@ -197,7 +197,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     try {
       const invoice = await prisma.invoice.update({
         where: { id },
-        data: { isDelivered, deployedDate },
+        data: { isDelivered, deployedDate } as any,
       });
       return res.json(invoice);
     } catch (prismaErr: any) {
