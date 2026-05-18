@@ -148,4 +148,18 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server ready at http://localhost:${PORT}`);
+  
+  // Self-healing: Automatically regenerate Prisma client on startup to prevent "Unknown argument" mismatches
+  import('child_process').then(({ exec }) => {
+    console.log('🔄 Checking and generating Prisma Client to sync with production database...');
+    exec('npx prisma generate', { cwd: process.cwd() }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('❌ Failed to run prisma generate dynamically on startup:', err);
+      } else {
+        console.log('✅ Prisma Client successfully generated dynamically on startup!\n', stdout);
+      }
+    });
+  }).catch(err => {
+    console.error('Failed to import child_process on startup:', err);
+  });
 });

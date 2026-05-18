@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users } from 'lucide-react';
+import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
 
 interface QuickRegistration {
   id: string;
@@ -69,6 +69,14 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Document states
+  const [cocDoc, setCocDoc] = useState<string | null>(null);
+  const [labourId, setLabourId] = useState<string | null>(null);
+  const [candidateIdImg, setCandidateIdImg] = useState<string | null>(null);
+  const [relativeIdImg, setRelativeIdImg] = useState<string | null>(null);
+  const [isSavingDocs, setIsSavingDocs] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -76,6 +84,10 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         if (!res.ok) throw new Error('Failed to load data');
         const json = await res.json();
         setData(json);
+        setCocDoc(json.cocDocumentUrl);
+        setLabourId(json.labourIdUrl);
+        setCandidateIdImg(json.candidateIdImageUrl);
+        setRelativeIdImg(json.relativeIdImageUrl);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -84,6 +96,65 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     };
     fetchData();
   }, [id]);
+
+  const handleFileChange = (field: 'coc' | 'labour' | 'candidateId' | 'relativeId', file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Max file size is 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        const base64 = ev.target.result as string;
+        if (field === 'coc') setCocDoc(base64);
+        if (field === 'labour') setLabourId(base64);
+        if (field === 'candidateId') setCandidateIdImg(base64);
+        if (field === 'relativeId') setRelativeIdImg(base64);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveDocs = async () => {
+    setIsSavingDocs(true);
+    setSaveSuccess(false);
+    try {
+      const res = await api(`/api/quick-registrations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cocDocumentUrl: cocDoc,
+          labourIdUrl: labourId,
+          candidateIdImageUrl: candidateIdImg,
+          relativeIdImageUrl: relativeIdImg,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to save documents');
+      }
+      const updated = await res.json();
+      setData(updated);
+      setCocDoc(updated.cocDocumentUrl);
+      setLabourId(updated.labourIdUrl);
+      setCandidateIdImg(updated.candidateIdImageUrl);
+      setRelativeIdImg(updated.relativeIdImageUrl);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Something went wrong while saving documents');
+    } finally {
+      setIsSavingDocs(false);
+    }
+  };
+
+  const hasUnsavedChanges =
+    data && (
+      cocDoc !== data.cocDocumentUrl ||
+      labourId !== data.labourIdUrl ||
+      candidateIdImg !== data.candidateIdImageUrl ||
+      relativeIdImg !== data.relativeIdImageUrl
+    );
 
   if (loading) {
     return (
@@ -196,63 +267,233 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         </div>
       )}
       {/* Uploaded Documents */}
-      {(data.cocDocumentUrl || data.labourIdUrl || data.candidateIdImageUrl || data.relativeIdImageUrl) && (
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mt-4">
-          <div className="bg-gradient-to-r from-violet-500/5 to-transparent border-b border-border px-5 py-3">
-            <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Uploaded Documents</h2>
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mt-6">
+        <div className="bg-gradient-to-r from-violet-500/5 to-transparent border-b border-border px-5 py-3 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Uploaded Documents</h2>
+          {hasUnsavedChanges && (
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full animate-pulse">
+              Unsaved changes
+            </span>
+          )}
+        </div>
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* COC Document */}
+          <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">COC Document</p>
+                {cocDoc && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
+              </div>
+              <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
+                {cocDoc ? (
+                  cocDoc.startsWith('data:image') || cocDoc.startsWith('http') || cocDoc.startsWith('/uploads') ? (
+                    <img src={cocDoc} alt="COC Document" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
+                      <FileText className="text-primary/40" size={24} />
+                      <span>Document (PDF/Binary)</span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                    <AlertCircle className="text-amber-500/80" size={20} />
+                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+                <Upload size={14} />
+                {cocDoc ? 'Change File' : 'Upload Document'}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileChange('coc', file);
+                  }}
+                />
+              </label>
+            </div>
           </div>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {data.cocDocumentUrl && (
-              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">COC Document</p>
-                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
-                  {data.cocDocumentUrl.startsWith('data:image') || data.cocDocumentUrl.startsWith('http') ? (
-                    <img src={data.cocDocumentUrl} alt="COC Document" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
-                  )}
-                </div>
+
+          {/* Labour ID Image */}
+          <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Labour ID Image</p>
+                {labourId && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
               </div>
-            )}
-            {data.labourIdUrl && (
-              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Labour ID Image</p>
-                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
-                  {data.labourIdUrl.startsWith('data:image') || data.labourIdUrl.startsWith('http') ? (
-                    <img src={data.labourIdUrl} alt="Labour ID" className="w-full h-full object-contain" />
+              <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
+                {labourId ? (
+                  labourId.startsWith('data:image') || labourId.startsWith('http') || labourId.startsWith('/uploads') ? (
+                    <img src={labourId} alt="Labour ID" className="w-full h-full object-contain" />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
-                  )}
-                </div>
+                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
+                      <FileText className="text-primary/40" size={24} />
+                      <span>Document (PDF/Binary)</span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                    <AlertCircle className="text-amber-500/80" size={20} />
+                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
+                  </div>
+                )}
               </div>
-            )}
-            {data.candidateIdImageUrl && (
-              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Candidate ID Image</p>
-                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
-                  {data.candidateIdImageUrl.startsWith('data:image') || data.candidateIdImageUrl.startsWith('http') ? (
-                    <img src={data.candidateIdImageUrl} alt="Candidate ID" className="w-full h-full object-contain" />
+            </div>
+            <div className="mt-3">
+              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+                <Upload size={14} />
+                {labourId ? 'Change File' : 'Upload Document'}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileChange('labour', file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Candidate ID Image */}
+          <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Candidate ID Image</p>
+                {candidateIdImg && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
+              </div>
+              <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
+                {candidateIdImg ? (
+                  candidateIdImg.startsWith('data:image') || candidateIdImg.startsWith('http') || candidateIdImg.startsWith('/uploads') ? (
+                    <img src={candidateIdImg} alt="Candidate ID" className="w-full h-full object-contain" />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
-                  )}
-                </div>
+                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
+                      <FileText className="text-primary/40" size={24} />
+                      <span>Document (PDF/Binary)</span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                    <AlertCircle className="text-amber-500/80" size={20} />
+                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
+                  </div>
+                )}
               </div>
-            )}
-            {data.relativeIdImageUrl && (
-              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Relative ID Image</p>
-                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
-                  {data.relativeIdImageUrl.startsWith('data:image') || data.relativeIdImageUrl.startsWith('http') ? (
-                    <img src={data.relativeIdImageUrl} alt="Relative ID" className="w-full h-full object-contain" />
+            </div>
+            <div className="mt-3">
+              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+                <Upload size={14} />
+                {candidateIdImg ? 'Change File' : 'Upload Document'}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileChange('candidateId', file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Relative ID Image */}
+          <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Relative ID Image</p>
+                {relativeIdImg && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
+              </div>
+              <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
+                {relativeIdImg ? (
+                  relativeIdImg.startsWith('data:image') || relativeIdImg.startsWith('http') || relativeIdImg.startsWith('/uploads') ? (
+                    <img src={relativeIdImg} alt="Relative ID" className="w-full h-full object-contain" />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
-                  )}
-                </div>
+                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
+                      <FileText className="text-primary/40" size={24} />
+                      <span>Document (PDF/Binary)</span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                    <AlertCircle className="text-amber-500/80" size={20} />
+                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+            <div className="mt-3">
+              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+                <Upload size={14} />
+                {relativeIdImg ? 'Change File' : 'Upload Document'}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileChange('relativeId', file);
+                  }}
+                />
+              </label>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Action Panel */}
+        {hasUnsavedChanges && (
+          <div className="bg-amber-50/50 border-t border-border px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="text-amber-600 shrink-0" />
+              <p className="text-xs text-amber-700 font-medium">You have uploaded new documents. Save changes to store them permanently.</p>
+            </div>
+            <button
+              onClick={handleSaveDocs}
+              disabled={isSavingDocs}
+              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-dark transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
+            >
+              {isSavingDocs ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" /> Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={12} /> Save Documents
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div className="bg-green-50 border-t border-border px-5 py-4 flex items-center gap-2 text-green-700 animate-fadeIn">
+            <Check size={16} className="shrink-0" />
+            <p className="text-xs font-bold">Documents successfully saved to candidate record!</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

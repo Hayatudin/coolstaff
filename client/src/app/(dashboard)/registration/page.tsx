@@ -52,6 +52,7 @@ function RegistrationContent() {
   const [registeredCandidateId, setRegisteredCandidateId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [quickRegistrationId, setQuickRegistrationId] = useState<string | null>(null);
+  const [checkedPassportNum, setCheckedPassportNum] = useState<string | null>(null);
 
   // Musaned drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
@@ -159,6 +160,68 @@ function RegistrationContent() {
     }
     fetchQuickRegistration();
   }, [quickRegId]);
+
+  // Auto-fill from Quick Registration when passport number changes/is scanned
+  useEffect(() => {
+    const passportNumber = passportData.passportNumber?.trim();
+    if (!passportNumber || passportNumber.length < 5 || passportNumber === checkedPassportNum) return;
+
+    // Don't auto-fill if we already explicitly loaded a quick registration via URL param
+    if (quickRegId) return;
+
+    async function checkQuickRegistration() {
+      try {
+        setCheckedPassportNum(passportNumber);
+        const res = await api(`/api/quick-registrations/by-passport/${passportNumber}`);
+        if (!res.ok) return; // Silent return if not found in Quick Registration
+        const data = await res.json();
+        
+        console.log('[DEBUG] Found matching Quick Registration record:', data);
+        setQuickRegistrationId(data.id);
+        
+        setPassportData(prev => ({
+          ...prev,
+          passportNumber: data.passportNumber || prev.passportNumber || '',
+          surname: data.surname || prev.surname || '',
+          givenNames: data.givenNames || prev.givenNames || '',
+          dateOfBirth: data.dateOfBirth || prev.dateOfBirth || '',
+          gender: data.gender || prev.gender || '',
+          nationality: data.nationality || prev.nationality || '',
+          issuingCountry: data.issuingCountry || prev.issuingCountry || '',
+          dateOfExpiry: data.dateOfExpiry || prev.dateOfExpiry || '',
+          placeOfBirth: data.placeOfBirth || prev.placeOfBirth || '',
+        }));
+
+        let parsedExp: any[] = [];
+        try { parsedExp = JSON.parse(data.jobExperience || '[]'); } catch { /* ignore */ }
+
+        setPersonalInfo(prev => ({
+          ...prev,
+          religion: data.religion || prev.religion || '',
+          maritalStatus: data.maritalStatus || prev.maritalStatus || '',
+          numberOfChildren: data.numberOfChildren || prev.numberOfChildren || 0,
+          educationLevel: data.educationLevel || prev.educationLevel || '',
+          brokerId: data.brokerId || prev.brokerId || '',
+          additionalPhones: Array.isArray(data.relativePhones) ? data.relativePhones : prev.additionalPhones || [],
+          workExperience: parsedExp.length > 0 ? parsedExp : prev.workExperience,
+          cocDocumentUrl: data.cocDocumentUrl || prev.cocDocumentUrl || '',
+          labourIdUrl: data.labourIdUrl || prev.labourIdUrl || '',
+          candidateIdImageUrl: data.candidateIdImageUrl || prev.candidateIdImageUrl || '',
+          relativeIdImageUrl: data.relativeIdImageUrl || prev.relativeIdImageUrl || '',
+        }));
+
+        if (data.passportImageUrl) {
+          setPassportImage(data.passportImageUrl);
+        }
+        setProcessingComplete(true);
+        
+        alert(`Found associated Quick Registration details for passport ${passportNumber}! Auto-filling candidate fields & documents.`);
+      } catch (err) {
+        console.error('Error auto-filling from Quick Registration:', err);
+      }
+    }
+    checkQuickRegistration();
+  }, [passportData.passportNumber, checkedPassportNum, quickRegId]);
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
