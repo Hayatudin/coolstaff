@@ -126,14 +126,9 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     res.json(candidates);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to fetch candidates:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch candidates', 
-      message: error?.message || String(error),
-      code: error?.code,
-      meta: error?.meta
-    });
+    res.status(500).json({ error: 'Failed to fetch candidates' });
   }
 });
 

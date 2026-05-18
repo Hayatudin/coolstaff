@@ -24,14 +24,9 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     res.json(brokers);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching brokers:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch brokers', 
-      message: error?.message || String(error),
-      code: error?.code,
-      meta: error?.meta
-    });
+    res.status(500).json({ error: 'Failed to fetch brokers' });
   }
 });
 

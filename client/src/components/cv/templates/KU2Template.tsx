@@ -113,9 +113,9 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
       {/* PAGE 2: Passport Scan */}
       <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
         {candidate.passportImageUrl ? (
-          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="max-w-[480px] max-h-[680px] object-contain shadow-md border border-gray-100 bg-white" />
+          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="w-[500px] h-[350px] object-contain border border-gray-150 shadow-sm" />
         ) : (
-          <div className="text-gray-400 text-lg border-2 border-dashed border-gray-300 w-full h-full flex items-center justify-center">
+          <div className="text-gray-400 text-sm border-2 border-dashed border-gray-200 w-[500px] h-[350px] flex items-center justify-center">
             Passport Image Not Available
           </div>
         )}

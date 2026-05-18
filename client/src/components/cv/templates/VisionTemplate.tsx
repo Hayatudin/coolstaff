@@ -2,6 +2,7 @@ import React from 'react';
 import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
 import { getFileUrl } from '@/lib/utils';
+import QRCode from '../QRCode';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -51,7 +52,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
   // Visual Palette matching Vision Recruitment Office Logo (Gold, Deep Teal)
   const bgTeal = 'bg-[#0a5c4e]';
   const textTeal = 'text-[#0a5c4e]';
-  const borderTeal = 'border-black';
+  const borderTeal = 'border-[#0a5c4e]';
   const goldGradient = 'bg-gradient-to-r from-[#8a6f27] via-[#c5a85c] to-[#8a6f27]';
 
   return (
@@ -68,11 +69,11 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
           {/* Unified Core Details Table */}
           <div className="flex-grow min-h-0">
-            <table className="w-full border-collapse border-[1.5px] border-black text-[11px] leading-tight text-black [&_td]:border-black">
+            <table className={`w-full border-collapse border-[1.5px] ${borderTeal} text-[11px] leading-tight text-black`}>
               <tbody>
                 {/* 1. APPLICATION FOR EMPLOYMENT HEADER ROW */}
                 <tr className="h-[32px]">
-                  <td colSpan={7} className="border-b border-black text-center font-extrabold text-[14px] uppercase text-black" style={{ background: 'linear-gradient(to right, #8a6f27, #c5a85c, #8a6f27)' }}>
+                  <td colSpan={7} className="border-b border-[#0a5c4e] text-center font-extrabold text-[14px] uppercase text-black" style={{ background: 'linear-gradient(to right, #8a6f27, #c5a85c, #8a6f27)' }}>
                     APPLICATION FOR EMPLOYMENT
                   </td>
                 </tr>
@@ -80,59 +81,41 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                 {/* 2. CORE DETAILS & PHOTO IN SINGLE TABLE BODY */}
                 <tr>
                   {/* LEFT PHOTO COLUMN (rowspan spanning all 22 right-side rows!) */}
-                  <td rowSpan={22} className="border-r border-black p-2 bg-white w-[270px] align-top text-center">
-                    <div className="flex flex-col gap-2.5 items-center w-full">
-                      {/* Full Body Photo */}
-                      <div className="border-[1.5px] border-black w-[240px] h-[550px] bg-white relative flex items-center justify-center overflow-hidden">
+                  <td rowSpan={22} className="border-r border-[#0a5c4e] p-2 bg-slate-50 w-[270px] align-top text-center">
+                    <div className="flex flex-col gap-2 items-center">
+                      {/* Full Body Photo instead of Face Photo */}
+                      <div className={`border-2 ${borderTeal} w-[235px] h-[380px] p-0.5 bg-white relative flex items-center justify-center`}>
                         {fullBodyPhoto ? (
-                          <img src={fullBodyPhoto} className="w-full h-full object-contain" alt="Candidate Full Body" />
+                          <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Candidate Full Body" />
                         ) : (
                           <div className="text-gray-400 text-xs text-center font-bold">Full Body Photo</div>
                         )}
                       </div>
                       
+                      {/* Spacer to push Contact Us Card to bottom */}
+                      <div className="h-[80px]"></div>
+
                       {/* Contact Us Card */}
-                      <div className="w-[240px] border-[1.5px] border-black flex flex-col text-left">
-                        <div className="bg-[#0a5c4e] text-white py-1 text-center font-bold text-[11px] border-b border-black flex justify-center gap-1 items-center leading-tight">
+                      <div className={`w-[220px] ${bgTeal} text-white p-2.5 rounded-sm border border-white shadow-sm flex flex-col gap-2 text-left`}>
+                        <div className="text-center font-bold text-[11px] border-b border-white/30 pb-1 flex flex-col leading-tight">
                           <span>CONTACT US</span>
                           <span dir="rtl" className="text-[10px] font-medium font-serif">تواصل معنا</span>
                         </div>
-                        <div className="flex flex-col gap-1 px-2 py-1.5 text-[9px] font-bold bg-white text-black leading-tight">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[#c5a85c] text-[10px]">✉</span>
-                            <span className="text-black font-semibold truncate">Alrooya@gmail.com</span>
+                        <div className="flex flex-col gap-1.5 text-[10px] font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span>📧</span>
+                            <span className="truncate">Alrooaya@gmail.com</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[#c5a85c] text-[10px]">📞</span>
-                            <span className="text-black font-semibold">0550022505 - 0570060006</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>📞</span>
+                            <span>0550022505</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span>📞</span>
+                            <span>0570060006</span>
                           </div>
                         </div>
                       </div>
-
-                      {/* QR and Watch Video Button */}
-                      {candidate.videoUrl ? (
-                        <div className="w-[240px] flex flex-col items-center justify-center p-2 bg-slate-50 border border-slate-200 rounded-sm">
-                          <div className="w-16 h-16 bg-white p-0.5 border border-slate-300 shadow-sm flex items-center justify-center mb-1">
-                            <img 
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
-                              alt="Video QR" 
-                              className="w-full h-full"
-                            />
-                          </div>
-                          <a 
-                            href={candidate.videoUrl} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="flex items-center justify-center gap-1 px-3 py-1 bg-[#0a5c4e] text-white text-[9px] font-bold hover:bg-opacity-95 transition-all w-full uppercase text-center rounded-sm"
-                          >
-                            🎥 Watch Video
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="w-[240px] h-[30px] flex items-center justify-center text-[10px] text-gray-400 border border-dashed border-gray-300">
-                          Video Not Available
-                        </div>
-                      )}
                     </div>
                   </td>
 
@@ -332,26 +315,46 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
           </div>
         </div>
 
+        {/* Under-table QR and watch video button aligned to the left bottom */}
+        {candidate.videoUrl && (
+          <div className="mt-2 shrink-0 flex items-center gap-4 justify-start pl-4 pb-2">
+            <div className="bg-white p-1 border border-slate-200 shadow-sm flex items-center justify-center rounded-sm">
+              <QRCode url={candidate.videoUrl} size={65} />
+            </div>
+            <a
+              href={candidate.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-[#0a5c4e] hover:bg-[#084a3e] text-white px-3.5 py-2 rounded text-[11px] font-extrabold uppercase transition-all shadow-sm"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mr-0.5">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none" />
+              </svg>
+              Watch Video
+            </a>
+          </div>
+        )}
+
       </div>
 
-      {/* PAGE 2: Passport Scan Only */}
-      <div className="w-[794px] h-[1123px] p-[10mm] box-border relative break-before-page flex flex-col items-center bg-white overflow-hidden">
+      {/* PAGE 2: Clean White Passport Scan Page */}
+      <div className="w-[794px] h-[1123px] p-[6mm] box-border relative break-before-page flex flex-col bg-white overflow-hidden">
         {/* A. Top Header Logo */}
-        <div className="w-full h-[120px] mb-12 shrink-0 flex justify-center">
-          <img src="/vision-header-second-page.png" alt="Vision Recruitment Office" className="w-auto h-full object-contain" />
+        <div className="w-full h-[100px] mb-8 shrink-0">
+          <img src="/vision-header-second-page.png" alt="Vision Recruitment Office" className="w-full h-full object-contain" />
         </div>
 
-        {/* B. Minimized Passport Scan */}
-        <div className="flex-grow flex items-center justify-center w-full min-h-0">
+        {/* B. Minimized Centered Passport Image */}
+        <div className="flex-grow flex items-center justify-center">
           {candidate.passportImageUrl ? (
             <img 
               src={getFileUrl(candidate.passportImageUrl)} 
-              className="max-w-[480px] max-h-[680px] object-contain shadow-md border border-gray-100 bg-white" 
-              alt="Passport Scan" 
+              alt="Passport" 
+              className="w-[500px] h-[350px] object-contain border border-gray-200 shadow-sm" 
             />
           ) : (
-            <div className="text-gray-400 text-sm font-bold border border-dashed border-gray-300 p-8 w-[480px] h-[320px] flex items-center justify-center">
-              Passport Scan Not Available
+            <div className="text-gray-400 text-sm font-bold border-2 border-dashed border-gray-200 w-[500px] h-[350px] flex items-center justify-center">
+              Passport Image Not Available
             </div>
           )}
         </div>
