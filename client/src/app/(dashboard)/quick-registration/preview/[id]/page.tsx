@@ -23,6 +23,10 @@ interface QuickRegistration {
   religion: string | null;
   relativePhones: string[] | null;
   broker: { id: string; name: string } | null;
+  cocDocumentUrl: string | null;
+  labourIdUrl: string | null;
+  candidateIdImageUrl: string | null;
+  relativeIdImageUrl: string | null;
   createdAt: string;
 }
 
@@ -111,21 +115,29 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   return (
     <div className="max-w-2xl mx-auto pb-10">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => router.push('/quick-registered')}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-        >
-          <ArrowLeft size={20} className="text-text-secondary" />
-        </button>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary">
-            {data.givenNames} {data.surname}
-          </h1>
-          <p className="text-text-tertiary text-xs mt-0.5">
-            Registered {new Date(data.createdAt).toLocaleDateString()} — Click the copy icon to copy each field
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/quick-registered')}
+            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            <ArrowLeft size={20} className="text-text-secondary" />
+          </button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-text-primary">
+              {data.givenNames} {data.surname}
+            </h1>
+            <p className="text-text-tertiary text-xs mt-0.5">
+              Registered {new Date(data.createdAt).toLocaleDateString()}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={() => router.push(`/registration?quick_reg_id=${data.id}`)}
+          className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2 shrink-0"
+        >
+          <User size={16} /> Complete Full Registration
+        </button>
       </div>
 
       {/* Passport Info */}
@@ -180,6 +192,64 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             {phones.map((phone, i) => (
               <CopyField key={i} label={`Phone ${i + 1}`} value={phone} icon={<Phone size={16} />} />
             ))}
+          </div>
+        </div>
+      )}
+      {/* Uploaded Documents */}
+      {(data.cocDocumentUrl || data.labourIdUrl || data.candidateIdImageUrl || data.relativeIdImageUrl) && (
+        <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mt-4">
+          <div className="bg-gradient-to-r from-violet-500/5 to-transparent border-b border-border px-5 py-3">
+            <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Uploaded Documents</h2>
+          </div>
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {data.cocDocumentUrl && (
+              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">COC Document</p>
+                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
+                  {data.cocDocumentUrl.startsWith('data:image') || data.cocDocumentUrl.startsWith('http') ? (
+                    <img src={data.cocDocumentUrl} alt="COC Document" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {data.labourIdUrl && (
+              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Labour ID Image</p>
+                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
+                  {data.labourIdUrl.startsWith('data:image') || data.labourIdUrl.startsWith('http') ? (
+                    <img src={data.labourIdUrl} alt="Labour ID" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {data.candidateIdImageUrl && (
+              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Candidate ID Image</p>
+                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
+                  {data.candidateIdImageUrl.startsWith('data:image') || data.candidateIdImageUrl.startsWith('http') ? (
+                    <img src={data.candidateIdImageUrl} alt="Candidate ID" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
+                  )}
+                </div>
+              </div>
+            )}
+            {data.relativeIdImageUrl && (
+              <div className="border border-border rounded-xl p-3 bg-gray-50/50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Relative ID Image</p>
+                <div className="h-32 bg-slate-100 rounded-lg overflow-hidden relative">
+                  {data.relativeIdImageUrl.startsWith('data:image') || data.relativeIdImageUrl.startsWith('http') ? (
+                    <img src={data.relativeIdImageUrl} alt="Relative ID" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-xs text-text-secondary">Document (PDF/Binary)</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

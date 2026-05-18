@@ -10,6 +10,7 @@ import { Save, Loader2, Trash2, Plus, Phone } from 'lucide-react';
 import { allCountries } from '@/data/countries';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
+import FileUpload from '@/components/ui/FileUpload';
 
 const emptyPassportData: PassportData = {
   passportNumber: '', surname: '', givenNames: '', dateOfBirth: '',
@@ -41,6 +42,12 @@ export default function QuickRegistrationPage() {
   const [religion, setReligion] = useState('');
   const [selectedBrokerId, setSelectedBrokerId] = useState('');
   const [relativePhones, setRelativePhones] = useState<string[]>(['']);
+
+  // Document states
+  const [cocDocumentUrl, setCocDocumentUrl] = useState<string | null>(null);
+  const [labourIdUrl, setLabourIdUrl] = useState<string | null>(null);
+  const [candidateIdImageUrl, setCandidateIdImageUrl] = useState<string | null>(null);
+  const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
 
   // Broker list
   const [brokers, setBrokers] = useState<Broker[]>([]);
@@ -118,6 +125,20 @@ export default function QuickRegistrationPage() {
     }
   }, []);
 
+  const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Max file size is 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        callback(ev.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handlePassportChange = (field: keyof PassportData, value: string) => {
     setPassportData(prev => ({ ...prev, [field]: value }));
   };
@@ -191,6 +212,10 @@ export default function QuickRegistrationPage() {
           religion,
           brokerId: selectedBrokerId || null,
           relativePhones: filteredPhones.length > 0 ? filteredPhones : null,
+          cocDocumentUrl,
+          labourIdUrl,
+          candidateIdImageUrl,
+          relativeIdImageUrl,
         }),
       });
 
@@ -435,6 +460,53 @@ export default function QuickRegistrationPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* STEP 3: Documents */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="bg-gray-50 border-b border-border px-5 py-3">
+          <h2 className="text-base font-semibold text-text-primary">3. Documents</h2>
+        </div>
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FileUpload
+              label="COC (Certificate of Competence)"
+              shape="rect"
+              compact
+              preview={cocDocumentUrl}
+              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCocDocumentUrl(base64))}
+              onClear={() => setCocDocumentUrl(null)}
+              helperText="COC Document — Max 10MB"
+            />
+            <FileUpload
+              label="Labour ID"
+              shape="rect"
+              compact
+              preview={labourIdUrl}
+              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setLabourIdUrl(base64))}
+              onClear={() => setLabourIdUrl(null)}
+              helperText="Labour ID Image — Max 10MB"
+            />
+            <FileUpload
+              label="Candidate ID"
+              shape="rect"
+              compact
+              preview={candidateIdImageUrl}
+              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCandidateIdImageUrl(base64))}
+              onClear={() => setCandidateIdImageUrl(null)}
+              helperText="Candidate ID Image — Max 10MB"
+            />
+            <FileUpload
+              label="Relative ID"
+              shape="rect"
+              compact
+              preview={relativeIdImageUrl}
+              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setRelativeIdImageUrl(base64))}
+              onClear={() => setRelativeIdImageUrl(null)}
+              helperText="Relative ID Image — Max 10MB"
+            />
           </div>
         </div>
       </div>

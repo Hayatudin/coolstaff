@@ -51,6 +51,7 @@ function RegistrationContent() {
   const [importMethod, setImportMethod] = useState<'musaned' | 'passport'>('musaned');
   const [registeredCandidateId, setRegisteredCandidateId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
+  const [quickRegistrationId, setQuickRegistrationId] = useState<string | null>(null);
 
   // Musaned drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
@@ -105,6 +106,59 @@ function RegistrationContent() {
       setProcessingComplete(true);
     }
   }, [editId, candidates]);
+
+  const quickRegId = searchParams.get('quick_reg_id');
+  useEffect(() => {
+    if (!quickRegId) return;
+    async function fetchQuickRegistration() {
+      try {
+        const res = await api(`/api/quick-registrations/${quickRegId}`);
+        if (!res.ok) throw new Error('Failed to fetch quick registration data');
+        const data = await res.json();
+        
+        setQuickRegistrationId(quickRegId);
+        
+        setPassportData({
+          passportNumber: data.passportNumber || '',
+          surname: data.surname || '',
+          givenNames: data.givenNames || '',
+          dateOfBirth: data.dateOfBirth || '',
+          gender: data.gender || '',
+          nationality: data.nationality || '',
+          issuingCountry: data.issuingCountry || '',
+          dateOfIssue: data.dateOfIssue || '',
+          dateOfExpiry: data.dateOfExpiry || '',
+          placeOfBirth: data.placeOfBirth || '',
+        });
+        
+        let parsedExp: any[] = [];
+        try { parsedExp = JSON.parse(data.jobExperience || '[]'); } catch { /* ignore */ }
+        
+        setPersonalInfo(prev => ({
+          ...prev,
+          religion: data.religion || '',
+          maritalStatus: data.maritalStatus || '',
+          numberOfChildren: data.numberOfChildren || 0,
+          educationLevel: data.educationLevel || '',
+          brokerId: data.brokerId || '',
+          additionalPhones: Array.isArray(data.relativePhones) ? data.relativePhones : [],
+          workExperience: parsedExp,
+          cocDocumentUrl: data.cocDocumentUrl || '',
+          labourIdUrl: data.labourIdUrl || '',
+          candidateIdImageUrl: data.candidateIdImageUrl || '',
+          relativeIdImageUrl: data.relativeIdImageUrl || '',
+        }));
+        
+        setPassportImage(data.passportImageUrl || null);
+        setProcessingComplete(true);
+        setStep(2); // Jump straight to Step 2 (personal info form)
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load Quick Registration candidate.');
+      }
+    }
+    fetchQuickRegistration();
+  }, [quickRegId]);
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
@@ -282,6 +336,7 @@ function RegistrationContent() {
           isRequested: isEditMode ? (candidates.find(c => c.id === editId)?.isRequested || false) : false,
           visaSelected: isEditMode ? (candidates.find(c => c.id === editId)?.visaSelected || false) : false,
           registeredById: session?.user?.id || null,
+          quickRegistrationId: quickRegistrationId || null,
         }),
       });
 

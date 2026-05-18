@@ -36,6 +36,13 @@ export default function DashboardPage() {
     setOpenMenuId(null);
     setVisaModalId(null);
     setVisaNumberInput('');
+
+    const cand = allCandidates.find(c => c.id === id);
+    if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
+      alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
+      return;
+    }
+
     try {
       const bodyPayload: any = { 
         isRequested: !current,

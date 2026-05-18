@@ -41,6 +41,10 @@ router.post('/', async (req: Request, res: Response) => {
         religion: body.religion || null,
         brokerId: body.brokerId || null,
         relativePhones: body.relativePhones || null,
+        cocDocumentUrl: body.cocDocumentUrl || null,
+        labourIdUrl: body.labourIdUrl || null,
+        candidateIdImageUrl: body.candidateIdImageUrl || null,
+        relativeIdImageUrl: body.relativeIdImageUrl || null,
       },
       include: {
         broker: { select: { id: true, name: true } },

@@ -275,6 +275,23 @@ router.post('/', async (req: Request, res: Response) => {
       );
     } catch (_) { /* salary column may not exist yet, ignore */ }
 
+    // If quickRegistrationId is provided, mark it as promoted
+    if (body.quickRegistrationId) {
+      try {
+        await prisma.quickRegistration.update({
+          where: { id: body.quickRegistrationId },
+          data: {
+            promotedAt: new Date(),
+            promotedCandidateId: candidate.id,
+            verificationStatus: 'promoted',
+          },
+        });
+        console.log(`[DEBUG] Successfully promoted QuickRegistration ID ${body.quickRegistrationId} to Candidate ID ${candidate.id}`);
+      } catch (promotionError) {
+        console.error(`[DEBUG] Failed to update QuickRegistration promotion:`, promotionError);
+      }
+    }
+
     res.status(201).json(candidate);
   } catch (error: any) {
     console.error('Failed to create candidate:', error);

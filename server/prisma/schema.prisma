@@ -213,6 +213,11 @@ model QuickRegistration {
   promotedAt          DateTime?
   promotedCandidateId String?
 
+  cocDocumentUrl      String?  @db.LongText
+  labourIdUrl         String?  @db.LongText
+  candidateIdImageUrl String?  @db.LongText
+  relativeIdImageUrl  String?  @db.LongText
+
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?
 
