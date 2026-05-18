@@ -15,6 +15,7 @@ import MATemplate from '@/components/cv/templates/MATemplate';
 import RATemplate from '@/components/cv/templates/RATemplate';
 import AlShablanTemplate from '@/components/cv/templates/AlShablanTemplate';
 import UssusTemplate from '@/components/cv/templates/UssusTemplate';
+import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 import { generateAlShablanNativeDocx, generateUssusNativeDocx } from '@/lib/docxGenerators';
 import Button from '@/components/ui/Button';
 
@@ -26,6 +27,7 @@ const TEMPLATES: any[] = [
   { id: 'ku2', name: 'KU-2 Format', category: 'minimal', description: 'Clean KU-2 design', thumbnail: '/KU2.png' },
   { id: 'ma', name: 'MA Standard', category: 'modern', description: 'Modern MA CV style', thumbnail: '/MA.png' },
   { id: 'ra', name: 'RA Custom', category: 'elegant', description: 'Elegant RA layout', thumbnail: '/RA-1.png' },
+  { id: 'vision', name: 'Vision Layout', category: 'elegant', description: 'Premium dual-page layout', thumbnail: '/vision-header.png' },
 ];
 
 import { useCandidates } from '@/hooks/useCandidates';
@@ -297,6 +299,7 @@ function CVGeneratorContent() {
                           {selectedTemplateId === 'ku2' && <KU2Template candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'ma' && <MATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'ra' && <RATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'vision' && <VisionTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                         </>
                       )}
                     </>

@@ -9,6 +9,7 @@ import KU2Template from '@/components/cv/templates/KU2Template';
 import MATemplate from '@/components/cv/templates/MATemplate';
 import RATemplate from '@/components/cv/templates/RATemplate';
 import UssusTemplate from '@/components/cv/templates/UssusTemplate';
+import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 
 const TEMPLATE_COMPONENTS: Record<string, any> = {
   'alm': ALMTemplate,
@@ -18,6 +19,7 @@ const TEMPLATE_COMPONENTS: Record<string, any> = {
   'ma': MATemplate,
   'ra': RATemplate,
   'ussus': UssusTemplate,
+  'vision': VisionTemplate,
 };
 
 export default function CVPrintPage({ params }: { params: Promise<{ id: string; template: string }> }) {

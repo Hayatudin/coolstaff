@@ -19,6 +19,7 @@ import MATemplate from '@/components/cv/templates/MATemplate';
 import RATemplate from '@/components/cv/templates/RATemplate';
 import AlShablanTemplate from '@/components/cv/templates/AlShablanTemplate';
 import UssusTemplate from '@/components/cv/templates/UssusTemplate';
+import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 import { clearCandidatesCache } from '@/hooks/useCandidates';
 
 const TEMPLATES = [
@@ -29,6 +30,7 @@ const TEMPLATES = [
   { id: 'ku2', name: 'CV KU2', category: 'Minimal', color: 'bg-indigo-500', textColor: 'text-indigo-600', bgLight: 'bg-indigo-50', component: KU2Template },
   { id: 'ma', name: 'MA Standard', category: 'Modern', color: 'bg-orange-500', textColor: 'text-orange-600', bgLight: 'bg-orange-50', component: MATemplate },
   { id: 'ra', name: 'RA Custom', category: 'Elegant', color: 'bg-purple-500', textColor: 'text-purple-600', bgLight: 'bg-purple-50', component: RATemplate },
+  { id: 'vision', name: 'Vision Layout', category: 'Premium', color: 'bg-[#0a5c4e]', textColor: 'text-[#0a5c4e]', bgLight: 'bg-[#e8f5e9]', component: VisionTemplate },
 ];
 
 // ── Action Dropdown — portal with fixed positioning so it escapes overflow:hidden ──

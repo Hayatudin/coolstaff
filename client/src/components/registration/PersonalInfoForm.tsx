@@ -70,7 +70,13 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
   const experiences = data.workExperience?.length > 0 ? data.workExperience : [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
 
   // Helper for capitalization
-  const handleChangeUpper = (field: keyof CandidatePersonalInfo, value: string) => onChange(field, value.toUpperCase());
+  const handleChangeUpper = (field: keyof CandidatePersonalInfo, value: string) => {
+    const upperValue = value.toUpperCase();
+    onChange(field, upperValue);
+    if (field === 'city') {
+      onPassportChange('placeOfBirth', upperValue);
+    }
+  };
   const handlePassportChangeUpper = (field: keyof PassportData, value: string) => onPassportChange(field, value.toUpperCase());
 
   const [isCocDragOver, setIsCocDragOver] = React.useState(false);

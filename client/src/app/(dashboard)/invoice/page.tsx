@@ -16,6 +16,7 @@ const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'ku2': { name: 'KU-2 Format', fullName: 'KHUZAM  RECRUITMENT COMPANY' },
   'ma': { name: 'MA Standard', fullName: 'NAKHLAH RECRUITMENT COMPANY' },
   'ra': { name: 'RA Custom', fullName: 'RAYAAT RECRUITMENT COMPANY' },
+  'vision': { name: 'Vision Office', fullName: 'VISION RECRUITMENT OFFICE' },
   'other': { name: 'Other / No CV', fullName: 'OTHER RECRUITMENT COMPANY' },
 };
 
