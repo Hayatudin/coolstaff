@@ -134,7 +134,6 @@ router.post('/', async (req: Request, res: Response) => {
         numberOfChildren: parseInt(body.numberOfChildren) || 0,
         passportImageUrl,
         religion: body.religion || null,
-        agency: body.agency || 'daera',
         broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
       },
       include: {
@@ -147,7 +146,7 @@ router.post('/', async (req: Request, res: Response) => {
       const relPhonesString = body.relativePhones ? JSON.stringify(body.relativePhones) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
@@ -155,6 +154,7 @@ router.post('/', async (req: Request, res: Response) => {
         relativeIdImageUrl || null,
         relPhonesString,
         videoUrl || null,
+        body.agency || 'daera',
         registration.id
       );
 
@@ -165,6 +165,7 @@ router.post('/', async (req: Request, res: Response) => {
       registration.relativeIdImageUrl = relativeIdImageUrl || null;
       registration.relativePhones = body.relativePhones || null;
       registration.videoUrl = videoUrl || null;
+      registration.agency = body.agency || 'daera';
     } catch (rawError) {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
@@ -221,7 +222,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateData.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateData.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateData.religion = body.religion;
-    if (body.agency !== undefined) updateData.agency = body.agency;
     if (body.brokerId !== undefined) {
       if (body.brokerId === null || body.brokerId === '') {
         updateData.broker = { disconnect: true };
@@ -244,7 +244,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       candidateIdImageUrl !== undefined ||
       relativeIdImageUrl !== undefined ||
       body.relativePhones !== undefined ||
-      videoUrl !== undefined
+      videoUrl !== undefined ||
+      body.agency !== undefined
     ) {
       try {
         const setClauses: string[] = [];
@@ -279,6 +280,11 @@ router.put('/:id', async (req: Request, res: Response) => {
           setClauses.push('`videoUrl` = ?');
           queryParams.push(videoUrl);
           updated.videoUrl = videoUrl;
+        }
+        if (body.agency !== undefined) {
+          setClauses.push('`agency` = ?');
+          queryParams.push(body.agency || 'daera');
+          updated.agency = body.agency || 'daera';
         }
 
         if (setClauses.length > 0) {
