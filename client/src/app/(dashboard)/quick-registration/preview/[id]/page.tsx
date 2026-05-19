@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video } from 'lucide-react';
+import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2 } from 'lucide-react';
 import { getFileUrl } from '@/lib/utils';
 
 interface QuickRegistration {
@@ -29,6 +29,7 @@ interface QuickRegistration {
   candidateIdImageUrl: string | null;
   relativeIdImageUrl: string | null;
   videoUrl: string | null;
+  passportImageUrl?: string | null;
   createdAt: string;
 }
 
@@ -80,6 +81,35 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   const [isSavingDocs, setIsSavingDocs] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Edit target and form states
+  const [brokers, setBrokers] = useState<{ id: string; name: string }[]>([]);
+  const [editTarget, setEditTarget] = useState<QuickRegistration | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    passportNumber: '',
+    givenNames: '',
+    surname: '',
+    nationality: '',
+    religion: '',
+    gender: '',
+    dateOfBirth: '',
+    dateOfExpiry: '',
+    brokerId: '',
+    issuingCountry: '',
+    placeOfBirth: '',
+    educationLevel: '',
+    maritalStatus: '',
+    numberOfChildren: 0,
+    relativePhones: [] as string[],
+    jobExperience: [] as { experienceStatus: string; country: string; yearsOfExperience: string }[],
+    passportImageUrl: undefined as string | undefined,
+    cocDocumentUrl: undefined as string | undefined,
+    labourIdUrl: undefined as string | undefined,
+    candidateIdImageUrl: undefined as string | undefined,
+    relativeIdImageUrl: undefined as string | undefined,
+    videoUrl: undefined as string | undefined,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -98,8 +128,155 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         setLoading(false);
       }
     };
+
+    const fetchBrokers = async () => {
+      try {
+        const res = await api('/api/brokers');
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) setBrokers(json);
+        }
+      } catch (err) {
+        console.error('Failed to fetch brokers', err);
+      }
+    };
+
     fetchData();
+    fetchBrokers();
   }, [id]);
+
+  const handleEditFileChange = (field: string, file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setEditForm(prev => ({
+        ...prev,
+        [field]: base64String,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const openEditModal = (reg: QuickRegistration) => {
+    setEditTarget(reg);
+    
+    const formatDate = (dateStr: string | null | undefined): string => {
+      if (!dateStr) return '';
+      return dateStr.split('T')[0];
+    };
+
+    const mapReligionForForm = (r?: string | null): string => {
+      if (!r) return '';
+      const upper = r.toUpperCase();
+      if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
+      return 'Non-Muslim';
+    };
+
+    let parsedPhones: string[] = [''];
+    if (reg.relativePhones) {
+      try {
+        parsedPhones = Array.isArray(reg.relativePhones) ? reg.relativePhones : JSON.parse(reg.relativePhones as any);
+        if (parsedPhones.length === 0) parsedPhones = [''];
+      } catch {
+        parsedPhones = [''];
+      }
+    }
+
+    let parsedExperience = [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
+    if (reg.jobExperience) {
+      try {
+        parsedExperience = Array.isArray(reg.jobExperience) ? reg.jobExperience : JSON.parse(reg.jobExperience as any);
+        if (parsedExperience.length === 0) parsedExperience = [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
+      } catch {
+        try {
+          parsedExperience = JSON.parse(reg.jobExperience);
+        } catch {
+          parsedExperience = [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
+        }
+      }
+    }
+
+    setEditForm({
+      passportNumber: reg.passportNumber || '',
+      givenNames: reg.givenNames || '',
+      surname: reg.surname || '',
+      nationality: reg.nationality || '',
+      religion: mapReligionForForm(reg.religion),
+      gender: reg.gender || '',
+      dateOfBirth: formatDate(reg.dateOfBirth),
+      dateOfExpiry: formatDate(reg.dateOfExpiry),
+      brokerId: reg.broker?.id || '',
+      issuingCountry: reg.issuingCountry || '',
+      placeOfBirth: reg.placeOfBirth || '',
+      educationLevel: reg.educationLevel || '',
+      maritalStatus: reg.maritalStatus || '',
+      numberOfChildren: reg.numberOfChildren || 0,
+      relativePhones: parsedPhones,
+      jobExperience: parsedExperience,
+      passportImageUrl: undefined,
+      cocDocumentUrl: undefined,
+      labourIdUrl: undefined,
+      candidateIdImageUrl: undefined,
+      relativeIdImageUrl: undefined,
+      videoUrl: undefined,
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+
+    setIsSaving(true);
+    try {
+      const payload: any = {
+        passportNumber: editForm.passportNumber,
+        givenNames: editForm.givenNames,
+        surname: editForm.surname,
+        nationality: editForm.nationality || null,
+        religion: editForm.religion || null,
+        gender: editForm.gender || null,
+        dateOfBirth: editForm.dateOfBirth ? new Date(editForm.dateOfBirth).toISOString() : null,
+        dateOfExpiry: editForm.dateOfExpiry ? new Date(editForm.dateOfExpiry).toISOString() : null,
+        brokerId: editForm.brokerId || null,
+        issuingCountry: editForm.issuingCountry || null,
+        placeOfBirth: editForm.placeOfBirth || null,
+        educationLevel: editForm.educationLevel || null,
+        maritalStatus: editForm.maritalStatus || null,
+        numberOfChildren: editForm.numberOfChildren,
+        relativePhones: editForm.relativePhones.filter(p => p.trim() !== ''),
+        jobExperience: JSON.stringify(editForm.jobExperience),
+      };
+
+      if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
+      if (editForm.cocDocumentUrl !== undefined) payload.cocDocumentUrl = editForm.cocDocumentUrl;
+      if (editForm.labourIdUrl !== undefined) payload.labourIdUrl = editForm.labourIdUrl;
+      if (editForm.candidateIdImageUrl !== undefined) payload.candidateIdImageUrl = editForm.candidateIdImageUrl;
+      if (editForm.relativeIdImageUrl !== undefined) payload.relativeIdImageUrl = editForm.relativeIdImageUrl;
+      if (editForm.videoUrl !== undefined) payload.videoUrl = editForm.videoUrl;
+
+      const res = await api(`/api/quick-registrations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated.error || 'Failed to update quick registration');
+
+      setData(updated);
+      setCocDoc(updated.cocDocumentUrl);
+      setLabourId(updated.labourIdUrl);
+      setCandidateIdImg(updated.candidateIdImageUrl);
+      setRelativeIdImg(updated.relativeIdImageUrl);
+      setVideoFile(updated.videoUrl);
+      setEditTarget(null);
+    } catch (err: any) {
+      alert(err.message || 'Something went wrong while saving edit');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleFileChange = (field: 'coc' | 'labour' | 'candidateId' | 'relativeId' | 'video', file: File) => {
     if (file.size > 10 * 1024 * 1024) {
@@ -211,6 +388,13 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             </p>
           </div>
         </div>
+
+        <button
+          onClick={() => openEditModal(data)}
+          className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold rounded-xl transition-all flex items-center gap-2 border border-blue-200/50 text-sm shadow-sm shrink-0 cursor-pointer"
+        >
+          <Edit2 size={16} /> Edit Details
+        </button>
       </div>
 
       {/* Passport Info */}
@@ -293,7 +477,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
               <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {cocDoc ? (
                   cocDoc.startsWith('data:image') || cocDoc.startsWith('http') || cocDoc.startsWith('/uploads') ? (
-                    <img src={cocDoc} alt="COC Document" className="w-full h-full object-contain" />
+                    <img src={getFileUrl(cocDoc)} alt="COC Document" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <FileText className="text-primary/40" size={24} />
@@ -339,7 +523,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
               <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {labourId ? (
                   labourId.startsWith('data:image') || labourId.startsWith('http') || labourId.startsWith('/uploads') ? (
-                    <img src={labourId} alt="Labour ID" className="w-full h-full object-contain" />
+                    <img src={getFileUrl(labourId)} alt="Labour ID" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <FileText className="text-primary/40" size={24} />
@@ -385,7 +569,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
               <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {candidateIdImg ? (
                   candidateIdImg.startsWith('data:image') || candidateIdImg.startsWith('http') || candidateIdImg.startsWith('/uploads') ? (
-                    <img src={candidateIdImg} alt="Candidate ID" className="w-full h-full object-contain" />
+                    <img src={getFileUrl(candidateIdImg)} alt="Candidate ID" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <FileText className="text-primary/40" size={24} />
@@ -431,7 +615,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
               <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {relativeIdImg ? (
                   relativeIdImg.startsWith('data:image') || relativeIdImg.startsWith('http') || relativeIdImg.startsWith('/uploads') ? (
-                    <img src={relativeIdImg} alt="Relative ID" className="w-full h-full object-contain" />
+                    <img src={getFileUrl(relativeIdImg)} alt="Relative ID" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <FileText className="text-primary/40" size={24} />
@@ -477,9 +661,9 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
               <div className="h-48 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {videoFile ? (
                   videoFile.startsWith('data:video/') || videoFile.match(/\.(mp4|webm|mov|avi|ogg)/i) || videoFile.includes('/videos/') ? (
-                    <video src={videoFile.startsWith('/uploads') ? getFileUrl(videoFile) : videoFile} controls className="w-full h-full object-contain" />
+                    <video src={getFileUrl(videoFile)} controls className="w-full h-full object-contain" />
                   ) : videoFile.startsWith('data:image') || videoFile.startsWith('http') || videoFile.startsWith('/uploads') ? (
-                    <img src={videoFile} alt="Video thumbnail" className="w-full h-full object-contain" />
+                    <img src={getFileUrl(videoFile)} alt="Video thumbnail" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <Video className="text-primary/40" size={24} />
@@ -544,6 +728,480 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface rounded-3xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <Edit2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-text-primary text-lg">Edit Quick Registration</h3>
+                  <p className="text-xs text-text-secondary mt-0.5">Modify candidate information & broker connection</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditTarget(null)}
+                className="p-1.5 rounded-xl hover:bg-gray-100 text-text-tertiary transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveEdit} className="flex flex-col max-h-[90vh]">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[68vh]">
+                
+                {/* Section 1: Passport & Personal Details */}
+                <div>
+                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-1.5 border-b border-border pb-1.5">
+                    <User size={14} /> Passport & Personal Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Given Names */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Given Names <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editForm.givenNames}
+                        onChange={e => setEditForm(prev => ({ ...prev, givenNames: e.target.value.toUpperCase() }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
+
+                    {/* Surname */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Surname <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editForm.surname}
+                        onChange={e => setEditForm(prev => ({ ...prev, surname: e.target.value.toUpperCase() }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
+
+                    {/* Passport Number */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Passport Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editForm.passportNumber}
+                        onChange={e => setEditForm(prev => ({ ...prev, passportNumber: e.target.value.toUpperCase() }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
+
+                    {/* Nationality */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Nationality
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.nationality}
+                        onChange={e => setEditForm(prev => ({ ...prev, nationality: e.target.value.toUpperCase() }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
+
+                    {/* Issuing Country */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Issuing Country
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.issuingCountry}
+                        onChange={e => setEditForm(prev => ({ ...prev, issuingCountry: e.target.value.toUpperCase() }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
+
+                    {/* Place of Birth */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Place of Birth
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.placeOfBirth}
+                        onChange={e => setEditForm(prev => ({ ...prev, placeOfBirth: e.target.value.toUpperCase() }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
+
+                    {/* Gender */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Gender
+                      </label>
+                      <select
+                        value={editForm.gender}
+                        onChange={e => setEditForm(prev => ({ ...prev, gender: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+
+                    {/* Religion */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Religion
+                      </label>
+                      <select
+                        value={editForm.religion}
+                        onChange={e => setEditForm(prev => ({ ...prev, religion: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                      >
+                        <option value="">Select Religion</option>
+                        <option value="Muslim">Muslim</option>
+                        <option value="Non-Muslim">Non-Muslim</option>
+                      </select>
+                    </div>
+
+                    {/* Date of Birth */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={editForm.dateOfBirth}
+                        onChange={e => setEditForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
+                      />
+                    </div>
+
+                    {/* Date of Expiry */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Date of Expiry
+                      </label>
+                      <input
+                        type="date"
+                        value={editForm.dateOfExpiry}
+                        onChange={e => setEditForm(prev => ({ ...prev, dateOfExpiry: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Additional Info */}
+                <div>
+                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-1.5 border-b border-border pb-1.5">
+                    <Globe size={14} /> Additional Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Education Level */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Education Level
+                      </label>
+                      <select
+                        value={editForm.educationLevel}
+                        onChange={e => setEditForm(prev => ({ ...prev, educationLevel: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                      >
+                        <option value="">Select...</option>
+                        <option value="No Education">No Education</option>
+                        <option value="Primary">Primary</option>
+                        <option value="Secondary">Secondary</option>
+                        <option value="High School">High School</option>
+                        <option value="Diploma">Diploma</option>
+                        <option value="Degree">Degree</option>
+                      </select>
+                    </div>
+
+                    {/* Marital Status */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Marital Status
+                      </label>
+                      <select
+                        value={editForm.maritalStatus}
+                        onChange={e => setEditForm(prev => ({ ...prev, maritalStatus: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                      >
+                        <option value="">Select...</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                      </select>
+                    </div>
+
+                    {/* Number of Children */}
+                    {editForm.maritalStatus === 'Married' && (
+                      <div>
+                        <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                          Number of Children
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={editForm.numberOfChildren}
+                          onChange={e => setEditForm(prev => ({ ...prev, numberOfChildren: parseInt(e.target.value) || 0 }))}
+                          className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
+                        />
+                      </div>
+                    )}
+
+                    {/* Broker Connection */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Broker Connection
+                      </label>
+                      <select
+                        value={editForm.brokerId}
+                        onChange={e => setEditForm(prev => ({ ...prev, brokerId: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                      >
+                        <option value="">Direct / No Broker</option>
+                        {brokers.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Job Experience */}
+                <div>
+                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center justify-between border-b border-border pb-1.5">
+                    <span className="flex items-center gap-1.5"><Briefcase size={14} /> Job / Experience</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(prev => ({
+                        ...prev,
+                        jobExperience: [...prev.jobExperience, { experienceStatus: 'Have experience', country: '', yearsOfExperience: '' }]
+                      }))}
+                      className="text-xs text-primary hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Add Experience
+                    </button>
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    {editForm.jobExperience.map((exp, idx) => (
+                      <div key={idx} className="p-3 bg-gray-50 border border-border rounded-xl flex flex-col md:flex-row gap-3 items-end relative">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Experience</label>
+                          <select
+                            value={exp.experienceStatus}
+                            onChange={e => {
+                              const updated = [...editForm.jobExperience];
+                              updated[idx].experienceStatus = e.target.value;
+                              setEditForm(prev => ({ ...prev, jobExperience: updated }));
+                            }}
+                            className="w-full px-3 py-1.5 rounded-lg border border-border text-xs focus:outline-none bg-white text-text-primary"
+                          >
+                            <option value="Have experience">Have experience</option>
+                            <option value="New">New</option>
+                          </select>
+                        </div>
+
+                        {exp.experienceStatus === 'Have experience' && (
+                          <>
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Country</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. SAUDI ARABIA"
+                                value={exp.country}
+                                onChange={e => {
+                                  const updated = [...editForm.jobExperience];
+                                  updated[idx].country = e.target.value.toUpperCase();
+                                  setEditForm(prev => ({ ...prev, jobExperience: updated }));
+                                }}
+                                className="w-full px-3 py-1.5 rounded-lg border border-border text-xs focus:outline-none text-text-primary"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Years</label>
+                              <input
+                                type="number"
+                                placeholder="Years"
+                                value={exp.yearsOfExperience}
+                                onChange={e => {
+                                  const updated = [...editForm.jobExperience];
+                                  updated[idx].yearsOfExperience = e.target.value;
+                                  setEditForm(prev => ({ ...prev, jobExperience: updated }));
+                                }}
+                                className="w-full px-3 py-1.5 rounded-lg border border-border text-xs focus:outline-none text-text-primary"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = editForm.jobExperience.filter((_, i) => i !== idx);
+                            setEditForm(prev => ({ ...prev, jobExperience: updated }));
+                          }}
+                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {editForm.jobExperience.length === 0 && (
+                      <p className="text-xs text-text-tertiary text-center py-2">No job experience recorded. Click Add Experience above.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 4: Relative Phone Numbers */}
+                <div>
+                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center justify-between border-b border-border pb-1.5">
+                    <span className="flex items-center gap-1.5"><Phone size={14} /> Relative Phone Numbers</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(prev => ({
+                        ...prev,
+                        relativePhones: [...prev.relativePhones, '']
+                      }))}
+                      className="text-xs text-primary hover:underline font-bold flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Add Phone
+                    </button>
+                  </h4>
+                  
+                  <div className="space-y-2.5">
+                    {editForm.relativePhones.map((phone, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary/50" />
+                          <input
+                            type="tel"
+                            placeholder={`Relative Phone ${idx + 1}`}
+                            value={phone}
+                            onChange={e => {
+                              const updated = [...editForm.relativePhones];
+                              updated[idx] = e.target.value;
+                              setEditForm(prev => ({ ...prev, relativePhones: updated }));
+                            }}
+                            className="w-full pl-10 pr-4 py-2 rounded-xl border border-border text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-text-primary"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = editForm.relativePhones.filter((_, i) => i !== idx);
+                            setEditForm(prev => ({ ...prev, relativePhones: updated }));
+                          }}
+                          className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {editForm.relativePhones.length === 0 && (
+                      <p className="text-xs text-text-tertiary text-center py-2">No phone numbers recorded. Click Add Phone above.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 5: Documents & Video Uploads */}
+                <div className="pt-4 border-t border-border mt-6">
+                  <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <FileText size={14} className="text-primary" /> Uploaded Documents & Video
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {[
+                      { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/*' },
+                      { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'application/pdf,image/*' },
+                      { label: 'Labour ID', field: 'labourIdUrl', current: editTarget?.labourIdUrl, accept: 'application/pdf,image/*' },
+                      { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/*' },
+                      { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/*' },
+                      { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/*' },
+                    ].map(doc => {
+                      const isStaged = (editForm as any)[doc.field] !== undefined;
+                      return (
+                        <div key={doc.field} className="p-3 bg-gray-50 rounded-xl border border-border flex flex-col justify-between gap-2.5">
+                          <div>
+                            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider truncate" title={doc.label}>
+                              {doc.label}
+                            </p>
+                            {doc.current && !isStaged && (
+                              <a
+                                href={getFileUrl(doc.current)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[10px] text-primary hover:underline font-semibold block mt-1 truncate"
+                              >
+                                View Current File
+                              </a>
+                            )}
+                            {!doc.current && !isStaged && (
+                              <p className="text-[10px] text-text-tertiary font-medium block mt-1">Not Provided</p>
+                            )}
+                            {isStaged && (
+                              <p className="text-[10px] text-green-600 font-bold block mt-1 flex items-center gap-1">
+                                <CheckCircle2 size={12} className="shrink-0" /> New File Staged
+                              </p>
+                            )}
+                          </div>
+                          <label className="w-full text-center py-1.5 bg-white border border-border rounded-lg text-[10px] font-bold text-text-secondary hover:bg-gray-50 cursor-pointer block transition-colors">
+                            <input
+                              type="file"
+                              accept={doc.accept}
+                              className="hidden"
+                              onChange={e => handleEditFileChange(doc.field, e.target.files?.[0] || null)}
+                            />
+                            Replace File
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-gray-50/50">
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(null)}
+                  disabled={isSaving}
+                  className="px-4 py-2.5 text-sm font-semibold text-text-secondary border border-border rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 text-sm"
+                >
+                  {isSaving ? (
+                    <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
