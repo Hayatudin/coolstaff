@@ -30,6 +30,8 @@ interface QuickReg {
   passportImageUrl?: string | null;
   dateOfBirth?: string | null;
   dateOfExpiry?: string | null;
+  brokerId?: string | null;
+  broker?: { id: string; name: string } | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -81,7 +83,26 @@ export default function QuickRegisteredPage() {
     dateOfBirth: '',
     dateOfExpiry: '',
     brokerId: '',
+    passportImageUrl: undefined as string | undefined,
+    cocDocumentUrl: undefined as string | undefined,
+    labourIdUrl: undefined as string | undefined,
+    candidateIdImageUrl: undefined as string | undefined,
+    relativeIdImageUrl: undefined as string | undefined,
+    videoUrl: undefined as string | undefined,
   });
+
+  const handleFileChange = (field: string, file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setEditForm(prev => ({
+        ...prev,
+        [field]: base64String,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -230,16 +251,29 @@ export default function QuickRegisteredPage() {
       return dateStr.split('T')[0];
     };
 
+    const mapReligionForForm = (r?: string | null): string => {
+      if (!r) return '';
+      const upper = r.toUpperCase();
+      if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
+      return 'Non-Muslim';
+    };
+
     setEditForm({
       passportNumber: reg.passportNumber || '',
       givenNames: reg.givenNames || '',
       surname: reg.surname || '',
       nationality: reg.nationality || '',
-      religion: reg.religion || '',
+      religion: mapReligionForForm(reg.religion),
       gender: reg.gender || '',
       dateOfBirth: formatDate(reg.dateOfBirth),
       dateOfExpiry: formatDate(reg.dateOfExpiry),
-      brokerId: (reg as any).brokerId || (reg as any).broker?.id || '',
+      brokerId: reg.brokerId || reg.broker?.id || '',
+      passportImageUrl: undefined,
+      cocDocumentUrl: undefined,
+      labourIdUrl: undefined,
+      candidateIdImageUrl: undefined,
+      relativeIdImageUrl: undefined,
+      videoUrl: undefined,
     });
   };
 
@@ -249,7 +283,7 @@ export default function QuickRegisteredPage() {
 
     setIsSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         passportNumber: editForm.passportNumber,
         givenNames: editForm.givenNames,
         surname: editForm.surname,
@@ -260,6 +294,13 @@ export default function QuickRegisteredPage() {
         dateOfExpiry: editForm.dateOfExpiry ? new Date(editForm.dateOfExpiry).toISOString() : null,
         brokerId: editForm.brokerId || null,
       };
+
+      if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
+      if (editForm.cocDocumentUrl !== undefined) payload.cocDocumentUrl = editForm.cocDocumentUrl;
+      if (editForm.labourIdUrl !== undefined) payload.labourIdUrl = editForm.labourIdUrl;
+      if (editForm.candidateIdImageUrl !== undefined) payload.candidateIdImageUrl = editForm.candidateIdImageUrl;
+      if (editForm.relativeIdImageUrl !== undefined) payload.relativeIdImageUrl = editForm.relativeIdImageUrl;
+      if (editForm.videoUrl !== undefined) payload.videoUrl = editForm.videoUrl;
 
       const res = await api(`/api/quick-registrations/${editTarget.id}`, {
         method: 'PUT',
@@ -763,10 +804,7 @@ export default function QuickRegisteredPage() {
                   >
                     <option value="">Select Religion</option>
                     <option value="Muslim">Muslim</option>
-                    <option value="Orthodox Christian">Orthodox Christian</option>
-                    <option value="Protestant">Protestant</option>
-                    <option value="Catholic">Catholic</option>
-                    <option value="Other">Other</option>
+                    <option value="Non-Muslim">Non-Muslim</option>
                   </select>
                 </div>
 
@@ -813,6 +851,61 @@ export default function QuickRegisteredPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Documents & Video Uploads */}
+              <div className="pt-4 border-t border-border mt-6">
+                <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <FileText size={14} className="text-primary" /> Uploaded Documents & Video
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/*' },
+                    { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'application/pdf,image/*' },
+                    { label: 'Labour ID', field: 'labourIdUrl', current: editTarget?.labourIdUrl, accept: 'application/pdf,image/*' },
+                    { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/*' },
+                    { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/*' },
+                    { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/*' },
+                  ].map(doc => {
+                    const isStaged = (editForm as any)[doc.field] !== undefined;
+                    return (
+                      <div key={doc.field} className="p-3 bg-gray-50 rounded-xl border border-border flex flex-col justify-between gap-2.5">
+                        <div>
+                          <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider truncate" title={doc.label}>
+                            {doc.label}
+                          </p>
+                          {doc.current && !isStaged && (
+                            <a
+                              href={doc.current}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-primary hover:underline font-semibold block mt-1 truncate"
+                            >
+                              View Current File
+                            </a>
+                          )}
+                          {!doc.current && !isStaged && (
+                            <p className="text-[10px] text-text-tertiary font-medium block mt-1">Not Provided</p>
+                          )}
+                          {isStaged && (
+                            <p className="text-[10px] text-green-600 font-bold block mt-1 flex items-center gap-1">
+                              <CheckCircle2 size={12} className="shrink-0" /> New File Staged
+                            </p>
+                          )}
+                        </div>
+                        <label className="w-full text-center py-1.5 bg-white border border-border rounded-lg text-[10px] font-bold text-text-secondary hover:bg-gray-50 cursor-pointer block transition-colors">
+                          <input
+                            type="file"
+                            accept={doc.accept}
+                            className="hidden"
+                            onChange={e => handleFileChange(doc.field, e.target.files?.[0] || null)}
+                          />
+                          Replace File
+                        </label>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
