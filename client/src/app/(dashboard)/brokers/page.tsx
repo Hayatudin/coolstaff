@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { 
   Users, Loader2, Plus, Search, ChevronRight, Calendar, 
-  TrendingUp, Award, Clock, ArrowUpRight, Trash2, X, AlertTriangle
+  TrendingUp, Award, Clock, ArrowUpRight, Trash2, X, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Broker } from '@/types';
 import { useSession } from '@/lib/auth-client';
+import { cn } from '@/lib/utils';
 
 export default function BrokersPage() {
   const router = useRouter();
@@ -109,6 +110,7 @@ export default function BrokersPage() {
 
   const totalCandidates = safeBrokers.reduce((sum, b) => sum + (b._count?.candidates || 0), 0);
   const topBroker = [...safeBrokers].sort((a, b) => (b._count?.candidates || 0) - (a._count?.candidates || 0))[0];
+  const hasCandidates = deleteTarget ? (deleteTarget._count?.candidates || 0) > 0 : false;
 
 
   return (
@@ -298,12 +300,21 @@ export default function BrokersPage() {
             </div>
 
             {/* Candidate Impact Alert */}
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 mb-6 flex gap-3">
-              <Users className="text-amber-600 shrink-0 mt-0.5" size={18} />
-              <div className="text-xs text-amber-800 font-medium leading-relaxed">
-                This broker currently has <span className="font-bold">{deleteTarget._count?.candidates || 0} candidate(s)</span> linked to their account. Wiping this partner profile requires handling their registrations to ensure database integrity.
+            {hasCandidates ? (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 mb-6 flex gap-3">
+                <Users className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <div className="text-xs text-amber-800 font-medium leading-relaxed">
+                  This broker currently has <span className="font-bold">{deleteTarget._count?.candidates || 0} candidate(s)</span> linked to their account. Wiping this partner profile requires handling their registrations to ensure database integrity.
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 mb-6 flex gap-3">
+                <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={18} />
+                <div className="text-xs text-emerald-800 font-medium leading-relaxed">
+                  This broker currently has <span className="font-bold">0 candidates</span> registered under them. You can safely proceed with deleting this profile directly without any reassignments.
+                </div>
+              </div>
+            )}
 
             {/* Reassignment / Handling Selection */}
             <div className="space-y-4 mb-8">
@@ -312,14 +323,20 @@ export default function BrokersPage() {
               </label>
               
               <div className="space-y-3">
-                <label className="flex items-center gap-3 p-4 bg-surface-hover/30 border border-border/60 rounded-2xl cursor-pointer hover:border-primary/30 transition-all">
+                <label className={cn(
+                  "flex items-center gap-3 p-4 border rounded-2xl transition-all",
+                  hasCandidates 
+                    ? "bg-surface-hover/30 border-border/60 cursor-pointer hover:border-primary/30" 
+                    : "bg-border/20 border-border/30 opacity-50 cursor-not-allowed select-none"
+                )}>
                   <input 
                     type="radio" 
                     name="reassignStrategy"
                     value="none"
                     checked={reassignBrokerId === 'none'}
                     onChange={() => setReassignBrokerId('none')}
-                    className="w-4 h-4 text-primary border-border focus:ring-primary/20 cursor-pointer"
+                    className="w-4 h-4 text-primary border-border focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed"
+                    disabled={!hasCandidates}
                   />
                   <div className="text-sm">
                     <p className="font-bold text-text-primary">Safe Disconnect</p>
@@ -327,7 +344,12 @@ export default function BrokersPage() {
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-4 bg-surface-hover/30 border border-border/60 rounded-2xl cursor-pointer hover:border-primary/30 transition-all">
+                <label className={cn(
+                  "flex items-center gap-3 p-4 border rounded-2xl transition-all",
+                  hasCandidates && brokers.filter(b => b.id !== deleteTarget.id).length > 0
+                    ? "bg-surface-hover/30 border-border/60 cursor-pointer hover:border-primary/30" 
+                    : "bg-border/20 border-border/30 opacity-50 cursor-not-allowed select-none"
+                )}>
                   <input 
                     type="radio" 
                     name="reassignStrategy"
@@ -337,8 +359,8 @@ export default function BrokersPage() {
                       const firstOther = brokers.find(b => b.id !== deleteTarget.id);
                       setReassignBrokerId(firstOther ? firstOther.id : 'none');
                     }}
-                    className="w-4 h-4 text-primary border-border focus:ring-primary/20 cursor-pointer"
-                    disabled={brokers.filter(b => b.id !== deleteTarget.id).length === 0}
+                    className="w-4 h-4 text-primary border-border focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed"
+                    disabled={!hasCandidates || brokers.filter(b => b.id !== deleteTarget.id).length === 0}
                   />
                   <div className="text-sm">
                     <p className="font-bold text-text-primary">Reassign & Merge Candidates</p>
