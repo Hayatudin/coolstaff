@@ -130,6 +130,71 @@ function parseGender(char: string): string {
   return '';
 }
 
+function parseGenderFromText(text: string): string {
+  if (!text) return '';
+  const cleaned = text.toUpperCase().trim();
+  
+  // Female indicators
+  if (cleaned.includes('F') || cleaned.includes('E') || cleaned.includes('P') || cleaned.includes('R') || cleaned.includes('K')) return 'Female';
+  // Male indicators
+  if (cleaned.includes('M') || cleaned.includes('N') || cleaned.includes('H')) return 'Male';
+  
+  // Check any individual character using the robust single-character mapper
+  for (const char of cleaned) {
+    const g = parseGender(char);
+    if (g) return g;
+  }
+  
+  return '';
+}
+
+function extractDatesAndGender(rest: string): { dateOfBirth: string, gender: string, dateOfExpiry: string } {
+  const candidates: { dateStr: string; rawIndex: number; formattedDate: string }[] = [];
+  
+  // Scan the string from left to right to find all 6-character valid date candidates
+  for (let i = 0; i <= rest.length - 6; i++) {
+    const sub = rest.substring(i, i + 6);
+    const formatted = formatDate(sub);
+    if (formatted) {
+      // Prevent overlapping matches
+      const last = candidates[candidates.length - 1];
+      if (last && i < last.rawIndex + 6) {
+        continue;
+      }
+      candidates.push({
+        dateStr: sub,
+        rawIndex: i,
+        formattedDate: formatted,
+      });
+    }
+  }
+  
+  let dateOfBirth = '';
+  let dateOfExpiry = '';
+  let gender = '';
+  
+  if (candidates.length >= 2) {
+    dateOfBirth = candidates[0].formattedDate;
+    dateOfExpiry = candidates[1].formattedDate;
+    
+    // Extract the gender from the text between the two dates
+    const betweenText = rest.substring(candidates[0].rawIndex + 6, candidates[1].rawIndex);
+    gender = parseGenderFromText(betweenText);
+    
+    // If gender is still empty, fallback to checking the character immediately before the second date
+    if (!gender && candidates[1].rawIndex > 0) {
+      const charBefore = rest[candidates[1].rawIndex - 1];
+      gender = parseGender(charBefore);
+    }
+  } else if (candidates.length === 1) {
+    dateOfBirth = candidates[0].formattedDate;
+    // Fallback: look for gender in the rest of the string
+    gender = parseGenderFromText(rest);
+  }
+  
+  return { dateOfBirth, gender, dateOfExpiry };
+}
+
 router.post('/passport', async (req: Request, res: Response) => {
   try {
     const { ocrText } = req.body;
@@ -146,16 +211,19 @@ router.post('/passport', async (req: Request, res: Response) => {
     const anchorIdx = findCountryCodeAnchor(line2);
     const passportNumber = line2.substring(0, anchorIdx).replace(/</g, '');
     const nationality = line2.substring(anchorIdx, anchorIdx + 3).replace(/</g, '');
-    const genderRaw = line2[anchorIdx + 10] || '';
+    
+    // Use the extremely robust layout-independent dates and gender extraction scanner on the rest of the MRZ line
+    const restOfLine = line2.substring(anchorIdx + 3);
+    const { dateOfBirth, gender, dateOfExpiry } = extractDatesAndGender(restOfLine);
     
     const result = {
       passportNumber,
       surname,
       givenNames,
-      dateOfBirth: formatDate(line2.substring(anchorIdx + 3, anchorIdx + 9)),
-      gender: parseGender(genderRaw),
+      dateOfBirth,
+      gender,
       nationality: COUNTRY_MAP[nationality || issuingCountry] || nationality || issuingCountry,
-      dateOfExpiry: formatDate(line2.substring(anchorIdx + 11, anchorIdx + 17)),
+      dateOfExpiry,
     };
     res.json(result);
   } catch (error: any) {
