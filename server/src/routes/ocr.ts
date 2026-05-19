@@ -45,6 +45,12 @@ function normalizeLine(raw: string): string {
 }
 
 function mrzScore(raw: string): number {
+  // If it has multiple lowercase letters, a slash, colon, semicolon, or other symbols indicative of passport page labels, ignore it!
+  if (/[a-z]/.test(raw) && (raw.match(/[a-z]/g) || []).length > 1) return 0;
+  if (/[\/:,;?_#@|]/.test(raw)) return 0;
+  // If it has non-ASCII characters (like Amharic, Arabic, etc.), it is 100% a passport label and not an MRZ line
+  if (/[^\x00-\x7F]/.test(raw)) return 0;
+
   const preprocessed = preprocessOcrLine(raw);
   let score = 0;
   if (preprocessed.length >= 40 && preprocessed.length <= 48) score += 30;
