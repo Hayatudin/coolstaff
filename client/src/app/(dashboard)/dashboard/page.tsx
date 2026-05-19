@@ -27,6 +27,22 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
 
+  const [quickRegistrations, setQuickRegistrations] = React.useState<any[]>([]);
+  const [quickLoading, setQuickLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (userRole === 'registrar' || userRole === 'super_admin' || userRole === 'processor') {
+      setQuickLoading(true);
+      api('/api/quick-registrations')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setQuickRegistrations(data);
+        })
+        .catch(err => console.error('Failed to fetch quick registrations on dashboard', err))
+        .finally(() => setQuickLoading(false));
+    }
+  }, [userRole]);
+
   // Role-based access helpers
   const canSee = (route: string) => {
     const roles = ROUTE_ACCESS[route];
@@ -124,6 +140,31 @@ export default function DashboardPage() {
 
       {/* Stats Cards - filtered by role */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {userRole === 'registrar' && (
+          <>
+            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+              <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-500"><ClipboardList size={24} /></div>
+              <div>
+                <p className="text-2xl font-bold text-text-primary">{quickRegistrations.length}</p>
+                <p className="text-sm text-text-tertiary">Quick Registered Candidates</p>
+              </div>
+            </div>
+            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+              <div className="p-4 rounded-2xl bg-green-500/10 text-green-500"><CheckCircle size={24} /></div>
+              <div>
+                <p className="text-2xl font-bold text-text-primary">{quickRegistrations.filter(r => r.verificationStatus === 'promoted').length}</p>
+                <p className="text-sm text-text-tertiary">Promoted to Musaned</p>
+              </div>
+            </div>
+            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+              <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500"><Users size={24} /></div>
+              <div>
+                <p className="text-2xl font-bold text-text-primary">{quickRegistrations.filter(r => r.verificationStatus !== 'promoted').length}</p>
+                <p className="text-sm text-text-tertiary">Pending Verification</p>
+              </div>
+            </div>
+          </>
+        )}
         {canSee('/candidates') && (
           <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
             <div className="p-4 rounded-2xl bg-primary-50"><Users size={24} className="text-primary" /></div>
@@ -355,7 +396,158 @@ export default function DashboardPage() {
         </div>
       </section>
       )}
+      {/* Featured Quick Registered Table (Only for Registrar) */}
+      {userRole === 'registrar' && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+              <ClipboardList className="text-amber-500" size={20} /> Featured Quick Registered
+            </h2>
+            <Link href="/quick-registered" className="text-sm text-primary hover:underline font-medium">
+              View All →
+            </Link>
+          </div>
 
+          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
+                    <th className="px-6 py-4 font-semibold">Candidate</th>
+                    <th className="px-6 py-4 font-semibold">Passport No.</th>
+                    <th className="px-6 py-4 font-semibold">Nationality</th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold">Date Registered</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {quickLoading ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <Loader2 size={32} className="text-primary animate-spin" />
+                          <p className="text-text-tertiary">Loading registrations...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : quickRegistrations.length > 0 ? (
+                    quickRegistrations.slice(0, 5).map((r) => (
+                      <tr 
+                        key={r.id} 
+                        className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/quick-registration/preview/${r.id}`)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                              <span className="text-amber-600 font-bold text-sm">
+                                {r.givenNames?.charAt(0)}{r.surname?.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-text-primary">
+                                {r.givenNames} {r.surname}
+                              </p>
+                              <p className="text-xs text-text-tertiary">{r.religion || 'Non-Muslim'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-1 rounded">
+                            {r.passportNumber}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                          {r.nationality || '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                            r.verificationStatus === 'promoted'
+                              ? "text-green-700 bg-green-50 border-green-100"
+                              : r.verificationStatus === 'verified'
+                              ? "text-blue-700 bg-blue-50 border-blue-100"
+                              : "text-amber-700 bg-amber-50 border-amber-100"
+                          )}>
+                            {r.verificationStatus === 'promoted' ? 'Promoted' : r.verificationStatus === 'verified' ? 'Verified' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-text-tertiary">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <ClipboardList size={32} className="mx-auto text-text-tertiary/20 mb-3" />
+                        <p className="font-bold text-text-primary text-sm">No quick registrations yet</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Registrar Notes & Notice Board */}
+      {userRole === 'registrar' && (
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <div className="md:col-span-2 space-y-4">
+            <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+              <ClipboardList className="text-primary" size={20} /> System Notes & Registrar Guides
+            </h2>
+            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 space-y-4">
+              <div className="flex gap-4 items-start p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 font-bold shrink-0">1</div>
+                <div>
+                  <h4 className="font-bold text-sm text-text-primary">Always Scan Passports First</h4>
+                  <p className="text-xs text-text-tertiary mt-0.5 leading-relaxed">Use the Quick Registration passport scanner to automatically extract candidate names and passport details instantly, preventing manual transcription errors.</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start p-4 rounded-2xl bg-primary-50 border border-primary-50">
+                <div className="p-2 rounded-xl bg-primary-100/50 text-primary font-bold shrink-0">2</div>
+                <div>
+                  <h4 className="font-bold text-sm text-text-primary">Ensure Required File Uploads</h4>
+                  <p className="text-xs text-text-tertiary mt-0.5 leading-relaxed">A complete registration requires all five essential files: COC, Labour ID, Candidate ID, Relative ID, and applicant introduction video.</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 font-bold shrink-0">3</div>
+                <div>
+                  <h4 className="font-bold text-sm text-text-primary">Musaned Verification Notice</h4>
+                  <p className="text-xs text-text-tertiary mt-0.5 leading-relaxed">Once registered, wait-in candidates are verified by the Processing team using Musaned integration. Registrars can view preview cards but are not authorized to verify or publish records.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
+              <Flag className="text-warning" size={20} /> Quick Reminders
+            </h2>
+            <div className="bg-gradient-to-br from-primary to-accent rounded-[1.5rem] p-6 text-white space-y-4 shadow-xl shadow-primary/20">
+              <div>
+                <h3 className="font-bold text-lg">Registrar Hub</h3>
+                <p className="text-xs text-white/80 mt-1 leading-relaxed">Welcome back! You are logged in with the Registrar administrative role. Your daily tasks include quick candidate registration, managing broker listings, and candidate previews.</p>
+              </div>
+              <div className="border-t border-white/20 pt-4">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span>Assigned Workstation</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded">Front Desk</span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-semibold mt-2">
+                  <span>Active Session Time</span>
+                  <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+      
       {/* Document Viewer Modal */}
       {viewDoc && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setViewDoc(null)}>

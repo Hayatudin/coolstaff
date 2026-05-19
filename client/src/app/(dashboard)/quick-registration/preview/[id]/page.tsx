@@ -211,12 +211,6 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             </p>
           </div>
         </div>
-        <button
-          onClick={() => router.push(`/registration?quick_reg_id=${data.id}`)}
-          className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2 shrink-0"
-        >
-          <User size={16} /> Complete Full Registration
-        </button>
       </div>
 
       {/* Passport Info */}

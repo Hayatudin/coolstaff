@@ -17,6 +17,196 @@ export default function RequestedPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateReport = async () => {
+    if (candidates.length === 0) {
+      alert("No visa selected candidates to generate report.");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      // Create element container
+      const element = document.createElement('div');
+      element.style.padding = '20px';
+      element.style.fontFamily = 'Inter, system-ui, sans-serif';
+      element.style.color = '#1e293b';
+      element.style.backgroundColor = '#ffffff';
+
+      // Header Banner - COOL STAFF
+      const header = document.createElement('div');
+      header.style.backgroundColor = '#2563eb';
+      header.style.color = '#ffffff';
+      header.style.textAlign = 'center';
+      header.style.padding = '14px 20px';
+      header.style.fontSize = '24px';
+      header.style.fontWeight = '800';
+      header.style.letterSpacing = '0.05em';
+      header.style.borderRadius = '8px 8px 0 0';
+      header.style.border = '2px solid #2563eb';
+      header.innerText = 'COOL STAFF';
+      element.appendChild(header);
+
+      // Table container
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.marginTop = '0px';
+      table.style.border = '2px solid #cbd5e1';
+
+      // Table Header Row
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headerRow.style.backgroundColor = '#1b4332'; // Forest green
+      headerRow.style.color = '#ffffff';
+      headerRow.style.fontSize = '12px';
+      headerRow.style.fontWeight = 'bold';
+      headerRow.style.textAlign = 'left';
+
+      const columns = ['NO', 'NAME', 'DATE', 'MEDICAL', 'COC', 'TICKET', 'AGENT'];
+      columns.forEach((col) => {
+        const th = document.createElement('th');
+        th.style.padding = '12px 10px';
+        th.style.border = '1px solid #cbd5e1';
+        th.style.fontSize = '11px';
+        th.style.fontWeight = '800';
+        th.style.textTransform = 'uppercase';
+        th.style.letterSpacing = '0.05em';
+        if (col === 'NO' || col === 'DATE' || col === 'MEDICAL') {
+          th.style.textAlign = 'center';
+        } else {
+          th.style.textAlign = 'left';
+        }
+        th.innerText = col;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Table Body
+      const tbody = document.createElement('tbody');
+      candidates.forEach((c, index) => {
+        const row = document.createElement('tr');
+        row.style.fontSize = '11px';
+        row.style.borderBottom = '1px solid #cbd5e1';
+        row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+        // 1. NO
+        const tdNo = document.createElement('td');
+        tdNo.style.padding = '10px';
+        tdNo.style.border = '1px solid #cbd5e1';
+        tdNo.style.textAlign = 'center';
+        tdNo.style.fontWeight = '600';
+        tdNo.style.color = '#475569';
+        tdNo.innerText = String(index + 1);
+        row.appendChild(tdNo);
+
+        // 2. NAME (in uppercase)
+        const tdName = document.createElement('td');
+        tdName.style.padding = '10px';
+        tdName.style.border = '1px solid #cbd5e1';
+        tdName.style.fontWeight = '700';
+        tdName.style.color = '#1e3a8a';
+        
+        const medStatus = (c.personalInfo.medicalStatus || 'Pending').toUpperCase();
+        if (medStatus === 'FIT') {
+          tdName.style.backgroundColor = '#ecfdf5';
+        } else if (medStatus === 'UNFIT') {
+          tdName.style.backgroundColor = '#fef2f2';
+        } else {
+          tdName.style.backgroundColor = '#fffbeb';
+        }
+        tdName.innerText = `${c.passportData.givenNames} ${c.passportData.surname}`.toUpperCase();
+        row.appendChild(tdName);
+
+        // 3. DATE
+        const tdDate = document.createElement('td');
+        tdDate.style.padding = '10px';
+        tdDate.style.border = '1px solid #cbd5e1';
+        tdDate.style.textAlign = 'center';
+        tdDate.style.color = '#334155';
+        tdDate.innerText = c.visaDate 
+          ? new Date(c.visaDate).toLocaleDateString()
+          : c.registeredAt 
+            ? new Date(c.registeredAt).toLocaleDateString()
+            : '—';
+        row.appendChild(tdDate);
+
+        // 4. MEDICAL
+        const tdMedical = document.createElement('td');
+        tdMedical.style.padding = '10px';
+        tdMedical.style.border = '1px solid #cbd5e1';
+        tdMedical.style.textAlign = 'center';
+        tdMedical.style.fontWeight = '800';
+        if (medStatus === 'FIT') {
+          tdMedical.style.color = '#059669';
+          tdMedical.innerText = 'FIT';
+        } else if (medStatus === 'UNFIT') {
+          tdMedical.style.color = '#dc2626';
+          tdMedical.innerText = 'NO';
+        } else {
+          tdMedical.style.color = '#d97706';
+          tdMedical.innerText = 'PROGRESS';
+        }
+        row.appendChild(tdMedical);
+
+        // 5. COC
+        const tdCoc = document.createElement('td');
+        tdCoc.style.padding = '10px';
+        tdCoc.style.border = '1px solid #cbd5e1';
+        tdCoc.style.color = '#475569';
+        tdCoc.innerText = c.cocDocumentUrl ? 'YES' : '—';
+        row.appendChild(tdCoc);
+
+        // 6. TICKET
+        const tdTicket = document.createElement('td');
+        tdTicket.style.padding = '10px';
+        tdTicket.style.border = '1px solid #cbd5e1';
+        tdTicket.style.color = '#475569';
+        tdTicket.innerText = c.visaOrContractNumber || '—';
+        row.appendChild(tdTicket);
+
+        // 7. AGENT
+        const tdAgent = document.createElement('td');
+        tdAgent.style.padding = '10px';
+        tdAgent.style.border = '1px solid #cbd5e1';
+        tdAgent.style.fontWeight = '600';
+        tdAgent.style.color = '#334155';
+        tdAgent.innerText = c.broker?.name || '—';
+        row.appendChild(tdAgent);
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      element.appendChild(table);
+
+      // Footer notice
+      const footer = document.createElement('div');
+      footer.style.textAlign = 'right';
+      footer.style.fontSize = '9px';
+      footer.style.color = '#94a3b8';
+      footer.style.marginTop = '15px';
+      footer.innerText = `Generated on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()} • Page 1 of 1`;
+      element.appendChild(footer);
+
+      const opt = {
+        margin: 10,
+        filename: `coolstaff-visa-selected-report-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      } as any;
+
+      await html2pdf().from(element).set(opt).save();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to download PDF report. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -90,11 +280,21 @@ export default function RequestedPage() {
 
         {/* Generate Report Button */}
         <button
-          onClick={() => alert('Generate Report layout configuration will be integrated in the next update!')}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-700 hover:to-indigo-600 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-blue-600/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0"
+          disabled={isGenerating}
+          onClick={handleGenerateReport}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-700 hover:to-indigo-600 disabled:from-blue-400 disabled:to-indigo-400 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-blue-600/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:scale-100 disabled:cursor-not-allowed shrink-0"
         >
-          <ClipboardList size={18} />
-          <span>Generate Report</span>
+          {isGenerating ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              <span>Generating PDF...</span>
+            </>
+          ) : (
+            <>
+              <ClipboardList size={18} />
+              <span>Generate Report</span>
+            </>
+          )}
         </button>
       </div>
 

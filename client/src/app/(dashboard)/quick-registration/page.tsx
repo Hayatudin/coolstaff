@@ -117,7 +117,12 @@ export default function QuickRegistrationPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to parse passport data');
       setOcrProgress(100);
-      setPassportData(prev => ({ ...prev, ...data }));
+      setPassportData(prev => ({ 
+        ...prev, 
+        ...data,
+        surname: data.surname ? data.surname.toUpperCase() : '',
+        givenNames: data.givenNames ? data.givenNames.toUpperCase() : ''
+      }));
       setProcessingComplete(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to scan passport');
@@ -141,7 +146,8 @@ export default function QuickRegistrationPage() {
   };
 
   const handlePassportChange = (field: keyof PassportData, value: string) => {
-    setPassportData(prev => ({ ...prev, [field]: value }));
+    const uppercaseValue = (field === 'surname' || field === 'givenNames') ? value.toUpperCase() : value;
+    setPassportData(prev => ({ ...prev, [field]: uppercaseValue }));
   };
 
   const updateExperience = (index: number, field: keyof WorkExperienceEntry, value: string) => {

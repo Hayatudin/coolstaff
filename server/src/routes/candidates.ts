@@ -766,7 +766,47 @@ router.patch('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    // 1. Delete all generated CVs
+    try {
+      await prisma.generatedCV.deleteMany({
+        where: { candidateId: id }
+      });
+    } catch (e) {
+      console.warn(`Failed to delete related GeneratedCVs for candidate ${id}:`, e);
+    }
+
+    // 2. Delete all related invoices
+    try {
+      await prisma.invoice.deleteMany({
+        where: { candidateId: id }
+      });
+    } catch (e) {
+      console.warn(`Failed to delete related Invoices for candidate ${id}:`, e);
+    }
+
+    // 3. Delete related notifications
+    try {
+      await prisma.notification.deleteMany({
+        where: { candidateId: id }
+      });
+    } catch (e) {
+      console.warn(`Failed to delete related Notifications for candidate ${id}:`, e);
+    }
+
+    // 4. Update QuickRegistration entries to null out promotedCandidateId
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`QuickRegistration\` SET \`promotedCandidateId\` = NULL, \`verificationStatus\` = 'verified' WHERE \`promotedCandidateId\` = ?`,
+        id
+      );
+    } catch (e) {
+      console.warn(`Failed to null out related QuickRegistration entries for candidate ${id}:`, e);
+    }
+
+    // 5. Delete the candidate itself
     await prisma.candidate.delete({ where: { id } });
+    
     res.json({ success: true });
   } catch (error: any) {
     console.error('Failed to delete candidate:', error);

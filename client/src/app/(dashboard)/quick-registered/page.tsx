@@ -293,15 +293,15 @@ export default function QuickRegisteredPage() {
                               <ShieldCheck size={16} />
                             </button>
                           )}
-                          {r.promotedCandidateId && (
-                            <button
-                              onClick={() => router.push(`/candidates/${r.promotedCandidateId}`)}
-                              className="p-2 rounded-lg hover:bg-blue-100 text-text-tertiary hover:text-blue-700 transition-colors"
-                              title="View Candidate"
-                            >
-                              <ArrowRight size={16} />
-                            </button>
-                          )}
+                          {r.promotedCandidateId && userRole !== 'registrar' && (
+                             <button
+                               onClick={() => router.push(`/candidates/${r.promotedCandidateId}`)}
+                               className="p-2 rounded-lg hover:bg-blue-100 text-text-tertiary hover:text-blue-700 transition-colors"
+                               title="View Candidate"
+                             >
+                               <ArrowRight size={16} />
+                             </button>
+                           )}
                           <button
                             onClick={() => handleDelete(r.id, `${r.givenNames} ${r.surname}`)}
                             className="p-2 rounded-lg hover:bg-red-100 text-text-tertiary hover:text-red-700 transition-colors ml-1"

@@ -89,31 +89,20 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       )}
     >
       {/* Logo + Mobile close */}
-      <div className={cn('flex items-center pt-6 pb-3 transition-all duration-300', isCollapsed && !isMobile ? 'justify-center px-2' : 'gap-3 px-6')}>
-        <div className={cn("transition-all duration-300 flex items-center shrink-0 overflow-hidden", isCollapsed && !isMobile ? 'w-10 h-10 justify-center' : 'h-14 w-full justify-start')}>
-          <img 
-            src="/coolstaff-logo.png" 
-            alt="COOLSTAFF LOGO" 
-            className="h-full object-contain filter brightness-0 invert" 
-          />
-        </div>
-        {isMobile && (
-          <button onClick={onNavigate} className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0">
-            <X size={20} />
-          </button>
-        )}
-      </div>
-
-      {/* Role badge */}
-      {(!isCollapsed || isMobile) && !isPending && session && (
-        <div className="px-6 pb-3">
-          <span className={cn(
-            'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider',
-            badgeColor
-          )}>
-            <ShieldCheck size={10} />
-            {roleLabel}
-          </span>
+      {(!isCollapsed || isMobile) && (
+        <div className="flex items-center pt-6 pb-4 px-6 gap-3 justify-between transition-all duration-300">
+          <div className="h-16 w-full flex items-center justify-start shrink-0 overflow-hidden">
+            <img 
+              src="/coolstaff-logo.png" 
+              alt="COOLSTAFF LOGO" 
+              className="h-14 w-auto max-w-full object-contain filter brightness-0 invert scale-125 origin-left" 
+            />
+          </div>
+          {isMobile && (
+            <button onClick={onNavigate} className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0">
+              <X size={20} />
+            </button>
+          )}
         </div>
       )}
 
