@@ -95,7 +95,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
             <img
               src="/coolstaff-logo.png"
               alt="COOLSTAFF LOGO"
-              className="h-14 w-auto max-w-full object-contain filter origin-left"
+              className="h-25 w-auto max-w-full object-contain filter origin-left"
             />
           </div>
           {isMobile && (
