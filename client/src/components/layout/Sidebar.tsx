@@ -92,10 +92,10 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       {(!isCollapsed || isMobile) && (
         <div className="flex items-center pt-6 pb-4 px-6 gap-3 justify-between transition-all duration-300">
           <div className="h-16 w-full flex items-center justify-start shrink-0 overflow-hidden">
-            <img 
-              src="/coolstaff-logo.png" 
-              alt="COOLSTAFF LOGO" 
-              className="h-14 w-auto max-w-full object-contain filter brightness-0 invert scale-125 origin-left" 
+            <img
+              src="/coolstaff-logo.png"
+              alt="COOLSTAFF LOGO"
+              className="h-14 w-auto max-w-full object-contain filter origin-left"
             />
           </div>
           {isMobile && (
