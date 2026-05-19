@@ -14,8 +14,20 @@ const COUNTRY_MAP: Record<string, string> = {
   DJI: 'Djibouti', CMR: 'Cameroon', COD: 'DR Congo', MDG: 'Madagascar',
 };
 
+function cleanNumericString(raw: string): string {
+  return raw
+    .toUpperCase()
+    .replace(/[OOD]/g, '0')
+    .replace(/[IL|T]/g, '1')
+    .replace(/[Z]/g, '2')
+    .replace(/[S]/g, '5')
+    .replace(/[G]/g, '6')
+    .replace(/[B]/g, '8')
+    .replace(/[^0-9]/g, '');
+}
+
 function formatDate(raw: string): string {
-  const cleaned = raw.replace(/[^0-9]/g, '').substring(0, 6);
+  const cleaned = cleanNumericString(raw).substring(0, 6);
   if (cleaned.length !== 6) return '';
   const year = parseInt(cleaned.substring(0, 2));
   const month = parseInt(cleaned.substring(2, 4));
@@ -89,6 +101,35 @@ function cleanName(name: string): string {
   return name.replace(/<+/g, ' ').replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
+function findCountryCodeAnchor(line2: string): number {
+  const range = line2.substring(7, 16); // Look in a safe window
+  
+  // 1. Search for any known country code from COUNTRY_MAP
+  for (const code of Object.keys(COUNTRY_MAP)) {
+    const idx = range.indexOf(code);
+    if (idx !== -1) {
+      return 7 + idx;
+    }
+  }
+  
+  // 2. Fallback: Search for any 3-letter uppercase alphabetic sequence
+  const match = range.match(/[A-Z]{3}/);
+  if (match && match.index !== undefined) {
+    return 7 + match.index;
+  }
+  
+  // 3. Absolute fallback: standard index 10
+  return 10;
+}
+
+function parseGender(char: string): string {
+  if (!char) return '';
+  const c = char.toUpperCase();
+  if (c === 'M' || c === 'N' || c === 'H' || c === '1') return 'Male';
+  if (c === 'F' || c === 'E' || c === 'P' || c === 'R' || c === 'K' || c === '7') return 'Female';
+  return '';
+}
+
 router.post('/passport', async (req: Request, res: Response) => {
   try {
     const { ocrText } = req.body;
@@ -100,17 +141,21 @@ router.post('/passport', async (req: Request, res: Response) => {
     const parts = line1.substring(5).split('<<');
     const surname = cleanName(parts[0] || '');
     const givenNames = cleanName(parts[1] || '');
-    const passportNumber = line2.substring(0, 9).replace(/</g, '');
-    const nationality = line2.substring(10, 13).replace(/</g, '');
-    const genderRaw = line2[20];
+    
+    // Dynamically anchor parser fields based on nationality country code position to make it resilient to character insertion/deletion shifts
+    const anchorIdx = findCountryCodeAnchor(line2);
+    const passportNumber = line2.substring(0, anchorIdx).replace(/</g, '');
+    const nationality = line2.substring(anchorIdx, anchorIdx + 3).replace(/</g, '');
+    const genderRaw = line2[anchorIdx + 10] || '';
+    
     const result = {
       passportNumber,
       surname,
       givenNames,
-      dateOfBirth: formatDate(line2.substring(13, 19)),
-      gender: genderRaw === 'M' ? 'Male' : genderRaw === 'F' ? 'Female' : '',
+      dateOfBirth: formatDate(line2.substring(anchorIdx + 3, anchorIdx + 9)),
+      gender: parseGender(genderRaw),
       nationality: COUNTRY_MAP[nationality || issuingCountry] || nationality || issuingCountry,
-      dateOfExpiry: formatDate(line2.substring(21, 27)),
+      dateOfExpiry: formatDate(line2.substring(anchorIdx + 11, anchorIdx + 17)),
     };
     res.json(result);
   } catch (error: any) {
