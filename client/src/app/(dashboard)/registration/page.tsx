@@ -74,6 +74,94 @@ function RegistrationContent() {
     fetchBrokers();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedPromo = sessionStorage.getItem('pending_registration_promotion');
+    if (!storedPromo) return;
+
+    try {
+      const { extractedData, quickRegistration } = JSON.parse(storedPromo);
+      console.log('[DEBUG] Loading pending quick registration promotion from session:', { extractedData, quickRegistration });
+
+      setQuickRegistrationId(quickRegistration.id);
+
+      const convertDate = (dateStr?: string): string => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        return dateStr;
+      };
+
+      setPassportData({
+        passportNumber: extractedData.passportNumber || quickRegistration.passportNumber || '',
+        surname: (extractedData.surname || quickRegistration.surname || '').toUpperCase(),
+        givenNames: (extractedData.givenNames || quickRegistration.givenNames || '').toUpperCase(),
+        dateOfBirth: convertDate(extractedData.dateOfBirth) || quickRegistration.dateOfBirth || '',
+        gender: extractedData.gender || quickRegistration.gender || '',
+        nationality: extractedData.nationality || quickRegistration.nationality || '',
+        issuingCountry: extractedData.placeOfIssue || quickRegistration.issuingCountry || '',
+        dateOfIssue: convertDate(extractedData.dateOfIssue) || quickRegistration.dateOfIssue || '',
+        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || quickRegistration.dateOfExpiry || '',
+        placeOfBirth: extractedData.placeOfBirth || quickRegistration.placeOfBirth || '',
+      });
+
+      let parsedExp: any[] = [];
+      try { parsedExp = JSON.parse(quickRegistration.jobExperience || '[]'); } catch { /* ignore */ }
+
+      const mapReligion = (r?: string): string => {
+        if (!r) return '';
+        const upper = r.toUpperCase();
+        if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
+        if (upper.includes('ORTHODOX')) return 'Orthodox Christian';
+        if (upper.includes('PROTESTANT')) return 'Protestant';
+        if (upper.includes('CATHOLIC')) return 'Catholic';
+        if (upper.includes('CHRISTIAN')) return 'Orthodox Christian';
+        return r;
+      };
+
+      setPersonalInfo(prev => ({
+        ...prev,
+        idNumber: extractedData.passportNumber || quickRegistration.passportNumber || prev.idNumber,
+        job: extractedData.job ? extractedData.job.toUpperCase() : prev.job,
+        religion: mapReligion(extractedData.religion) || quickRegistration.religion || prev.religion,
+        maritalStatus: extractedData.maritalStatus || quickRegistration.maritalStatus || prev.maritalStatus,
+        phone: extractedData.phone || prev.phone,
+        email: extractedData.email || prev.email,
+        educationLevel: extractedData.educationLevel || quickRegistration.educationLevel || prev.educationLevel,
+        numberOfChildren: extractedData.numberOfChildren ? parseInt(extractedData.numberOfChildren) : (quickRegistration.numberOfChildren || prev.numberOfChildren),
+        height: extractedData.height || prev.height,
+        weight: extractedData.weight || prev.weight,
+        city: extractedData.city || prev.city,
+        address: extractedData.address || prev.address,
+        country: extractedData.nationality ? extractedData.nationality.toUpperCase() : (quickRegistration.nationality ? quickRegistration.nationality.toUpperCase() : prev.country),
+        languages: extractedData.languages ? extractedData.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.languages,
+        skills: extractedData.skills ? extractedData.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
+        emergencyContactName: extractedData.emergencyContactName || prev.emergencyContactName,
+        emergencyContactRelation: extractedData.emergencyContactRelation || prev.emergencyContactRelation,
+        emergencyContactPhone: extractedData.emergencyContactPhone || prev.emergencyContactPhone,
+        emergencyContactAddress: extractedData.emergencyContactAddress || prev.emergencyContactAddress,
+        
+        // Quick Registration files:
+        cocDocumentUrl: quickRegistration.cocDocumentUrl || '',
+        labourIdUrl: quickRegistration.labourIdUrl || '',
+        candidateIdImageUrl: quickRegistration.candidateIdImageUrl || '',
+        relativeIdImageUrl: quickRegistration.relativeIdImageUrl || '',
+        additionalPhones: Array.isArray(quickRegistration.relativePhones) ? quickRegistration.relativePhones : prev.additionalPhones,
+        workExperience: parsedExp.length > 0 ? parsedExp : prev.workExperience,
+      }));
+
+      setPassportImage(quickRegistration.passportImageUrl || null);
+      setVideoUrl(quickRegistration.videoUrl || '');
+      setProcessingComplete(true);
+      setMusanedSuccess(true);
+      setStep(2); // Go straight to filling personal info
+    } catch (err) {
+      console.error('Failed to parse pending promotion data from storage:', err);
+    } finally {
+      sessionStorage.removeItem('pending_registration_promotion');
+    }
+  }, []);
+
   const handleCreateBroker = async (name: string) => {
     try {
       const res = await api('/api/brokers', {

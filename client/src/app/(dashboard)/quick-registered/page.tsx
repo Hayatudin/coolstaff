@@ -18,6 +18,16 @@ interface QuickReg {
   verificationStatus: string;
   promotedCandidateId: string | null;
   createdAt: string;
+  cocDocumentUrl?: string | null;
+  labourIdUrl?: string | null;
+  candidateIdImageUrl?: string | null;
+  relativeIdImageUrl?: string | null;
+  videoUrl?: string | null;
+  relativePhones?: string[] | null;
+  educationLevel?: string | null;
+  maritalStatus?: string | null;
+  numberOfChildren?: number | null;
+  passportImageUrl?: string | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -48,6 +58,7 @@ export default function QuickRegisteredPage() {
   const [verifyStep, setVerifyStep] = useState<'upload' | 'result'>('upload');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedPassport, setExtractedPassport] = useState<string | null>(null);
+  const [extractedData, setExtractedData] = useState<any | null>(null);
   const [passportMatch, setPassportMatch] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [isPromoting, setIsPromoting] = useState(false);
@@ -87,6 +98,7 @@ export default function QuickRegisteredPage() {
     setIsExtracting(true);
     setVerifyError(null);
     setExtractedPassport(null);
+    setExtractedData(null);
     setPassportMatch(false);
 
     try {
@@ -98,6 +110,7 @@ export default function QuickRegisteredPage() {
 
       const extractedNum = result.data?.passportNumber?.trim()?.toUpperCase() || '';
       setExtractedPassport(extractedNum);
+      setExtractedData(result.data);
 
       const targetNum = verifyTarget?.passportNumber?.trim()?.toUpperCase() || '';
 
@@ -113,6 +126,18 @@ export default function QuickRegisteredPage() {
     } finally {
       setIsExtracting(false);
     }
+  };
+
+  // Navigate to /registration and promote candidate via sessionStorage
+  const handleValidateAndContinue = () => {
+    if (!verifyTarget || !extractedData) return;
+    const promoData = {
+      extractedData,
+      quickRegistration: verifyTarget,
+    };
+    sessionStorage.setItem('pending_registration_promotion', JSON.stringify(promoData));
+    closeVerifyModal();
+    router.push('/registration');
   };
 
   // Promote: push documents from QR to Candidate
@@ -161,6 +186,7 @@ export default function QuickRegisteredPage() {
     setVerifyTarget(reg);
     setVerifyStep('upload');
     setExtractedPassport(null);
+    setExtractedData(null);
     setPassportMatch(false);
     setVerifyError(null);
     setPromoteSuccess(null);
@@ -168,6 +194,7 @@ export default function QuickRegisteredPage() {
 
   const closeVerifyModal = () => {
     setVerifyTarget(null);
+    setExtractedData(null);
     setPromoteSuccess(null);
   };
 
@@ -467,17 +494,26 @@ export default function QuickRegisteredPage() {
                     </button>
 
                     {passportMatch && (
-                      <button
-                        onClick={handlePromote}
-                        disabled={isPromoting}
-                        className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 text-sm"
-                      >
-                        {isPromoting ? (
-                          <><Loader2 size={16} className="animate-spin" /> Pushing Documents...</>
-                        ) : (
-                          <><ShieldCheck size={16} /> Push Documents to Candidate</>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handlePromote}
+                          disabled={isPromoting}
+                          className="px-4 py-2.5 text-emerald-700 bg-emerald-50 border border-emerald-200 font-semibold rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50 flex items-center gap-1.5 text-xs sm:text-sm"
+                          title="Push documents directly without editing"
+                        >
+                          {isPromoting ? (
+                            <><Loader2 size={14} className="animate-spin" /> Pushing...</>
+                          ) : (
+                            <><ShieldCheck size={14} /> Direct Push</>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleValidateAndContinue}
+                          className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2 text-xs sm:text-sm"
+                        >
+                          Verify & Continue <ArrowRight size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
