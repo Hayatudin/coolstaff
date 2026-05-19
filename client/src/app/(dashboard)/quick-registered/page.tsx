@@ -35,6 +35,7 @@ interface QuickReg {
   placeOfBirth?: string | null;
   brokerId?: string | null;
   broker?: { id: string; name: string } | null;
+  agency?: string | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -99,6 +100,7 @@ export default function QuickRegisteredPage() {
     candidateIdImageUrl: undefined as string | undefined,
     relativeIdImageUrl: undefined as string | undefined,
     videoUrl: undefined as string | undefined,
+    agency: '',
   });
 
   const handleFileChange = (field: string, file: File | null) => {
@@ -315,6 +317,7 @@ export default function QuickRegisteredPage() {
       candidateIdImageUrl: undefined,
       relativeIdImageUrl: undefined,
       videoUrl: undefined,
+      agency: reg.agency || 'daera',
     });
   };
 
@@ -341,6 +344,7 @@ export default function QuickRegisteredPage() {
         numberOfChildren: editForm.numberOfChildren,
         relativePhones: editForm.relativePhones.filter(p => p.trim() !== ''),
         jobExperience: JSON.stringify(editForm.jobExperience),
+        agency: editForm.agency || 'daera',
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -417,6 +421,7 @@ export default function QuickRegisteredPage() {
                 <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Passport No.</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden md:table-cell">Religion</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden md:table-cell">Agency</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden lg:table-cell">Experience</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Status</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Date</th>
@@ -426,7 +431,7 @@ export default function QuickRegisteredPage() {
             <tbody className="divide-y divide-border/50">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-3 xl:px-6 py-12 text-center">
+                  <td colSpan={8} className="px-3 xl:px-6 py-12 text-center">
                     <Loader2 size={28} className="animate-spin text-primary mx-auto mb-2" />
                     <p className="text-text-tertiary text-sm">Loading...</p>
                   </td>
@@ -456,6 +461,11 @@ export default function QuickRegisteredPage() {
                         <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-0.5 rounded">{r.passportNumber}</span>
                       </td>
                       <td className="px-3 xl:px-6 py-3.5 text-xs xl:text-sm text-text-secondary hidden md:table-cell">{r.religion || '—'}</td>
+                      <td className="px-3 xl:px-6 py-3.5 hidden md:table-cell">
+                        <span className="capitalize px-2 py-0.5 rounded bg-gray-100 font-semibold text-text-primary text-[10px]">
+                          {r.agency || 'daera'}
+                        </span>
+                      </td>
                       <td className="px-3 xl:px-6 py-3.5 hidden lg:table-cell">
                         <span className={`text-[10px] xl:text-xs font-semibold px-2 py-0.5 xl:py-1 rounded-lg ${
                           experienceLabel === 'Experienced'
@@ -974,6 +984,22 @@ export default function QuickRegisteredPage() {
                         />
                       </div>
                     )}
+
+                    {/* Agency Select Dropdown */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Agency
+                      </label>
+                      <select
+                        value={editForm.agency}
+                        onChange={e => setEditForm(prev => ({ ...prev, agency: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary transition-all cursor-pointer"
+                      >
+                        <option value="daera">Daera</option>
+                        <option value="coolstaff">Coolstaff</option>
+                        <option value="boss">Boss</option>
+                      </select>
+                    </div>
 
                     {/* Broker Connection */}
                     <div className="md:col-span-2">

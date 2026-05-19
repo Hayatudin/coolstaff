@@ -76,6 +76,7 @@ model Candidate {
   visaSelected             Boolean   @default(false)
   visaDate                 DateTime?
   salary                   String?   @default("1000SR")
+  agency                   String?   @default("daera")
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?
@@ -217,6 +218,7 @@ model QuickRegistration {
   labourIdUrl         String?  @db.LongText
   candidateIdImageUrl String?  @db.LongText
   relativeIdImageUrl  String?  @db.LongText
+  agency              String?  @default("daera")
 
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?

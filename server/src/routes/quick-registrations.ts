@@ -33,7 +33,7 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     try {
-      const rawRows = await prisma.$queryRawUnsafe<any[]>(`SELECT id, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId FROM \`QuickRegistration\``);
+      const rawRows = await prisma.$queryRawUnsafe<any[]>(`SELECT id, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\``);
       const rawMap = new Map();
       for (const row of rawRows) {
         rawMap.set(row.id, row);
@@ -49,6 +49,7 @@ router.get('/', async (req: Request, res: Response) => {
           reg.relativePhones = raw.relativePhones ? JSON.parse(raw.relativePhones) : null;
           reg.verificationStatus = raw.verificationStatus;
           reg.promotedCandidateId = raw.promotedCandidateId;
+          reg.agency = raw.agency;
         }
         return reg;
       });
@@ -116,7 +117,7 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(body.videoUrl, 'videos'),
     ]);
 
-    const registration: any = await prisma.quickRegistration.create({
+    const registration: any = await (prisma.quickRegistration as any).create({
       data: {
         passportNumber: body.passportNumber || '',
         surname: body.surname || '',
@@ -133,6 +134,7 @@ router.post('/', async (req: Request, res: Response) => {
         numberOfChildren: parseInt(body.numberOfChildren) || 0,
         passportImageUrl,
         religion: body.religion || null,
+        agency: body.agency || 'daera',
         broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
       },
       include: {
@@ -219,6 +221,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateData.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateData.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateData.religion = body.religion;
+    if (body.agency !== undefined) updateData.agency = body.agency;
     if (body.brokerId !== undefined) {
       if (body.brokerId === null || body.brokerId === '') {
         updateData.broker = { disconnect: true };
@@ -317,7 +320,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
@@ -330,6 +333,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
         registration.relativePhones = raw.relativePhones ? JSON.parse(raw.relativePhones) : null;
         registration.verificationStatus = raw.verificationStatus;
         registration.promotedCandidateId = raw.promotedCandidateId;
+        registration.agency = raw.agency;
       }
     } catch (_) { /* ignore */ }
 
@@ -354,7 +358,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
@@ -367,6 +371,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         registration.relativePhones = raw.relativePhones ? JSON.parse(raw.relativePhones) : null;
         registration.verificationStatus = raw.verificationStatus;
         registration.promotedCandidateId = raw.promotedCandidateId;
+        registration.agency = raw.agency;
       }
     } catch (_) { /* ignore */ }
 

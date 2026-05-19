@@ -206,6 +206,10 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
       setClauses.push('`quickVideoUrl` = ?');
       params.push(videoUrl);
     }
+    if (qr.agency) {
+      setClauses.push('`agency` = ?');
+      params.push(qr.agency);
+    }
 
     if (setClauses.length > 0) {
       params.push(candidate.id);
