@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
-import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2 } from 'lucide-react';
+import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2, MoreVertical, Edit2 } from 'lucide-react';
 
 interface QuickReg {
   id: string;
@@ -28,6 +28,8 @@ interface QuickReg {
   maritalStatus?: string | null;
   numberOfChildren?: number | null;
   passportImageUrl?: string | null;
+  dateOfBirth?: string | null;
+  dateOfExpiry?: string | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -64,14 +66,36 @@ export default function QuickRegisteredPage() {
   const [isPromoting, setIsPromoting] = useState(false);
   const [promoteSuccess, setPromoteSuccess] = useState<string | null>(null);
 
+  // Edit and dropdown state
+  const [brokers, setBrokers] = useState<{ id: string; name: string }[]>([]);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<QuickReg | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    passportNumber: '',
+    givenNames: '',
+    surname: '',
+    nationality: '',
+    religion: '',
+    gender: '',
+    dateOfBirth: '',
+    dateOfExpiry: '',
+    brokerId: '',
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api('/api/quick-registrations');
-        const data = await res.json();
-        if (Array.isArray(data)) setRegistrations(data);
+        const [regRes, brokerRes] = await Promise.all([
+          api('/api/quick-registrations'),
+          api('/api/brokers')
+        ]);
+        const regData = await regRes.json();
+        const brokerData = await brokerRes.json();
+        if (Array.isArray(regData)) setRegistrations(regData);
+        if (Array.isArray(brokerData)) setBrokers(brokerData);
       } catch (err) {
-        console.error('Failed to fetch quick registrations', err);
+        console.error('Failed to fetch quick registrations or brokers', err);
       } finally {
         setLoading(false);
       }
@@ -198,6 +222,64 @@ export default function QuickRegisteredPage() {
     setPromoteSuccess(null);
   };
 
+  const openEditModal = (reg: QuickReg) => {
+    setEditTarget(reg);
+    
+    const formatDate = (dateStr: string | null | undefined): string => {
+      if (!dateStr) return '';
+      return dateStr.split('T')[0];
+    };
+
+    setEditForm({
+      passportNumber: reg.passportNumber || '',
+      givenNames: reg.givenNames || '',
+      surname: reg.surname || '',
+      nationality: reg.nationality || '',
+      religion: reg.religion || '',
+      gender: reg.gender || '',
+      dateOfBirth: formatDate(reg.dateOfBirth),
+      dateOfExpiry: formatDate(reg.dateOfExpiry),
+      brokerId: (reg as any).brokerId || (reg as any).broker?.id || '',
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        passportNumber: editForm.passportNumber,
+        givenNames: editForm.givenNames,
+        surname: editForm.surname,
+        nationality: editForm.nationality || null,
+        religion: editForm.religion || null,
+        gender: editForm.gender || null,
+        dateOfBirth: editForm.dateOfBirth ? new Date(editForm.dateOfBirth).toISOString() : null,
+        dateOfExpiry: editForm.dateOfExpiry ? new Date(editForm.dateOfExpiry).toISOString() : null,
+        brokerId: editForm.brokerId || null,
+      };
+
+      const res = await api(`/api/quick-registrations/${editTarget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated.error || 'Failed to update quick registration');
+
+      // Update local state to reflect edited changes
+      setRegistrations(prev => prev.map(r => r.id === editTarget.id ? updated : r));
+      setEditTarget(null);
+    } catch (err: any) {
+      alert(err.message || 'An error occurred while saving.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === 'promoted') {
       return <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Promoted</span>;
@@ -302,40 +384,89 @@ export default function QuickRegisteredPage() {
                       <td className="px-3 xl:px-6 py-3.5 text-[11px] xl:text-xs text-text-tertiary hidden sm:table-cell">
                         {new Date(r.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-3 xl:px-6 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-0.5 xl:gap-1">
+                      <td className="px-3 xl:px-6 py-3.5 text-right relative">
+                        <div className="flex items-center justify-end">
                           <button
-                            onClick={() => router.push(`/quick-registration/preview/${r.id}`)}
-                            className="p-1 xl:p-2 rounded-lg hover:bg-primary/10 text-text-tertiary hover:text-primary transition-colors"
-                            title="View"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(activeDropdownId === r.id ? null : r.id);
+                            }}
+                            className="p-1.5 xl:p-2 rounded-xl hover:bg-gray-100 text-text-tertiary hover:text-text-primary transition-all duration-200"
+                            title="Actions"
                           >
-                            <Eye size={15} />
+                            <MoreVertical size={16} />
                           </button>
-                          {r.verificationStatus !== 'promoted' && canVerify && (
-                            <button
-                              onClick={() => openVerifyModal(r)}
-                              className="p-1 xl:p-2 rounded-lg hover:bg-emerald-100 text-text-tertiary hover:text-emerald-700 transition-colors"
-                              title="Verify with Musaned CV"
-                            >
-                              <ShieldCheck size={15} />
-                            </button>
+
+                          {activeDropdownId === r.id && (
+                            <>
+                              {/* Overlay for closing click */}
+                              <div
+                                className="fixed inset-0 z-10"
+                                onClick={() => setActiveDropdownId(null)}
+                              />
+                              
+                              {/* Dropdown Menu */}
+                              <div className="absolute right-3 xl:right-6 mt-2 w-48 bg-white border border-border rounded-xl shadow-lg py-1.5 z-20 animate-in fade-in slide-in-from-top-2 duration-200 text-left">
+                                <button
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    router.push(`/quick-registration/preview/${r.id}`);
+                                  }}
+                                  className="w-full px-4 py-2 text-xs xl:text-sm text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                >
+                                  <Eye size={14} className="text-text-tertiary" /> Preview Details
+                                </button>
+
+                                {r.verificationStatus !== 'promoted' && canVerify && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setActiveDropdownId(null);
+                                        openVerifyModal(r);
+                                      }}
+                                      className="w-full px-4 py-2 text-xs xl:text-sm text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                    >
+                                      <ShieldCheck size={14} className="text-emerald-600" /> Verify with CV
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => {
+                                        setActiveDropdownId(null);
+                                        openEditModal(r);
+                                      }}
+                                      className="w-full px-4 py-2 text-xs xl:text-sm text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                    >
+                                      <Edit2 size={14} className="text-blue-600" /> Edit Registration
+                                    </button>
+                                  </>
+                                )}
+
+                                {r.promotedCandidateId && userRole !== 'registrar' && (
+                                  <button
+                                    onClick={() => {
+                                      setActiveDropdownId(null);
+                                      router.push(`/candidates/${r.promotedCandidateId}`);
+                                    }}
+                                    className="w-full px-4 py-2 text-xs xl:text-sm text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                  >
+                                    <ArrowRight size={14} className="text-blue-600" /> View Candidate
+                                  </button>
+                                )}
+
+                                <div className="border-t border-border/50 my-1" />
+
+                                <button
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleDelete(r.id, `${r.givenNames} ${r.surname}`);
+                                  }}
+                                  className="w-full px-4 py-2 text-xs xl:text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                >
+                                  <Trash2 size={14} /> Delete
+                                </button>
+                              </div>
+                            </>
                           )}
-                          {r.promotedCandidateId && userRole !== 'registrar' && (
-                             <button
-                               onClick={() => router.push(`/candidates/${r.promotedCandidateId}`)}
-                               className="p-1 xl:p-2 rounded-lg hover:bg-blue-100 text-text-tertiary hover:text-blue-700 transition-colors"
-                               title="View Candidate"
-                             >
-                               <ArrowRight size={15} />
-                             </button>
-                           )}
-                          <button
-                            onClick={() => handleDelete(r.id, `${r.givenNames} ${r.surname}`)}
-                            className="p-1 xl:p-2 rounded-lg hover:bg-red-100 text-text-tertiary hover:text-red-700 transition-colors ml-0.5"
-                            title="Delete"
-                          >
-                            <Trash2 size={15} />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -519,6 +650,195 @@ export default function QuickRegisteredPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface rounded-3xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-up">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <Edit2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-text-primary text-lg">Edit Quick Registration</h3>
+                  <p className="text-xs text-text-secondary mt-0.5">Modify candidate information & broker connection</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditTarget(null)}
+                className="p-1.5 rounded-xl hover:bg-gray-100 text-text-tertiary transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Given Names */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Given Names <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.givenNames}
+                    onChange={e => setEditForm(prev => ({ ...prev, givenNames: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                  />
+                </div>
+
+                {/* Surname */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Surname <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.surname}
+                    onChange={e => setEditForm(prev => ({ ...prev, surname: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                  />
+                </div>
+
+                {/* Passport Number */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Passport Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.passportNumber}
+                    onChange={e => setEditForm(prev => ({ ...prev, passportNumber: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                  />
+                </div>
+
+                {/* Nationality */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Nationality
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.nationality}
+                    onChange={e => setEditForm(prev => ({ ...prev, nationality: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={editForm.gender}
+                    onChange={e => setEditForm(prev => ({ ...prev, gender: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+
+                {/* Religion */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Religion
+                  </label>
+                  <select
+                    value={editForm.religion}
+                    onChange={e => setEditForm(prev => ({ ...prev, religion: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                  >
+                    <option value="">Select Religion</option>
+                    <option value="Muslim">Muslim</option>
+                    <option value="Orthodox Christian">Orthodox Christian</option>
+                    <option value="Protestant">Protestant</option>
+                    <option value="Catholic">Catholic</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.dateOfBirth}
+                    onChange={e => setEditForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
+                  />
+                </div>
+
+                {/* Date of Expiry */}
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Date of Expiry
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.dateOfExpiry}
+                    onChange={e => setEditForm(prev => ({ ...prev, dateOfExpiry: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
+                  />
+                </div>
+
+                {/* Broker Connection */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                    Broker Connection
+                  </label>
+                  <select
+                    value={editForm.brokerId}
+                    onChange={e => setEditForm(prev => ({ ...prev, brokerId: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                  >
+                    <option value="">Direct / No Broker</option>
+                    {brokers.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border mt-6">
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(null)}
+                  disabled={isSaving}
+                  className="px-4 py-2.5 text-sm font-semibold text-text-secondary border border-border rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2 text-sm"
+                >
+                  {isSaving ? (
+                    <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
