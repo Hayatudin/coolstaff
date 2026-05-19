@@ -12,12 +12,12 @@ import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
-  <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10">
+  <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10 min-w-0">
     <div className="flex items-center gap-2 mb-1">
       <Icon size={14} className="text-primary/60" />
       <p className="text-[10px] text-text-tertiary uppercase tracking-[0.15em] font-bold">{label}</p>
     </div>
-    <p className="text-[15px] text-text-primary font-semibold pl-5">{value || '—'}</p>
+    <p className="text-[15px] text-text-primary font-semibold pl-5 break-all whitespace-normal">{value || '—'}</p>
   </div>
 );
 
@@ -27,6 +27,37 @@ export default function CandidateDetailPage() {
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState<string | null>(null);
+
+  const handleImportFile = async (field: string, file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Max file size is 10MB');
+      return;
+    }
+    setIsImporting(field);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      if (ev.target?.result) {
+        const base64 = ev.target.result as string;
+        try {
+          const res = await api(`/api/candidates/${params.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: base64 }),
+          });
+          if (!res.ok) throw new Error('Failed to upload');
+          const updatedCandidate = await res.json();
+          setCandidate(updatedCandidate);
+          alert('Document successfully imported!');
+        } catch (err) {
+          alert('Failed to import document.');
+        } finally {
+          setIsImporting(null);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     async function fetchCandidate() {
@@ -178,7 +209,7 @@ export default function CandidateDetailPage() {
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Candidate Video */}
-          {c.videoUrl && (
+          {(c.quickVideoUrl || c.videoUrl) && (
             <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
               <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
                 <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -188,7 +219,7 @@ export default function CandidateDetailPage() {
               </h2>
               <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
                 <video
-                  src={getFileUrl(c.videoUrl)}
+                  src={getFileUrl(c.quickVideoUrl || c.videoUrl!)}
                   controls
                   className="w-full h-full object-contain"
                   crossOrigin="anonymous"
@@ -357,37 +388,141 @@ export default function CandidateDetailPage() {
                 <span className="text-[14px] font-bold text-text-primary">COC Certificate</span>
                 {c.cocDocumentUrl ? (
                   <button onClick={() => setViewDoc(getFileUrl(c.cocDocumentUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'cocDocumentUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('cocDocumentUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Medical Report</span>
                 {c.medicalDocumentUrl ? (
                   <button onClick={() => setViewDoc(getFileUrl(c.medicalDocumentUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'medicalDocumentUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('medicalDocumentUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Passport Scan</span>
                 {c.passportImageUrl ? (
                   <button onClick={() => setViewDoc(getFileUrl(c.passportImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'passportImageUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('passportImageUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Candidate ID</span>
                 {c.candidateIdImageUrl ? (
                   <button onClick={() => setViewDoc(getFileUrl(c.candidateIdImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-blue-600 hover:text-blue-800 font-black px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'candidateIdImageUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('candidateIdImageUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Relative ID</span>
                 {c.relativeIdImageUrl ? (
                   <button onClick={() => setViewDoc(getFileUrl(c.relativeIdImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-amber-600 hover:text-amber-800 font-black px-3 py-1.5 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'relativeIdImageUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('relativeIdImageUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                 <span className="text-[14px] font-bold text-text-primary">Labour ID</span>
                 {c.labourIdUrl ? (
                   <button onClick={() => setViewDoc(getFileUrl(c.labourIdUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-violet-600 hover:text-violet-800 font-black px-3 py-1.5 bg-violet-100 hover:bg-violet-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : <span className="text-[11px] uppercase tracking-[0.1em] font-bold text-text-tertiary">Not uploaded</span>}
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'labourIdUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('labourIdUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
+                <span className="text-[14px] font-bold text-text-primary">Candidate Video</span>
+                {c.quickVideoUrl ? (
+                  <button onClick={() => setViewDoc(getFileUrl(c.quickVideoUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-pink-600 hover:text-pink-800 font-black px-3 py-1.5 bg-pink-100 hover:bg-pink-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
+                ) : (
+                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                    {isImporting === 'quickVideoUrl' ? 'Importing...' : 'Import'}
+                    <input
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      disabled={isImporting !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportFile('quickVideoUrl', file);
+                      }}
+                    />
+                  </label>
+                )}
               </div>
             </div>
           </div>

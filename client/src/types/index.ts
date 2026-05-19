@@ -75,6 +75,7 @@ export interface Candidate {
   visaOrContractNumber?: string | null;
   isFlagged?: boolean;
   videoUrl?: string | null;
+  quickVideoUrl?: string | null;
   registeredAt: string;
   status: 'pending' | 'approved' | 'rejected' | 'visa selected';
   cvDeadline?: string;

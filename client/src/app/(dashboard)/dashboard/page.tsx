@@ -10,6 +10,8 @@ import { Users, UserPlus, ExternalLink, Loader2, MoreVertical, CheckCircle, Tras
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import { Candidate } from '@/types';
+import { useSession } from '@/lib/auth-client';
+import { ROUTE_ACCESS, type Role } from '@/lib/role-config';
 
 import { useCandidates } from '@/hooks/useCandidates';
 
@@ -22,6 +24,14 @@ export default function DashboardPage() {
   const [viewDoc, setViewDoc] = React.useState<string | null>(null);
   const [visaModalId, setVisaModalId] = React.useState<string | null>(null);
   const [visaNumberInput, setVisaNumberInput] = React.useState('');
+  const { data: session } = useSession();
+  const userRole = ((session?.user as any)?.role ?? 'user') as string;
+
+  // Role-based access helpers
+  const canSee = (route: string) => {
+    const roles = ROUTE_ACCESS[route];
+    return roles ? roles.includes(userRole as Role) : false;
+  };
 
   React.useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -94,46 +104,57 @@ export default function DashboardPage() {
           <p className="text-text-secondary text-sm sm:text-base mt-1">Overview of candidate registrations and quick actions</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <Link href="/registration" className="hidden sm:block">
-            <Button variant="primary" icon={<UserPlus size={16} />}>ADD CANDIDATE</Button>
-          </Link>
-          <Link href="/quick-registration" className="sm:hidden w-full">
-            <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/30 transition-all active:scale-[0.98]">
-              <ClipboardList size={18} /> QUICK REGISTER
-            </button>
-          </Link>
+          {canSee('/registration') && (
+            <Link href="/registration" className="hidden sm:block">
+              <Button variant="primary" icon={<UserPlus size={16} />}>ADD CANDIDATE</Button>
+            </Link>
+          )}
+          {canSee('/quick-registration') && (
+            <Link href="/quick-registration" className="sm:hidden w-full">
+              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/30 transition-all active:scale-[0.98]">
+                <ClipboardList size={18} /> QUICK REGISTER
+              </button>
+            </Link>
+          )}
           <a href={MUSANED_URL} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-[#2a9d8f] to-[#238b80] hover:from-[#238b80] hover:to-[#1d7a71] text-white rounded-xl font-semibold text-xs sm:text-sm shadow-lg shadow-[#2a9d8f]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#2a9d8f]/30 hover:-translate-y-0.5 flex-1 sm:flex-none">
             <ExternalLink size={16} /> <span className="hidden sm:inline">Go to</span> Musaned
           </a>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - filtered by role */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
-          <div className="p-4 rounded-2xl bg-primary-50"><Users size={24} className="text-primary" /></div>
-          <div>
-            <p className="text-2xl font-bold text-text-primary">{allCandidates.length}</p>
-            <p className="text-sm text-text-tertiary">Total Candidates</p>
+        {canSee('/candidates') && (
+          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+            <div className="p-4 rounded-2xl bg-primary-50"><Users size={24} className="text-primary" /></div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary">{allCandidates.length}</p>
+              <p className="text-sm text-text-tertiary">Total Candidates</p>
+            </div>
           </div>
-        </div>
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
-          <div className="p-4 rounded-2xl bg-success/10"><ClipboardList size={24} className="text-success" /></div>
-          <div>
-            <p className="text-2xl font-bold text-text-primary">{requestedCount}</p>
-            <p className="text-sm text-text-tertiary">Visa Selected</p>
+        )}
+        {canSee('/requested') && (
+          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+            <div className="p-4 rounded-2xl bg-success/10"><ClipboardList size={24} className="text-success" /></div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary">{requestedCount}</p>
+              <p className="text-sm text-text-tertiary">Visa Selected</p>
+            </div>
           </div>
-        </div>
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
-          <div className="p-4 rounded-2xl bg-warning/10"><UserPlus size={24} className="text-warning" /></div>
-          <div>
-            <p className="text-2xl font-bold text-text-primary">{allCandidates.length - requestedCount}</p>
-            <p className="text-sm text-text-tertiary">Not Visa Selected</p>
+        )}
+        {canSee('/candidates') && (
+          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+            <div className="p-4 rounded-2xl bg-warning/10"><UserPlus size={24} className="text-warning" /></div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary">{allCandidates.length - requestedCount}</p>
+              <p className="text-sm text-text-tertiary">Not Visa Selected</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Recent Candidates Table */}
+      {/* Recent Candidates Table - visible for roles with /candidates access */}
+      {canSee('/candidates') && (
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-text-primary flex items-center gap-2"><Users className="text-primary" size={20} /> Recent Candidates</h2>
@@ -235,8 +256,10 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* Recent Requested Table */}
+      {/* Recent Requested Table - visible for roles with /requested access */}
+      {canSee('/requested') && (
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-text-primary flex items-center gap-2"><ClipboardList className="text-green-600" size={20} /> Recent Visa Selected</h2>
@@ -331,6 +354,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Document Viewer Modal */}
       {viewDoc && (

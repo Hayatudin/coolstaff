@@ -203,7 +203,7 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
       params.push(qr.relativeIdImageUrl);
     }
     if (videoUrl) {
-      setClauses.push('`videoUrl` = ?');
+      setClauses.push('`quickVideoUrl` = ?');
       params.push(videoUrl);
     }
 
@@ -498,6 +498,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       isRequested: c.isRequested,
       visaOrContractNumber: c.visaOrContractNumber || null,
       videoUrl: c.videoUrl || null,
+      quickVideoUrl: (c as any).quickVideoUrl || null,
       registeredAt: c.registeredAt.toISOString(),
       broker: c.broker,
       visaSelected: c.visaSelected,
@@ -712,6 +713,29 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     // Strip visaDate from the payload to prevent Prisma Client validation error on stale client builds
     delete body.visaDate;
+
+    // Process base64 file uploads if any are passed
+    const docFields = [
+      { key: 'passportImageUrl', dir: 'passports' },
+      { key: 'facePhotoUrl', dir: 'faces' },
+      { key: 'fullBodyPhotoUrl', dir: 'fullbody' },
+      { key: 'cocDocumentUrl', dir: 'coc' },
+      { key: 'medicalDocumentUrl', dir: 'medical' },
+      { key: 'candidateIdImageUrl', dir: 'candidate-id' },
+      { key: 'relativeIdImageUrl', dir: 'relative-id' },
+      { key: 'labourIdUrl', dir: 'labour-id' },
+      { key: 'quickVideoUrl', dir: 'videos' }
+    ];
+
+    for (const field of docFields) {
+      if (body[field.key] && body[field.key].startsWith('data:')) {
+        try {
+          body[field.key] = await uploadToLocal(body[field.key], field.dir);
+        } catch (uploadErr) {
+          console.error(`Failed to upload ${field.key} in PATCH:`, uploadErr);
+        }
+      }
+    }
 
     const updated = await prisma.candidate.update({
       where: { id },

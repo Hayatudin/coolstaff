@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
-
-type Role = 'user' | 'admin' | 'super_admin' | 'agency';
+import { ROLE_CONFIG, type Role } from '@/lib/role-config';
 
 interface UserRow {
   id: string;
@@ -21,19 +20,18 @@ interface UserRow {
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'user',        label: 'User'        },
-  { value: 'admin',       label: 'Admin'       },
   { value: 'super_admin', label: 'Super Admin' },
+  { value: 'registrar',   label: 'Registrar'   },
+  { value: 'processor',   label: 'Processor'   },
+  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'accountant',  label: 'Accountant'  },
   { value: 'agency',      label: 'Agency'      },
 ];
 
 const roleBadge = (role: Role) => {
-  const map: Record<Role, string> = {
-    super_admin: 'bg-amber-100 text-amber-700 border-amber-200',
-    admin:       'bg-indigo-100 text-indigo-700 border-indigo-200',
-    agency:      'bg-cyan-100 text-cyan-700 border-cyan-200',
-    user:        'bg-gray-100 text-gray-500 border-gray-200',
-  };
-  return map[role] ?? map.user;
+  const config = ROLE_CONFIG[role];
+  if (!config) return 'bg-gray-100 text-gray-500 border-gray-200';
+  return `${config.badgeBg} ${config.badgeText} ${config.badgeBorder}`;
 };
 
 // ── Create User Modal ─────────────────────────────────────────────────────────
@@ -41,7 +39,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [name, setName]       = useState('');
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole]       = useState<Role>('admin');
+  const [role, setRole]       = useState<Role>('processor');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 

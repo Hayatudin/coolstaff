@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2 } from 'lucide-react';
 
 interface QuickReg {
@@ -38,6 +39,9 @@ export default function QuickRegisteredPage() {
   const [registrations, setRegistrations] = useState<QuickReg[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role ?? 'user';
+  const canVerify = ['super_admin', 'processor'].includes(userRole);
 
   // Verify modal state
   const [verifyTarget, setVerifyTarget] = useState<QuickReg | null>(null);
@@ -280,7 +284,7 @@ export default function QuickRegisteredPage() {
                           >
                             <Eye size={16} />
                           </button>
-                          {r.verificationStatus !== 'promoted' && (
+                          {r.verificationStatus !== 'promoted' && canVerify && (
                             <button
                               onClick={() => openVerifyModal(r)}
                               className="p-2 rounded-lg hover:bg-emerald-100 text-text-tertiary hover:text-emerald-700 transition-colors"

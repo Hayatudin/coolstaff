@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from '@/lib/auth-client';
 import { LogOut, LayoutDashboard, User, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 const BRAND = '#2A276C';
 
@@ -58,7 +59,7 @@ export default function HomePage() {
   const router = useRouter();
 
   const role = (session?.user as any)?.role ?? 'user';
-  const canAccessDashboard = ['super_admin', 'admin', 'agency'].includes(role);
+  const canAccessDashboard = DASHBOARD_ROLES.includes(role);
 
   useEffect(() => {
     if (!isPending && session && canAccessDashboard) {

@@ -179,8 +179,14 @@ export default function QuickRegistrationPage() {
   };
 
   const handleSave = async () => {
-    if (!passportData.passportNumber && !passportData.surname) {
-      setError('Please scan a passport or fill in at least the Passport Number and Surname.');
+    if (!passportData.passportNumber || !passportData.surname) {
+      setError('Please scan a passport or fill in the Passport Number and Surname.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
+      setError('All document uploads (COC, Labour ID, Candidate ID, Relative ID, and Video) are required to register.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSession, signOut } from '@/lib/auth-client';
+import { ROUTE_ACCESS, SIDEBAR_BADGE_COLORS, ROLE_CONFIG, type Role } from '@/lib/role-config';
 import {
   LayoutDashboard,
   UserPlus,
@@ -21,8 +22,8 @@ import {
   X,
 } from 'lucide-react';
 
-// Base nav items shown to all dashboard roles
-const baseNavItems = [
+// All possible nav items with their route paths
+const allNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Candidates', href: '/candidates', icon: Users },
   { label: 'Quick Registration', href: '/quick-registration', icon: ClipboardList },
@@ -36,14 +37,8 @@ const baseNavItems = [
   { label: 'Brokers', href: '/brokers', icon: Users },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Backup CVs', href: '/backup', icon: FolderOpen },
+  { label: 'Users', href: '/users', icon: ShieldCheck },
 ];
-
-// Extra nav item visible only to super_admin
-const superAdminNavItem = {
-  label: 'Users',
-  href: '/users',
-  icon: ShieldCheck,
-};
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -57,12 +52,14 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
-  const role = (session?.user as any)?.role ?? 'user';
-  const isSuperAdmin = role === 'super_admin';
+  const role = ((session?.user as any)?.role ?? 'user') as string;
 
-  const navItems = isSuperAdmin
-    ? [...baseNavItems, superAdminNavItem]
-    : baseNavItems;
+  // Filter nav items based on role
+  const navItems = allNavItems.filter(item => {
+    const allowedRoles = ROUTE_ACCESS[item.href];
+    if (!allowedRoles) return false;
+    return allowedRoles.includes(role as Role);
+  });
 
   const handleLogout = async () => {
     await signOut();
@@ -74,6 +71,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     if (onNavigate) onNavigate();
   };
 
+  // Get sidebar badge color for role
+  const badgeColor = SIDEBAR_BADGE_COLORS[role] || SIDEBAR_BADGE_COLORS.user;
+
+  // Get role label for display
+  const roleConfig = ROLE_CONFIG[role as Role];
+  const roleLabel = roleConfig?.label || role.replace('_', ' ');
+
+  // Role badge color in the bottom user info section
+  const isStaffRole = role !== 'user' && role !== 'agency';
+
   return (
     <aside
       className={cn(
@@ -82,18 +89,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       )}
     >
       {/* Logo + Mobile close */}
-      <div className={cn('flex items-center pt-7 pb-2 transition-all duration-300', isCollapsed && !isMobile ? 'justify-center px-0' : 'gap-3 px-6')}>
-        <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex shrink-0 items-center justify-center border border-white/10">
-          <span className="text-white font-bold text-lg">C</span>
+      <div className={cn('flex items-center pt-6 pb-3 transition-all duration-300', isCollapsed && !isMobile ? 'justify-center px-2' : 'gap-3 px-6')}>
+        <div className={cn("transition-all duration-300 flex items-center shrink-0 overflow-hidden", isCollapsed && !isMobile ? 'w-10 h-10 justify-center' : 'h-14 w-full justify-start')}>
+          <img 
+            src="/coolstaff-logo.png" 
+            alt="COOLSTAFF LOGO" 
+            className="h-full object-contain filter brightness-0 invert" 
+          />
         </div>
-        {(!isCollapsed || isMobile) && (
-          <div className="overflow-hidden whitespace-nowrap transition-all duration-300 flex-1">
-            <h1 className="text-white font-bold text-xl tracking-wide">COOLSTAFF</h1>
-            <p className="text-white/40 text-[10px] tracking-[0.2em] uppercase">Employment Agency</p>
-          </div>
-        )}
         {isMobile && (
-          <button onClick={onNavigate} className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+          <button onClick={onNavigate} className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0">
             <X size={20} />
           </button>
         )}
@@ -104,13 +109,10 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
         <div className="px-6 pb-3">
           <span className={cn(
             'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider',
-            role === 'super_admin' ? 'bg-amber-400/20 text-amber-300' :
-              role === 'admin' ? 'bg-indigo-400/20 text-indigo-300' :
-                role === 'agency' ? 'bg-cyan-400/20 text-cyan-300' :
-                  'bg-white/10 text-white/40'
+            badgeColor
           )}>
             <ShieldCheck size={10} />
-            {role.replace('_', ' ')}
+            {roleLabel}
           </span>
         </div>
       )}
@@ -157,9 +159,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
               <p className="text-white/90 text-sm font-bold truncate leading-none">{session.user.name}</p>
               <span className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter",
-                role.includes('admin') ? "bg-amber-500/20 text-amber-500 border border-amber-500/30" : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                isStaffRole ? "bg-amber-500/20 text-amber-500 border border-amber-500/30" : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
               )}>
-                {role.replace('_', ' ')}
+                {roleLabel}
               </span>
             </div>
             <p className="text-white/30 text-[10px] truncate font-medium">{session.user.email}</p>

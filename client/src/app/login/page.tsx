@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 import { signIn, signUp } from '@/lib/auth-client';
+import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ function LoginForm() {
         const role = user?.role;
         console.log("Sign in successful. User role:", role);
         
-        if (role === 'admin' || role === 'super_admin' || role === 'superadmin' || role === 'agency') {
+        if (DASHBOARD_ROLES.includes(role)) {
           router.push('/dashboard');
         } else {
           router.push('/');

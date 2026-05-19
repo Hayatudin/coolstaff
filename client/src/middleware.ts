@@ -1,27 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
+import { ROUTE_ACCESS, DASHBOARD_ROLES, type Role } from '@/lib/role-config';
 
-// Roles that are allowed to access the dashboard
-// const DASHBOARD_ROLES = ['super_admin', 'admin', 'agency'];
-
-// Dashboard route prefixes to protect
-const PROTECTED_PATHS = [
-  '/dashboard',
-  '/candidates',
-  '/requested',
-
-  '/fit-candidates',
-  '/brokers',
-  '/registration',
-  '/cv-generator',
-  '/generated-cvs',
-  '/backup',
-  '/settings',
-  '/users',
-];
-
-// Super-admin only paths
-const SUPER_ADMIN_ONLY = ['/users'];
+// All protected route prefixes (derived from role config)
+const PROTECTED_PATHS = Object.keys(ROUTE_ACCESS);
 
 export async function middleware(request: NextRequest) {
   // Temporary bypass for all authentication
@@ -60,16 +42,21 @@ export async function middleware(request: NextRequest) {
     }
 
     const role: string = session.user.role ?? 'user';
-    const isSuperAdminOnly = SUPER_ADMIN_ONLY.some((p) => pathname.startsWith(p));
 
-    // 1. Block 'user' role from ANY protected path
-    if (role === 'user') {
+    // Block non-dashboard roles from ANY protected path
+    if (!DASHBOARD_ROLES.includes(role as Role)) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
-    // 2. Block non-super-admins from super-admin-only paths
-    if (isSuperAdminOnly && role !== 'super_admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+    // Check route-level access using the ROUTE_ACCESS config
+    for (const routePath of PROTECTED_PATHS) {
+      if (pathname.startsWith(routePath)) {
+        const allowedRoles = ROUTE_ACCESS[routePath];
+        if (allowedRoles && !allowedRoles.includes(role as Role)) {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+        break;
+      }
     }
   } catch (err) {
     console.error('Middleware session check failed:', err);
@@ -84,7 +71,6 @@ export const config = {
     '/dashboard/:path*',
     '/candidates/:path*',
     '/requested/:path*',
-
     '/fit-candidates/:path*',
     '/brokers/:path*',
     '/registration/:path*',
@@ -93,5 +79,8 @@ export const config = {
     '/backup/:path*',
     '/settings/:path*',
     '/users/:path*',
+    '/quick-registration/:path*',
+    '/quick-registered/:path*',
+    '/invoice/:path*',
   ],
 };

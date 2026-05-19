@@ -8,7 +8,11 @@ export async function ensureDatabaseSchema() {
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
     { name: 'visaDate', type: 'DATETIME(3) NULL' },
     { name: 'salary', type: "VARCHAR(191) NULL DEFAULT '1000SR'" },
-    { name: 'videoUrl', type: 'VARCHAR(191) NULL' }
+    { name: 'quickVideoUrl', type: 'LONGTEXT NULL' },
+    { name: 'cocDocumentUrl', type: 'LONGTEXT NULL' },
+    { name: 'labourIdUrl', type: 'LONGTEXT NULL' },
+    { name: 'candidateIdImageUrl', type: 'LONGTEXT NULL' },
+    { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' }
   ];
 
   for (const col of candidateColumns) {
