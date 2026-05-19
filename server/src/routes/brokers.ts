@@ -133,21 +133,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // 1. Resolve and verify session
     let isSuperAdmin = false;
     try {
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-      
-      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
-        method: req.method,
-        headers: webHeaders,
-      });
-
       const session = await auth.api.getSession({
-        headers: webHeaders,
-        request: request
-      } as any);
+        headers: req.headers as any,
+      });
 
       if (session?.user?.role === 'super_admin') {
         isSuperAdmin = true;
