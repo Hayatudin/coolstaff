@@ -25,34 +25,53 @@ function formatDate(raw: string): string {
   return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function preprocessOcrLine(raw: string): string {
+  // 1. Convert to uppercase and replace common filler misread symbols with '<'
+  // Replacing with '<' instead of deleting preserves character positions and layout alignment!
+  let cleaned = raw.toUpperCase().replace(/[^A-Z0-9<]/g, '<');
+  
+  // 2. A run of 3 or more consecutive characters from [KLCX<] is guaranteed to be fillers (no name has LLL or KKK).
+  // Replace these noisy runs with clean '<' characters of the exact same length.
+  cleaned = cleaned.replace(/[KLCX<]{3,}/g, match => '<'.repeat(match.length));
+  
+  return cleaned;
+}
+
 function normalizeLine(raw: string): string {
-  let cleaned = raw.toUpperCase().replace(/[^A-Z0-9<]/g, '');
+  let cleaned = preprocessOcrLine(raw);
+  // Ensure we preserve the double chevron separator '<<' if it was partially corrupted
   cleaned = cleaned.replace(/<+[A-Z]?<+/g, '<<');
   return cleaned.padEnd(44, '<').substring(0, 44);
 }
 
 function mrzScore(raw: string): number {
-  const cleaned = raw.replace(/[^A-Z0-9<]/gi, '').toUpperCase();
+  const preprocessed = preprocessOcrLine(raw);
   let score = 0;
-  if (cleaned.length >= 40 && cleaned.length <= 48) score += 30;
-  else if (cleaned.length >= 35 && cleaned.length <= 52) score += 10;
+  if (preprocessed.length >= 40 && preprocessed.length <= 48) score += 30;
+  else if (preprocessed.length >= 35 && preprocessed.length <= 52) score += 10;
   else return 0;
-  score += Math.min((cleaned.match(/</g) || []).length * 3, 30);
-  score += Math.min((cleaned.match(/\d/g) || []).length * 2, 20);
+  score += Math.min((preprocessed.match(/</g) || []).length * 3, 30);
+  score += Math.min((preprocessed.match(/\d/g) || []).length * 2, 20);
   if (/REPUBLIC|PASSPORT|FEDERAL/i.test(raw)) score -= 50;
   return score;
 }
 
 function findMrzLines(text: string): [string, string] | null {
   const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
-  const scored = lines.map((line, index) => ({ line, index, score: mrzScore(line), cleaned: line.replace(/[^A-Z0-9<]/gi, '').toUpperCase() })).filter(s => s.score > 0);
+  const scored = lines.map((line, index) => ({ 
+    line, 
+    index, 
+    score: mrzScore(line), 
+    cleaned: preprocessOcrLine(line) 
+  })).filter(s => s.score > 0);
+  
   for (const l1 of scored.sort((a, b) => b.score - a.score)) {
     if (!l1.cleaned.startsWith('P')) continue;
     for (const l2 of scored) {
       if (l2.index <= l1.index) continue;
       if ((l2.cleaned.match(/\d/g) || []).length >= 6) {
-        const line1 = normalizeLine(l1.cleaned);
-        const line2 = normalizeLine(l2.cleaned);
+        const line1 = normalizeLine(l1.line);
+        const line2 = normalizeLine(l2.line);
         if (line1.length === 44 && line2.length === 44) return [line1, line2];
       }
     }
