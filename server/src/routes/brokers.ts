@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { auth } from '../lib/auth';
 
 const router = Router();
 
@@ -120,6 +121,102 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching broker candidates:', error);
     res.status(500).json({ error: 'Failed to fetch broker candidates' });
+  }
+});
+
+// DELETE /api/brokers/:id
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reassignBrokerId } = req.body;
+
+    // 1. Resolve and verify session
+    let isSuperAdmin = false;
+    try {
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+      
+      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
+        method: req.method,
+        headers: webHeaders,
+      });
+
+      const session = await auth.api.getSession({
+        headers: webHeaders,
+        request: request
+      } as any);
+
+      if (session?.user?.role === 'super_admin') {
+        isSuperAdmin = true;
+      }
+    } catch (sessionError) {
+      console.error('Session verification failed in delete broker:', sessionError);
+    }
+
+    if (!isSuperAdmin) {
+      return res.status(403).json({ error: 'Access denied: Only Super Admin can delete brokers' });
+    }
+
+    // 2. Check if broker exists
+    const broker = await prisma.broker.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { candidates: true, quickRegistrations: true }
+        }
+      }
+    });
+
+    if (!broker) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
+
+    // 3. Handle reassign/merge or disconnect
+    if (reassignBrokerId && reassignBrokerId !== 'none') {
+      // Reassign to another broker
+      const targetBroker = await prisma.broker.findUnique({
+        where: { id: reassignBrokerId }
+      });
+      if (!targetBroker) {
+        return res.status(400).json({ error: 'Target broker for reassignment does not exist' });
+      }
+
+      // Reassign candidates
+      await prisma.candidate.updateMany({
+        where: { brokerId: id },
+        data: { brokerId: reassignBrokerId }
+      });
+
+      // Reassign quick registrations
+      await prisma.quickRegistration.updateMany({
+        where: { brokerId: id },
+        data: { brokerId: reassignBrokerId }
+      });
+    } else {
+      // Disconnect - set brokerId to null
+      await prisma.candidate.updateMany({
+        where: { brokerId: id },
+        data: { brokerId: null }
+      });
+
+      await prisma.quickRegistration.updateMany({
+        where: { brokerId: id },
+        data: { brokerId: null }
+      });
+    }
+
+    // 4. Finally delete the broker
+    await prisma.broker.delete({
+      where: { id }
+    });
+
+    res.json({ success: true, message: 'Broker deleted and candidates reassigned/disconnected successfully' });
+  } catch (error: any) {
+    console.error('Failed to delete broker:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete broker' });
   }
 });
 
