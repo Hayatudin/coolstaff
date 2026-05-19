@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import { PassportData } from '@/types';
 
 interface PassportDataFieldsProps {
@@ -46,14 +47,27 @@ export default function PassportDataFields({
             className="animate-fade-in-up"
             style={{ animationDelay: `${index * 80}ms` }}
           >
-            <Input
-              label={field.label}
-              type={field.type || 'text'}
-              value={data[field.key]}
-              onChange={(e) => onChange(field.key, e.target.value)}
-              animating={animatingFields.has(field.key)}
-              readOnly={animatingFields.has(field.key)}
-            />
+            {field.key === 'gender' ? (
+              <Select
+                label={field.label}
+                options={[
+                  { value: 'Male', label: 'Male' },
+                  { value: 'Female', label: 'Female' },
+                ]}
+                value={data.gender || ''}
+                onChange={(val) => onChange('gender', val)}
+                disabled={animatingFields.has('gender')}
+              />
+            ) : (
+              <Input
+                label={field.label}
+                type={field.type || 'text'}
+                value={data[field.key]}
+                onChange={(e) => onChange(field.key, e.target.value)}
+                animating={animatingFields.has(field.key)}
+                readOnly={animatingFields.has(field.key)}
+              />
+            )}
           </div>
         ))}
       </div>
