@@ -172,17 +172,17 @@ export default function BrokerCandidatesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-border/50 text-[10px] uppercase tracking-[0.2em] text-text-tertiary font-black">
-                <th className="px-8 py-6">Candidate Details</th>
-                <th className="px-8 py-6">Passport Number</th>
-                <th className="px-8 py-6">Status</th>
-                <th className="px-8 py-6">Registered Date</th>
-                <th className="px-8 py-6 text-right pr-12">Actions</th>
+                <th className="px-3 xl:px-8 py-3.5 xl:py-6">Candidate Details</th>
+                <th className="px-3 xl:px-8 py-3.5 xl:py-6">Passport Number</th>
+                <th className="px-3 xl:px-8 py-3.5 xl:py-6">Status</th>
+                <th className="px-3 xl:px-8 py-3.5 xl:py-6 hidden lg:table-cell">Registered Date</th>
+                <th className="px-3 xl:px-8 py-3.5 xl:py-6 text-right pr-4 xl:pr-12">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-20 text-center">
+                  <td colSpan={5} className="px-3 xl:px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-4">
                       <Loader2 size={40} className="text-primary animate-spin" />
                       <p className="text-text-tertiary font-bold uppercase tracking-widest text-[10px]">Syncing Portfolio...</p>
@@ -200,9 +200,9 @@ export default function BrokerCandidatesPage() {
                       }
                     }}
                   >
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-primary font-black text-sm border border-border group-hover:border-primary/30 group-hover:scale-105 transition-all duration-300 overflow-hidden">
+                    <td className="px-3 xl:px-8 py-3.5 xl:py-5">
+                      <div className="flex items-center gap-2 xl:gap-4">
+                        <div className="w-8 h-8 xl:w-12 xl:h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-primary font-black text-xs xl:text-sm border border-border group-hover:border-primary/30 group-hover:scale-105 transition-all duration-300 overflow-hidden shrink-0">
                           {candidate.facePhotoUrl ? (
                             <img src={getFileUrl(candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -210,28 +210,28 @@ export default function BrokerCandidatesPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-text-primary text-base group-hover:text-primary transition-colors">{candidate.givenNames} {candidate.surname}</p>
+                          <p className="font-bold text-text-primary text-xs xl:text-base group-hover:text-primary transition-colors">{candidate.givenNames} {candidate.surname}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Briefcase size={10} className="text-primary/60" />
-                            <p className="text-[10px] text-text-tertiary font-black uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
+                            <p className="text-[9px] xl:text-[10px] text-text-tertiary font-black uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-3 xl:px-8 py-3.5 xl:py-5">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-mono font-black text-text-secondary tracking-tight">{candidate.passportNumber}</span>
-                        <span className="text-[9px] font-black text-text-tertiary uppercase tracking-widest">Primary Document</span>
+                        <span className="font-mono font-black text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
+                        <span className="text-[8px] xl:text-[9px] font-black text-text-tertiary uppercase tracking-widest hidden xl:block">Primary Document</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5">
-                      <Badge variant={candidate.isRequested ? 'success' : 'warning'} className="rounded-lg px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-sm">
+                    <td className="px-3 xl:px-8 py-3.5 xl:py-5">
+                      <Badge variant={candidate.isRequested ? 'success' : 'warning'} className="rounded-lg px-2 xl:px-3 py-0.5 xl:py-1 text-[8px] xl:text-[9px] font-black uppercase tracking-widest shadow-sm">
                         {candidate.isRequested ? '✓ Requested' : '○ Available'}
                       </Badge>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-3 xl:px-8 py-3.5 xl:py-5 hidden lg:table-cell">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-bold text-text-secondary">
+                        <span className="text-xs xl:text-sm font-bold text-text-secondary">
                           {new Date(candidate.registeredAt).toLocaleDateString(undefined, { 
                             year: 'numeric', 
                             month: 'short', 
@@ -241,14 +241,14 @@ export default function BrokerCandidatesPage() {
                         <span className="text-[9px] font-black text-text-tertiary uppercase tracking-widest">Entry Date</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-right pr-12">
+                    <td className="px-3 xl:px-8 py-3.5 xl:py-5 text-right pr-4 xl:pr-12">
                       <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
                         <button 
                           onClick={(e) => { e.stopPropagation(); router.push(`/candidates/${candidate.id}`); }}
-                          className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all "
+                          className="p-1.5 xl:p-2.5 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all "
                           title="View Details"
                         >
-                          <ChevronRight size={16} />
+                          <ChevronRight size={14} />
                         </button>
                       </div>
                     </td>
@@ -256,7 +256,7 @@ export default function BrokerCandidatesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-8 py-32 text-center">
+                  <td colSpan={5} className="px-3 xl:px-8 py-32 text-center">
                     <div className="max-w-xs mx-auto">
                       <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-dashed border-border">
                         <Search size={32} className="text-text-tertiary opacity-20" />

@@ -62,45 +62,45 @@ export default function FitCandidatesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-6 py-4 font-semibold">Shelf ID</th>
-                <th className="px-6 py-4 font-semibold">Candidate</th>
-                <th className="px-6 py-4 font-semibold">Passport No.</th>
-                <th className="px-6 py-4 font-semibold">Medical</th>
-                <th className="px-6 py-4 font-semibold">Generated CVs</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold">Shelf ID</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold">Passport No.</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold">Medical</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden xl:table-cell">Generated CVs</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
-                <tr><td colSpan={6} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading...</p></div></td></tr>
+                <tr><td colSpan={6} className="px-3 xl:px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading...</p></div></td></tr>
               ) : filtered.length > 0 ? (
                 filtered.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
+                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
+                      <div className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                          <span className="text-emerald-600 font-bold text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
+                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-2 xl:gap-3">
+                        <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                          <span className="text-emerald-600 font-bold text-xs xl:text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="font-semibold text-text-primary">{c.passportData.givenNames} {c.passportData.surname}</p>
-                          <p className="text-xs text-text-tertiary">{c.personalInfo.email}</p>
+                          <p className="font-semibold text-text-primary text-xs xl:text-sm">{c.passportData.givenNames} {c.passportData.surname}</p>
+                          <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">{c.personalInfo.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-medium text-text-primary">{c.passportData.passportNumber}</p>
+                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
+                      <p className="text-xs xl:text-sm font-medium text-text-primary">{c.passportData.passportNumber}</p>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant="success">Fit</Badge>
+                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
+                      <Badge variant="success" className="text-[10px] xl:text-xs px-2 py-0.5 xl:py-1">Fit</Badge>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden xl:table-cell">
                       <div className="flex gap-2 flex-wrap max-w-[200px]">
                         {c.generatedCVs && c.generatedCVs.length > 0 ? (
                           c.generatedCVs.map((tmpl, idx) => (
-                            <span key={idx} className="px-2 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                            <span key={idx} className="px-2 py-0.5 text-[9px] xl:text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
                               {tmpl.replace('tmpl-', '').toUpperCase()}
                             </span>
                           ))
@@ -109,10 +109,10 @@ export default function FitCandidatesPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-right text-xs xl:text-sm font-medium">
                       <div className="relative inline-block" data-action-menu>
-                        <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-primary-50">
-                          <MoreVertical size={18} />
+                        <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-primary-50">
+                          <MoreVertical size={16} />
                         </button>
                         {openMenuId === c.id && (
                           <div className="absolute right-0 top-full mt-1 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
@@ -126,7 +126,7 @@ export default function FitCandidatesPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-text-tertiary">No fit candidates found. Mark candidates as "Fit" from the Candidates page.</td></tr>
+                <tr><td colSpan={6} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No fit candidates found. Mark candidates as &quot;Fit&quot; from the Candidates page.</td></tr>
               )}
             </tbody>
           </table>

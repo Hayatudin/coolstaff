@@ -267,14 +267,14 @@ export default function InvoicePage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-6 py-4 font-semibold">Delivered</th>
-                <th className="px-6 py-4 font-semibold">Candidate</th>
-                <th className="px-6 py-4 font-semibold">Passport No.</th>
-                <th className="px-6 py-4 font-semibold">Visa Date</th>
-                <th className="px-6 py-4 font-semibold text-center">LMIS QR Code</th>
-                <th className="px-6 py-4 font-semibold text-center">Insurance</th>
-                <th className="px-6 py-4 font-semibold text-center">Ticket</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold">Delivered</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold">Candidate</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold">Passport No.</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold hidden xl:table-cell">Visa Date</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold text-center">LMIS QR Code</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold text-center">Insurance</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold text-center">Ticket</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -284,48 +284,48 @@ export default function InvoicePage() {
                 filtered.map(inv => (
                   <tr key={inv.id} className="hover:bg-gray-50/50 transition-colors">
                     {/* Delivery Status Selector */}
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap">
                       <button
                         onClick={() => toggleDelivered(inv.id, inv.isDelivered)}
                         disabled={actionLoading === inv.id}
                         className="p-1 rounded-full hover:bg-gray-100 transition-colors relative cursor-pointer group"
                       >
                         {actionLoading === inv.id ? (
-                          <Loader2 size={20} className="text-primary animate-spin" />
+                          <Loader2 size={18} className="text-primary animate-spin" />
                         ) : inv.isDelivered ? (
-                          <CheckCircle2 size={20} className="text-green-600 fill-green-50 group-hover:scale-110 transition-transform" />
+                          <CheckCircle2 size={18} className="text-green-600 fill-green-50 group-hover:scale-110 transition-transform" />
                         ) : (
-                          <Circle size={20} className="text-text-tertiary group-hover:text-primary group-hover:scale-110 transition-all" />
+                          <Circle size={18} className="text-text-tertiary group-hover:text-primary group-hover:scale-110 transition-all" />
                         )}
                       </button>
                     </td>
 
                     {/* Candidate Details */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-                          <span className="text-primary font-bold text-sm">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-2 xl:gap-3">
+                        <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+                          <span className="text-primary font-bold text-xs xl:text-sm">
                             {inv.candidate.givenNames.charAt(0)}
                             {inv.candidate.surname.charAt(0)}
                           </span>
                         </div>
                         <div>
-                          <p className="font-semibold text-text-primary">
+                          <p className="font-semibold text-text-primary text-xs xl:text-sm">
                             {inv.candidate.givenNames} {inv.candidate.surname}
                           </p>
-                          <p className="text-xs text-text-tertiary">{inv.candidate.email}</p>
+                          <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">{inv.candidate.email}</p>
                         </div>
                       </div>
                     </td>
 
                     {/* Passport Number */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-medium text-text-primary">{inv.candidate.passportNumber}</p>
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap">
+                      <p className="text-xs xl:text-sm font-medium text-text-primary">{inv.candidate.passportNumber}</p>
                     </td>
 
                     {/* Visa Selected Date */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-text-secondary font-medium">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap hidden xl:table-cell">
+                      <p className="text-xs xl:text-sm text-text-secondary font-medium">
                         {inv.candidate.visaDate
                           ? new Date(inv.candidate.visaDate).toLocaleDateString()
                           : new Date(inv.candidate.registeredAt).toLocaleDateString()}
@@ -333,52 +333,52 @@ export default function InvoicePage() {
                     </td>
 
                     {/* LMIS File Preview */}
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap text-center">
                       <button
                         onClick={() => setViewDoc(getFileUrl(inv.lmisQrCodeUrl))}
-                        className="text-xs text-primary hover:underline font-semibold flex items-center justify-center gap-1 mx-auto"
+                        className="text-[10px] xl:text-xs text-primary hover:underline font-semibold flex items-center justify-center gap-1 mx-auto"
                       >
-                        <Eye size={14} /> View
+                        <Eye size={13} /> View
                       </button>
                     </td>
 
                     {/* Insurance File Preview */}
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap text-center">
                       <button
                         onClick={() => setViewDoc(getFileUrl(inv.insuranceUrl))}
-                        className="text-xs text-primary hover:underline font-semibold flex items-center justify-center gap-1 mx-auto"
+                        className="text-[10px] xl:text-xs text-primary hover:underline font-semibold flex items-center justify-center gap-1 mx-auto"
                       >
-                        <Eye size={14} /> View
+                        <Eye size={13} /> View
                       </button>
                     </td>
 
                     {/* Ticket File Preview */}
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap text-center">
                       <button
                         onClick={() => setViewDoc(getFileUrl(inv.ticketUrl))}
-                        className="text-xs text-primary hover:underline font-semibold flex items-center justify-center gap-1 mx-auto"
+                        className="text-[10px] xl:text-xs text-primary hover:underline font-semibold flex items-center justify-center gap-1 mx-auto"
                       >
-                        <Eye size={14} /> View
+                        <Eye size={13} /> View
                       </button>
                     </td>
 
                     {/* Action Column */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-2.5 xl:px-5 py-3.5 whitespace-nowrap text-right text-xs xl:text-sm font-medium">
+                      <div className="flex items-center justify-end gap-1 xl:gap-2">
                         <button
                           onClick={() => setEditingInvoice(inv)}
-                          className="text-primary hover:text-primary-700 transition-colors p-2 rounded-lg hover:bg-primary-50 inline-flex items-center gap-1"
+                          className="text-primary hover:text-primary-700 transition-colors p-1.5 rounded-lg hover:bg-primary-50 inline-flex items-center gap-1"
                         >
-                          <Edit3 size={15} />
-                          <span>Edit</span>
+                          <Edit3 size={14} />
+                          <span className="hidden xl:inline">Edit</span>
                         </button>
                         <button
                           onClick={() => handleDeleteInvoice(inv.id)}
                           disabled={actionLoading === inv.id}
-                          className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-lg hover:bg-red-50 inline-flex items-center gap-1"
+                          className="text-red-500 hover:text-red-700 transition-colors p-1.5 rounded-lg hover:bg-red-50 inline-flex items-center gap-1"
                           title="Delete Invoice"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -386,7 +386,7 @@ export default function InvoicePage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-text-tertiary">
+                  <td colSpan={8} className="px-2.5 xl:px-5 py-10 text-center text-text-tertiary">
                     No candidates found.
                   </td>
                 </tr>

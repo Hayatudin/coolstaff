@@ -231,12 +231,12 @@ export default function UsersPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-[11px] uppercase tracking-widest font-bold text-gray-400">
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Verified</th>
-                <th className="px-6 py-4">Joined</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-3 xl:px-6 py-3.5">User</th>
+                <th className="px-3 xl:px-6 py-3.5">Email</th>
+                <th className="px-3 xl:px-6 py-3.5">Role</th>
+                <th className="px-3 xl:px-6 py-3.5 hidden lg:table-cell">Verified</th>
+                <th className="px-3 xl:px-6 py-3.5 hidden xl:table-cell">Joined</th>
+                <th className="px-3 xl:px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -249,40 +249,40 @@ export default function UsersPage() {
               ) : filtered.map(user => (
                 <tr key={user.id} className="hover:bg-gray-50/60 transition-colors">
                   {/* Avatar + Name */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                        <span className="text-indigo-700 font-bold text-sm">{user.name.charAt(0).toUpperCase()}</span>
+                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
+                    <div className="flex items-center gap-2 xl:gap-3">
+                      <div className="w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                        <span className="text-indigo-700 font-bold text-xs xl:text-sm">{user.name.charAt(0).toUpperCase()}</span>
                       </div>
-                      <span className="font-semibold text-gray-900 text-sm">{user.name}</span>
+                      <span className="font-semibold text-gray-900 text-xs xl:text-sm">{user.name}</span>
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-xs xl:text-sm text-gray-500">{user.email}</td>
 
                   {/* Role badge */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={cn('inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border', roleBadge(user.role))}>
+                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
+                    <span className={cn('inline-flex items-center px-2 py-0.5 xl:px-2.5 rounded-full text-[10px] xl:text-xs font-semibold border', roleBadge(user.role))}>
                       {ROLE_OPTIONS.find(r => r.value === user.role)?.label ?? user.role}
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden lg:table-cell">
                     {user.emailVerified
                       ? <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium"><Check size={13} />Verified</span>
                       : <span className="text-gray-400 text-xs">Unverified</span>}
                   </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-xs xl:text-sm text-gray-400 hidden xl:table-cell">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
 
                   {/* Actions */}
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-right">
                     <div className="relative inline-block" data-menu>
                       <button
                         onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                       >
                         <MoreVertical size={16} />
                       </button>

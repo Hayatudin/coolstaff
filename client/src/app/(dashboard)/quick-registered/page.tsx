@@ -216,19 +216,19 @@ export default function QuickRegisteredPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-border/50 text-[11px] uppercase tracking-widest font-bold text-text-tertiary">
-                <th className="px-4 sm:px-6 py-3 font-semibold">Candidate</th>
-                <th className="px-4 sm:px-6 py-3 font-semibold hidden sm:table-cell">Passport No.</th>
-                <th className="px-4 sm:px-6 py-3 font-semibold hidden md:table-cell">Religion</th>
-                <th className="px-4 sm:px-6 py-3 font-semibold hidden lg:table-cell">Experience</th>
-                <th className="px-4 sm:px-6 py-3 font-semibold hidden sm:table-cell">Status</th>
-                <th className="px-4 sm:px-6 py-3 font-semibold hidden sm:table-cell">Date</th>
-                <th className="px-4 sm:px-6 py-3 font-semibold text-right">Action</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Passport No.</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden md:table-cell">Religion</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden lg:table-cell">Experience</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Status</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Date</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-3 xl:px-6 py-12 text-center">
                     <Loader2 size={28} className="animate-spin text-primary mx-auto mb-2" />
                     <p className="text-text-tertiary text-sm">Loading...</p>
                   </td>
@@ -241,25 +241,25 @@ export default function QuickRegisteredPage() {
                       key={r.id}
                       className="hover:bg-gray-50/70 transition-colors"
                     >
-                      <td className="px-4 sm:px-6 py-4 cursor-pointer" onClick={() => router.push(`/quick-registration/preview/${r.id}`)}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <td className="px-3 xl:px-6 py-3.5 cursor-pointer" onClick={() => router.push(`/quick-registration/preview/${r.id}`)}>
+                        <div className="flex items-center gap-2 xl:gap-3">
+                          <div className="w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <span className="text-primary font-bold text-xs">
                               {r.givenNames?.charAt(0)}{r.surname?.charAt(0)}
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-text-primary text-sm truncate">{r.givenNames} {r.surname}</p>
-                            <p className="text-[11px] text-text-tertiary sm:hidden">{r.passportNumber}</p>
+                            <p className="font-semibold text-text-primary text-xs xl:text-sm truncate">{r.givenNames} {r.surname}</p>
+                            <p className="text-[10px] text-text-tertiary sm:hidden">{r.passportNumber}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
-                        <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-1 rounded">{r.passportNumber}</span>
+                      <td className="px-3 xl:px-6 py-3.5 hidden sm:table-cell">
+                        <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-0.5 rounded">{r.passportNumber}</span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-text-secondary hidden md:table-cell">{r.religion || '—'}</td>
-                      <td className="px-4 sm:px-6 py-4 hidden lg:table-cell">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${
+                      <td className="px-3 xl:px-6 py-3.5 text-xs xl:text-sm text-text-secondary hidden md:table-cell">{r.religion || '—'}</td>
+                      <td className="px-3 xl:px-6 py-3.5 hidden lg:table-cell">
+                        <span className={`text-[10px] xl:text-xs font-semibold px-2 py-0.5 xl:py-1 rounded-lg ${
                           experienceLabel === 'Experienced'
                             ? 'bg-green-50 text-green-700'
                             : experienceLabel === 'New'
@@ -269,45 +269,45 @@ export default function QuickRegisteredPage() {
                           {experienceLabel}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
+                      <td className="px-3 xl:px-6 py-3.5 hidden sm:table-cell">
                         {getStatusBadge(r.verificationStatus || 'pending')}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-xs text-text-tertiary hidden sm:table-cell">
+                      <td className="px-3 xl:px-6 py-3.5 text-[11px] xl:text-xs text-text-tertiary hidden sm:table-cell">
                         {new Date(r.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-3 xl:px-6 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-0.5 xl:gap-1">
                           <button
                             onClick={() => router.push(`/quick-registration/preview/${r.id}`)}
-                            className="p-2 rounded-lg hover:bg-primary/10 text-text-tertiary hover:text-primary transition-colors"
+                            className="p-1 xl:p-2 rounded-lg hover:bg-primary/10 text-text-tertiary hover:text-primary transition-colors"
                             title="View"
                           >
-                            <Eye size={16} />
+                            <Eye size={15} />
                           </button>
                           {r.verificationStatus !== 'promoted' && canVerify && (
                             <button
                               onClick={() => openVerifyModal(r)}
-                              className="p-2 rounded-lg hover:bg-emerald-100 text-text-tertiary hover:text-emerald-700 transition-colors"
+                              className="p-1 xl:p-2 rounded-lg hover:bg-emerald-100 text-text-tertiary hover:text-emerald-700 transition-colors"
                               title="Verify with Musaned CV"
                             >
-                              <ShieldCheck size={16} />
+                              <ShieldCheck size={15} />
                             </button>
                           )}
                           {r.promotedCandidateId && userRole !== 'registrar' && (
                              <button
                                onClick={() => router.push(`/candidates/${r.promotedCandidateId}`)}
-                               className="p-2 rounded-lg hover:bg-blue-100 text-text-tertiary hover:text-blue-700 transition-colors"
+                               className="p-1 xl:p-2 rounded-lg hover:bg-blue-100 text-text-tertiary hover:text-blue-700 transition-colors"
                                title="View Candidate"
                              >
-                               <ArrowRight size={16} />
+                               <ArrowRight size={15} />
                              </button>
                            )}
                           <button
                             onClick={() => handleDelete(r.id, `${r.givenNames} ${r.surname}`)}
-                            className="p-2 rounded-lg hover:bg-red-100 text-text-tertiary hover:text-red-700 transition-colors ml-1"
+                            className="p-1 xl:p-2 rounded-lg hover:bg-red-100 text-text-tertiary hover:text-red-700 transition-colors ml-0.5"
                             title="Delete"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         </div>
                       </td>
@@ -316,7 +316,7 @@ export default function QuickRegisteredPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-3 xl:px-6 py-12 text-center">
                     <ClipboardList size={32} className="mx-auto text-text-tertiary/20 mb-3" />
                     <p className="font-bold text-text-primary text-sm">No registrations yet</p>
                     <p className="text-xs text-text-tertiary mt-1">Quick registrations will appear here</p>
