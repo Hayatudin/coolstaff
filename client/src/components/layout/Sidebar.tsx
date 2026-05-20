@@ -25,14 +25,14 @@ import {
 // All possible nav items with their route paths
 const allNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Candidates', href: '/candidates', icon: Users },
   { label: 'Entry', href: '/quick-registration', icon: ClipboardList },
   { label: 'Records', href: '/quick-registered', icon: Users },
-  { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
-  { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
   { label: 'Registration', href: '/registration', icon: UserPlus },
+  { label: 'Candidates', href: '/candidates', icon: Users },
   { label: 'CV Generator', href: '/cv-generator', icon: FileText },
   { label: 'Generated CVs', href: '/generated-cvs', icon: FolderOpen },
+  { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
+  { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
   { label: 'Invoice', href: '/invoice', icon: FileText },
   { label: 'Brokers', href: '/brokers', icon: Users },
   { label: 'Settings', href: '/settings', icon: Settings },
