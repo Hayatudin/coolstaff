@@ -90,7 +90,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     >
       {/* Logo Section */}
       <div className={cn(
-        "w-full bg-[#9286FF] flex items-center justify-center border-b border-gray-200 transition-all duration-300 relative shrink-0",
+        "w-full bg-[#9286FF] flex items-center justify-center transition-all duration-300 relative shrink-0",
         isCollapsed && !isMobile ? "py-4 px-2" : "py-2 px-6"
       )}>
         <div className={cn(
@@ -102,7 +102,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
             alt="COOLSTAFF LOGO"
             className={cn(
               "object-contain transition-all duration-300",
-              isCollapsed && !isMobile ? "h-16 w-16 rounded-full" : "h-30 w-auto max-w-full"
+              isCollapsed && !isMobile ? "h-16 w-16 rounded-full" : "h-40 w-auto max-w-full"
             )}
           />
         </div>
