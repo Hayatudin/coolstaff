@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import PassportUploader from '@/components/registration/PassportUploader';
 import PassportDataFields from '@/components/registration/PassportDataFields';
 import { PassportData, WorkExperienceEntry } from '@/types';
-import { Save, Loader2, Trash2, Plus, Phone } from 'lucide-react';
+import { Save, Loader2, Trash2, Plus, Phone, Video } from 'lucide-react';
 import { allCountries } from '@/data/countries';
 import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
@@ -56,6 +56,35 @@ export default function QuickRegistrationPage() {
   const [brokersLoading, setBrokersLoading] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-registered video auto-fill
+  const [matchedVideoBadge, setMatchedVideoBadge] = useState<string | null>(null);
+
+  useEffect(() => {
+    const given = (passportData.givenNames || '').trim();
+    const sur = (passportData.surname || '').trim();
+    if (!given && !sur) {
+      setMatchedVideoBadge(null);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?givenNames=${encodeURIComponent(given)}&surname=${encodeURIComponent(sur)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.matchFound && data.videoUrl) {
+            setVideoUrl(data.videoUrl);
+            setMatchedVideoBadge(`🎥 Pre-registered Video Auto-Matched: "${data.matchedName}"`);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to match pre-registered video:', err);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounce);
+  }, [passportData.givenNames, passportData.surname]);
 
   // Fetch brokers on mount
   useEffect(() => {
@@ -521,16 +550,60 @@ export default function QuickRegistrationPage() {
               onClear={() => setRelativeIdImageUrl(null)}
               helperText="Relative ID Image — Max 10MB"
             />
-            <FileUpload
-              label="Candidate Video"
-              accept="video/*"
-              shape="rect"
-              compact
-              preview={videoUrl}
-              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
-              onClear={() => setVideoUrl(null)}
-              helperText="MP4, WebM or MOV — Max 10MB"
-            />
+             <div className="space-y-2">
+               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video</label>
+               {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
+                 <div className="space-y-2">
+                   <div className="relative">
+                     <Input
+                       placeholder="YouTube Video URL"
+                       value={videoUrl}
+                       onChange={e => setVideoUrl(e.target.value)}
+                       className="pr-10"
+                     />
+                     <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                   </div>
+                   {matchedVideoBadge && (
+                     <p className="text-xs font-semibold text-emerald-600 animate-scale-pop">
+                       {matchedVideoBadge}
+                     </p>
+                   )}
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setVideoUrl(null);
+                       setMatchedVideoBadge(null);
+                     }}
+                     className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
+                   >
+                     Clear Link & Upload File Instead
+                   </button>
+                 </div>
+               ) : (
+                 <div className="space-y-2">
+                   <FileUpload
+                     label="Candidate Video"
+                     accept="video/*"
+                     shape="rect"
+                     compact
+                     preview={videoUrl}
+                     onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
+                     onClear={() => setVideoUrl(null)}
+                     helperText="MP4, WebM or MOV — Max 10MB"
+                   />
+                   <div className="text-xs text-text-tertiary flex items-center gap-1.5 mt-1">
+                     <span>Or</span>
+                     <button
+                       type="button"
+                       onClick={() => setVideoUrl('https://youtube.com/watch?v=')}
+                       className="text-primary hover:underline font-semibold"
+                     >
+                       Paste YouTube Video URL instead
+                     </button>
+                   </div>
+                 </div>
+               )}
+             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-border/60">
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Agency</label>

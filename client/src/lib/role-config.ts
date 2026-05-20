@@ -2,7 +2,7 @@
 // Single source of truth for all role definitions and route access in the system.
 
 // All valid roles in the system
-export type Role = 'user' | 'agency' | 'super_admin' | 'registrar' | 'processor' | 'coordinator' | 'accountant';
+export type Role = 'user' | 'agency' | 'super_admin' | 'registrar' | 'processor' | 'coordinator' | 'accountant' | 'video_uploader';
 
 // Roles that can access the internal dashboard (agency is treated like user for now)
 export const DASHBOARD_ROLES: Role[] = [
@@ -11,6 +11,7 @@ export const DASHBOARD_ROLES: Role[] = [
   'processor',
   'coordinator',
   'accountant',
+  'video_uploader',
 ];
 
 // Route → which roles can see/access it
@@ -29,6 +30,7 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/backup':             ['super_admin', 'processor', 'coordinator'],
   '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant'],
   '/users':              ['super_admin'],
+  '/video-uploads':      ['super_admin', 'video_uploader'],
 };
 
 // Helper: check if a role can access a specific route
@@ -52,22 +54,24 @@ export function canAccess(role: string, route: string): boolean {
 
 // Role display configuration for UI
 export const ROLE_CONFIG: Record<Role, { label: string; color: string; badgeBg: string; badgeText: string; badgeBorder: string }> = {
-  super_admin: { label: 'Super Admin',  color: 'amber',   badgeBg: 'bg-amber-100',   badgeText: 'text-amber-700',   badgeBorder: 'border-amber-200' },
-  registrar:   { label: 'Registrar',    color: 'emerald',  badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-700', badgeBorder: 'border-emerald-200' },
-  processor:   { label: 'Processor',    color: 'blue',    badgeBg: 'bg-blue-100',    badgeText: 'text-blue-700',    badgeBorder: 'border-blue-200' },
-  coordinator: { label: 'Coordinator',  color: 'violet',  badgeBg: 'bg-violet-100',  badgeText: 'text-violet-700',  badgeBorder: 'border-violet-200' },
-  accountant:  { label: 'Accountant',   color: 'orange',  badgeBg: 'bg-orange-100',  badgeText: 'text-orange-700',  badgeBorder: 'border-orange-200' },
-  agency:      { label: 'Agency',       color: 'cyan',    badgeBg: 'bg-cyan-100',    badgeText: 'text-cyan-700',    badgeBorder: 'border-cyan-200' },
-  user:        { label: 'User',         color: 'gray',    badgeBg: 'bg-gray-100',    badgeText: 'text-gray-500',    badgeBorder: 'border-gray-200' },
+  super_admin:    { label: 'Super Admin',    color: 'amber',    badgeBg: 'bg-amber-100',   badgeText: 'text-amber-700',   badgeBorder: 'border-amber-200' },
+  registrar:      { label: 'Registrar',      color: 'emerald',  badgeBg: 'bg-emerald-100', badgeText: 'text-emerald-700', badgeBorder: 'border-emerald-200' },
+  processor:      { label: 'Processor',      color: 'blue',     badgeBg: 'bg-blue-100',    badgeText: 'text-blue-700',    badgeBorder: 'border-blue-200' },
+  coordinator:    { label: 'Coordinator',    color: 'violet',   badgeBg: 'bg-violet-100',  badgeText: 'text-violet-700',  badgeBorder: 'border-violet-200' },
+  accountant:     { label: 'Accountant',     color: 'orange',   badgeBg: 'bg-orange-100',  badgeText: 'text-orange-700',  badgeBorder: 'border-orange-200' },
+  agency:         { label: 'Agency',         color: 'cyan',     badgeBg: 'bg-cyan-100',    badgeText: 'text-cyan-700',    badgeBorder: 'border-cyan-200' },
+  video_uploader: { label: 'Video Uploader', color: 'rose',     badgeBg: 'bg-rose-100',    badgeText: 'text-rose-700',    badgeBorder: 'border-rose-200' },
+  user:           { label: 'User',           color: 'gray',     badgeBg: 'bg-gray-100',    badgeText: 'text-gray-500',    badgeBorder: 'border-gray-200' },
 };
 
 // Sidebar badge colors (dark theme for sidebar)
 export const SIDEBAR_BADGE_COLORS: Record<string, string> = {
-  super_admin: 'bg-amber-400/20 text-amber-300',
-  registrar:   'bg-emerald-400/20 text-emerald-300',
-  processor:   'bg-blue-400/20 text-blue-300',
-  coordinator: 'bg-violet-400/20 text-violet-300',
-  accountant:  'bg-orange-400/20 text-orange-300',
-  agency:      'bg-cyan-400/20 text-cyan-300',
-  user:        'bg-white/10 text-white/40',
+  super_admin:    'bg-amber-400/20 text-amber-300',
+  registrar:      'bg-emerald-400/20 text-emerald-300',
+  processor:      'bg-blue-400/20 text-blue-300',
+  coordinator:    'bg-violet-400/20 text-violet-300',
+  accountant:     'bg-orange-400/20 text-orange-300',
+  agency:         'bg-cyan-400/20 text-cyan-300',
+  video_uploader: 'bg-rose-400/20 text-rose-300',
+  user:           'bg-white/10 text-white/40',
 };

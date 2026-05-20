@@ -311,6 +311,30 @@ function RegistrationContent() {
     checkQuickRegistration();
   }, [passportData.passportNumber, checkedPassportNum, quickRegId]);
 
+  // Auto-fill pre-registered video URLs by fuzzy name matching
+  useEffect(() => {
+    const given = (passportData.givenNames || '').trim();
+    const sur = (passportData.surname || '').trim();
+    if (!given && !sur) return;
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?givenNames=${encodeURIComponent(given)}&surname=${encodeURIComponent(sur)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.matchFound && data.videoUrl) {
+            setVideoUrl(data.videoUrl);
+            alert(`🎥 Found pre-registered YouTube video matching candidate name: "${data.matchedName}"! Auto-filling Video URL.`);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to match pre-registered video:', err);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounce);
+  }, [passportData.givenNames, passportData.surname]);
+
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
     if (container) container.scrollTo({ top: 0, behavior: 'smooth' });

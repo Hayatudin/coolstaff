@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Loader2,
   X,
+  Video,
 } from 'lucide-react';
 
 // All possible nav items with their route paths
@@ -35,6 +36,7 @@ const allNavItems = [
   { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
   { label: 'Invoice', href: '/invoice', icon: FileText },
   { label: 'Brokers', href: '/brokers', icon: Users },
+  { label: 'Video Uploads', href: '/video-uploads', icon: Video },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Backup CVs', href: '/backup', icon: FolderOpen },
   { label: 'Users', href: '/users', icon: ShieldCheck },

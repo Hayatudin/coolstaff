@@ -242,3 +242,10 @@ model Invoice {
 
   @@index([candidateId])
 }
+
+model PreRegisteredVideo {
+  id        String   @id @default(cuid())
+  fullName  String   @unique
+  videoUrl  String   @db.Text
+  createdAt DateTime @default(now())
+}
