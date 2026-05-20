@@ -452,7 +452,7 @@ export async function generateUssusNativeDocx(candidate: Candidate, facePhoto: s
           })
         },
         children: [
-          new Paragraph({ text: "USSUS Layout is highly absolute-positioned. For perfect native DOCX generation, a Word template should ideally be used. This code generates the base." })
+          new Paragraph({ text: "USSUS is highly absolute-positioned. For perfect native DOCX generation, a Word template should ideally be used. This code generates the base." })
         ]
       }
     ]

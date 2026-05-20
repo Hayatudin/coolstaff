@@ -20,7 +20,7 @@ import { generateAlShablanNativeDocx, generateUssusNativeDocx } from '@/lib/docx
 import Button from '@/components/ui/Button';
 
 const TEMPLATES: any[] = [
-  { id: 'ussus', name: 'USSUS Layout', category: 'minimal', description: 'USSUS template layout', thumbnail: '/Ussus.png' },
+  { id: 'ussus', name: 'USSUS', category: 'minimal', description: 'USSUS template layout', thumbnail: '/Ussus.png' },
   { id: 'al-shablan', name: 'AL-Shablan', category: 'elegant', description: 'AL-Shablan template layout', thumbnail: '/Al-shablan.png' },
   { id: 'alm', name: 'ALM Agency', category: 'classic', description: 'Standard ALM CV layout', thumbnail: '/header.png' },
   { id: 'ka7', name: 'KA-7 Layout', category: 'professional', description: 'KA-7 template format', thumbnail: '/KA-7.png' },

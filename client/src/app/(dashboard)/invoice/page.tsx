@@ -9,13 +9,13 @@ import { generateInvoicePdf } from '@/lib/invoicePdfGenerator';
 
 const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'all': { name: 'ALL', fullName: '' },
-  'ussus': { name: 'USSUS Layout', fullName: 'USSUS ALENJAZ RECRUITMENT COMPANY' },
+  'ussus': { name: 'USSUS', fullName: 'USSUS ALENJAZ RECRUITMENT COMPANY' },
   'al-shablan': { name: 'AL-Shablan', fullName: 'AL-SHABLAN RECRUITMENT COMPANY' },
-  'alm': { name: 'ALM Agency', fullName: 'ALEM RECRUITMENT AGENCY' },
-  'ka7': { name: 'KA-7 Layout', fullName: 'KAAFAAT ALAALAM RECRUITMENT COMPANY' },
-  'ku2': { name: 'KU-2 Format', fullName: 'KHUZAM  RECRUITMENT COMPANY' },
+  'alm': { name: 'ALAALAM', fullName: 'ALEM RECRUITMENT AGENCY' },
+  'ka7': { name: 'KAAFAAT', fullName: 'KAAFAAT ALAALAM RECRUITMENT COMPANY' },
+  'ku2': { name: 'KHUZAM', fullName: 'KHUZAM  RECRUITMENT COMPANY' },
   'ma': { name: 'MA Standard', fullName: 'NAKHLAH RECRUITMENT COMPANY' },
-  'ra': { name: 'RA Custom', fullName: 'RAYAAT RECRUITMENT COMPANY' },
+  'ra': { name: 'RAYAAT', fullName: 'RAYAAT RECRUITMENT COMPANY' },
   'vision': { name: 'Vision Office', fullName: 'VISION RECRUITMENT OFFICE' }
 };
 
