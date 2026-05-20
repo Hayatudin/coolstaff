@@ -88,23 +88,35 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
         isMobile ? 'w-72' : (isCollapsed ? 'w-20' : 'w-64')
       )}
     >
-      {/* Logo + Mobile close */}
-      {(!isCollapsed || isMobile) && (
-        <div className="flex items-center pt-6 pb-4 px-6 gap-3 justify-between transition-all duration-300">
-          <div className="h-16 w-full flex items-center justify-start shrink-0 overflow-hidden">
-            <img
-              src="/coolstaff-logo.png"
-              alt="COOLSTAFF LOGO"
-              className="h-25 w-auto max-w-full object-contain filter origin-left"
-            />
-          </div>
-          {isMobile && (
-            <button onClick={onNavigate} className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors shrink-0">
-              <X size={20} />
-            </button>
-          )}
+      {/* Logo Section */}
+      <div className={cn(
+        "w-full bg-white flex items-center justify-center border-b border-gray-100 transition-all duration-300 relative shrink-0",
+        isCollapsed && !isMobile ? "py-4 px-2" : "py-5 px-6"
+      )}>
+        <div className={cn(
+          "flex items-center justify-center w-full",
+          isCollapsed && !isMobile ? "h-12" : "h-16"
+        )}>
+          <img
+            src="/coolstaff-logo.png"
+            alt="COOLSTAFF LOGO"
+            className={cn(
+              "object-contain transition-all duration-300",
+              isCollapsed && !isMobile ? "h-12 w-12 rounded-full" : "h-16 w-auto max-w-full"
+            )}
+          />
         </div>
-      )}
+        
+        {/* Mobile close button */}
+        {isMobile && (
+          <button 
+            onClick={onNavigate} 
+            className="absolute right-4 p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+          >
+            <X size={20} />
+          </button>
+        )}
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 mt-4 space-y-1 overflow-y-auto overflow-x-hidden">
