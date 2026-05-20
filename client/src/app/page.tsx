@@ -457,7 +457,7 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-              <a href="https://wa.me/251972928263" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-8 px-6 py-3.5 bg-white text-sm font-bold rounded-full hover:-translate-y-0.5 transition-all" style={{ color: BRAND, boxShadow: '0 12px 24px rgba(0,0,0,0.15)' }}>
+              <a href="https://wa.me/251960178117" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-8 px-6 py-3.5 bg-white text-sm font-bold rounded-full hover:-translate-y-0.5 transition-all" style={{ color: BRAND, boxShadow: '0 12px 24px rgba(0,0,0,0.15)' }}>
                 💬 WhatsApp Us
               </a>
             </div>
@@ -492,7 +492,8 @@ export default function HomePage() {
             <div>
               <h4 className="font-bold text-xs uppercase tracking-wider text-gray-400 mb-5">Connect</h4>
               <ul className="space-y-3">
-                <li><a href="tel:+251972928263" className="text-sm text-gray-500 hover:text-white transition-colors">📞 +251 972 928 263</a></li>
+                <li><a href="tel:+251960178117" className="text-sm text-gray-500 hover:text-white transition-colors">📞 +251 960178117</a></li>
+                <li><a href="tel:+251960786160" className="text-sm text-gray-500 hover:text-white transition-colors">📞 +251 960786160</a></li>
                 <li><a href="mailto:info@coolstaffagency.com" className="text-sm text-gray-500 hover:text-white transition-colors">📧 info@coolstaffagency.com</a></li>
                 <li><span className="text-sm text-gray-500">📍 Girar, Ayer Tena, Addis Ababa, Ethiopia</span></li>
               </ul>
