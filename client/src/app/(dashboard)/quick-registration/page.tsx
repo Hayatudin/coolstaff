@@ -276,16 +276,14 @@ export default function QuickRegistrationPage() {
             passportImage={passportImage}
             ocrProgress={ocrProgress}
           />
-          {passportImage && (
-            <div className="mt-6 border-t border-border pt-6">
-              <PassportDataFields
-                data={passportData}
-                onChange={handlePassportChange}
-                animatingFields={new Set()}
-                isExtracted={processingComplete}
-              />
-            </div>
-          )}
+          <div className="mt-6 border-t border-border pt-6">
+            <PassportDataFields
+              data={passportData}
+              onChange={handlePassportChange}
+              animatingFields={new Set()}
+              isExtracted={processingComplete}
+            />
+          </div>
         </div>
       </div>
 
