@@ -90,8 +90,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     >
       {/* Logo Section */}
       <div className={cn(
-        "w-full bg-[#f3f4f6] flex items-center justify-center border-b border-gray-200 transition-all duration-300 relative shrink-0",
-        isCollapsed && !isMobile ? "py-4 px-2" : "py-6 px-6"
+        "w-full bg-[#9286FF] flex items-center justify-center border-b border-gray-200 transition-all duration-300 relative shrink-0",
+        isCollapsed && !isMobile ? "py-4 px-2" : "py-2 px-6"
       )}>
         <div className={cn(
           "flex items-center justify-center w-full",
@@ -102,15 +102,15 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
             alt="COOLSTAFF LOGO"
             className={cn(
               "object-contain transition-all duration-300",
-              isCollapsed && !isMobile ? "h-12 w-12 rounded-full" : "h-20 w-auto max-w-full"
+              isCollapsed && !isMobile ? "h-16 w-16 rounded-full" : "h-30 w-auto max-w-full"
             )}
           />
         </div>
-        
+
         {/* Mobile close button */}
         {isMobile && (
-          <button 
-            onClick={onNavigate} 
+          <button
+            onClick={onNavigate}
             className="absolute right-4 p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
           >
             <X size={20} />
