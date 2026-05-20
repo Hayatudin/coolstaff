@@ -26,8 +26,8 @@ import {
 const allNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Candidates', href: '/candidates', icon: Users },
-  { label: 'Quick Registration', href: '/quick-registration', icon: ClipboardList },
-  { label: 'Quick Registered', href: '/quick-registered', icon: Users },
+  { label: 'Entry', href: '/quick-registration', icon: ClipboardList },
+  { label: 'Records', href: '/quick-registered', icon: Users },
   { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
   { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
   { label: 'Registration', href: '/registration', icon: UserPlus },
