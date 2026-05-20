@@ -318,7 +318,7 @@ export default function QuickRegistrationPage() {
             </div>
 
             {/* Broker */}
-            <div className="flex flex-col">
+            <div className="flex flex-col relative z-10">
               <Select
                 label="Broker"
                 options={brokers.map(b => ({ value: b.id, label: b.name }))}

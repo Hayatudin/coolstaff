@@ -44,8 +44,8 @@ export default function PassportDataFields({
         {fields.map((field, index) => (
           <div
             key={field.key}
-            className="animate-fade-in-up"
-            style={{ animationDelay: `${index * 80}ms` }}
+            className="animate-fade-in-up relative"
+            style={{ animationDelay: `${index * 80}ms`, zIndex: fields.length - index }}
           >
             {field.key === 'gender' ? (
               <Select
