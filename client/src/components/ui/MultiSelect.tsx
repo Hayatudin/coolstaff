@@ -65,7 +65,7 @@ export default function MultiSelect({
   const selectedLabels = value.map(v => options.find(o => o.value === v)?.label || v);
 
   return (
-    <div className="flex flex-col gap-1.5" ref={ref}>
+    <div className={cn("flex flex-col gap-1.5 relative", isOpen && "z-30")} ref={ref}>
       {label && (
         <label className="text-sm font-medium text-text-secondary">{label}</label>
       )}
