@@ -90,19 +90,19 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     >
       {/* Logo Section */}
       <div className={cn(
-        "w-full bg-white flex items-center justify-center border-b border-gray-100 transition-all duration-300 relative shrink-0",
-        isCollapsed && !isMobile ? "py-4 px-2" : "py-5 px-6"
+        "w-full bg-[#f3f4f6] flex items-center justify-center border-b border-gray-200 transition-all duration-300 relative shrink-0",
+        isCollapsed && !isMobile ? "py-4 px-2" : "py-6 px-6"
       )}>
         <div className={cn(
           "flex items-center justify-center w-full",
-          isCollapsed && !isMobile ? "h-12" : "h-16"
+          isCollapsed && !isMobile ? "h-12" : "h-20"
         )}>
           <img
             src="/coolstaff-logo.png"
             alt="COOLSTAFF LOGO"
             className={cn(
               "object-contain transition-all duration-300",
-              isCollapsed && !isMobile ? "h-12 w-12 rounded-full" : "h-16 w-auto max-w-full"
+              isCollapsed && !isMobile ? "h-12 w-12 rounded-full" : "h-20 w-auto max-w-full"
             )}
           />
         </div>
