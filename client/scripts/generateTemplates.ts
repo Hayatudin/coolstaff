@@ -383,13 +383,23 @@ async function generateTemplates() {
 
   // --- USSUS ---
   if (bgUssus) {
+    function ussusLabel(label: string, value: string, opts: { boldValue?: boolean, size?: number } = {}) {
+      return new Paragraph({
+        spacing: { after: 180 },
+        children: [
+          new TextRun({ text: `${label}: `, bold: true, size: opts.size || 22, font: "Times New Roman" }),
+          new TextRun({ text: value, bold: opts.boldValue || false, size: opts.size || 22, font: "Times New Roman" }),
+        ]
+      });
+    }
+
     const ussusDoc = new Document({
       sections: [
         {
           properties: {
             page: {
-              margin: { top: 2500, right: 1000, bottom: 1000, left: 1000 },
-              size: { width: 11906, height: 16838 } // A4
+              margin: { top: 2500, right: 750, bottom: 600, left: 750 },
+              size: { width: 11906, height: 16838 }
             }
           },
           headers: {
@@ -414,13 +424,144 @@ async function generateTemplates() {
             })
           },
           children: [
-            new Paragraph({
-               alignment: AlignmentType.CENTER,
-               children: [
-                 new TextRun("Ussus Template Placeholder\n\nName: {fullName}\nPassport: {passportNumber}\n\n{%facePhoto}\n\n{%fullBodyPhoto}"),
-                 new TextRun({ text: "\n\nScan to watch video:\n", break: 2 }),
-                 new TextRun("{%qrCode}")
-               ] 
+            // TOP SECTION: Data left, Face photo right
+            new Table({
+              borders: BORDER_NONE,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({
+                      width: { size: 60, type: WidthType.PERCENTAGE },
+                      borders: BORDER_NONE,
+                      verticalAlign: VerticalAlign.CENTER,
+                      children: [
+                        ussusLabel("NAME", "{fullName}"),
+                        ussusLabel("AGE", "{age} YEARS"),
+                        ussusLabel("NATIONALITY", "{nationality}"),
+                        ussusLabel("RELIGION", "{religion}"),
+                        ussusLabel("PASSPORT NUMBER", "{passportNumber}"),
+                      ]
+                    }),
+                    new TableCell({
+                      width: { size: 40, type: WidthType.PERCENTAGE },
+                      borders: BORDER_NONE,
+                      verticalAlign: VerticalAlign.CENTER,
+                      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          spacing: { before: 0, after: 0 },
+                          children: [new TextRun("{%facePhoto}")]
+                        })
+                      ]
+                    })
+                  ]
+                })
+              ]
+            }),
+
+            new Paragraph({ spacing: { after: 100 }, text: "" }),
+
+            // BOTTOM SECTION: Full body photo left, more data right
+            new Table({
+              borders: BORDER_NONE,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({
+                      width: { size: 40, type: WidthType.PERCENTAGE },
+                      borders: BORDER_NONE,
+                      verticalAlign: VerticalAlign.CENTER,
+                      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          spacing: { before: 0, after: 0 },
+                          children: [new TextRun("{%fullBodyPhoto}")]
+                        })
+                      ]
+                    }),
+                    new TableCell({
+                      width: { size: 60, type: WidthType.PERCENTAGE },
+                      borders: BORDER_NONE,
+                      verticalAlign: VerticalAlign.TOP,
+                      margins: { left: 200 },
+                      children: [
+                        ussusLabel("LANGUAGE", "{languages}", { size: 20 }),
+                        ussusLabel("MONTHLY SALARY", "{salary}", { boldValue: true, size: 20 }),
+                        ussusLabel("PHONE NUMBER", "{phone}", { boldValue: true, size: 20 }),
+                        ussusLabel("MARITAL STATUS", "{maritalStatus}", { size: 20 }),
+                        ussusLabel("NUMBER OF KIDS", "{numberOfChildren} KIDS", { size: 20 }),
+                        ussusLabel("HEIGHT", "{height}", { size: 20 }),
+                        ussusLabel("WEIGHT", "{weight}", { size: 20 }),
+                        new Paragraph({ spacing: { after: 150 }, text: "" }),
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          spacing: { after: 80 },
+                          children: [new TextRun({ text: "EXPERIENCE", bold: true, size: 22, font: "Times New Roman" })]
+                        }),
+                        new Paragraph({
+                          spacing: { after: 80 },
+                          children: [
+                            new TextRun({ text: "➤ ", size: 20, font: "Times New Roman" }),
+                            new TextRun({ text: "{workPeriod}", bold: true, size: 22, font: "Times New Roman" }),
+                          ]
+                        }),
+                        new Paragraph({ spacing: { after: 150 }, text: "" }),
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          spacing: { after: 80 },
+                          children: [new TextRun({ text: "SKILLS", bold: true, size: 22, font: "Times New Roman", color: "0066CC" })]
+                        }),
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [new TextRun({ text: "{skills}", size: 20, font: "Times New Roman" })]
+                        }),
+                      ]
+                    })
+                  ]
+                })
+              ]
+            }),
+
+            new Paragraph({ spacing: { after: 100 }, text: "" }),
+
+            // FOOTER: QR Code left + Agency text right
+            new Table({
+              borders: BORDER_NONE,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({
+                      width: { size: 25, type: WidthType.PERCENTAGE },
+                      borders: BORDER_NONE,
+                      verticalAlign: VerticalAlign.CENTER,
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [new TextRun("{%qrCode}")]
+                        })
+                      ]
+                    }),
+                    new TableCell({
+                      width: { size: 75, type: WidthType.PERCENTAGE },
+                      borders: BORDER_NONE,
+                      verticalAlign: VerticalAlign.CENTER,
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({ text: "Daera Foreign Employment Agency", bold: true, size: 24, font: "Times New Roman", color: "333333" })
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                })
+              ]
             }),
           ]
         }

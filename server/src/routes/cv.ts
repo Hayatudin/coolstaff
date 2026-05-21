@@ -132,14 +132,19 @@ router.post('/generate', async (req: Request, res: Response) => {
         let maxHeight = 180;
 
         if (tagName === 'facePhoto' || tagName === 'photo') {
-          if (templateId === 'tmpl-al-shablan' || templateId === 'tmpl-ussus') {
+          if (templateId === 'tmpl-ussus') {
+            maxWidth = 220; maxHeight = 270;
+          } else if (templateId === 'tmpl-al-shablan') {
             maxWidth = 150; maxHeight = 165;
           } else {
             maxWidth = 150; maxHeight = 180;
           }
         } else if (tagName === 'fullBodyPhoto') {
-          maxWidth = 320;
-          maxHeight = 580;
+          if (templateId === 'tmpl-ussus') {
+            maxWidth = 250; maxHeight = 500;
+          } else {
+            maxWidth = 320; maxHeight = 580;
+          }
         } else if (tagName === 'passport image' || tagName === 'passportPhoto') {
           maxWidth = 550;
           maxHeight = 750;
