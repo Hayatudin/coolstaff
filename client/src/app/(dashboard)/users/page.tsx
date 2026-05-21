@@ -19,13 +19,14 @@ interface UserRow {
 }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'user',        label: 'User'        },
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'registrar',   label: 'Registrar'   },
-  { value: 'processor',   label: 'Processor'   },
-  { value: 'coordinator', label: 'Coordinator' },
-  { value: 'accountant',  label: 'Accountant'  },
-  { value: 'agency',      label: 'Agency'      },
+  { value: 'user',           label: 'User'           },
+  { value: 'super_admin',    label: 'Super Admin'    },
+  { value: 'registrar',      label: 'Registrar'      },
+  { value: 'processor',      label: 'Processor'      },
+  { value: 'coordinator',    label: 'Coordinator'    },
+  { value: 'accountant',     label: 'Accountant'     },
+  { value: 'agency',         label: 'Agency'         },
+  { value: 'video_uploader', label: 'Video Uploader' },
 ];
 
 const roleBadge = (role: Role) => {

@@ -28,9 +28,10 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/invoice':            ['super_admin', 'accountant'],
   '/brokers':            ['super_admin', 'registrar', 'processor'],
   '/backup':             ['super_admin', 'processor', 'coordinator'],
-  '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant'],
+  '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader'],
   '/users':              ['super_admin'],
   '/video-uploads':      ['super_admin', 'video_uploader'],
+  '/uploaded-videos':    ['super_admin', 'video_uploader', 'processor', 'coordinator', 'registrar', 'accountant'],
 };
 
 // Helper: check if a role can access a specific route

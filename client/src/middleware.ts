@@ -48,6 +48,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url));
     }
 
+    // Redirect video uploader to video uploads page
+    if (role === 'video_uploader' && pathname.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL('/video-uploads', request.url));
+    }
+
     // Check route-level access using the ROUTE_ACCESS config
     for (const routePath of PROTECTED_PATHS) {
       if (pathname.startsWith(routePath)) {
@@ -82,5 +87,6 @@ export const config = {
     '/quick-registration/:path*',
     '/quick-registered/:path*',
     '/invoice/:path*',
+    '/uploaded-videos/:path*',
   ],
 };

@@ -37,6 +37,7 @@ const allNavItems = [
   { label: 'Invoice', href: '/invoice', icon: FileText },
   { label: 'Brokers', href: '/brokers', icon: Users },
   { label: 'Video Uploads', href: '/video-uploads', icon: Video },
+  { label: 'Uploaded Videos', href: '/uploaded-videos', icon: Video },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Backup CVs', href: '/backup', icon: FolderOpen },
   { label: 'Users', href: '/users', icon: ShieldCheck },

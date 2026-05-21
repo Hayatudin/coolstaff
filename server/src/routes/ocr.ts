@@ -269,7 +269,10 @@ router.post('/passport', async (req: Request, res: Response) => {
     
     // Dynamically anchor parser fields based on nationality country code position to make it resilient to character insertion/deletion shifts
     const anchorIdx = findCountryCodeAnchor(line2);
-    const passportNumber = line2.substring(0, anchorIdx).replace(/</g, '');
+    let passportNumber = line2.substring(0, anchorIdx).replace(/</g, '');
+    if (passportNumber.length > 9) {
+      passportNumber = passportNumber.substring(0, 9);
+    }
     const nationality = line2.substring(anchorIdx, anchorIdx + 3).replace(/</g, '');
     
     // Use the extremely robust layout-independent dates and gender extraction scanner on the rest of the MRZ line

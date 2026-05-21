@@ -170,4 +170,107 @@ router.get('/match', async (req: Request, res: Response) => {
   }
 });
 
+// 4. GET /api/video-uploads/uploaded — List all records that have a video URL
+router.get('/uploaded', async (req: Request, res: Response) => {
+  try {
+    const q = ((req.query.q as string) || '').trim();
+
+    // Candidates with videoUrl
+    const candidateWhere: any = { videoUrl: { not: null } };
+    if (q) {
+      candidateWhere.OR = [
+        { givenNames: { contains: q } },
+        { surname: { contains: q } },
+        { passportNumber: { contains: q } },
+      ];
+    }
+    const candidates = await prisma.candidate.findMany({
+      where: candidateWhere,
+      select: {
+        id: true,
+        givenNames: true,
+        surname: true,
+        passportNumber: true,
+        nationality: true,
+        videoUrl: true,
+        registeredAt: true,
+      },
+      orderBy: { registeredAt: 'desc' },
+    });
+
+    // QuickRegistrations with videoUrl (fetched via raw SQL since videoUrl may not be in Prisma cache)
+    let qrRows: any[] = [];
+    try {
+      if (q) {
+        qrRows = await prisma.$queryRawUnsafe(
+          `SELECT id, givenNames, surname, passportNumber, nationality, videoUrl, createdAt FROM \`QuickRegistration\` WHERE \`videoUrl\` IS NOT NULL AND \`videoUrl\` != '' AND (givenNames LIKE ? OR surname LIKE ? OR passportNumber LIKE ?) ORDER BY createdAt DESC`,
+          `%${q}%`, `%${q}%`, `%${q}%`
+        );
+      } else {
+        qrRows = await prisma.$queryRawUnsafe(
+          `SELECT id, givenNames, surname, passportNumber, nationality, videoUrl, createdAt FROM \`QuickRegistration\` WHERE \`videoUrl\` IS NOT NULL AND \`videoUrl\` != '' ORDER BY createdAt DESC`
+        );
+      }
+    } catch (_) { /* videoUrl column may not exist */ }
+
+    // PreRegisteredVideo records (buffered)
+    let preRegs: any[] = [];
+    try {
+      preRegs = await prisma.preRegisteredVideo.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      if (q) {
+        const qUp = q.toUpperCase();
+        preRegs = preRegs.filter((p: any) => p.fullName.includes(qUp));
+      }
+    } catch (_) { /* table may not exist */ }
+
+    // Combine into a unified list
+    const results = [
+      ...candidates.map((c: any) => ({
+        id: c.id,
+        fullName: `${c.givenNames} ${c.surname}`.trim().toUpperCase(),
+        passportNumber: c.passportNumber || '',
+        nationality: c.nationality || '',
+        videoUrl: c.videoUrl,
+        date: c.registeredAt?.toISOString() || '',
+        source: 'candidate' as const,
+      })),
+      ...qrRows
+        .filter((r: any) => r.videoUrl)
+        .map((r: any) => ({
+          id: r.id,
+          fullName: `${r.givenNames || ''} ${r.surname || ''}`.trim().toUpperCase(),
+          passportNumber: r.passportNumber || '',
+          nationality: r.nationality || '',
+          videoUrl: r.videoUrl,
+          date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
+          source: 'quickRegistration' as const,
+        })),
+      ...preRegs.map((p: any) => ({
+        id: p.id,
+        fullName: p.fullName || '',
+        passportNumber: '',
+        nationality: '',
+        videoUrl: p.videoUrl,
+        date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
+        source: 'preRegistered' as const,
+      })),
+    ];
+
+    // De-duplicate by videoUrl
+    const seen = new Set<string>();
+    const unique = results.filter(r => {
+      if (seen.has(r.videoUrl)) return false;
+      seen.add(r.videoUrl);
+      return true;
+    });
+
+    res.json(unique);
+  } catch (error: any) {
+    console.error('Error fetching uploaded videos:', error);
+    res.status(500).json({ error: 'Failed to fetch uploaded videos' });
+  }
+});
+
 export default router;
