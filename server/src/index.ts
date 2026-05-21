@@ -130,48 +130,136 @@ app.use('/api/video-uploads', videoUploadsRoutes);
 app.get('/api/debug-db', async (req: Request, res: Response) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
+  
+  const envInfo = {
+    HOME: process.env.HOME,
+    USER: process.env.USER,
+    PWD: process.env.PWD,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    DATABASE_URL_RAW: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.split('@')[1] || process.env.DATABASE_URL}` : 'not set',
+  };
+
+  const isCPanel = 
+    process.env.HOME?.includes('coolstou') || 
+    process.env.USER === 'coolstou' || 
+    process.env.PWD?.includes('coolstou') ||
+    process.env.BETTER_AUTH_URL?.includes('coolstaffagency.com');
+
+  let dbUrlSelected = process.env.DATABASE_URL || '';
+  if (isCPanel) {
+    dbUrlSelected = 'mysql://coolstou_coolstaff:***@localhost/coolstou_db?socket=/var/lib/mysql/mysql.sock';
+  } else {
+    dbUrlSelected = dbUrlSelected ? `${dbUrlSelected.split('@')[1] || dbUrlSelected}` : 'none';
+  }
+
+  const diagnostics: any = {
+    status: 'checking',
+    isCPanelDetected: !!isCPanel,
+    dbUrlSelected: dbUrlSelected.replace(/:[^@:]*@/, ':***@'), // extra mask safety
+    environment: {
+      ...envInfo,
+      DATABASE_URL_RAW: envInfo.DATABASE_URL_RAW.replace(/:[^@:]*@/, ':***@'),
+    },
+  };
+
   try {
     const { default: prisma } = await import('./lib/prisma');
     
-    // Test count on core tables
-    const userCount = await prisma.user.count();
-    const candidateCount = await prisma.candidate.count();
+    // Attempt database query with a 3-second timeout so it doesn't hang
+    const dbPromise = (async () => {
+      const rawResult = await prisma.$queryRaw`SELECT 1 + 1 AS result`;
+      const userCount = await prisma.user.count();
+      const candidateCount = await prisma.candidate.count();
+      return { rawResult, userCount, candidateCount };
+    })();
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database query timed out (3000ms exceeded). Check if server firewall blocks port.')), 3000)
+    );
+
+    const result: any = await Promise.race([dbPromise, timeoutPromise]);
     
-    let invoiceCount = 0;
-    let invoiceStatus = 'healthy';
-    let invoiceError = null;
-    try {
-      invoiceCount = await prisma.invoice.count();
-    } catch (invErr: any) {
-      invoiceStatus = 'error';
-      invoiceError = invErr.message || String(invErr);
-    }
-    
-    res.json({ 
-      status: 'success', 
-      message: 'Database is CONNECTED and working perfectly!', 
-      environment: {
-        DATABASE_URL_length: process.env.DATABASE_URL?.length || 0,
-        NODE_ENV: process.env.NODE_ENV || 'production'
-      },
-      userCount, 
-      candidateCount,
-      invoice: {
-        status: invoiceStatus,
-        count: invoiceCount,
-        error: invoiceError
-      }
-    });
+    diagnostics.status = 'success';
+    diagnostics.message = 'Database is CONNECTED and responding!';
+    diagnostics.queryResult = result;
   } catch (error: any) {
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Database connection failed inside debug route!', 
-      errorMessage: error?.message || String(error),
-      code: error?.code,
-      meta: error?.meta,
-      stack: error?.stack
-    });
+    diagnostics.status = 'error';
+    diagnostics.message = 'Database diagnostic failed!';
+    diagnostics.error = error.message || String(error);
   }
+
+  // Scan typical MySQL sockets on cPanel to help diagnose connections
+  const socketPaths = [
+    '/var/lib/mysql/mysql.sock',
+    '/var/run/mysqld/mysqld.sock',
+    '/tmp/mysql.sock',
+    '/tmp/mysql.sock.lock',
+    '/var/run/mysql/mysql.sock',
+  ];
+  const socketCheck: Record<string, boolean> = {};
+  socketPaths.forEach(p => {
+    try {
+      socketCheck[p] = fs.existsSync(p);
+    } catch {
+      socketCheck[p] = false;
+    }
+  });
+  diagnostics.socketCheck = socketCheck;
+
+  // Run low-level network connectivity tests using built-in 'net' module
+  const net = await import('net');
+  const checkPort = (host: string, port: number): Promise<any> => {
+    return new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(1500);
+      socket.connect(port, host, () => {
+        socket.destroy();
+        resolve({ open: true });
+      });
+      socket.on('error', (e) => {
+        socket.destroy();
+        resolve({ open: false, error: e.message });
+      });
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve({ open: false, error: 'Timeout' });
+      });
+    });
+  };
+
+  const checkUnix = (path: string): Promise<any> => {
+    return new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(1500);
+      socket.connect(path, () => {
+        socket.destroy();
+        resolve({ open: true });
+      });
+      socket.on('error', (e) => {
+        socket.destroy();
+        resolve({ open: false, error: e.message });
+      });
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve({ open: false, error: 'Timeout' });
+      });
+    });
+  };
+
+  try {
+    diagnostics.netConnectTest = {
+      localhost_3306: await checkPort('localhost', 3306),
+      ip_127_0_0_1_3306: await checkPort('127.0.0.1', 3306),
+      unix_socket_var_lib: await checkUnix('/var/lib/mysql/mysql.sock'),
+      unix_socket_tmp: await checkUnix('/tmp/mysql.sock'),
+    };
+  } catch (netErr: any) {
+    diagnostics.netConnectTestError = netErr.message || String(netErr);
+  }
+
+  res.json(diagnostics);
 });
 
 // Root route
@@ -208,18 +296,4 @@ app.listen(PORT, async () => {
   } catch (dbErr) {
     console.error('❌ Failed to run database self-healing check on startup:', dbErr);
   }
-
-  // 2. Self-healing: Automatically regenerate Prisma client on startup to prevent "Unknown argument" mismatches
-  import('child_process').then(({ exec }) => {
-    console.log('🔄 Checking and generating Prisma Client to sync with production database...');
-    exec('npx prisma generate', { cwd: process.cwd() }, (err, stdout, stderr) => {
-      if (err) {
-        console.error('❌ Failed to run prisma generate dynamically on startup:', err);
-      } else {
-        console.log('✅ Prisma Client successfully generated dynamically on startup!\n', stdout);
-      }
-    });
-  }).catch(err => {
-    console.error('Failed to import child_process on startup:', err);
-  });
 });

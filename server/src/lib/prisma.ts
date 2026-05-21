@@ -5,15 +5,15 @@ const prismaClientSingleton = () => {
 
   // FAIL-SAFE: Automatically swap to the local cPanel MySQL database
   // if running in the production cPanel environment to prevent firewall hangs/timeouts.
-  const isCPanel = 
-    process.env.HOME?.includes('coolstou') || 
-    process.env.USER === 'coolstou' || 
+  const isCPanel =
+    process.env.HOME?.includes('coolstou') ||
+    process.env.USER === 'coolstou' ||
     process.env.PWD?.includes('coolstou') ||
     process.env.BETTER_AUTH_URL?.includes('coolstaffagency.com');
 
-  if (isCPanel && dbUrl?.includes('aivencloud.com')) {
-    console.log('🤖 Auto-detect: Running on cPanel production. Swapping to local database connection...');
-    dbUrl = 'mysql://coolstou_coolstaff:%40Cool132435@localhost:3306/coolstou_db';
+  if (isCPanel) {
+    console.log('🤖 Auto-detect: Running on cPanel production. Swapping to local UNIX socket database connection...');
+    dbUrl = 'mysql://coolstou_coolstaff:%40Cool132435@localhost/coolstou_db?socket=/var/lib/mysql/mysql.sock';
   }
 
   return new PrismaClient({

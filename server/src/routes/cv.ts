@@ -138,33 +138,17 @@ router.post('/generate', async (req: Request, res: Response) => {
             maxWidth = 150; maxHeight = 180;
           }
         } else if (tagName === 'fullBodyPhoto') {
-          if (templateId === 'tmpl-alm') {
-            maxWidth = 350; maxHeight = 545;
-          } else if (templateId === 'tmpl-al-shablan' || templateId === 'tmpl-ussus') {
-            maxWidth = 280; maxHeight = 460;
-          } else if (templateId === 'tmpl-ka7') {
-            maxWidth = 300; maxHeight = 450;
-          } else {
-            maxWidth = 550; maxHeight = 750;
-          }
+          maxWidth = 320;
+          maxHeight = 580;
         } else if (tagName === 'passport image' || tagName === 'passportPhoto') {
-          maxWidth = 550; maxHeight = 750;
+          maxWidth = 550;
+          maxHeight = 750;
         }
 
         try {
           const dimensions = sizeOf(img);
           console.log(`[DOCX] Image ${tagName} original size: ${dimensions.width}x${dimensions.height}`);
           const ratio = dimensions.width / dimensions.height;
-          
-          // Special handling for KA-7 full body to prevent stretching
-          if (templateId === 'tmpl-ka7' && tagName === 'fullBodyPhoto') {
-            const targetWidth = 280;
-            const targetHeight = Math.round(targetWidth / ratio);
-            if (targetHeight > 450) {
-              return [Math.round(450 * ratio), 450];
-            }
-            return [targetWidth, targetHeight];
-          }
 
           if (ratio > maxWidth / maxHeight) {
             // Limited by width

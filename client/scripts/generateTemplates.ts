@@ -20,7 +20,7 @@ const BORDER_SOLID = {
   right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
 };
 
-function createText(text: string, options: { bold?: boolean, size?: number, color?: string, align?: AlignmentType } = {}) {
+function createText(text: string, options: { bold?: boolean, size?: number, color?: string, align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) {
   return new Paragraph({
     alignment: options.align || AlignmentType.CENTER,
     children: [
@@ -201,7 +201,7 @@ async function generateTemplates() {
                   children: [
                     // LEFT COLUMN
                     new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
+                      width: { size: 45, type: WidthType.PERCENTAGE },
                       borders: BORDER_NONE,
                       margins: { right: 100 },
                       children: [
@@ -298,7 +298,7 @@ async function generateTemplates() {
                     }),
                     // RIGHT COLUMN
                     new TableCell({
-                      width: { size: 50, type: WidthType.PERCENTAGE },
+                      width: { size: 55, type: WidthType.PERCENTAGE },
                       borders: BORDER_NONE,
                       margins: { left: 100 },
                       children: [
@@ -327,14 +327,15 @@ async function generateTemplates() {
                           width: { size: 100, type: WidthType.PERCENTAGE },
                           rows: [
                             new TableRow({
-                              height: { value: 7000, rule: HeightRule.ATLEAST },
                               children: [
                                 new TableCell({
                                   borders: BORDER_SOLID,
                                   verticalAlign: VerticalAlign.CENTER,
+                                  margins: { top: 0, bottom: 0, left: 0, right: 0 },
                                   children: [
                                     new Paragraph({
                                       alignment: AlignmentType.CENTER,
+                                      spacing: { before: 0, after: 0 },
                                       children: [new TextRun("{%fullBodyPhoto}")]
                                     })
                                   ]
@@ -516,13 +517,20 @@ async function generateTemplates() {
                 new TableRow({
                   children: [
                     new TableCell({
-                      width: { size: 30, type: WidthType.PERCENTAGE },
+                      width: { size: 35, type: WidthType.PERCENTAGE },
                       borders: BORDER_SOLID,
                       verticalAlign: VerticalAlign.CENTER,
-                      children: [createText("{%fullBodyPhoto}")]
+                      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          spacing: { before: 0, after: 0 },
+                          children: [new TextRun("{%fullBodyPhoto}")]
+                        })
+                      ]
                     }),
                     new TableCell({
-                      width: { size: 70, type: WidthType.PERCENTAGE },
+                      width: { size: 65, type: WidthType.PERCENTAGE },
                       borders: BORDER_NONE,
                       children: [
                         new Table({
