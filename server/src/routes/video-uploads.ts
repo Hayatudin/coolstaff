@@ -225,19 +225,27 @@ router.get('/uploaded', async (req: Request, res: Response) => {
       }
     } catch (_) { /* table may not exist */ }
 
-    // Combine into a unified list
+    const isYouTube = (url: string | null | undefined): boolean => {
+      if (!url) return false;
+      const lower = url.toLowerCase();
+      return lower.includes('youtube.com') || lower.includes('youtu.be');
+    };
+
+    // Combine into a unified list, filtering only YouTube video urls
     const results = [
-      ...candidates.map((c: any) => ({
-        id: c.id,
-        fullName: `${c.givenNames} ${c.surname}`.trim().toUpperCase(),
-        passportNumber: c.passportNumber || '',
-        nationality: c.nationality || '',
-        videoUrl: c.videoUrl,
-        date: c.registeredAt?.toISOString() || '',
-        source: 'candidate' as const,
-      })),
+      ...candidates
+        .filter((c: any) => isYouTube(c.videoUrl))
+        .map((c: any) => ({
+          id: c.id,
+          fullName: `${c.givenNames} ${c.surname}`.trim().toUpperCase(),
+          passportNumber: c.passportNumber || '',
+          nationality: c.nationality || '',
+          videoUrl: c.videoUrl,
+          date: c.registeredAt?.toISOString() || '',
+          source: 'candidate' as const,
+        })),
       ...qrRows
-        .filter((r: any) => r.videoUrl)
+        .filter((r: any) => isYouTube(r.videoUrl))
         .map((r: any) => ({
           id: r.id,
           fullName: `${r.givenNames || ''} ${r.surname || ''}`.trim().toUpperCase(),
@@ -247,15 +255,17 @@ router.get('/uploaded', async (req: Request, res: Response) => {
           date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
           source: 'quickRegistration' as const,
         })),
-      ...preRegs.map((p: any) => ({
-        id: p.id,
-        fullName: p.fullName || '',
-        passportNumber: '',
-        nationality: '',
-        videoUrl: p.videoUrl,
-        date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
-        source: 'preRegistered' as const,
-      })),
+      ...preRegs
+        .filter((p: any) => isYouTube(p.videoUrl))
+        .map((p: any) => ({
+          id: p.id,
+          fullName: p.fullName || '',
+          passportNumber: '',
+          nationality: '',
+          videoUrl: p.videoUrl,
+          date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
+          source: 'preRegistered' as const,
+        })),
     ];
 
     // De-duplicate by videoUrl
@@ -270,6 +280,75 @@ router.get('/uploaded', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error fetching uploaded videos:', error);
     res.status(500).json({ error: 'Failed to fetch uploaded videos' });
+  }
+});
+
+// 5. PUT /api/video-uploads/:source/:id — Update video link for a record
+router.put('/:source/:id', async (req: Request, res: Response) => {
+  try {
+    const { source, id } = req.params;
+    const { videoUrl } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({ error: 'Video URL is required' });
+    }
+
+    if (source === 'candidate') {
+      await prisma.candidate.update({
+        where: { id },
+        data: { videoUrl },
+      });
+      return res.json({ success: true, message: 'Candidate video updated successfully' });
+    } else if (source === 'quickRegistration') {
+      await prisma.$executeRawUnsafe(
+        'UPDATE `QuickRegistration` SET `videoUrl` = ? WHERE `id` = ?',
+        videoUrl,
+        id
+      );
+      return res.json({ success: true, message: 'Quick registration video updated successfully' });
+    } else if (source === 'preRegistered') {
+      await prisma.preRegisteredVideo.update({
+        where: { id },
+        data: { videoUrl },
+      });
+      return res.json({ success: true, message: 'Pre-registered video updated successfully' });
+    }
+
+    res.status(400).json({ error: 'Invalid source type' });
+  } catch (error: any) {
+    console.error('Error updating video upload:', error);
+    res.status(500).json({ error: error.message || 'Failed to update video' });
+  }
+});
+
+// 6. DELETE /api/video-uploads/:source/:id — Remove video link/delete pre-registered record
+router.delete('/:source/:id', async (req: Request, res: Response) => {
+  try {
+    const { source, id } = req.params;
+
+    if (source === 'candidate') {
+      await prisma.candidate.update({
+        where: { id },
+        data: { videoUrl: null },
+      });
+      return res.json({ success: true, message: 'Candidate video removed successfully' });
+    } else if (source === 'quickRegistration') {
+      await prisma.$executeRawUnsafe(
+        'UPDATE `QuickRegistration` SET `videoUrl` = NULL WHERE `id` = ?',
+        id
+      );
+      return res.json({ success: true, message: 'Quick registration video removed successfully' });
+    } else if (source === 'preRegistered') {
+      await prisma.preRegisteredVideo.delete({
+        where: { id },
+      });
+      return res.json({ success: true, message: 'Pre-registered video record deleted successfully' });
+    }
+
+    res.status(400).json({ error: 'Invalid source type' });
+  } catch (error: any) {
+    console.error('Error deleting video upload:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete video' });
   }
 });
 

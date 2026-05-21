@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Video, Search, ExternalLink, Loader2, RefreshCw,
-  User, Calendar, Globe, FileText, Filter,
+  User, Calendar, Globe, FileText, Filter, Edit2, Trash2, X, AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -29,6 +29,79 @@ export default function UploadedVideosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
+
+  // Edit Video Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editRecord, setEditRecord] = useState<UploadedVideo | null>(null);
+  const [editVideoUrl, setEditVideoUrl] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Delete Video State
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteRecord, setDeleteRecord] = useState<UploadedVideo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleStartEdit = (record: UploadedVideo) => {
+    setEditRecord(record);
+    setEditVideoUrl(record.videoUrl || '');
+    setEditError(null);
+    setIsEditOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editRecord) return;
+    if (!editVideoUrl.trim()) {
+      setEditError('Video URL is required');
+      return;
+    }
+
+    setIsSaving(true);
+    setEditError(null);
+    try {
+      const res = await api(`/api/video-uploads/${editRecord.source}/${editRecord.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoUrl: editVideoUrl.trim() }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update video link');
+      }
+      setIsEditOpen(false);
+      fetchVideos();
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to update video');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStartDelete = (record: UploadedVideo) => {
+    setDeleteRecord(record);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteRecord) return;
+    setIsDeleting(true);
+    try {
+      const res = await api(`/api/video-uploads/${deleteRecord.source}/${deleteRecord.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to delete video');
+      }
+      setIsDeleteOpen(false);
+      fetchVideos();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete video');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const fetchVideos = useCallback(async () => {
     setIsLoading(true);
@@ -221,20 +294,35 @@ export default function UploadedVideosPage() {
                       </div>
                     </td>
 
-                    {/* Watch Video */}
+                    {/* Watch/Edit/Delete Actions */}
                     <td className="px-4 xl:px-6 py-3.5 whitespace-nowrap text-right">
-                      <a
-                        href={getYouTubeUrl(v.videoUrl)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 hover:text-red-700 transition-all border border-red-100 group-hover:shadow-sm"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                        </svg>
-                        Watch Video
-                        <ExternalLink size={12} />
-                      </a>
+                      <div className="flex items-center justify-end gap-2">
+                        <a
+                          href={getYouTubeUrl(v.videoUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 hover:text-red-700 transition-all border border-red-100"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                          </svg>
+                          Watch
+                        </a>
+                        <button
+                          onClick={() => handleStartEdit(v)}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                          title="Edit URL"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleStartDelete(v)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                          title="Delete Video Link"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -255,6 +343,113 @@ export default function UploadedVideosPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {isEditOpen && editRecord && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Edit2 size={16} className="text-indigo-600" />
+                Edit YouTube Link
+              </h3>
+              <button
+                onClick={() => setIsEditOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              {editError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-semibold flex items-center gap-2">
+                  <AlertCircle size={14} />
+                  {editError}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                  Candidate Name
+                </label>
+                <p className="text-sm font-bold text-gray-900">{editRecord.fullName}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                  YouTube Video URL
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={editVideoUrl}
+                  onChange={e => setEditVideoUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all font-medium"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-all flex items-center gap-1.5"
+                >
+                  {isSaving ? <Loader2 size={13} className="animate-spin" /> : null}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteOpen && deleteRecord && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xl max-w-sm w-full overflow-hidden animate-scale-up">
+            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Trash2 size={16} className="text-red-600" />
+                Remove Video Link
+              </h3>
+              <button
+                onClick={() => setIsDeleteOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Are you sure you want to remove the YouTube video link for <span className="font-bold text-gray-900">{deleteRecord.fullName}</span>?
+                {deleteRecord.source === 'preRegistered' && ' This will delete the pre-registration record completely.'}
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl transition-all flex items-center gap-1.5"
+                >
+                  {isDeleting ? <Loader2 size={13} className="animate-spin" /> : null}
+                  Delete Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

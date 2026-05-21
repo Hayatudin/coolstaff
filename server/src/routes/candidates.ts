@@ -202,9 +202,45 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
       setClauses.push('`relativeIdImageUrl` = ?');
       params.push(qr.relativeIdImageUrl);
     }
+    let hasRemoteVideo = false;
     if (videoUrl) {
-      setClauses.push('`quickVideoUrl` = ?');
-      params.push(videoUrl);
+      if (videoUrl.startsWith('http')) {
+        setClauses.push('`videoUrl` = ?');
+        params.push(videoUrl);
+        hasRemoteVideo = true;
+      } else {
+        setClauses.push('`quickVideoUrl` = ?');
+        params.push(videoUrl);
+      }
+    }
+
+    // Auto-match pre-registered YouTube video if no YouTube link is yet assigned
+    if (!hasRemoteVideo) {
+      try {
+        const fullCombined = `${qr.givenNames || ''} ${qr.surname || ''}`.trim().toUpperCase();
+        if (fullCombined) {
+          const normalizeName = (name: string) => name.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+          const normalizedTarget = normalizeName(fullCombined);
+
+          const preRegistered = await prisma.preRegisteredVideo.findMany();
+          const matchingVideo = preRegistered.find(item => {
+            const normalizedItemName = normalizeName(item.fullName);
+            return (
+              normalizedItemName === normalizedTarget ||
+              normalizedItemName.includes(normalizedTarget) ||
+              normalizedTarget.includes(normalizedItemName)
+            );
+          });
+
+          if (matchingVideo) {
+            setClauses.push('`videoUrl` = ?');
+            params.push(matchingVideo.videoUrl);
+            console.log(`[AUTO-MATCH-PROMOTE] Linked pre-registered YouTube video: ${matchingVideo.videoUrl}`);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to auto-match pre-registered video during promotion:', err);
+      }
     }
     if (qr.agency) {
       setClauses.push('`agency` = ?');
@@ -305,6 +341,38 @@ router.post('/', async (req: Request, res: Response) => {
 
     const nextShelfId = body.shelfId || String(count + 1).padStart(3, '0');
 
+    // Separate local video upload and remote YouTube URL
+    const isLocalVideo = videoUrl && videoUrl.startsWith('/uploads');
+    const isRemoteVideo = videoUrl && videoUrl.startsWith('http');
+
+    let finalVideoUrl = isRemoteVideo ? videoUrl : null;
+
+    // Check if there is a pre-registered YouTube video matching this candidate's name
+    if (!finalVideoUrl) {
+      try {
+        const fullCombined = `${body.passportData.givenNames} ${body.passportData.surname}`.trim().toUpperCase();
+        const normalizeName = (name: string) => name.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
+        const normalizedTarget = normalizeName(fullCombined);
+
+        const preRegistered = await prisma.preRegisteredVideo.findMany();
+        const matchingVideo = preRegistered.find(item => {
+          const normalizedItemName = normalizeName(item.fullName);
+          return (
+            normalizedItemName === normalizedTarget ||
+            normalizedItemName.includes(normalizedTarget) ||
+            normalizedTarget.includes(normalizedItemName)
+          );
+        });
+
+        if (matchingVideo) {
+          finalVideoUrl = matchingVideo.videoUrl;
+          console.log(`[AUTO-MATCH] Linked pre-registered YouTube video to Candidate: ${finalVideoUrl}`);
+        }
+      } catch (err) {
+        console.error('Failed to auto-match pre-registered video:', err);
+      }
+    }
+
     const candidateData: any = {
         shelfId: nextShelfId,
         passportNumber: body.passportData.passportNumber,
@@ -356,7 +424,7 @@ router.post('/', async (req: Request, res: Response) => {
         candidateIdImageUrl,
         relativeIdImageUrl,
         labourIdUrl,
-        videoUrl: videoUrl || null,
+        videoUrl: finalVideoUrl,
         status: body.status || 'pending',
     };
 
@@ -386,6 +454,19 @@ router.post('/', async (req: Request, res: Response) => {
         candidate.id
       );
     } catch (_) { /* salary column may not exist yet, ignore */ }
+
+    // Save quickVideoUrl separately with graceful fallback (local uploaded video)
+    if (isLocalVideo) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`quickVideoUrl\` = ? WHERE \`id\` = ?`,
+          videoUrl,
+          candidate.id
+        );
+      } catch (err) {
+        console.error('Failed to save quickVideoUrl via raw SQL:', err);
+      }
+    }
 
     // If quickRegistrationId is provided, mark it as promoted
     if (body.quickRegistrationId) {

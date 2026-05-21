@@ -357,20 +357,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         </div>
       </section>
 
-      {/* 7. Video Link for QR Code */}
-      <section className="pt-4 border-t border-slate-100">
-        <h3 className="text-xl font-bold text-text-primary mb-2">Video Link</h3>
-        <p className="text-sm text-text-secondary mb-4">Add a video URL for this candidate. A QR code will be automatically generated on the CV.</p>
-        <div className="max-w-xl">
-          <Input 
-            label="Video URL" 
-            type="url"
-            value={videoUrl || ''} 
-            onChange={e => onVideoUrlChange?.(e.target.value)} 
-            placeholder="https://youtube.com/watch?v=..." 
-          />
-        </div>
-      </section>
+
 
       <div className="pt-6 border-t border-slate-100 flex items-start gap-3">
         <input type="checkbox" id="acknowledge" className="mt-1 w-4 h-4 accent-primary rounded cursor-pointer" />
