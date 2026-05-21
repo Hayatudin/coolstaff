@@ -708,10 +708,38 @@ function RegistrationContent() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-red-800">{error}</p>
-                      <button className="mt-2 text-xs text-red-600 hover:text-red-800 underline" onClick={() => { setPassportImage(null); setError(null); setProcessingComplete(false); }}>
-                        Try again with a different photo
-                      </button>
+                      <div className="mt-2 flex gap-4">
+                        <button className="text-xs text-red-600 hover:text-red-800 underline" onClick={() => { setPassportImage(null); setError(null); setProcessingComplete(false); }}>
+                          Try again with a different photo
+                        </button>
+                        {passportImage && (
+                          <button
+                            type="button"
+                            className="text-xs text-primary hover:text-indigo-800 font-semibold underline"
+                            onClick={() => {
+                              setError(null);
+                              setProcessingComplete(true);
+                            }}
+                          >
+                            Fill the form manually
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  </div>
+                )}
+                {passportImage && !processingComplete && !isProcessing && (
+                  <div className="mt-4 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        setProcessingComplete(true);
+                      }}
+                      className="text-sm font-semibold text-primary hover:text-primary-dark underline"
+                    >
+                      Fill the form manually
+                    </button>
                   </div>
                 )}
                 {processingComplete && (

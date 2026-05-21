@@ -31,7 +31,7 @@ export default function VideoUploadsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<CandidateResult[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
-  const [manualName, setManualName] = useState('');
+
   
   const [videoUrl, setVideoUrl] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -84,14 +84,12 @@ export default function VideoUploadsPage() {
   const handleSelectCandidate = (candidate: CandidateResult) => {
     setSelectedCandidate(candidate);
     setSearchQuery(candidate.fullName);
-    setManualName('');
     setShowDropdown(false);
   };
 
   const handleClearSelection = () => {
     setSelectedCandidate(null);
     setSearchQuery('');
-    setManualName('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,12 +117,12 @@ export default function VideoUploadsPage() {
           videoUrl: finalUrl,
         }
       : {
-          fullName: manualName.trim(),
+          fullName: searchQuery.trim(),
           videoUrl: finalUrl,
         };
 
-    if (!selectedCandidate && !manualName.trim()) {
-      setMessage({ type: 'error', text: 'Please select a candidate or enter a full name manually' });
+    if (!selectedCandidate && !searchQuery.trim()) {
+      setMessage({ type: 'error', text: 'Please type a candidate name or select one from the dropdown' });
       return;
     }
 
@@ -145,7 +143,7 @@ export default function VideoUploadsPage() {
           type: 'success',
           text: selectedCandidate
             ? `Successfully attached YouTube video to registered candidate "${selectedCandidate.fullName}"!`
-            : `Successfully pre-registered video for candidate "${manualName.trim().toUpperCase()}"!`,
+            : `Successfully pre-registered video for candidate "${searchQuery.trim().toUpperCase()}"!`,
         });
         
         // Reset state
@@ -200,11 +198,11 @@ export default function VideoUploadsPage() {
               {/* Autocomplete Search input */}
               <div className="relative" ref={dropdownRef}>
                 <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                  Search Candidate Name
+                  Candidate Full Name
                 </label>
                 <div className="relative">
                   <Input
-                    placeholder="Type at least 2 characters to search existing records..."
+                    placeholder="Type candidate name to search or pre-register..."
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
@@ -288,31 +286,13 @@ export default function VideoUploadsPage() {
                 </div>
               )}
 
-              {/* Manual Entry Fallback Toggle */}
-              {!selectedCandidate && (
-                <div className="border-t border-border/50 pt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-text-tertiary">
-                      No matching candidate found? Enter the full name manually below.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                      Manual Candidate Full Name
-                    </label>
-                    <div className="relative">
-                      <Input
-                        placeholder="e.g. FATUMA BERECHA"
-                        value={manualName}
-                        onChange={(e) => {
-                          setManualName(e.target.value.toUpperCase());
-                          if (searchQuery) setSearchQuery('');
-                        }}
-                        disabled={!!searchQuery && searchResults.length > 0}
-                      />
-                      <PlusCircle className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
-                    </div>
-                  </div>
+              {/* Manual Entry Hint */}
+              {!selectedCandidate && searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
+                <div className="flex items-center gap-2 p-3 bg-amber-50/60 border border-amber-100 rounded-xl text-xs text-amber-800 animate-fade-in">
+                  <PlusCircle size={14} className="text-amber-600 shrink-0" />
+                  <span>
+                    No matching candidate found. <strong>"{searchQuery.trim().toUpperCase()}"</strong> will be pre-registered when you submit.
+                  </span>
                 </div>
               )}
             </div>

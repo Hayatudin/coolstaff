@@ -38,13 +38,14 @@ function formatDate(raw: string): string {
 }
 
 function preprocessOcrLine(raw: string): string {
-  // 1. Convert to uppercase and replace common filler misread symbols with '<'
-  // Replacing with '<' instead of deleting preserves character positions and layout alignment!
-  let cleaned = raw.toUpperCase().replace(/[^A-Z0-9<]/g, '<');
+  // Convert to uppercase
+  let cleaned = raw.toUpperCase();
   
-  // 2. A run of 3 or more consecutive characters from [KLCX<] is guaranteed to be fillers (no name has LLL or KKK).
-  // Replace these noisy runs with clean '<' characters of the exact same length.
-  cleaned = cleaned.replace(/[KLCX<]{3,}/g, match => '<'.repeat(match.length));
+  // Replace common chevron misreads with '<'
+  cleaned = cleaned.replace(/[\/\\|:;(),.\[\]{}?_\-+=~—«»]/g, '<');
+  
+  // Replace any other non-alphanumeric, non-chevron characters with '<'
+  cleaned = cleaned.replace(/[^A-Z0-9<]/g, '<');
   
   return cleaned;
 }
@@ -57,20 +58,38 @@ function normalizeLine(raw: string): string {
 }
 
 function mrzScore(raw: string): number {
-  // If it has multiple lowercase letters, a slash, colon, semicolon, or other symbols indicative of passport page labels, ignore it!
-  if (/[a-z]/.test(raw) && (raw.match(/[a-z]/g) || []).length > 1) return 0;
-  if (/[\/:,;?_#@|]/.test(raw)) return 0;
   // If it has non-ASCII characters (like Amharic, Arabic, etc.), it is 100% a passport label and not an MRZ line
   if (/[^\x00-\x7F]/.test(raw)) return 0;
 
+  // Allowing some lowercase letters but not excessive
+  if (/[a-z]/.test(raw) && (raw.match(/[a-z]/g) || []).length > 5) return 0;
+
   const preprocessed = preprocessOcrLine(raw);
   let score = 0;
-  if (preprocessed.length >= 40 && preprocessed.length <= 48) score += 30;
-  else if (preprocessed.length >= 35 && preprocessed.length <= 52) score += 10;
+  const len = preprocessed.length;
+  
+  if (len >= 40 && len <= 48) score += 40;
+  else if (len >= 30 && len <= 55) score += 15;
   else return 0;
-  score += Math.min((preprocessed.match(/</g) || []).length * 3, 30);
-  score += Math.min((preprocessed.match(/\d/g) || []).length * 2, 20);
-  if (/REPUBLIC|PASSPORT|FEDERAL/i.test(raw)) score -= 50;
+
+  const chevrons = (preprocessed.match(/</g) || []).length;
+  score += Math.min(chevrons * 3, 35);
+
+  const digits = (preprocessed.match(/\d/g) || []).length;
+  score += Math.min(digits * 2, 20);
+
+  // Check if first characters look like passport start 'P'
+  const firstChar = preprocessed.trim().replace(/^[^A-Z0-9<]+/, '')[0];
+  if (firstChar === 'P') {
+    score += 50;
+  } else if (['F', 'R', 'D', 'O', 'B'].includes(firstChar)) {
+    score += 20; // potential misread P
+  }
+
+  if (/REPUBLIC|PASSPORT|FEDERAL|GIVEN|SURNAME|NAMES|DATE|BIRTH|EXPIRY|NATIONAL/i.test(raw)) {
+    score -= 60;
+  }
+
   return score;
 }
 
@@ -81,19 +100,60 @@ function findMrzLines(text: string): [string, string] | null {
     index, 
     score: mrzScore(line), 
     cleaned: preprocessOcrLine(line) 
-  })).filter(s => s.score > 0);
+  })).filter(s => s.score > 10);
   
-  for (const l1 of scored.sort((a, b) => b.score - a.score)) {
-    if (!l1.cleaned.startsWith('P')) continue;
+  scored.sort((a, b) => b.score - a.score);
+
+  for (const l1 of scored) {
+    let c1 = l1.cleaned.replace(/^[^A-Z0-9<]+/, '');
+    const isLine1 = c1.startsWith('P') || 
+                    (c1.includes('<<') && ['F', 'R', 'D', 'O', 'B', '0', '<'].includes(c1[0])) ||
+                    (c1.length >= 40 && ['F', 'R', 'D', 'O', 'B', '0', '<'].includes(c1[0]) && (c1.match(/</g) || []).length > 15);
+
+    if (!isLine1) continue;
+
+    // Force start with 'P'
+    if (!c1.startsWith('P')) {
+      c1 = 'P' + c1.substring(1);
+    }
+
     for (const l2 of scored) {
       if (l2.index <= l1.index) continue;
-      if ((l2.cleaned.match(/\d/g) || []).length >= 6) {
-        const line1 = normalizeLine(l1.line);
-        const line2 = normalizeLine(l2.line);
-        if (line1.length === 44 && line2.length === 44) return [line1, line2];
+      let c2 = l2.cleaned.replace(/^[^A-Z0-9<]+/, '');
+      const digitsCount = (c2.match(/\d/g) || []).length;
+      if (digitsCount >= 5) {
+        c1 = c1.replace(/<+[A-Z]?<+/g, '<<');
+        const line1 = c1.padEnd(44, '<').substring(0, 44);
+        const line2 = c2.padEnd(44, '<').substring(0, 44);
+        return [line1, line2];
       }
     }
   }
+
+  // Fallback: search for any two lines close to 44 chars
+  for (let i = 0; i < scored.length; i++) {
+    const l1 = scored[i];
+    let c1 = l1.cleaned.replace(/^[^A-Z0-9<]+/, '');
+    for (let j = 0; j < scored.length; j++) {
+      const l2 = scored[j];
+      if (l2.index <= l1.index) continue;
+      let c2 = l2.cleaned.replace(/^[^A-Z0-9<]+/, '');
+      
+      const l1Chevrons = (c1.match(/</g) || []).length;
+      const l2Digits = (c2.match(/\d/g) || []).length;
+      
+      if (c1.length >= 38 && c2.length >= 38 && l1Chevrons >= 10 && l2Digits >= 5) {
+        if (!c1.startsWith('P')) {
+          c1 = 'P' + (c1.startsWith('<') ? c1.substring(1) : c1);
+        }
+        c1 = c1.replace(/<+[A-Z]?<+/g, '<<');
+        const line1 = c1.padEnd(44, '<').substring(0, 44);
+        const line2 = c2.padEnd(44, '<').substring(0, 44);
+        return [line1, line2];
+      }
+    }
+  }
+
   return null;
 }
 

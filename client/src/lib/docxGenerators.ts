@@ -1,6 +1,23 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, AlignmentType, VerticalAlign, BorderStyle, WidthType, HeightRule, TextDirection, Header, TableAnchorType, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionAlign, TextWrappingType, ShadingType } from 'docx';
 import { getFileUrl } from './utils';
 import { Candidate } from '../types';
+import QRCode from 'qrcode';
+
+// Helper to generate QR code as PNG ArrayBuffer
+async function generateQRBuffer(text: string): Promise<ArrayBuffer | null> {
+  if (!text) return null;
+  try {
+    const dataUrl = await QRCode.toDataURL(text, { width: 120, margin: 1 });
+    const base64 = dataUrl.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  } catch (err) {
+    console.warn('QR generation error:', err);
+    return null;
+  }
+}
 
 // Helper to fetch image as ArrayBuffer
 async function fetchImageBuffer(url: string): Promise<ArrayBuffer | null> {
@@ -145,6 +162,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
   const faceBuffer = facePhoto ? await fetchImageBuffer(facePhoto) : null;
   const fullBodyBuffer = fullBodyPhoto ? await fetchImageBuffer(fullBodyPhoto) : null;
   const passportBuffer = candidate.passportImageUrl ? await fetchImageBuffer(candidate.passportImageUrl) : null;
+  const qrBuffer = candidate.videoUrl ? await generateQRBuffer(candidate.videoUrl) : null;
 
   const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim().toUpperCase();
   const age = calculateAge(candidate.passportData?.dateOfBirth);
@@ -376,10 +394,28 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
                           new ImageRun({
                             data: fullBodyBuffer,
                             type: "png",
-                            transformation: { width: 230, height: 350 } // Adjusted to match the table height more closely
+                            transformation: { width: 230, height: 350 }
                           })
                         ] : [new TextRun("Full Body Photo")]
-                      })
+                      }),
+                      // QR Code for YouTube Video
+                      ...(qrBuffer ? [
+                        new Paragraph({ text: "" }),
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new ImageRun({
+                              data: qrBuffer,
+                              type: "png",
+                              transformation: { width: 80, height: 80 }
+                            })
+                          ]
+                        }),
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [new TextRun({ text: "Scan for Video", size: 14, font: "Times New Roman", color: "666666" })]
+                        })
+                      ] : [])
                     ]
                   })
                 ]

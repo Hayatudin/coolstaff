@@ -49,7 +49,7 @@ export default function QuickRegistrationPage() {
   const [candidateIdImageUrl, setCandidateIdImageUrl] = useState<string | null>(null);
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [agency, setAgency] = useState('daera');
+  const [agency, setAgency] = useState('');
 
   // Broker list
   const [brokers, setBrokers] = useState<Broker[]>([]);
@@ -147,8 +147,8 @@ export default function QuickRegistrationPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to parse passport data');
       setOcrProgress(100);
-      setPassportData(prev => ({ 
-        ...prev, 
+      setPassportData(prev => ({
+        ...prev,
         ...data,
         surname: data.surname ? data.surname.toUpperCase() : '',
         givenNames: data.givenNames ? data.givenNames.toUpperCase() : ''
@@ -221,6 +221,12 @@ export default function QuickRegistrationPage() {
       return;
     }
 
+    if (!agency) {
+      setError('Please select an Agency.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
       setError('All document uploads (COC, Labour ID, Candidate ID, Relative ID, and Video) are required to register.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -287,8 +293,22 @@ export default function QuickRegistrationPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-sm font-medium">
-          {error}
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-sm font-medium flex flex-col gap-2">
+          <div>{error}</div>
+          {passportImage && (
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setProcessingComplete(true);
+                }}
+                className="text-xs font-bold text-primary hover:underline uppercase tracking-wider block"
+              >
+                Fill the form manually (keeps passport image)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -305,6 +325,20 @@ export default function QuickRegistrationPage() {
             passportImage={passportImage}
             ocrProgress={ocrProgress}
           />
+          {passportImage && !processingComplete && !isProcessing && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setProcessingComplete(true);
+                }}
+                className="text-sm font-semibold text-primary hover:text-primary-dark underline"
+              >
+                Fill the form manually
+              </button>
+            </div>
+          )}
           <div className="mt-6 border-t border-border pt-6">
             <PassportDataFields
               data={passportData}
@@ -332,11 +366,10 @@ export default function QuickRegistrationPage() {
                     key={r}
                     type="button"
                     onClick={() => setReligion(r)}
-                    className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all ${
-                      religion === r
+                    className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all ${religion === r
                         ? 'bg-primary text-white border-primary shadow-sm'
                         : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
-                    }`}
+                      }`}
                   >
                     {r}
                   </button>
@@ -381,7 +414,7 @@ export default function QuickRegistrationPage() {
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Job / Experience</label>
               </div>
-              
+
               <div className="space-y-4">
                 {workExperience.map((exp, index) => (
                   <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 relative p-4 bg-gray-50/50 rounded-xl border border-border/50">
@@ -428,13 +461,13 @@ export default function QuickRegistrationPage() {
                   </div>
                 ))}
                 <div className="flex justify-start">
-                   <button
-                     type="button"
-                     onClick={addExperience}
-                     className="text-sm text-primary font-semibold flex items-center gap-1.5 hover:underline"
-                   >
-                     <Plus size={16} /> Add Another Experience
-                   </button>
+                  <button
+                    type="button"
+                    onClick={addExperience}
+                    className="text-sm text-primary font-semibold flex items-center gap-1.5 hover:underline"
+                  >
+                    <Plus size={16} /> Add Another Experience
+                  </button>
                 </div>
               </div>
             </div>
@@ -550,60 +583,50 @@ export default function QuickRegistrationPage() {
               onClear={() => setRelativeIdImageUrl(null)}
               helperText="Relative ID Image — Max 10MB"
             />
-             <div className="space-y-2">
-               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video</label>
-               {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
-                 <div className="space-y-2">
-                   <div className="relative">
-                     <Input
-                       placeholder="YouTube Video URL"
-                       value={videoUrl}
-                       onChange={e => setVideoUrl(e.target.value)}
-                       className="pr-10"
-                     />
-                     <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
-                   </div>
-                   {matchedVideoBadge && (
-                     <p className="text-xs font-semibold text-emerald-600 animate-scale-pop">
-                       {matchedVideoBadge}
-                     </p>
-                   )}
-                   <button
-                     type="button"
-                     onClick={() => {
-                       setVideoUrl(null);
-                       setMatchedVideoBadge(null);
-                     }}
-                     className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
-                   >
-                     Clear Link & Upload File Instead
-                   </button>
-                 </div>
-               ) : (
-                 <div className="space-y-2">
-                   <FileUpload
-                     label="Candidate Video"
-                     accept="video/*"
-                     shape="rect"
-                     compact
-                     preview={videoUrl}
-                     onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
-                     onClear={() => setVideoUrl(null)}
-                     helperText="MP4, WebM or MOV — Max 10MB"
-                   />
-                   <div className="text-xs text-text-tertiary flex items-center gap-1.5 mt-1">
-                     <span>Or</span>
-                     <button
-                       type="button"
-                       onClick={() => setVideoUrl('https://youtube.com/watch?v=')}
-                       className="text-primary hover:underline font-semibold"
-                     >
-                       Paste YouTube Video URL instead
-                     </button>
-                   </div>
-                 </div>
-               )}
-             </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video</label>
+              {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Input
+                      placeholder="YouTube Video URL"
+                      value={videoUrl}
+                      onChange={e => setVideoUrl(e.target.value)}
+                      className="pr-10"
+                    />
+                    <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                  </div>
+                  {matchedVideoBadge && (
+                    <p className="text-xs font-semibold text-emerald-600 animate-scale-pop">
+                      {matchedVideoBadge}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoUrl(null);
+                      setMatchedVideoBadge(null);
+                    }}
+                    className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
+                  >
+                    Clear Link & Upload File Instead
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <FileUpload
+                    label="Candidate Video"
+                    accept="video/*"
+                    shape="rect"
+                    compact
+                    preview={videoUrl}
+                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
+                    onClear={() => setVideoUrl(null)}
+                    helperText="MP4, WebM or MOV — Max 10MB"
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="md:col-span-2 pt-4 border-t border-border/60">
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Agency</label>
@@ -612,6 +635,7 @@ export default function QuickRegistrationPage() {
                 onChange={e => setAgency(e.target.value)}
                 className="w-full h-12 px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
               >
+                <option value="" disabled>Select Agency...</option>
                 <option value="daera">Daera</option>
                 <option value="coolstaff">Coolstaff</option>
                 <option value="boss">Boss</option>

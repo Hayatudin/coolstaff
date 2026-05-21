@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
-  Heart, GraduationCap, Globe, Shield, FileText, Eye, Loader2, Clock
+  Heart, GraduationCap, Globe, Shield, FileText, Eye, Loader2, Clock, Download, ExternalLink
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { cn, getFileUrl } from '@/lib/utils';
@@ -228,6 +228,27 @@ export default function CandidateDetailPage() {
             </div>
           )}
 
+          {/* Watch on YouTube Link */}
+          {c.videoUrl && c.videoUrl.includes('youtu') && (
+            <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+              <a
+                href={c.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0">
+                  <svg className="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-text-primary group-hover:text-red-600 transition-colors">Watch on YouTube</p>
+                  <p className="text-xs text-text-tertiary mt-0.5 truncate max-w-md">{c.videoUrl}</p>
+                </div>
+                <ExternalLink size={16} className="text-text-tertiary group-hover:text-red-500 transition-colors shrink-0" />
+              </a>
+            </div>
+          )}
+
           {/* Passport Information */}
           <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
             <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
@@ -384,146 +405,30 @@ export default function CandidateDetailPage() {
               <FileText size={20} className="text-primary" /> Documents
             </h2>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">COC Certificate</span>
-                {c.cocDocumentUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.cocDocumentUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'cocDocumentUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('cocDocumentUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">Medical Report</span>
-                {c.medicalDocumentUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.medicalDocumentUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'medicalDocumentUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('medicalDocumentUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">Passport Scan</span>
-                {c.passportImageUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.passportImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-primary hover:text-indigo-800 font-black px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'passportImageUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('passportImageUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">Candidate ID</span>
-                {c.candidateIdImageUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.candidateIdImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-blue-600 hover:text-blue-800 font-black px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'candidateIdImageUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('candidateIdImageUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">Relative ID</span>
-                {c.relativeIdImageUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.relativeIdImageUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-amber-600 hover:text-amber-800 font-black px-3 py-1.5 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'relativeIdImageUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('relativeIdImageUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">Labour ID</span>
-                {c.labourIdUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.labourIdUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-violet-600 hover:text-violet-800 font-black px-3 py-1.5 bg-violet-100 hover:bg-violet-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'labourIdUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('labourIdUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
-                <span className="text-[14px] font-bold text-text-primary">Candidate Video</span>
-                {c.quickVideoUrl ? (
-                  <button onClick={() => setViewDoc(getFileUrl(c.quickVideoUrl!))} className="text-[11px] uppercase tracking-[0.1em] text-pink-600 hover:text-pink-800 font-black px-3 py-1.5 bg-pink-100 hover:bg-pink-200 rounded-lg transition-colors flex items-center gap-1.5"><Eye size={12} /> View</button>
-                ) : (
-                  <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                    {isImporting === 'quickVideoUrl' ? 'Importing...' : 'Import'}
-                    <input
-                      type="file"
-                      accept="video/*"
-                      className="hidden"
-                      disabled={isImporting !== null}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImportFile('quickVideoUrl', file);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
+              {[
+                { label: 'COC Certificate', url: c.cocDocumentUrl, field: 'cocDocumentUrl', color: 'primary', accept: 'image/*,application/pdf' },
+                { label: 'Medical Report', url: c.medicalDocumentUrl, field: 'medicalDocumentUrl', color: 'emerald', accept: 'image/*,application/pdf' },
+                { label: 'Passport Scan', url: c.passportImageUrl, field: 'passportImageUrl', color: 'primary', accept: 'image/*,application/pdf' },
+                { label: 'Candidate ID', url: c.candidateIdImageUrl, field: 'candidateIdImageUrl', color: 'blue', accept: 'image/*,application/pdf' },
+                { label: 'Relative ID', url: c.relativeIdImageUrl, field: 'relativeIdImageUrl', color: 'amber', accept: 'image/*,application/pdf' },
+                { label: 'Labour ID', url: c.labourIdUrl, field: 'labourIdUrl', color: 'violet', accept: 'image/*,application/pdf' },
+                { label: 'Candidate Video', url: c.quickVideoUrl, field: 'quickVideoUrl', color: 'pink', accept: 'video/*' },
+              ].map((doc) => (
+                <div key={doc.field} className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
+                  <span className="text-[14px] font-bold text-text-primary">{doc.label}</span>
+                  {doc.url ? (
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => setViewDoc(getFileUrl(doc.url!))} className={`text-[11px] uppercase tracking-[0.1em] text-${doc.color}-600 hover:text-${doc.color}-800 font-black px-3 py-1.5 bg-${doc.color}-100 hover:bg-${doc.color}-200 rounded-lg transition-colors flex items-center gap-1.5`}><Eye size={12} /> View</button>
+                      <a href={getFileUrl(doc.url!)} download target="_blank" rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
+                    </div>
+                  ) : (
+                    <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                      {isImporting === doc.field ? 'Importing...' : 'Import'}
+                      <input type="file" accept={doc.accept} className="hidden" disabled={isImporting !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImportFile(doc.field, file); }} />
+                    </label>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
