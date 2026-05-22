@@ -64,7 +64,7 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
           </div>
         </div>
         <div className="flex gap-2 items-stretch">
-          <div className="w-[190px] shrink-0 flex flex-col"><div className="border-[1.5px] border-black p-1 bg-white flex-1 relative min-h-0">{fullBodyPhoto ? <img src={fullBodyPhoto} className="absolute top-1 left-1 w-[calc(100%-8px)] h-[calc(100%-8px)] object-contain border border-gray-200" alt="Full Body" /> : <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af]">Full Body Photo</div>}</div></div>
+          <div className="w-[270px] shrink-0 flex flex-col"><div className="border-[1.5px] border-black p-0 bg-white flex-1 relative min-h-0 overflow-hidden">{fullBodyPhoto ? <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" /> : <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af]">Full Body Photo</div>}</div></div>
           <div className="flex-1 flex flex-col gap-0">
             <table className="w-full border-collapse border-[1.5px] border-black text-[13px] leading-tight mb-[-1.5px]">
               <thead><tr className="bg-[#b0c4de]"><th colSpan={3} className="border-[1.5px] border-black text-center font-bold py-1.5">Details of Applicant <span dir="rtl" className="ml-2 font-bold">بيانات مقدم الطلب</span></th></tr></thead>
@@ -111,12 +111,20 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
 
       </div>
       {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
-        {candidate.passportImageUrl ? (
-          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="w-[500px] h-[350px] object-contain border border-gray-150 shadow-sm" />
-        ) : (
-          <div className="text-gray-400 text-sm border-2 border-dashed border-gray-200 w-[500px] h-[350px] flex items-center justify-center">
-            Passport Image Not Available
+      <div className="w-[794px] h-[1123px] relative break-before-page bg-white flex flex-col" style={{ paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px' }}>
+        <div>
+          {candidate.passportImageUrl ? (
+            <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="w-[680px] h-[490px] object-contain object-left-top" />
+          ) : (
+            <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[680px] h-[490px] flex items-center justify-center">Passport Image Not Available</div>
+          )}
+        </div>
+        {candidate.videoUrl && (
+          <div className="mt-auto w-full flex flex-col items-center gap-2 pb-[20px]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-gray-500 font-sans">Scan to Watch Introduction Video</p>
+            <div className="w-28 h-28 bg-white p-1 shadow-md border border-gray-100 rounded">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} alt="Video QR" className="w-full h-full" />
+            </div>
           </div>
         )}
       </div>
