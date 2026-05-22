@@ -59,21 +59,21 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
   // Let's create the JSX structure accurately.
   return (
     <div className="w-[794px] mx-auto bg-white text-black font-serif shadow-lg print:shadow-none relative" dir="ltr">
-      
+
       {/* PAGE 1: Profile Sheet */}
       <div className="w-[794px] h-[1123px] relative overflow-hidden page-break-after-always">
-        
+
         {/* Background Composite Image */}
-        <img 
-          src="/Al-shablan.png" 
-          alt="Al Shablan Background" 
-          className="absolute inset-0 w-full h-full object-fill z-0" 
+        <img
+          src="/Al-shablan.png"
+          alt="Al Shablan Background"
+          className="absolute inset-0 w-full h-full object-fill z-0"
         />
 
         {/* Content Overlay */}
         {/* Padding to fit inside the golden border and below the header */}
         <div className="relative z-10 w-full h-full px-[50px] pt-[180px] pb-[50px] flex flex-col gap-2">
-          
+
           {/* Top Section: Photo and Basic Info */}
           <div className="flex gap-2">
             {/* Face Photo */}
@@ -124,10 +124,10 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
           {/* Middle Section: 2 Columns */}
           <div className="flex gap-2 flex-1">
-            
+
             {/* Left Column */}
             <div className="w-[56%] flex flex-col gap-2">
-              
+
               {/* Overseas Experience */}
               <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
                 <thead>
@@ -285,7 +285,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
             {/* Right Column */}
             <div className="w-[44%] flex flex-col gap-2">
-              
+
               {/* Passport Information */}
               <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
                 <thead>
@@ -337,9 +337,9 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                 <div className="mt-2 p-2 border border-black bg-white flex flex-col items-center gap-1">
                   <p className="text-[9px] font-bold uppercase">Candidate Video</p>
                   <div className="w-20 h-20 bg-white border border-gray-100 flex items-center justify-center">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
-                      alt="Video QR" 
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`}
+                      alt="Video QR"
                       className="w-full h-full"
                     />
                   </div>
@@ -354,15 +354,15 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       </div>
 
       {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative break-before-page bg-white flex flex-col" style={{paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px'}}>
-        
+      <div className="w-[820px] h-[1300px] relative break-before-page bg-white flex flex-col" style={{ paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px' }}>
+
         {/* Passport image anchored to top-left with small padding */}
         <div>
           {candidate.passportImageUrl ? (
-            <img 
-              src={getFileUrl(candidate.passportImageUrl)} 
-              alt="Passport" 
-              className="w-[680px] h-[490px] object-contain object-left-top" 
+            <img
+              src={getFileUrl(candidate.passportImageUrl)}
+              alt="Passport"
+              className="w-[710px] h-[500px] object-contain object-left-top"
             />
           ) : (
             <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[680px] h-[490px] flex items-center justify-center">
@@ -378,9 +378,9 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
               Scan to Watch Introduction Video
             </p>
             <div className="w-28 h-28 bg-white p-1 shadow-md border border-gray-100 rounded">
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
-                alt="Video QR" 
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`}
+                alt="Video QR"
                 className="w-full h-full"
               />
             </div>
