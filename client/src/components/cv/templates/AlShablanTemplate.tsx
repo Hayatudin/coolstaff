@@ -77,7 +77,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
           {/* Top Section: Photo and Basic Info */}
           <div className="flex gap-2">
             {/* Face Photo */}
-            <div className="w-[220px] h-[220px] border border-black p-1 shrink-0 bg-white">
+            <div className="w-[220px] h-[220px] border border-black p-0 shrink-0 bg-white overflow-hidden flex items-center justify-center">
               {facePhoto ? (
                 <img src={facePhoto} className="w-full h-full object-cover" alt="Face" />
               ) : (
@@ -126,7 +126,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
           <div className="flex gap-2 flex-1">
             
             {/* Left Column */}
-            <div className="w-[50%] flex flex-col gap-2">
+            <div className="w-[56%] flex flex-col gap-2">
               
               {/* Overseas Experience */}
               <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
@@ -284,7 +284,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
             </div>
 
             {/* Right Column */}
-            <div className="w-[50%] flex flex-col gap-2">
+            <div className="w-[44%] flex flex-col gap-2">
               
               {/* Passport Information */}
               <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
@@ -322,9 +322,9 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
               </table>
 
               {/* Full Body Photo */}
-              <div className="flex-1 border border-black p-1 bg-white mt-2 relative min-h-0 flex items-center justify-center">
+              <div className="flex-1 border border-black p-0 bg-white mt-2 relative min-h-0 overflow-hidden flex items-center justify-center">
                 {fullBodyPhoto ? (
-                  <img src={fullBodyPhoto} className="absolute top-1 left-1 w-[calc(100%-8px)] h-[calc(100%-8px)] object-contain" alt="Full Body" />
+                  <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
                 ) : (
                   <div className="text-gray-400 text-sm">Full Body Photo</div>
                 )}
@@ -352,12 +352,36 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       </div>
 
       {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
-        {candidate.passportImageUrl ? (
-          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="w-[500px] h-[350px] object-contain border border-gray-150 shadow-sm" />
-        ) : (
-          <div className="text-gray-400 text-sm border-2 border-dashed border-gray-200 w-[500px] h-[350px] flex items-center justify-center">
-            Passport Image Not Available
+      <div className="w-[794px] h-[1123px] relative break-before-page bg-white p-[50px] flex flex-col justify-between">
+        
+        {/* Passport container at top-left with no borders */}
+        <div className="w-full flex justify-start pt-[30px] pl-[20px]">
+          {candidate.passportImageUrl ? (
+            <img 
+              src={getFileUrl(candidate.passportImageUrl)} 
+              alt="Passport" 
+              className="w-[660px] h-[480px] object-contain" 
+            />
+          ) : (
+            <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[660px] h-[480px] flex items-center justify-center">
+              Passport Image Not Available
+            </div>
+          )}
+        </div>
+
+        {/* QR Code container at bottom center */}
+        {candidate.videoUrl && (
+          <div className="w-full flex flex-col items-center gap-2 pb-[60px]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-gray-500 font-sans">
+              Scan to Watch Introduction Video
+            </p>
+            <div className="w-28 h-28 bg-white p-1 shadow-md border border-gray-100 rounded">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
+                alt="Video QR" 
+                className="w-full h-full"
+              />
+            </div>
           </div>
         )}
       </div>

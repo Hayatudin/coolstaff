@@ -142,6 +142,8 @@ router.post('/generate', async (req: Request, res: Response) => {
         } else if (tagName === 'fullBodyPhoto') {
           if (templateId === 'tmpl-ussus') {
             maxWidth = 250; maxHeight = 500;
+          } else if (templateId === 'tmpl-al-shablan') {
+            maxWidth = 240; maxHeight = 500;
           } else {
             maxWidth = 320; maxHeight = 580;
           }

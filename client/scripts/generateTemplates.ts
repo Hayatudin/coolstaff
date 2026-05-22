@@ -154,9 +154,11 @@ async function generateTemplates() {
                                 new TableCell({
                                   borders: BORDER_SOLID,
                                   verticalAlign: VerticalAlign.CENTER,
+                                  margins: { top: 0, bottom: 0, left: 0, right: 0 },
                                   children: [
                                     new Paragraph({
                                       alignment: AlignmentType.CENTER,
+                                      spacing: { before: 0, after: 0 },
                                       children: [new TextRun("{%facePhoto}")]
                                     })
                                   ]
@@ -201,7 +203,7 @@ async function generateTemplates() {
                   children: [
                     // LEFT COLUMN
                     new TableCell({
-                      width: { size: 45, type: WidthType.PERCENTAGE },
+                      width: { size: 56, type: WidthType.PERCENTAGE },
                       borders: BORDER_NONE,
                       margins: { right: 100 },
                       children: [
@@ -298,7 +300,7 @@ async function generateTemplates() {
                     }),
                     // RIGHT COLUMN
                     new TableCell({
-                      width: { size: 55, type: WidthType.PERCENTAGE },
+                      width: { size: 44, type: WidthType.PERCENTAGE },
                       borders: BORDER_NONE,
                       margins: { left: 100 },
                       children: [
