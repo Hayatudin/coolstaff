@@ -323,7 +323,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
               {/* Full Body Photo */}
               <div className="flex-1 flex items-start justify-center mt-2 min-h-0">
-                <div className="w-[200px] h-[470px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
+                <div className="w-[200px] h-[440px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
                   {fullBodyPhoto ? (
                     <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
                   ) : (
