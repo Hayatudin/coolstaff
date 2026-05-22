@@ -84,7 +84,7 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
           </div>
 
           {/* Top Right: Face Photo */}
-          <div className="absolute top-[160px] right-[85px] w-[210px] h-[240px] bg-white flex items-center justify-center p-1 shadow-sm">
+          <div className="absolute top-[160px] right-[85px] w-[210px] h-[240px] bg-white flex items-center justify-center p-0 shadow-sm overflow-hidden">
             {facePhoto ? (
               <img src={facePhoto} className="w-full h-full object-cover" alt="Face" />
             ) : (
@@ -93,15 +93,13 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
           </div>
 
           {/* Bottom Left: Full Body Photo */}
-          <div className="absolute bottom-[90px] left-[75px] w-[290px] h-[480px] bg-white flex items-center justify-center shadow-sm p-1">
+          <div className="absolute bottom-[90px] left-[75px] w-[290px] h-[480px] bg-white flex items-center justify-center shadow-sm p-0 overflow-hidden">
             {fullBodyPhoto ? (
-              <img src={fullBodyPhoto} className="w-full h-full object-contain" alt="Full Body" />
+              <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
             ) : (
               <div className="text-gray-400 text-sm">Full Body Photo</div>
             )}
           </div>
-
-         
 
           {/* Middle/Bottom Right: Details */}
           <div className="absolute top-[430px] left-[420px] w-[320px] flex flex-col gap-[22px] uppercase">
@@ -147,34 +145,29 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
                 {getSkillsText()}
               </p>
             </div>
+          </div>
 
-            {/* QR Code Section */}
+          {/* Footer: QR Code & Branding */}
+          <div className="absolute bottom-[20px] left-[75px] right-[75px] h-[60px] flex items-center justify-between z-20">
+            {/* Daera branding */}
+            <div className="text-[16px] font-bold text-[#1c2a39] tracking-wide uppercase">
+              Daera Foreign Employment Agency
+            </div>
+            
+            {/* QR code */}
             {candidate.videoUrl && (
-              <div className="mt-4 flex flex-col items-center gap-1 border-t border-gray-200 pt-4">
-                <p className="text-[11px] font-bold uppercase text-gray-500">Video Introduction</p>
-                <div className="w-24 h-24 bg-white p-1 shadow-sm">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`} 
-                    alt="Video QR" 
-                    className="w-full h-full"
-                  />
-                </div>
+              <div className="flex items-center gap-2 bg-white/90 p-1 rounded shadow-sm border border-gray-100">
+                <span className="text-[9px] font-bold text-[#1c2a39] tracking-wider uppercase">INTRO VIDEO</span>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(candidate.videoUrl)}`} 
+                  alt="Video QR" 
+                  className="w-10 h-10"
+                />
               </div>
             )}
           </div>
 
         </div>
-      </div>
-
-      {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative flex items-center justify-center break-before-page p-8 bg-white">
-        {candidate.passportImageUrl ? (
-          <img src={getFileUrl(candidate.passportImageUrl)} alt="Passport" className="w-[500px] h-[350px] object-contain border border-gray-150 shadow-sm" />
-        ) : (
-          <div className="text-gray-400 text-sm border-2 border-dashed border-gray-200 w-[500px] h-[350px] flex items-center justify-center">
-            Passport Image Not Available
-          </div>
-        )}
       </div>
     </div>
   );
