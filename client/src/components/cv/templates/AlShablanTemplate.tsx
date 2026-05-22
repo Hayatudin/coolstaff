@@ -322,12 +322,14 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
               </table>
 
               {/* Full Body Photo */}
-              <div className="flex-1 border border-black p-0 bg-white mt-2 relative min-h-0 overflow-hidden flex items-center justify-center">
-                {fullBodyPhoto ? (
-                  <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
-                ) : (
-                  <div className="text-gray-400 text-sm">Full Body Photo</div>
-                )}
+              <div className="flex-1 flex items-start justify-center mt-2 min-h-0">
+                <div className="w-[200px] h-[380px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
+                  {fullBodyPhoto ? (
+                    <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
+                  ) : (
+                    <div className="text-gray-400 text-sm">Full Body Photo</div>
+                  )}
+                </div>
               </div>
 
               {/* QR Code Section */}
@@ -355,7 +357,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       <div className="w-[794px] h-[1123px] relative break-before-page bg-white p-[50px] flex flex-col justify-between">
         
         {/* Passport container at top-left with no borders */}
-        <div className="w-full flex justify-start pt-[30px] pl-[20px]">
+        <div className="flex justify-start items-start pt-[10px] pl-[0px]">
           {candidate.passportImageUrl ? (
             <img 
               src={getFileUrl(candidate.passportImageUrl)} 
