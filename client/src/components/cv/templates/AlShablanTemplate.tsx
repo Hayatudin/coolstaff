@@ -323,7 +323,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
               {/* Full Body Photo */}
               <div className="flex-1 flex items-start justify-center mt-2 min-h-0">
-                <div className="w-[200px] h-[520px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
+                <div className="w-[200px] h-[470px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
                   {fullBodyPhoto ? (
                     <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
                   ) : (
@@ -354,7 +354,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       </div>
 
       {/* PAGE 2: Passport Scan */}
-      <div className="w-[820px] h-[1300px] relative break-before-page bg-white flex flex-col" style={{ paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px' }}>
+      <div className="w-[794px] h-[1123px] relative break-before-page bg-white flex flex-col" style={{ paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px' }}>
 
         {/* Passport image anchored to top-left with small padding */}
         <div>
@@ -362,7 +362,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
             <img
               src={getFileUrl(candidate.passportImageUrl)}
               alt="Passport"
-              className="w-[710px] h-[500px] object-contain object-left-top"
+              className="w-[680px] h-[490px] object-contain object-left-top"
             />
           ) : (
             <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[680px] h-[490px] flex items-center justify-center">
