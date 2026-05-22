@@ -151,7 +151,7 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
           <div className="absolute bottom-[20px] left-[75px] right-[75px] h-[60px] flex items-center justify-between z-20">
             {/* Daera branding */}
             <div className="text-[16px] font-bold text-[#1c2a39] tracking-wide uppercase">
-              Daera Foreign Employment Agency
+             Coolstaff Foreign Employment Agency
             </div>
             
             {/* QR code */}
