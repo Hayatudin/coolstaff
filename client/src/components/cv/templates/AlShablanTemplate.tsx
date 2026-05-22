@@ -323,7 +323,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
               {/* Full Body Photo */}
               <div className="flex-1 flex items-start justify-center mt-2 min-h-0">
-                <div className="w-[200px] h-[380px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
+                <div className="w-[200px] h-[520px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
                   {fullBodyPhoto ? (
                     <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
                   ) : (
@@ -354,18 +354,18 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
       </div>
 
       {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative break-before-page bg-white p-[50px] flex flex-col justify-between">
+      <div className="w-[794px] h-[1123px] relative break-before-page bg-white flex flex-col" style={{paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px'}}>
         
-        {/* Passport container at top-left with no borders */}
-        <div className="flex justify-start items-start pt-[10px] pl-[0px]">
+        {/* Passport image anchored to top-left with small padding */}
+        <div>
           {candidate.passportImageUrl ? (
             <img 
               src={getFileUrl(candidate.passportImageUrl)} 
               alt="Passport" 
-              className="w-[660px] h-[480px] object-contain" 
+              className="w-[680px] h-[490px] object-contain object-left-top" 
             />
           ) : (
-            <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[660px] h-[480px] flex items-center justify-center">
+            <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[680px] h-[490px] flex items-center justify-center">
               Passport Image Not Available
             </div>
           )}
@@ -373,7 +373,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
         {/* QR Code container at bottom center */}
         {candidate.videoUrl && (
-          <div className="w-full flex flex-col items-center gap-2 pb-[60px]">
+          <div className="mt-auto w-full flex flex-col items-center gap-2 pb-[20px]">
             <p className="text-[12px] font-bold uppercase tracking-wider text-gray-500 font-sans">
               Scan to Watch Introduction Video
             </p>

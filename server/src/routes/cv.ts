@@ -47,15 +47,15 @@ router.post('/generate', async (req: Request, res: Response) => {
       const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
       try {
         const page = await browser.newPage();
-        
+
         // Construct the print URL (assuming client is on port 3000)
         // NOTE: For 'al-shablan' or 'ussus', the printUrl uses the route name
         const clientTemplateRoute = (templateRef === 'CV Al-shablan.docx' ? 'al-shablan' : (templateRef === 'CV Ussus.docx' ? 'ussus' : templateRef));
         const printUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/cv-print/${candidateId}/${clientTemplateRoute}`;
         console.log('Generating from URL:', printUrl);
-        
+
         await page.goto(printUrl, { waitUntil: 'networkidle' });
-        
+
         let outputBuf: Buffer;
         let contentType: string;
         let extension: string;
@@ -117,245 +117,245 @@ router.post('/generate', async (req: Request, res: Response) => {
         zip.file('word/document.xml', docXml);
       }
 
-    const sizeOf = require('image-size');
-    const imageOptions = {
-      centered: true,
-      getImage: (tagValue: string) => {
-        if (!tagValue) return Buffer.from('');
-        const base64Data = tagValue.split(',')[1] || tagValue;
-        return Buffer.from(base64Data, 'base64');
-      },
-      getSize: (img: Buffer, tagValue: string, tagName: string) => {
-        if (tagName === 'qrCode') return [100, 100];
-        
-        let maxWidth = 150;
-        let maxHeight = 180;
+      const sizeOf = require('image-size');
+      const imageOptions = {
+        centered: true,
+        getImage: (tagValue: string) => {
+          if (!tagValue) return Buffer.from('');
+          const base64Data = tagValue.split(',')[1] || tagValue;
+          return Buffer.from(base64Data, 'base64');
+        },
+        getSize: (img: Buffer, tagValue: string, tagName: string) => {
+          if (tagName === 'qrCode') return [100, 100];
 
-        if (tagName === 'facePhoto' || tagName === 'photo') {
-          if (templateId === 'tmpl-ussus') {
-            maxWidth = 220; maxHeight = 270;
-          } else if (templateId === 'tmpl-al-shablan') {
-            maxWidth = 150; maxHeight = 165;
-          } else {
-            maxWidth = 150; maxHeight = 180;
+          let maxWidth = 150;
+          let maxHeight = 180;
+
+          if (tagName === 'facePhoto' || tagName === 'photo') {
+            if (templateId === 'tmpl-ussus') {
+              maxWidth = 220; maxHeight = 270;
+            } else if (templateId === 'tmpl-al-shablan') {
+              maxWidth = 150; maxHeight = 165;
+            } else {
+              maxWidth = 150; maxHeight = 180;
+            }
+          } else if (tagName === 'fullBodyPhoto') {
+            if (templateId === 'tmpl-ussus') {
+              maxWidth = 250; maxHeight = 500;
+            } else if (templateId === 'tmpl-al-shablan') {
+              maxWidth = 240; maxHeight = 600;
+            } else {
+              maxWidth = 320; maxHeight = 580;
+            }
+          } else if (tagName === 'passport image' || tagName === 'passportPhoto') {
+            maxWidth = 550;
+            maxHeight = 750;
           }
-        } else if (tagName === 'fullBodyPhoto') {
-          if (templateId === 'tmpl-ussus') {
-            maxWidth = 250; maxHeight = 500;
-          } else if (templateId === 'tmpl-al-shablan') {
-            maxWidth = 240; maxHeight = 500;
-          } else {
-            maxWidth = 320; maxHeight = 580;
+
+          try {
+            const dimensions = sizeOf(img);
+            console.log(`[DOCX] Image ${tagName} original size: ${dimensions.width}x${dimensions.height}`);
+            const ratio = dimensions.width / dimensions.height;
+
+            if (ratio > maxWidth / maxHeight) {
+              // Limited by width
+              return [maxWidth, Math.round(maxWidth / ratio)];
+            } else {
+              // Limited by height
+              return [Math.round(maxHeight * ratio), maxHeight];
+            }
+          } catch (e) {
+            console.warn(`[DOCX] Failed to get dimensions for ${tagName}`, e);
+            return [maxWidth, maxHeight];
           }
-        } else if (tagName === 'passport image' || tagName === 'passportPhoto') {
-          maxWidth = 550;
-          maxHeight = 750;
+        },
+      };
+
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        modules: [new ImageModule(imageOptions)],
+      });
+
+      const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
+      const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
+      const hasSkill = (keyword: string) => skillsArray.some((s: string) => s.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
+      const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
+      const calculateAge = (dob: Date | null | undefined) => {
+        if (!dob) return '';
+        const diff = Date.now() - dob.getTime();
+        const ageDate = new Date(diff);
+        return Math.abs(ageDate.getUTCFullYear() - 1970).toString();
+      };
+
+      const fetchImageAsBase64 = async (url: string) => {
+        if (!url) return '';
+
+        // If it's already a base64 data URL, just strip the prefix
+        if (url.startsWith('data:')) {
+          return url.split(',')[1] || url;
         }
 
+        // Try local file system first (faster and more reliable on cPanel)
         try {
-          const dimensions = sizeOf(img);
-          console.log(`[DOCX] Image ${tagName} original size: ${dimensions.width}x${dimensions.height}`);
-          const ratio = dimensions.width / dimensions.height;
+          // Handle both relative paths and absolute-looking relative paths
+          let cleanUrl = url.startsWith('http') ? new URL(url).pathname : url;
 
-          if (ratio > maxWidth / maxHeight) {
-            // Limited by width
-            return [maxWidth, Math.round(maxWidth / ratio)];
-          } else {
-            // Limited by height
-            return [Math.round(maxHeight * ratio), maxHeight];
+          // If it uses our new proxy route /api/assets/..., strip it to get the real path
+          if (cleanUrl.includes('/api/assets/')) {
+            cleanUrl = cleanUrl.split('/api/assets/')[1];
+          }
+
+          const relativePath = cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl;
+
+          // Try common locations: root/public/uploads or root/uploads
+          const pathsToTry = [
+            path.join(process.cwd(), 'public', relativePath),
+            path.join(process.cwd(), relativePath),
+            path.join(process.cwd(), '..', 'public', relativePath),
+            path.join(process.cwd(), 'public', 'uploads', relativePath),
+          ];
+
+          for (const localPath of pathsToTry) {
+            if (fs.existsSync(localPath)) {
+              console.log(`[DOCX] Found local image at: ${localPath}`);
+              return fs.readFileSync(localPath, 'base64');
+            }
           }
         } catch (e) {
-          console.warn(`[DOCX] Failed to get dimensions for ${tagName}`, e);
-          return [maxWidth, maxHeight];
-        }
-      },
-    };
-
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      modules: [new ImageModule(imageOptions)],
-    });
-
-    const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
-    const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
-    const hasSkill = (keyword: string) => skillsArray.some((s: string) => s.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
-    const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
-    const calculateAge = (dob: Date | null | undefined) => {
-      if (!dob) return '';
-      const diff = Date.now() - dob.getTime();
-      const ageDate = new Date(diff);
-      return Math.abs(ageDate.getUTCFullYear() - 1970).toString();
-    };
-
-    const fetchImageAsBase64 = async (url: string) => {
-      if (!url) return '';
-      
-      // If it's already a base64 data URL, just strip the prefix
-      if (url.startsWith('data:')) {
-        return url.split(',')[1] || url;
-      }
-
-      // Try local file system first (faster and more reliable on cPanel)
-      try {
-        // Handle both relative paths and absolute-looking relative paths
-        let cleanUrl = url.startsWith('http') ? new URL(url).pathname : url;
-        
-        // If it uses our new proxy route /api/assets/..., strip it to get the real path
-        if (cleanUrl.includes('/api/assets/')) {
-          cleanUrl = cleanUrl.split('/api/assets/')[1];
+          console.warn(`[DOCX] Local read failed for: ${url}`, e);
         }
 
-        const relativePath = cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl;
-        
-        // Try common locations: root/public/uploads or root/uploads
-        const pathsToTry = [
-          path.join(process.cwd(), 'public', relativePath),
-          path.join(process.cwd(), relativePath),
-          path.join(process.cwd(), '..', 'public', relativePath),
-          path.join(process.cwd(), 'public', 'uploads', relativePath),
-        ];
-
-        for (const localPath of pathsToTry) {
-          if (fs.existsSync(localPath)) {
-            console.log(`[DOCX] Found local image at: ${localPath}`);
-            return fs.readFileSync(localPath, 'base64');
+        // Fallback to remote fetch if local fails
+        if (url.startsWith('http')) {
+          try {
+            console.log(`[DOCX] Fetching remote image: ${url}`);
+            const res = await fetch(url);
+            if (res.ok) {
+              const arrayBuffer = await res.arrayBuffer();
+              return Buffer.from(arrayBuffer).toString('base64');
+            }
+          } catch (e) {
+            console.warn(`[DOCX] Remote fetch failed: ${url}`);
           }
         }
-      } catch (e) {
-        console.warn(`[DOCX] Local read failed for: ${url}`, e);
+
+        return '';
+      };
+
+      const facePhotoData = await fetchImageAsBase64(facePhoto || candidate.passportImageUrl || '');
+      const fullBodyPhotoData = await fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || '');
+      const passportPhotoData = await fetchImageAsBase64(candidate.passportImageUrl || '');
+      const qrCodeData = candidate.videoUrl ? await QRCode.toDataURL(candidate.videoUrl) : '';
+
+      const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
+
+      const data = {
+        refNumber: candidate.id.slice(-6).toUpperCase(),
+        givenNames: formatValue(candidate.givenNames),
+        surname: formatValue(candidate.surname),
+        fullName: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
+        passportNumber: formatValue(candidate.passportNumber),
+        dateOfBirth: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+        dob: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+        gender: formatValue(candidate.gender),
+        nationality: formatValue(candidate.nationality),
+        issuingCountry: formatValue(candidate.issuingCountry),
+        dateOfIssue: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
+        issueDate: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
+        dateOfExpiry: candidate.dateOfExpiry ? candidate.dateOfExpiry.toISOString().split('T')[0] : '-',
+        expiryDate: candidate.dateOfExpiry ? candidate.dateOfExpiry.toISOString().split('T')[0] : '-',
+        issuePlace: formatValue(candidate.issuingCountry),
+        maritalStatus: formatValue(candidate.maritalStatus),
+        numberOfChildren: candidate.numberOfChildren || 0,
+        religion: formatValue(candidate.religion),
+        bloodType: formatValue(candidate.bloodType),
+        height: formatValue(candidate.height),
+        weight: formatValue(candidate.weight),
+        phone: formatValue(candidate.phone),
+        email: formatValue(candidate.email),
+        address: formatValue(candidate.address),
+        city: formatValue(candidate.city),
+        state: formatValue(candidate.state),
+        country: formatValue(candidate.country),
+        educationLevel: formatValue(candidate.educationLevel),
+        languages: langsArray.join(', ') || '-',
+        workExperience: formatValue(candidate.workExperience),
+        skills: skillsArray.join(', ') || '-',
+        medicalStatus: formatValue(candidate.medicalStatus),
+        knownConditions: formatValue(candidate.knownConditions),
+        emergencyName: formatValue(candidate.emergencyContactName),
+        emergencyPhone: formatValue(candidate.emergencyContactPhone),
+        job: formatValue(candidate.job),
+        age: calculateAge(candidate.dateOfBirth),
+
+        // Skill specific tags
+        skillBaby: formatValue(hasSkill('baby')),
+        skillChildren: formatValue(hasSkill('child')),
+        skillTutor: formatValue(hasSkill('tutor')),
+        skillComputer: formatValue(hasSkill('computer')),
+        skillClean: formatValue(hasSkill('clean')),
+        skillWash: formatValue(hasSkill('wash')),
+        skillIron: formatValue(hasSkill('iron')),
+        skillCook: formatValue(hasSkill('cook')),
+        skillArabicCook: formatValue(hasSkill('arabic')),
+        skillSew: formatValue(hasSkill('sew')),
+        skillDrive: formatValue(hasSkill('driv')),
+        skillDisabled: formatValue(hasSkill('disabl')),
+
+        // Language specific tags
+        english: formatValue(hasLang('english')),
+        arabic: formatValue(hasLang('arabic')),
+
+        qrCode: qrCodeData,
+
+        // Experience placeholders
+        expCountry: '-',
+        expPeriod: '-',
+
+        facePhoto: facePhotoData,
+        photo: facePhotoData,
+        fullBodyPhoto: fullBodyPhotoData,
+        passportPhoto: passportPhotoData,
+        'passport image': passportPhotoData,
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+        generatedAt: new Date().toLocaleDateString(),
+        FULL_NAME: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
+        NAME_AR: 'الاسم الكامل',
+        PASSPORT_NO: formatValue(candidate.passportNumber),
+        DOB: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+        NATIONALITY: formatValue(candidate.nationality),
+        GENDER: formatValue(candidate.gender),
+        PHONE: formatValue(candidate.phone),
+        phoneNumber: formatValue(candidate.phone),
+        HEIGHT: formatValue(candidate.height),
+        WEIGHT: formatValue(candidate.weight),
+        EXPERIENCE: formatValue(candidate.workExperience),
+        workPeriod: formatValue(candidate.workExperience ? 'Experienced' : 'Fresher'),
+        position: formatValue(candidate.job),
+        salary: '-',
+        SKILLS: skillsArray.join(', ') || '-',
+        PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
+        AGE: calculateAge(candidate.dateOfBirth),
+        expPosition: '-',
+      };
+
+      const exps = Array.isArray(candidate.workExperience) ? candidate.workExperience as any[] : [];
+      const validExp = exps.find(e => e.experienceStatus === 'Have experience');
+      if (validExp) {
+        data.expCountry = validExp.country || '-';
+        data.expPeriod = validExp.yearsOfExperience ? `${validExp.yearsOfExperience} YEARS` : '-';
+        data.expPosition = validExp.position || candidate.job || '-';
       }
 
-      // Fallback to remote fetch if local fails
-      if (url.startsWith('http')) {
-        try {
-          console.log(`[DOCX] Fetching remote image: ${url}`);
-          const res = await fetch(url);
-          if (res.ok) {
-            const arrayBuffer = await res.arrayBuffer();
-            return Buffer.from(arrayBuffer).toString('base64');
-          }
-        } catch (e) {
-          console.warn(`[DOCX] Remote fetch failed: ${url}`);
-        }
-      }
-      
-      return '';
-    };
+      doc.render(data);
 
-    const facePhotoData = await fetchImageAsBase64(facePhoto || candidate.passportImageUrl || '');
-    const fullBodyPhotoData = await fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || '');
-    const passportPhotoData = await fetchImageAsBase64(candidate.passportImageUrl || '');
-    const qrCodeData = candidate.videoUrl ? await QRCode.toDataURL(candidate.videoUrl) : '';
+      const docxBuf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 
-    const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
-
-    const data = {
-      refNumber: candidate.id.slice(-6).toUpperCase(),
-      givenNames: formatValue(candidate.givenNames),
-      surname: formatValue(candidate.surname),
-      fullName: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
-      passportNumber: formatValue(candidate.passportNumber),
-      dateOfBirth: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-      dob: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-      gender: formatValue(candidate.gender),
-      nationality: formatValue(candidate.nationality),
-      issuingCountry: formatValue(candidate.issuingCountry),
-      dateOfIssue: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
-      issueDate: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
-      dateOfExpiry: candidate.dateOfExpiry ? candidate.dateOfExpiry.toISOString().split('T')[0] : '-',
-      expiryDate: candidate.dateOfExpiry ? candidate.dateOfExpiry.toISOString().split('T')[0] : '-',
-      issuePlace: formatValue(candidate.issuingCountry),
-      maritalStatus: formatValue(candidate.maritalStatus),
-      numberOfChildren: candidate.numberOfChildren || 0,
-      religion: formatValue(candidate.religion),
-      bloodType: formatValue(candidate.bloodType),
-      height: formatValue(candidate.height),
-      weight: formatValue(candidate.weight),
-      phone: formatValue(candidate.phone),
-      email: formatValue(candidate.email),
-      address: formatValue(candidate.address),
-      city: formatValue(candidate.city),
-      state: formatValue(candidate.state),
-      country: formatValue(candidate.country),
-      educationLevel: formatValue(candidate.educationLevel),
-      languages: langsArray.join(', ') || '-',
-      workExperience: formatValue(candidate.workExperience),
-      skills: skillsArray.join(', ') || '-',
-      medicalStatus: formatValue(candidate.medicalStatus),
-      knownConditions: formatValue(candidate.knownConditions),
-      emergencyName: formatValue(candidate.emergencyContactName),
-      emergencyPhone: formatValue(candidate.emergencyContactPhone),
-      job: formatValue(candidate.job),
-      age: calculateAge(candidate.dateOfBirth),
-      
-      // Skill specific tags
-      skillBaby: formatValue(hasSkill('baby')),
-      skillChildren: formatValue(hasSkill('child')),
-      skillTutor: formatValue(hasSkill('tutor')),
-      skillComputer: formatValue(hasSkill('computer')),
-      skillClean: formatValue(hasSkill('clean')),
-      skillWash: formatValue(hasSkill('wash')),
-      skillIron: formatValue(hasSkill('iron')),
-      skillCook: formatValue(hasSkill('cook')),
-      skillArabicCook: formatValue(hasSkill('arabic')),
-      skillSew: formatValue(hasSkill('sew')),
-      skillDrive: formatValue(hasSkill('driv')),
-      skillDisabled: formatValue(hasSkill('disabl')),
-      
-      // Language specific tags
-      english: formatValue(hasLang('english')),
-      arabic: formatValue(hasLang('arabic')),
-
-      qrCode: qrCodeData,
-
-      // Experience placeholders
-      expCountry: '-',
-      expPeriod: '-',
-
-      facePhoto: facePhotoData,
-      photo: facePhotoData,
-      fullBodyPhoto: fullBodyPhotoData,
-      passportPhoto: passportPhotoData,
-      'passport image': passportPhotoData,
-      deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      generatedAt: new Date().toLocaleDateString(),
-      FULL_NAME: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
-      NAME_AR: 'الاسم الكامل',
-      PASSPORT_NO: formatValue(candidate.passportNumber),
-      DOB: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-      NATIONALITY: formatValue(candidate.nationality),
-      GENDER: formatValue(candidate.gender),
-      PHONE: formatValue(candidate.phone),
-      phoneNumber: formatValue(candidate.phone),
-      HEIGHT: formatValue(candidate.height),
-      WEIGHT: formatValue(candidate.weight),
-      EXPERIENCE: formatValue(candidate.workExperience),
-      workPeriod: formatValue(candidate.workExperience ? 'Experienced' : 'Fresher'),
-      position: formatValue(candidate.job),
-      salary: '-',
-      SKILLS: skillsArray.join(', ') || '-',
-      PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
-      AGE: calculateAge(candidate.dateOfBirth),
-      expPosition: '-',
-    };
-
-    const exps = Array.isArray(candidate.workExperience) ? candidate.workExperience as any[] : [];
-    const validExp = exps.find(e => e.experienceStatus === 'Have experience');
-    if (validExp) {
-      data.expCountry = validExp.country || '-';
-      data.expPeriod = validExp.yearsOfExperience ? `${validExp.yearsOfExperience} YEARS` : '-';
-      data.expPosition = validExp.position || candidate.job || '-';
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="CV_${candidate.surname}.docx"`);
+      return res.send(docxBuf);
     }
-
-    doc.render(data);
-
-    const docxBuf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="CV_${candidate.surname}.docx"`);
-    return res.send(docxBuf);
-  }
 
   } catch (error: any) {
     console.error('CV Generation Error:', error);
