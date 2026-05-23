@@ -1,5 +1,8 @@
 import express, { Request, Response } from 'express';
 import prisma from '../lib/prisma'; // adjust import path as needed
+import path from 'path';
+import fs from 'fs';
+import * as mime from 'mime-types';
 import ExcelJS from 'exceljs';
 
 const router = express.Router();
@@ -13,10 +16,7 @@ router.get('/', async (req: Request, res: Response) => {
         id: true,
         givenNames: true,
         surname: true,
-        ticketImageUrl: true,
-        deploymentDate: true,
-        broker: { select: { name: true } },
-        latestCVTemplate: true,
+        registeredAt: true,
       },
     });
     res.json(candidates);
@@ -35,12 +35,10 @@ router.post('/export', async (req: Request, res: Response) => {
         id: true,
         givenNames: true,
         surname: true,
-        ticketImageUrl: true,
-        deploymentDate: true,
+        registeredAt: true,
         broker: { select: { name: true } },
-        latestCVTemplate: true,
       },
-      orderBy: { deploymentDate: 'desc' },
+      orderBy: { registeredAt: 'desc' },
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -52,26 +50,24 @@ router.post('/export', async (req: Request, res: Response) => {
       { header: 'Name', key: 'name', width: 30 },
       { header: 'Deployment Date', key: 'deploymentDate', width: 20 },
       { header: 'Broker', key: 'broker', width: 25 },
-      { header: 'CV Template', key: 'cvTemplate', width: 25 },
     ];
 
     // Insert rows
     let lastDate: Date | null = null;
     candidates.forEach(c => {
-      const date = c.deploymentDate ? new Date(c.deploymentDate) : null;
-      if (lastDate && date && date.getTime() !== lastDate.getTime()) {
-        // Insert blank row between different dates
-        sheet.addRow([]);
-      }
-      sheet.addRow({
-        id: c.id,
-        name: `${c.givenNames} ${c.surname}`,
-        deploymentDate: date ? date.toLocaleDateString() : '',
-        broker: c.broker?.name || '',
-        cvTemplate: c.latestCVTemplate || '',
+        const date = c.registeredAt ? new Date(c.registeredAt) : null;
+        if (lastDate && date && date.getTime() !== lastDate.getTime()) {
+          // Insert blank row between different dates
+          sheet.addRow([]);
+        }
+        sheet.addRow({
+          id: c.id,
+          name: `${c.givenNames} ${c.surname}`,
+          deploymentDate: date ? date.toLocaleDateString() : '',
+          broker: c.broker?.name || '',
+        });
+        lastDate = date;
       });
-      lastDate = date;
-    });
 
     // Write to buffer
     const buffer = await workbook.xlsx.writeBuffer();
