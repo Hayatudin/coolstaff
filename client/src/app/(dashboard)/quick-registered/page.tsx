@@ -71,6 +71,7 @@ export default function QuickRegisteredPage() {
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [isPromoting, setIsPromoting] = useState(false);
   const [promoteSuccess, setPromoteSuccess] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   // Edit and dropdown state
   const [brokers, setBrokers] = useState<{ id: string; name: string }[]>([]);
@@ -253,6 +254,7 @@ export default function QuickRegisteredPage() {
     setVerifyTarget(null);
     setExtractedData(null);
     setPromoteSuccess(null);
+    setIsDragActive(false);
   };
 
   const openEditModal = (reg: QuickReg) => {
@@ -635,9 +637,30 @@ export default function QuickRegisteredPage() {
                   </p>
 
                   {/* Upload zone */}
-                  <label className={`flex flex-col items-center justify-center gap-4 p-10 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
-                    isExtracting ? 'pointer-events-none border-primary/30 bg-primary/5' : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50/50'
-                  }`}>
+                  <label
+                    className={`flex flex-col items-center justify-center gap-4 p-10 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
+                      isExtracting
+                        ? 'pointer-events-none border-primary/30 bg-primary/5'
+                        : isDragActive
+                        ? 'border-primary bg-primary/5 shadow-inner scale-[0.99]'
+                        : 'border-gray-200 hover:border-primary/40 hover:bg-gray-50/50'
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!isExtracting) setIsDragActive(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setIsDragActive(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragActive(false);
+                      if (isExtracting) return;
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleMusanedUpload(file);
+                    }}
+                  >
                     <input
                       type="file"
                       accept="application/pdf"

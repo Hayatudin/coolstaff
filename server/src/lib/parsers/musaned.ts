@@ -3,6 +3,7 @@ export interface ExtractedMusanedData {
   givenNames?: string;
   surname?: string;
   nationality?: string;
+  issuingCountry?: string;
   job?: string;
   dateOfBirth?: string;
   religion?: string;
@@ -12,6 +13,7 @@ export interface ExtractedMusanedData {
   dateOfExpiry?: string;
   dateOfIssue?: string;
   placeOfIssue?: string;
+  placeOfBirth?: string;
   email?: string;
   educationLevel?: string;
   skills?: string;
@@ -35,48 +37,52 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   // We must insert spaces before known labels to separate them.
   
   const labelsToSeparate = [
-    'ID number:', 'DoB:', 'Gender:', 'Marital status:', 'Religion:', 
-    'Job:', 'Mobile:', 'Skills:', 'Education level:', 'E-Mail:', 
-    'Languages:', 'Height:', 'Weight:', 'Number of Children:', 'Passport No:', 
-    'Expiration date:', 'Issue date:', 'Issue place:', 
-    'Country:', 'City:', 'Address:', 'Name:', 'Kinship:', 
-    'Mobile No:', 'Address Information', 'Emergency Contact',
-    'Passport Information', 'Personal Information'
+    'ID number', 'DoB', 'Gender', 'Marital status', 'Religion', 
+    'Job', 'Mobile', 'Skills', 'Education level', 'E-Mail', 
+    'Languages', 'Height', 'Weight', 'Number of Children', 'Passport No', 
+    'Expiration date', 'Issue date', 'Issue place', 'Place of Issue', 'Passport Issue Place',
+    'Country', 'City', 'Address', 'Name', 'Kinship', 'Place of birth', 'Place of Birth', 'Birth place', 'Birth Place',
+    'Mobile No', 'Address Information', 'Emergency Contact',
+    'Passport Information', 'Personal Information', 'First Name', 'Last Name', 'Surname', 'Given Names'
   ];
 
   let normalized = text.replace(/[\r\n]+/g, ' ');
   
   // Insert a space before each known label so values are cleanly separated
   for (const label of labelsToSeparate) {
-    // Use a regex that finds the label even when stuck to previous text
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    normalized = normalized.replace(new RegExp(`(?<!^)(?=${escaped})`, 'gi'), ' ');
+    // Match the label optionally followed by a colon
+    normalized = normalized.replace(new RegExp(`(?<!^)(?=${escaped}:?)`, 'gi'), ' ');
   }
   
   // Collapse extra spaces
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
+  // Build lookahead dynamically
+  const nextLabelPattern = labelsToSeparate.map(l => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':?').join('|');
+
   // Helper to extract values following a specific label.
-  const extract = (labelRegex: RegExp) => {
-    const match = normalized.match(labelRegex);
+  const extract = (label: string | RegExp) => {
+    let source = '';
+    if (label instanceof RegExp) {
+      source = label.source;
+    } else {
+      source = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    const regex = new RegExp(`${source}:?\\s*(.*?)(?=\\s+(?:${nextLabelPattern})|$)`, 'i');
+    const match = normalized.match(regex);
     return match && match[1] ? match[1].trim() : undefined;
   };
 
   // Passport Number
-  data.passportNumber = extract(/(?:Passport No|ID number):\s*([A-Z0-9]+)/i);
+  const passportRaw = extract(/(?:Passport No|ID number|Passport Number)/i);
+  data.passportNumber = passportRaw ? passportRaw.replace(/[^A-Z0-9]/gi, '').toUpperCase() : undefined;
 
   // ── Name Parsing (Step-by-step) ──
-
-  // Step 6: Clean invalid characters
   const cleanText = (t: string) => t.replace(/[^a-zA-Z\s]/g, '');
-
-  // Step 1: Normalize input
   const normalizeName = (name: string) => name.trim().replace(/\s+/g, ' ');
-
-  // Step 2: Split into parts
   const splitName = (fullName: string) => fullName.split(' ');
 
-  // Step 3 + 4: Core logic with edge cases
   const parseName = (fullName: string) => {
     const clean = normalizeName(cleanText(fullName));
     const parts = splitName(clean);
@@ -100,17 +106,15 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
     return { givenNames, surname };
   };
 
-  // Smart Detection: If CV has separate First Name / Last Name fields, use them directly
-  const firstName = extract(/First Name:\s*([A-Za-z\s]+?)(?=\s+(?:Last|Surname|ID|DoB|Gender|Marital|Religion|Job|Mobile|$))/i);
-  const lastName = extract(/(?:Last Name|Surname):\s*([A-Za-z\s]+?)(?=\s+(?:First|ID|DoB|Gender|Marital|Religion|Job|Mobile|$))/i);
+  // Smart Detection: If CV has First Name / Last Name
+  const firstName = extract(/(?:First Name|Given Names)/i);
+  const lastName = extract(/(?:Last Name|Surname)/i);
 
   if (firstName && lastName) {
-    // Skip parsing and use directly
     data.givenNames = normalizeName(cleanText(firstName));
     data.surname = normalizeName(cleanText(lastName));
   } else {
-    // Extract full name from "Name:" label and parse
-    const nameStr = extract(/Name:\s*([A-Za-z\s]+?)(?=\s+(?:ID number|DoB|Gender|Marital|Religion|Job|Mobile|Passport|Skills|$))/i);
+    const nameStr = extract(/(?:Name|Full Name)/i);
     if (nameStr) {
       const { givenNames, surname } = parseName(nameStr);
       data.givenNames = givenNames;
@@ -119,67 +123,94 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   }
 
   // Job
-  data.job = extract(/Job:\s*([A-Za-z\s]+?)(?=\s+(?:Skills|ID number|Gender|Religion|Mobile|Education|Languages|$))/i);
+  data.job = extract(/(?:Job|Occupation|Designation)/i);
 
   // Religion
-  data.religion = extract(/Religion:\s*([A-Za-z\s]+?)(?=\s+(?:Skills|ID number|Gender|Job|Mobile|Education|Languages|$))/i);
+  data.religion = extract(/(?:Religion|Sect)/i);
 
   // Marital Status
-  data.maritalStatus = extract(/Marital status:\s*([A-Za-z]+)/i);
+  data.maritalStatus = extract(/(?:Marital status|Marital Status|Marriage Status)/i);
 
   // Date of Birth
-  data.dateOfBirth = extract(/DoB:\s*(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/i);
+  const dobRaw = extract(/(?:DoB|Date of birth|Date of Birth)/i);
+  if (dobRaw) {
+    const dateMatch = dobRaw.match(/(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/);
+    data.dateOfBirth = dateMatch ? dateMatch[1] : dobRaw;
+  }
 
   // Phone / Mobile
-  data.phone = extract(/Mobile:\s*([\+\d]+)/i);
+  data.phone = extract(/(?:Mobile|Phone|Telephone|Contact Number)/i);
 
   // Gender
-  data.gender = extract(/Gender:\s*([A-Za-z]+)/i);
+  data.gender = extract(/(?:Gender|Sex)/i);
 
   // Expiration Date
-  data.dateOfExpiry = extract(/Expiration date:\s*(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/i);
+  const doeRaw = extract(/(?:Expiration date|Expiry Date|Date of Expiry|Expiration Date)/i);
+  if (doeRaw) {
+    const dateMatch = doeRaw.match(/(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/);
+    data.dateOfExpiry = dateMatch ? dateMatch[1] : doeRaw;
+  }
 
   // Issue Date
-  data.dateOfIssue = extract(/Issue date:\s*(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/i);
+  const doiRaw = extract(/(?:Issue date|Date of Issue|Issue Date)/i);
+  if (doiRaw) {
+    const dateMatch = doiRaw.match(/(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/);
+    data.dateOfIssue = dateMatch ? dateMatch[1] : doiRaw;
+  }
 
-  // Issue Place
-  data.placeOfIssue = extract(/Issue place:\s*([A-Za-z\s]+?)(?=\s+(?:Address|Country|City|$))/i);
+  // Issue Place / Issuing Country
+  data.placeOfIssue = extract(/(?:Issue place|Place of Issue|Issuing Country|Passport Issue Place)/i);
+  data.issuingCountry = data.placeOfIssue;
+
+  // Place of Birth
+  data.placeOfBirth = extract(/(?:Place of birth|Birth place|Place of Birth|Birth Place)/i);
 
   // Nationality (derived from Country)
-  data.nationality = extract(/Country:\s*([A-Za-z]+)/i);
+  data.nationality = extract(/(?:Country|Nationality)/i);
 
   // Email
-  data.email = extract(/E-Mail:\s*([^\s]+@[^\s]+)/i);
+  data.email = extract(/(?:E-Mail|Email|E Mail)/i);
 
   // Education Level
-  data.educationLevel = extract(/Education level:\s*([A-Za-z\s]+?)(?=\s+(?:E-Mail|Languages|Number|Skills|$))/i);
+  data.educationLevel = extract(/(?:Education level|Education Level|Education)/i);
 
   // Height
-  data.height = extract(/Height:\s*(\d+)/i);
+  data.height = extract(/(?:Height)/i);
 
   // Weight
-  data.weight = extract(/Weight:\s*(\d+)/i);
+  data.weight = extract(/(?:Weight)/i);
 
   // Languages
-  data.languages = extract(/Languages:\s*([A-Za-z,\s&]+?)(?=\s+(?:Education|E-Mail|Number|Skills|$))/i);
+  data.languages = extract(/(?:Languages|Language)/i);
 
   // Skills
-  data.skills = extract(/Skills:\s*([A-Za-z,\s&]+?)(?=\s+(?:Education|E-Mail|Languages|Number|$))/i);
+  data.skills = extract(/(?:Skills|Skill)/i);
 
   // Number of Children
-  data.numberOfChildren = extract(/Number of Children:\s*(\d+)/i);
+  data.numberOfChildren = extract(/(?:Number of Children|No of Children|Children)/i);
 
   // City
-  data.city = extract(/City:\s*([A-Za-z\s]+?)(?=\s+(?:Address|Emergency|$))/i);
+  data.city = extract(/(?:City)/i);
 
   // Address
-  data.address = extract(/Address:\s*([A-Za-z\s]+?)(?=\s+(?:Emergency|$))/i);
+  data.address = extract(/(?:Address)/i);
 
   // Emergency Contact
-  data.emergencyContactName = extract(/Emergency Contact\s+Name:\s*([A-Za-z\s]+?)(?=\s+(?:Kinship|Mobile|Address|$))/i);
-  data.emergencyContactRelation = extract(/Kinship:\s*([A-Za-z]+)/i);
-  data.emergencyContactPhone = extract(/Mobile No:\s*([\+\d]+)/i);
-  data.emergencyContactAddress = extract(/Mobile No:\s*[\+\d]+\s+Address:\s*([A-Za-z\s]+?)$/i);
+  data.emergencyContactName = extract(/(?:Emergency Contact Name|Emergency Contact Name:)/i) || extract(/Emergency Contact\s+Name/i);
+  data.emergencyContactRelation = extract(/(?:Kinship|Relationship)/i);
+  data.emergencyContactPhone = extract(/(?:Mobile No|Emergency Contact Phone|Emergency Phone)/i);
+  
+  // Emergency Address
+  const emergencyAddrRaw = extract(/(?:Emergency Contact Address|Emergency Address)/i);
+  if (emergencyAddrRaw) {
+    data.emergencyContactAddress = emergencyAddrRaw;
+  } else {
+    // Fallback if address is inside the mobile No block
+    const mobAddressMatch = normalized.match(/Mobile No:\s*[\+\d]+\s+Address:\s*(.*?)(?=\s+(?:${nextLabelPattern})|$)/i);
+    if (mobAddressMatch && mobAddressMatch[1]) {
+      data.emergencyContactAddress = mobAddressMatch[1].trim();
+    }
+  }
 
   return data;
 }

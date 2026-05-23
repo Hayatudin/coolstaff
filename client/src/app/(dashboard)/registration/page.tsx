@@ -87,22 +87,37 @@ function RegistrationContent() {
 
       const convertDate = (dateStr?: string): string => {
         if (!dateStr) return '';
-        const parts = dateStr.split('/');
-        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        if (dateStr.includes('T')) {
+          return dateStr.split('T')[0];
+        }
+        const separator = dateStr.includes('/') ? '/' : dateStr.includes('-') ? '-' : null;
+        if (separator) {
+          const parts = dateStr.split(separator);
+          if (parts.length === 3) {
+            if (parts[0].length === 4) {
+              return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            } else if (parts[2].length === 4) {
+              return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          }
+        }
         return dateStr;
       };
+
+      const extractedPlaceOfBirth = extractedData.placeOfBirth || quickRegistration.placeOfBirth || extractedData.city || quickRegistration.city || '';
+      const extractedIssuingCountry = extractedData.placeOfIssue || extractedData.issuingCountry || quickRegistration.issuingCountry || '';
 
       setPassportData({
         passportNumber: extractedData.passportNumber || quickRegistration.passportNumber || '',
         surname: (extractedData.surname || quickRegistration.surname || '').toUpperCase(),
         givenNames: (extractedData.givenNames || quickRegistration.givenNames || '').toUpperCase(),
-        dateOfBirth: convertDate(extractedData.dateOfBirth) || quickRegistration.dateOfBirth || '',
+        dateOfBirth: convertDate(extractedData.dateOfBirth) || convertDate(quickRegistration.dateOfBirth) || '',
         gender: extractedData.gender || quickRegistration.gender || '',
         nationality: extractedData.nationality || quickRegistration.nationality || '',
-        issuingCountry: extractedData.placeOfIssue || quickRegistration.issuingCountry || '',
-        dateOfIssue: convertDate(extractedData.dateOfIssue) || quickRegistration.dateOfIssue || '',
-        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || quickRegistration.dateOfExpiry || '',
-        placeOfBirth: extractedData.placeOfBirth || quickRegistration.placeOfBirth || '',
+        issuingCountry: extractedIssuingCountry,
+        dateOfIssue: convertDate(extractedData.dateOfIssue) || convertDate(quickRegistration.dateOfIssue) || '',
+        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || convertDate(quickRegistration.dateOfExpiry) || '',
+        placeOfBirth: extractedPlaceOfBirth,
       });
 
       let parsedExp: any[] = [];
@@ -394,8 +409,20 @@ function RegistrationContent() {
       const data = result.data;
       const convertDate = (dateStr?: string): string => {
         if (!dateStr) return '';
-        const parts = dateStr.split('/');
-        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        if (dateStr.includes('T')) {
+          return dateStr.split('T')[0];
+        }
+        const separator = dateStr.includes('/') ? '/' : dateStr.includes('-') ? '-' : null;
+        if (separator) {
+          const parts = dateStr.split(separator);
+          if (parts.length === 3) {
+            if (parts[0].length === 4) {
+              return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            } else if (parts[2].length === 4) {
+              return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          }
+        }
         return dateStr;
       };
 
@@ -408,8 +435,9 @@ function RegistrationContent() {
         nationality: data.nationality || prev.nationality,
         dateOfExpiry: convertDate(data.dateOfExpiry) || prev.dateOfExpiry,
         dateOfIssue: convertDate(data.dateOfIssue) || prev.dateOfIssue,
-        issuingCountry: data.placeOfIssue || prev.issuingCountry,
+        issuingCountry: data.placeOfIssue || data.issuingCountry || prev.issuingCountry,
         gender: data.gender || prev.gender,
+        placeOfBirth: data.placeOfBirth || data.city || prev.placeOfBirth,
       }));
 
       const mapReligion = (r?: string): string => {
@@ -494,7 +522,10 @@ function RegistrationContent() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          passportData,
+          passportData: {
+            ...passportData,
+            placeOfBirth: passportData.placeOfBirth || personalInfo.city || '',
+          },
           personalInfo: {
             ...cleanPersonalInfo,
             cocDocumentUrl: compressedCoc,

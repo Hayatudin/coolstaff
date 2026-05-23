@@ -283,8 +283,9 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   };
 
   const handleFileChange = (field: 'coc' | 'labour' | 'candidateId' | 'relativeId' | 'video', file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Max file size is 10MB');
+    const limit = field === 'video' ? 30 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > limit) {
+      alert(`Max file size is ${limit / (1024 * 1024)}MB`);
       return;
     }
     const reader = new FileReader();

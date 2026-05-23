@@ -161,9 +161,9 @@ export default function QuickRegistrationPage() {
     }
   }, []);
 
-  const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Max file size is 10MB');
+  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 10 * 1024 * 1024) => {
+    if (file.size > maxBytes) {
+      alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
       return;
     }
     const reader = new FileReader();
@@ -620,9 +620,9 @@ export default function QuickRegistrationPage() {
                     shape="rect"
                     compact
                     preview={videoUrl}
-                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
+                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64), 30 * 1024 * 1024)}
                     onClear={() => setVideoUrl(null)}
-                    helperText="MP4, WebM or MOV — Max 10MB"
+                    helperText="MP4, WebM or MOV — Max 30MB"
                   />
                 </div>
               )}
