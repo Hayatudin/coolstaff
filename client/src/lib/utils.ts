@@ -15,6 +15,15 @@ export function formatDate(dateString: string): string {
   });
 }
 
+export function getDownloadUrl(path: string | null | undefined) {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('data:')) return path;
+
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  return `${baseUrl}/api/files/${cleanPath}`;
+}
+
 export function getFileUrl(path: string | null | undefined) {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('data:')) return path;

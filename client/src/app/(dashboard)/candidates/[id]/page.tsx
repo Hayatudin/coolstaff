@@ -8,7 +8,7 @@ import {
   Heart, GraduationCap, Globe, Shield, FileText, Eye, Loader2, Clock, Download, ExternalLink
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
-import { cn, getFileUrl } from '@/lib/utils';
+import { cn, getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
@@ -420,7 +420,7 @@ export default function CandidateDetailPage() {
                   {doc.url ? (
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => setViewDoc(getFileUrl(doc.url!))} className={`text-[11px] uppercase tracking-[0.1em] text-${doc.color}-600 hover:text-${doc.color}-800 font-black px-3 py-1.5 bg-${doc.color}-100 hover:bg-${doc.color}-200 rounded-lg transition-colors flex items-center gap-1.5`}><Eye size={12} /> View</button>
-                      <a href={getFileUrl(doc.url!)} download rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
+                      <a href={getDownloadUrl(doc.url!)} download rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
                     </div>
                   ) : (
                     <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
