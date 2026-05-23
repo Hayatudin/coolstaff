@@ -259,8 +259,18 @@ router.post('/passport', async (req: Request, res: Response) => {
   try {
     const { ocrText } = req.body;
     if (!ocrText) return res.status(400).json({ error: 'No OCR text provided' });
-    const mrz = findMrzLines(ocrText);
-    if (!mrz) return res.status(422).json({ error: 'MRZ not detected' });
+    // Attempt primary MRZ extraction
+    let mrz = findMrzLines(ocrText);
+    // If MRZ not detected, log OCR text and retry with cleaned input
+    if (!mrz) {
+      console.warn('MRZ not detected, logging OCR text for investigation');
+      console.debug('OCR Text:', ocrText);
+      const cleanedOcr = ocrText.replace(/[^\x00-\x7F]/g, '');
+      mrz = findMrzLines(cleanedOcr);
+    }
+    if (!mrz) {
+      return res.status(422).json({ error: 'MRZ not detected – please retake the passport photo' });
+    }
     const [line1, line2] = mrz;
     const issuingCountry = line1.substring(2, 5).replace(/</g, '');
     const parts = line1.substring(5).split('<<');

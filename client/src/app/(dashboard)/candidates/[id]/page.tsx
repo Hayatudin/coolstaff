@@ -125,7 +125,7 @@ export default function CandidateDetailPage() {
       <div className="bg-white rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         {/* Light Blue Header Section */}
         <div className="bg-[#F0F6FB] px-8 py-10 flex flex-col sm:flex-row items-center sm:items-start gap-8 relative">
-          
+
           {/* Avatar */}
           <div className="relative shrink-0">
             <div className="w-40 h-40 rounded-full bg-white shadow-xl shadow-black/5 flex items-center justify-center overflow-hidden border-[6px] border-white ring-1 ring-black/5">
@@ -158,13 +158,13 @@ export default function CandidateDetailPage() {
                 </div>
 
                 <div className="mt-5">
-                  <p className="text-gray-800 text-[15px] font-medium">{pi.job || 'Unassigned'} <span className="text-gray-500 font-normal">at</span> <span className="font-bold text-gray-900">Melaverse Agency</span></p>
+                  <p className="text-gray-800 text-[15px] font-medium">{pi.job || 'Unassigned'}</p>
                   <p className="text-gray-500 text-[13px] font-medium mt-1 flex items-center justify-center sm:justify-start gap-1.5">
                     <MapPin size={14} className="text-gray-400" /> {pd.placeOfBirth ? `${pd.placeOfBirth}, ` : ''}{pd.nationality}
                   </p>
                 </div>
               </div>
-              
+
               {/* Top Right Actions (Like the 'send message' button) */}
               <div className="flex flex-row xl:flex-col items-center xl:items-end justify-center gap-2 mt-4 xl:mt-0">
                 <button onClick={() => router.push(`/registration?edit=${c.id}`)} className="flex items-center justify-center gap-2 px-5 py-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto">
@@ -180,28 +180,28 @@ export default function CandidateDetailPage() {
 
         {/* Stats / Bottom Section */}
         <div className="bg-white px-8 py-5 flex flex-col sm:flex-row items-center justify-between border-t border-gray-200">
-           <div className="flex items-center gap-10">
-              <div className="text-center">
-                 <p className="text-2xl font-black text-gray-900">{pi.languages?.length || 0}</p>
-                 <p className="text-[11px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">Languages</p>
-              </div>
-              <div className="w-px h-10 bg-gray-200"></div>
-              <div className="text-center">
-                 <p className="text-2xl font-black text-gray-900">{pi.skills?.length || 0}</p>
-                 <p className="text-[11px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">Skills</p>
-              </div>
-              <div className="w-px h-10 bg-gray-200 hidden sm:block"></div>
-              <div className="text-center hidden sm:block">
-                 <p className="text-2xl font-black text-gray-900">{pi.workExperience?.length || 0}</p>
-                 <p className="text-[11px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">Experience</p>
-              </div>
-           </div>
-           
-           <div className="mt-6 sm:mt-0 w-full sm:w-auto">
-             <button onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 bg-[#00A4EF] text-white rounded-md font-bold text-sm shadow-md hover:bg-[#0093D6] hover:shadow-lg transition-all transform hover:-translate-y-0.5">
-               <FileText size={16} /> Generate CV
-             </button>
-           </div>
+          <div className="flex items-center gap-10">
+            <div className="text-center">
+              <p className="text-2xl font-black text-gray-900">{pi.languages?.length || 0}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">Languages</p>
+            </div>
+            <div className="w-px h-10 bg-gray-200"></div>
+            <div className="text-center">
+              <p className="text-2xl font-black text-gray-900">{pi.skills?.length || 0}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">Skills</p>
+            </div>
+            <div className="w-px h-10 bg-gray-200 hidden sm:block"></div>
+            <div className="text-center hidden sm:block">
+              <p className="text-2xl font-black text-gray-900">{pi.workExperience?.length || 0}</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">Experience</p>
+            </div>
+          </div>
+
+          <div className="mt-6 sm:mt-0 w-full sm:w-auto">
+            <button onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 bg-[#00A4EF] text-white rounded-md font-bold text-sm shadow-md hover:bg-[#0093D6] hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+              <FileText size={16} /> Generate CV
+            </button>
+          </div>
         </div>
       </div>
 
@@ -239,7 +239,7 @@ export default function CandidateDetailPage() {
                 className="flex items-center gap-4 group"
               >
                 <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0">
-                  <svg className="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  <svg className="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-text-primary group-hover:text-red-600 transition-colors">Watch on YouTube</p>
@@ -420,7 +420,7 @@ export default function CandidateDetailPage() {
                   {doc.url ? (
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => setViewDoc(getFileUrl(doc.url!))} className={`text-[11px] uppercase tracking-[0.1em] text-${doc.color}-600 hover:text-${doc.color}-800 font-black px-3 py-1.5 bg-${doc.color}-100 hover:bg-${doc.color}-200 rounded-lg transition-colors flex items-center gap-1.5`}><Eye size={12} /> View</button>
-                      <a href={getFileUrl(doc.url!)} download target="_blank" rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
+                      <a href={getFileUrl(doc.url!)} download rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
                     </div>
                   ) : (
                     <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
