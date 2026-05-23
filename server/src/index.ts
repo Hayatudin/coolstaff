@@ -100,6 +100,7 @@ import userRoutes from './routes/users';
 import cvRoutes from './routes/cv';
 import generatedCvRoutes from './routes/generated-cvs';
 import fileRoutes from './routes/files';
+import deploymentRoutes from './routes/deployments';
 import ocrRoutes from './routes/ocr';
 import extractRoutes from './routes/extract';
 import notificationRoutes from './routes/notifications';
@@ -127,6 +128,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/video-uploads', videoUploadsRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/deployments', deploymentRoutes);
 
 // Database Debug Endpoint (Direct Browser Diagnostics)
 app.get('/api/debug-db', async (req: Request, res: Response) => {

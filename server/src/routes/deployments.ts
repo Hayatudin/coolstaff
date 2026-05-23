@@ -11,15 +11,38 @@ const router = express.Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const candidates = await prisma.candidate.findMany({
-      where: { visaSelected: true },
+      where: {
+        visaSelected: true,
+        invoices: {
+          some: {
+            ticketUrl: { not: '' },
+            deployedDate: { not: null }
+          }
+        }
+      },
       select: {
         id: true,
         givenNames: true,
         surname: true,
-        registeredAt: true,
-      },
+        passportNumber: true,
+        broker: { select: { name: true } },
+        generatedCVs: { select: { templateId: true } },
+        invoices: {
+          select: {
+            ticketUrl: true,
+            deployedDate: true,
+          }
+        }
+      }
     });
-    res.json(candidates);
+
+    const sorted = candidates.sort((a, b) => {
+      const dateA = a.invoices[0]?.deployedDate ? new Date(a.invoices[0].deployedDate).getTime() : 0;
+      const dateB = b.invoices[0]?.deployedDate ? new Date(b.invoices[0].deployedDate).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    res.json(sorted);
   } catch (err) {
     console.error('Failed to fetch deployments', err);
     res.status(500).json({ error: 'Failed to fetch deployments' });
@@ -30,15 +53,35 @@ router.get('/', async (req: Request, res: Response) => {
 router.post('/export', async (req: Request, res: Response) => {
   try {
     const candidates = await prisma.candidate.findMany({
-      where: { visaSelected: true },
+      where: {
+        visaSelected: true,
+        invoices: {
+          some: {
+            ticketUrl: { not: '' },
+            deployedDate: { not: null }
+          }
+        }
+      },
       select: {
         id: true,
         givenNames: true,
         surname: true,
-        registeredAt: true,
+        passportNumber: true,
         broker: { select: { name: true } },
-      },
-      orderBy: { registeredAt: 'desc' },
+        generatedCVs: { select: { templateId: true } },
+        invoices: {
+          select: {
+            ticketUrl: true,
+            deployedDate: true,
+          }
+        }
+      }
+    });
+
+    const sorted = candidates.sort((a, b) => {
+      const dateA = a.invoices[0]?.deployedDate ? new Date(a.invoices[0].deployedDate).getTime() : 0;
+      const dateB = b.invoices[0]?.deployedDate ? new Date(b.invoices[0].deployedDate).getTime() : 0;
+      return dateB - dateA; // Sort by deployment date descending
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -48,26 +91,36 @@ router.post('/export', async (req: Request, res: Response) => {
     sheet.columns = [
       { header: 'Candidate ID', key: 'id', width: 15 },
       { header: 'Name', key: 'name', width: 30 },
-      { header: 'Deployment Date', key: 'deploymentDate', width: 20 },
+      { header: 'Passport Number', key: 'passportNumber', width: 20 },
+      { header: 'CV Template', key: 'cvTemplate', width: 25 },
       { header: 'Broker', key: 'broker', width: 25 },
+      { header: 'Deployment Date', key: 'deploymentDate', width: 20 },
     ];
 
     // Insert rows
-    let lastDate: Date | null = null;
-    candidates.forEach(c => {
-        const date = c.registeredAt ? new Date(c.registeredAt) : null;
-        if (lastDate && date && date.getTime() !== lastDate.getTime()) {
-          // Insert blank row between different dates
-          sheet.addRow([]);
-        }
-        sheet.addRow({
-          id: c.id,
-          name: `${c.givenNames} ${c.surname}`,
-          deploymentDate: date ? date.toLocaleDateString() : '',
-          broker: c.broker?.name || '',
-        });
-        lastDate = date;
+    let lastDateStr: string | null = null;
+    sorted.forEach(c => {
+      const invoice = c.invoices[0];
+      const date = invoice?.deployedDate ? new Date(invoice.deployedDate) : null;
+      const dateStr = date ? date.toLocaleDateString() : '';
+
+      if (lastDateStr && dateStr && dateStr !== lastDateStr) {
+        // Insert blank row between different dates
+        sheet.addRow([]);
+      }
+
+      const cvTemplate = c.generatedCVs?.[0]?.templateId?.toUpperCase() || 'N/A';
+
+      sheet.addRow({
+        id: c.id,
+        name: `${c.givenNames} ${c.surname}`,
+        passportNumber: c.passportNumber,
+        cvTemplate: cvTemplate,
+        broker: c.broker?.name || 'DIRECT',
+        deploymentDate: dateStr,
       });
+      lastDateStr = dateStr;
+    });
 
     // Write to buffer
     const buffer = await workbook.xlsx.writeBuffer();

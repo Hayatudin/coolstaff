@@ -18,6 +18,7 @@ interface MultiSelectProps {
   error?: string;
   disabled?: boolean;
   searchable?: boolean;
+  allowAddCustom?: boolean;
 }
 
 export default function MultiSelect({
@@ -29,14 +30,18 @@ export default function MultiSelect({
   error,
   disabled = false,
   searchable = false,
+  allowAddCustom = false,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [customOptions, setCustomOptions] = useState<SelectOption[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
+  const allOptions = [...options, ...customOptions];
+
   const filteredOptions = searchable
-    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
-    : options;
+    ? allOptions.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : allOptions;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -62,7 +67,26 @@ export default function MultiSelect({
     onChange(value.filter(v => v !== optionValue));
   };
 
-  const selectedLabels = value.map(v => options.find(o => o.value === v)?.label || v);
+  const hasExactMatch = allOptions.some(
+    o => o.label.trim().toLowerCase() === search.trim().toLowerCase()
+  );
+
+  const handleAddCustom = () => {
+    const trimmed = search.trim();
+    if (!trimmed) return;
+    const upper = trimmed.toUpperCase();
+
+    if (!allOptions.some(o => o.value === upper)) {
+      const newOpt = { value: upper, label: upper };
+      setCustomOptions(prev => [...prev, newOpt]);
+      onChange([...value, upper]);
+    } else {
+      if (!value.includes(upper)) {
+        onChange([...value, upper]);
+      }
+    }
+    setSearch('');
+  };
 
   return (
     <div className={cn("flex flex-col gap-1.5 relative", isOpen && "z-30")} ref={ref}>
@@ -87,7 +111,7 @@ export default function MultiSelect({
               <span className="text-sm text-text-tertiary pl-1">{placeholder}</span>
             ) : (
               value.map((val) => {
-                const label = options.find(o => o.value === val)?.label || val;
+                const label = allOptions.find(o => o.value === val)?.label || val;
                 return (
                   <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-50 text-primary text-xs font-medium border border-primary/10">
                     {label}
@@ -142,6 +166,15 @@ export default function MultiSelect({
                     </button>
                   );
                 })
+              )}
+              {allowAddCustom && search.trim() !== '' && !hasExactMatch && (
+                <button
+                  type="button"
+                  onClick={handleAddCustom}
+                  className="w-full text-left px-4 py-2 text-xs font-bold text-primary hover:bg-primary-50 border-t border-border mt-1 flex items-center gap-1.5 cursor-pointer"
+                >
+                  + Add "{search.trim().toUpperCase()}"
+                </button>
               )}
             </div>
           </div>

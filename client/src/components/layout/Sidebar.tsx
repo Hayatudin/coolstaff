@@ -35,6 +35,7 @@ const allNavItems = [
   { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
   { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
   { label: 'Invoice', href: '/invoice', icon: FileText },
+  { label: 'Candidate Deployment', href: '/deployments', icon: ClipboardList },
   { label: 'Brokers', href: '/brokers', icon: Users },
   { label: 'Video Uploads', href: '/video-uploads', icon: Video },
   { label: 'Uploaded Videos', href: '/uploaded-videos', icon: Video },

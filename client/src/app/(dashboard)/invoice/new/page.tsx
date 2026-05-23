@@ -21,6 +21,7 @@ function NewInvoiceContent() {
   const [lmis, setLmis] = useState<{ name: string; base64: string } | null>(null);
   const [insurance, setInsurance] = useState<{ name: string; base64: string } | null>(null);
   const [ticket, setTicket] = useState<{ name: string; base64: string } | null>(null);
+  const [deployedDate, setDeployedDate] = useState<string>('');
 
   useEffect(() => {
     if (!candidateId) {
@@ -77,7 +78,7 @@ function NewInvoiceContent() {
   };
 
   const handleSave = async () => {
-    if (!candidateId || !lmis || !insurance || !ticket) return;
+    if (!candidateId || !lmis || !insurance || !ticket || !deployedDate) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -91,6 +92,7 @@ function NewInvoiceContent() {
           lmisQrCodeUrl: lmis.base64,
           insuranceUrl: insurance.base64,
           ticketUrl: ticket.base64,
+          deployedDate,
         }),
       });
 
@@ -107,7 +109,7 @@ function NewInvoiceContent() {
     }
   };
 
-  const isFormValid = lmis !== null && insurance !== null && ticket !== null;
+  const isFormValid = lmis !== null && insurance !== null && ticket !== null && deployedDate !== '';
 
   if (loadingCandidate) {
     return (
@@ -266,6 +268,17 @@ function NewInvoiceContent() {
                   <span className="text-[10px] text-text-tertiary mt-1">PDF file only</span>
                 </label>
               )}
+            </div>
+
+            {/* Deployment Date */}
+            <div className="space-y-1.5 md:col-span-2">
+              <Input
+                label="Deployment Date"
+                type="date"
+                value={deployedDate}
+                onChange={e => setDeployedDate(e.target.value)}
+                required
+              />
             </div>
           </div>
 

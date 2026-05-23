@@ -83,7 +83,7 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/invoices
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { candidateId, lmisQrCodeUrl, insuranceUrl, ticketUrl } = req.body;
+    const { candidateId, lmisQrCodeUrl, insuranceUrl, ticketUrl, deployedDate } = req.body;
 
     if (!candidateId || !lmisQrCodeUrl || !insuranceUrl || !ticketUrl) {
       return res.status(400).json({ error: 'Missing required invoice fields' });
@@ -125,11 +125,12 @@ router.post('/', async (req: Request, res: Response) => {
 
     const id = `inv_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date();
+    const finalDeployedDate = deployedDate ? new Date(deployedDate) : null;
 
     try {
       // Direct raw insertion to bypass Prisma Client model caches
       await prisma.$executeRawUnsafe(
-        `INSERT INTO \`Invoice\` (\`id\`, \`candidateId\`, \`lmisQrCodeUrl\`, \`insuranceUrl\`, \`ticketUrl\`, \`price\`, \`isDelivered\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO \`Invoice\` (\`id\`, \`candidateId\`, \`lmisQrCodeUrl\`, \`insuranceUrl\`, \`ticketUrl\`, \`price\`, \`isDelivered\`, \`deployedDate\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
         candidateId,
         lmisPath || '',
@@ -137,6 +138,7 @@ router.post('/', async (req: Request, res: Response) => {
         ticketPath || '',
         price,
         0, // isDelivered = false
+        finalDeployedDate,
         now,
         now
       );
@@ -149,6 +151,7 @@ router.post('/', async (req: Request, res: Response) => {
         insuranceUrl: insurancePath || '',
         ticketUrl: ticketPath || '',
         isDelivered: false,
+        deployedDate: finalDeployedDate,
         createdAt: now,
         updatedAt: now,
       };
@@ -167,6 +170,7 @@ router.post('/', async (req: Request, res: Response) => {
           insuranceUrl: insurancePath || '',
           ticketUrl: ticketPath || '',
           isDelivered: false,
+          deployedDate: finalDeployedDate,
         },
       });
 
@@ -222,7 +226,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { price, lmisQrCodeUrl, insuranceUrl, ticketUrl } = req.body;
+    const { price, lmisQrCodeUrl, insuranceUrl, ticketUrl, deployedDate } = req.body;
 
     // Price is now optional on PUT because it can just be kept as is if not provided
     // Wait, the UI doesn't have price field anymore, so we shouldn't fail if price is not passed on PUT.
@@ -262,6 +266,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const now = new Date();
+    const finalDeployedDate = deployedDate !== undefined ? (deployedDate ? new Date(deployedDate) : null) : undefined;
 
     try {
       // Standard Prisma Update
@@ -272,6 +277,7 @@ router.put('/:id', async (req: Request, res: Response) => {
           lmisQrCodeUrl: lmisPath || '',
           insuranceUrl: insurancePath || '',
           ticketUrl: ticketPath || '',
+          ...(finalDeployedDate !== undefined ? { deployedDate: finalDeployedDate } : {}),
         },
         include: {
           candidate: true
@@ -282,17 +288,32 @@ router.put('/:id', async (req: Request, res: Response) => {
       console.warn('Prisma invoice update failed, falling back to raw SQL update:', prismaErr.message || prismaErr);
       
       // Raw SQL Update fallback
-      await prisma.$executeRawUnsafe(
-        `UPDATE \`Invoice\` 
-         SET \`price\` = ?, \`lmisQrCodeUrl\` = ?, \`insuranceUrl\` = ?, \`ticketUrl\` = ?, \`updatedAt\` = ?
-         WHERE \`id\` = ?`,
-        updatedPrice || '0',
-        lmisPath || '',
-        insurancePath || '',
-        ticketPath || '',
-        now,
-        id
-      );
+      if (finalDeployedDate !== undefined) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Invoice\` 
+           SET \`price\` = ?, \`lmisQrCodeUrl\` = ?, \`insuranceUrl\` = ?, \`ticketUrl\` = ?, \`deployedDate\` = ?, \`updatedAt\` = ?
+           WHERE \`id\` = ?`,
+          updatedPrice || '0',
+          lmisPath || '',
+          insurancePath || '',
+          ticketPath || '',
+          finalDeployedDate,
+          now,
+          id
+        );
+      } else {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Invoice\` 
+           SET \`price\` = ?, \`lmisQrCodeUrl\` = ?, \`insuranceUrl\` = ?, \`ticketUrl\` = ?, \`updatedAt\` = ?
+           WHERE \`id\` = ?`,
+          updatedPrice || '0',
+          lmisPath || '',
+          insurancePath || '',
+          ticketPath || '',
+          now,
+          id
+        );
+      }
 
       // Fetch the updated candidate to join in return payload
       const candidateInfo = await prisma.$queryRawUnsafe<any[]>(
@@ -318,6 +339,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         lmisQrCodeUrl: lmisPath || '',
         insuranceUrl: insurancePath || '',
         ticketUrl: ticketPath || '',
+        deployedDate: finalDeployedDate,
         candidate
       });
     }

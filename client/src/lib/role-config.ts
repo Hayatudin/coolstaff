@@ -26,6 +26,7 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/cv-generator':       ['super_admin', 'processor', 'coordinator'],
   '/generated-cvs':      ['super_admin', 'processor'],
   '/invoice':            ['super_admin', 'accountant'],
+  '/deployments':        ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant'],
   '/brokers':            ['super_admin', 'registrar', 'processor'],
   '/backup':             ['super_admin', 'processor', 'coordinator'],
   '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader'],

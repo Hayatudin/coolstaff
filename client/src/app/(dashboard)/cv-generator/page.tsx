@@ -2,11 +2,11 @@
 
 import React, { useState, useRef } from 'react';
 import { api } from '@/lib/api';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { DownloadFormat, Candidate } from '@/types';
 import CandidateSelector from '@/components/cv-generator/CandidateSelector';
 import { cn, getFileUrl } from '@/lib/utils';
-import { FileText, CheckCircle2, User, Download, ChevronDown, FileDown, Image as ImageIcon, Camera } from 'lucide-react';
+import { FileText, CheckCircle2, User, Download, ChevronDown, FileDown, Image as ImageIcon, Camera, ArrowLeft } from 'lucide-react';
 import TemplateGrid from '@/components/cv-generator/TemplateGrid';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
 import KA7Template from '@/components/cv/templates/KA7Template';
@@ -34,6 +34,7 @@ import { useCandidates } from '@/hooks/useCandidates';
 
 function CVGeneratorContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const urlCandidateId = searchParams.get('candidateId');
 
   const { candidates, isLoading, mutate: setCandidates } = useCandidates();

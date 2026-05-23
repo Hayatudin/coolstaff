@@ -10,9 +10,19 @@ const router = express.Router();
 
 router.get('/:file(*)', (req: Request, res: Response) => {
   const { file } = req.params;
+  
+  // Clean path: replace backslashes and remove leading slashes
+  let cleanPath = file.replace(/\\/g, '/').replace(/^\/+/, '');
+  
+  // Strip 'uploads/' if present to avoid duplication
+  if (cleanPath.startsWith('uploads/')) {
+    cleanPath = cleanPath.substring(8);
+  }
+  
   // Prevent directory traversal attacks
-  const safePath = path.normalize(file).replace(/^\.\.[/\\]/, '');
-  const fullPath = path.join(process.cwd(), 'public', 'uploads', safePath);
+  cleanPath = path.normalize(cleanPath).replace(/^\.\.[/\\]/, '');
+  
+  const fullPath = path.join(process.cwd(), 'public', 'uploads', cleanPath);
   streamFile(res, fullPath);
 });
 
