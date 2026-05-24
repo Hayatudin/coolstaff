@@ -153,7 +153,7 @@ app.get('/api/debug-db', async (req: Request, res: Response) => {
 
   let dbUrlSelected = process.env.DATABASE_URL || '';
   if (isCPanel) {
-    dbUrlSelected = 'mysql://coolstou_coolstaff:***@localhost/coolstou_db?socket=/var/lib/mysql/mysql.sock';
+    dbUrlSelected = 'mysql://coolstou_coolstaff:***@127.0.0.1:3306/coolstou_db';
   } else {
     dbUrlSelected = dbUrlSelected ? `${dbUrlSelected.split('@')[1] || dbUrlSelected}` : 'none';
   }

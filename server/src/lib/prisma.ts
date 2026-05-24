@@ -11,9 +11,9 @@ const prismaClientSingleton = () => {
     process.env.PWD?.includes('coolstou') ||
     process.env.BETTER_AUTH_URL?.includes('coolstaffagency.com');
 
-  if (isCPanel) {
-    console.log('🤖 Auto-detect: Running on cPanel production. Swapping to local UNIX socket database connection...');
-    dbUrl = 'mysql://coolstou_coolstaff:%40Cool132435@localhost/coolstou_db?socket=/var/lib/mysql/mysql.sock';
+  if (isCPanel && (!dbUrl || dbUrl.includes('aivencloud.com') || dbUrl.includes('mysql.sock'))) {
+    console.log('🤖 Auto-detect: Running on cPanel production. Swapping to local TCP database connection...');
+    dbUrl = 'mysql://coolstou_coolstaff:%40Cool132435@127.0.0.1:3306/coolstou_db';
   }
 
   return new PrismaClient({

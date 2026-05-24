@@ -34,14 +34,14 @@ export default function QuickRegistrationPage() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Passport full name state
+  const [fullName, setFullName] = useState('');
+
   // Extra fields
-  const [educationLevel, setEducationLevel] = useState('');
-  const [workExperience, setWorkExperience] = useState<WorkExperienceEntry[]>([{ experienceStatus: 'New', country: '', yearsOfExperience: '' }]);
   const [maritalStatus, setMaritalStatus] = useState('');
   const [numberOfChildren, setNumberOfChildren] = useState(0);
   const [religion, setReligion] = useState('');
   const [selectedBrokerId, setSelectedBrokerId] = useState('');
-  const [relativePhones, setRelativePhones] = useState<string[]>(['']);
 
   // Document states
   const [cocDocumentUrl, setCocDocumentUrl] = useState<string | null>(null);
@@ -84,6 +84,21 @@ export default function QuickRegistrationPage() {
     }, 600);
 
     return () => clearTimeout(delayDebounce);
+  }, [passportData.givenNames, passportData.surname]);
+
+  // Sync passportData givenNames/surname into local fullName state
+  useEffect(() => {
+    const parts = [];
+    if (passportData.givenNames) parts.push(passportData.givenNames);
+    if (passportData.surname) parts.push(passportData.surname);
+    const combined = parts.join(' ');
+
+    // Only update if it represents a different parsed state to avoid cursor jumping
+    const parsedParts = fullName.trim().split(/\s+/);
+    const parsedCombined = parsedParts.filter(Boolean).join(' ');
+    if (combined.toUpperCase() !== parsedCombined.toUpperCase()) {
+      setFullName(combined);
+    }
   }, [passportData.givenNames, passportData.surname]);
 
   // Fetch brokers on mount
@@ -180,43 +195,32 @@ export default function QuickRegistrationPage() {
     setPassportData(prev => ({ ...prev, [field]: uppercaseValue }));
   };
 
-  const updateExperience = (index: number, field: keyof WorkExperienceEntry, value: string) => {
-    const updated = [...workExperience];
-    updated[index] = { ...updated[index], [field]: field === 'country' ? value.toUpperCase() : value };
-    setWorkExperience(updated);
-  };
+  const onFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setFullName(val);
 
-  const removeExperience = (index: number) => {
-    const updated = [...workExperience];
-    updated.splice(index, 1);
-    setWorkExperience(updated);
-  };
-
-  const addExperience = () => {
-    const newExp: WorkExperienceEntry = { experienceStatus: 'Have experience', country: '', yearsOfExperience: '' };
-    setWorkExperience([...workExperience, newExp]);
-  };
-
-  // Phone helpers
-  const updatePhone = (index: number, value: string) => {
-    const updated = [...relativePhones];
-    updated[index] = value;
-    setRelativePhones(updated);
-  };
-
-  const addPhone = () => {
-    setRelativePhones([...relativePhones, '']);
-  };
-
-  const removePhone = (index: number) => {
-    const updated = [...relativePhones];
-    updated.splice(index, 1);
-    setRelativePhones(updated);
+    const parts = val.trim().split(/\s+/);
+    let givenNames = '';
+    let surname = '';
+    if (parts.length > 0) {
+      if (parts.length === 1) {
+        givenNames = parts[0];
+        surname = parts[0];
+      } else {
+        surname = parts[parts.length - 1];
+        givenNames = parts.slice(0, -1).join(' ');
+      }
+    }
+    setPassportData(prev => ({
+      ...prev,
+      givenNames: givenNames.toUpperCase(),
+      surname: surname.toUpperCase()
+    }));
   };
 
   const handleSave = async () => {
     if (!passportData.passportNumber || !passportData.surname) {
-      setError('Please scan a passport or fill in the Passport Number and Surname.');
+      setError('Please scan a passport or fill in the Passport Number and Full Name.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -236,9 +240,6 @@ export default function QuickRegistrationPage() {
     setIsSubmitting(true);
     setError(null);
 
-    // Filter out empty phone entries
-    const filteredPhones = relativePhones.filter(p => p.trim() !== '');
-
     try {
       const response = await api('/api/quick-registrations', {
         method: 'POST',
@@ -253,14 +254,14 @@ export default function QuickRegistrationPage() {
           dateOfExpiry: passportData.dateOfExpiry,
           issuingCountry: passportData.issuingCountry,
           placeOfBirth: passportData.placeOfBirth,
-          educationLevel,
-          jobExperience: JSON.stringify(workExperience),
+          educationLevel: null,
+          jobExperience: null,
           maritalStatus,
           numberOfChildren,
           passportImageUrl: passportImage,
           religion,
           brokerId: selectedBrokerId || null,
-          relativePhones: filteredPhones.length > 0 ? filteredPhones : null,
+          relativePhones: null,
           cocDocumentUrl,
           labourIdUrl,
           candidateIdImageUrl,
@@ -340,12 +341,32 @@ export default function QuickRegistrationPage() {
             </div>
           )}
           <div className="mt-6 border-t border-border pt-6">
-            <PassportDataFields
-              data={passportData}
-              onChange={handlePassportChange}
-              animatingFields={new Set()}
-              isExtracted={processingComplete}
-            />
+            <div className="animate-fade-in-up">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-1 h-6 bg-primary rounded-full" />
+                <h3 className="text-lg font-semibold text-text-primary">Extracted Passport Data</h3>
+                {processingComplete && (
+                  <span className="px-2.5 py-0.5 bg-success-light text-green-700 text-xs font-medium rounded-full animate-scale-pop">
+                    Auto-filled
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <Input
+                  label="FULL NAME"
+                  value={fullName}
+                  onChange={onFullNameChange}
+                  placeholder="Enter full name"
+                />
+                <Input
+                  label="Passport Number"
+                  value={passportData.passportNumber}
+                  onChange={(e) => handlePassportChange('passportNumber', e.target.value)}
+                  placeholder="Enter passport number"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -391,87 +412,6 @@ export default function QuickRegistrationPage() {
               />
             </div>
 
-            {/* Education Level */}
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Education Level</label>
-              <select
-                value={educationLevel}
-                onChange={e => setEducationLevel(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
-              >
-                <option value="">Select...</option>
-                <option value="No Education">No Education</option>
-                <option value="Primary">Primary</option>
-                <option value="Secondary">Secondary</option>
-                <option value="High School">High School</option>
-                <option value="Diploma">Diploma</option>
-                <option value="Degree">Degree</option>
-              </select>
-            </div>
-
-            {/* Job Experience */}
-            <div className="sm:col-span-2 space-y-4 pt-4 border-t border-border mt-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Job / Experience</label>
-              </div>
-
-              <div className="space-y-4">
-                {workExperience.map((exp, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 relative p-4 bg-gray-50/50 rounded-xl border border-border/50">
-                    <Select
-                      label="Experience"
-                      required
-                      options={[{ value: 'Have experience', label: 'Have experience' }, { value: 'New', label: 'New' }]}
-                      value={exp.experienceStatus}
-                      onChange={v => updateExperience(index, 'experienceStatus', v)}
-                    />
-
-                    {exp.experienceStatus === 'Have experience' && (
-                      <>
-                        <Select
-                          label="Country"
-                          required
-                          searchable
-                          options={allCountries.map(c => ({ value: c.toUpperCase(), label: c.toUpperCase() }))}
-                          value={exp.country}
-                          onChange={v => updateExperience(index, 'country', v)}
-                          placeholder="Select country"
-                        />
-                        <div className="relative">
-                          <Input
-                            label="Years Of Experience"
-                            type="number"
-                            required
-                            value={exp.yearsOfExperience}
-                            onChange={e => updateExperience(index, 'yearsOfExperience', e.target.value)}
-                          />
-                          {workExperience.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeExperience(index)}
-                              className="absolute right-0 -top-8 text-danger hover:bg-danger/10 p-1.5 rounded-md transition-colors"
-                              title="Remove Experience"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-                <div className="flex justify-start">
-                  <button
-                    type="button"
-                    onClick={addExperience}
-                    className="text-sm text-primary font-semibold flex items-center gap-1.5 hover:underline"
-                  >
-                    <Plus size={16} /> Add Another Experience
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Marital Status */}
             <div>
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Marital Status</label>
@@ -498,44 +438,6 @@ export default function QuickRegistrationPage() {
                 />
               </div>
             )}
-
-            {/* Relative Phone Numbers */}
-            <div className="sm:col-span-2 space-y-3 pt-4 border-t border-border mt-2">
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Relative Phone Numbers</label>
-              <div className="space-y-3">
-                {relativePhones.map((phone, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary/50" />
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={e => updatePhone(index, e.target.value)}
-                        placeholder={`Phone number ${index + 1}`}
-                        className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary placeholder:text-text-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
-                      />
-                    </div>
-                    {relativePhones.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removePhone(index)}
-                        className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                        title="Remove phone"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addPhone}
-                  className="text-sm text-primary font-semibold flex items-center gap-1.5 hover:underline"
-                >
-                  <Plus size={16} /> Add a phone number
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
