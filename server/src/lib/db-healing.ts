@@ -277,21 +277,71 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Notification table check warning:', e.message || e);
   }
 
-  // 7. Create PreRegisteredVideo Table
+  // 7. Create/Heal PreRegisteredVideo Table
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS \`PreRegisteredVideo\` (
-        \`id\` VARCHAR(191) NOT NULL,
-        \`fullName\` VARCHAR(191) NOT NULL,
-        \`videoUrl\` TEXT NOT NULL,
-        \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-        PRIMARY KEY (\`id\`),
-        UNIQUE KEY \`PreRegisteredVideo_fullName_key\` (\`fullName\`)
-      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    `);
-    console.log(`✅ Verified/Created 'PreRegisteredVideo' table.`);
+    let hasPassportNumber = false;
+    let hasFacePhoto = false;
+    let hasFullBodyPhoto = false;
+    let hasFullName = false;
+
+    try {
+      const columns: any[] = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`PreRegisteredVideo\``);
+      hasPassportNumber = columns.some(c => c.Field === 'passportNumber');
+      hasFacePhoto = columns.some(c => c.Field === 'facePhotoUrl');
+      hasFullBodyPhoto = columns.some(c => c.Field === 'fullBodyPhotoUrl');
+      hasFullName = columns.some(c => c.Field === 'fullName');
+    } catch (_) {
+      // Table doesn't exist yet, we will create it below
+    }
+
+    if (hasFullName) {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` DROP INDEX \`PreRegisteredVideo_fullName_key\``);
+      } catch (_) {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` CHANGE COLUMN \`fullName\` \`passportNumber\` VARCHAR(191) NOT NULL`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` ADD UNIQUE KEY \`PreRegisteredVideo_passportNumber_key\` (\`passportNumber\`)`);
+        console.log(`✅ Successfully updated PreRegisteredVideo table: renamed 'fullName' to 'passportNumber' and made it unique.`);
+        hasPassportNumber = true;
+      } catch (e: any) {
+        console.warn('⚠️ PreRegisteredVideo migration warning:', e.message || e);
+      }
+    } else if (!hasPassportNumber) {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`PreRegisteredVideo\` (
+          \`id\` VARCHAR(191) NOT NULL,
+          \`passportNumber\` VARCHAR(191) NOT NULL,
+          \`videoUrl\` TEXT NOT NULL,
+          \`facePhotoUrl\` TEXT NULL,
+          \`fullBodyPhotoUrl\` TEXT NULL,
+          \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`PreRegisteredVideo_passportNumber_key\` (\`passportNumber\`)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      `);
+      console.log(`✅ Verified/Created 'PreRegisteredVideo' table.`);
+      hasPassportNumber = true;
+      hasFacePhoto = true;
+      hasFullBodyPhoto = true;
+    }
+
+    // Incremental column checks for facePhotoUrl and fullBodyPhotoUrl
+    if (hasPassportNumber) {
+      if (!hasFacePhoto) {
+        try {
+          await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` ADD COLUMN \`facePhotoUrl\` TEXT NULL`);
+          console.log(`✅ Successfully added column 'facePhotoUrl' to PreRegisteredVideo table.`);
+        } catch (_) {}
+      }
+      if (!hasFullBodyPhoto) {
+        try {
+          await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` ADD COLUMN \`fullBodyPhotoUrl\` TEXT NULL`);
+          console.log(`✅ Successfully added column 'fullBodyPhotoUrl' to PreRegisteredVideo table.`);
+        } catch (_) {}
+      }
+    }
   } catch (e: any) {
-    console.warn('⚠️ PreRegisteredVideo table check warning:', e.message || e);
+    console.warn('⚠️ PreRegisteredVideo table self-healing warning:', e.message || e);
   }
 
   // 8. Create Invoice Table

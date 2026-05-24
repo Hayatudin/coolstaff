@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
@@ -81,18 +82,28 @@ router.get('/search-candidates', async (req: Request, res: Response) => {
 // 2. POST /api/video-uploads/save
 router.post('/save', async (req: Request, res: Response) => {
   try {
-    const { id, source, fullName, videoUrl } = req.body;
+    const { id, source, passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl } = req.body;
 
     if (!videoUrl) {
       return res.status(400).json({ error: 'Video URL is required' });
     }
+
+    // Process base64 photo uploads if present
+    const [facePhoto, fullBodyPhoto] = await Promise.all([
+      uploadToLocal(facePhotoUrl, 'faces'),
+      uploadToLocal(fullBodyPhotoUrl, 'fullbody')
+    ]);
 
     // A. Attach to an existing registered candidate directly
     if (id && source) {
       if (source === 'candidate') {
         const updated = await prisma.candidate.update({
           where: { id },
-          data: { videoUrl },
+          data: { 
+            videoUrl,
+            facePhotoUrl: facePhoto || undefined,
+            fullBodyPhotoUrl: fullBodyPhoto || undefined,
+          },
         });
         return res.json({ success: true, message: 'Attached to Candidate profile', data: updated });
       } else if (source === 'quickRegistration') {
@@ -106,61 +117,87 @@ router.post('/save', async (req: Request, res: Response) => {
       }
     }
 
-    // B. Pre-registration mode: save by Full Name
-    if (!fullName || !fullName.trim()) {
-      return res.status(400).json({ error: 'Full name is required for pre-registration' });
+    // B. Pre-registration mode: save by Passport Number
+    if (!passportNumber || !passportNumber.trim()) {
+      return res.status(400).json({ error: 'Passport number is required for pre-registration' });
     }
 
-    const cleanedFullName = fullName.trim().toUpperCase();
+    const cleanedPassportNumber = passportNumber.trim().toUpperCase();
 
-    // Use upsert to create or update the video mapping by unique full name
+    // Use upsert to create or update the video mapping by unique passport number
     const result = await prisma.preRegisteredVideo.upsert({
-      where: { fullName: cleanedFullName },
-      update: { videoUrl },
-      create: { fullName: cleanedFullName, videoUrl },
+      where: { passportNumber: cleanedPassportNumber },
+      update: { 
+        videoUrl,
+        facePhotoUrl: facePhoto || undefined,
+        fullBodyPhotoUrl: fullBodyPhoto || undefined,
+      },
+      create: { 
+        passportNumber: cleanedPassportNumber, 
+        videoUrl,
+        facePhotoUrl: facePhoto || null,
+        fullBodyPhotoUrl: fullBodyPhoto || null,
+      },
     });
 
-    res.json({ success: true, message: 'Pre-registration video link saved successfully', data: result });
+    res.json({ success: true, message: 'Pre-registration video & photos saved successfully', data: result });
   } catch (error: any) {
     console.error('Error saving video upload record:', error);
     res.status(500).json({ error: error.message || 'Failed to save video record' });
   }
 });
 
-// 3. GET /api/video-uploads/match?givenNames=...&surname=...
+// 3. GET /api/video-uploads/match?passportNumber=...
 router.get('/match', async (req: Request, res: Response) => {
   try {
+    const passportNumber = (req.query.passportNumber as string || '').trim().toUpperCase();
     const givenNames = (req.query.givenNames as string || '').trim().toUpperCase();
     const surname = (req.query.surname as string || '').trim().toUpperCase();
 
-    if (!givenNames && !surname) {
-      return res.json({ matchFound: false });
+    // A. Priority matching by Passport Number
+    if (passportNumber) {
+      const matchingVideo = await prisma.preRegisteredVideo.findUnique({
+        where: { passportNumber },
+      });
+
+      if (matchingVideo) {
+        return res.json({
+          matchFound: true,
+          videoUrl: matchingVideo.videoUrl,
+          facePhotoUrl: matchingVideo.facePhotoUrl,
+          fullBodyPhotoUrl: matchingVideo.fullBodyPhotoUrl,
+          matchedName: `PASSPORT: ${matchingVideo.passportNumber}`,
+        });
+      }
     }
 
-    const fullCombined = `${givenNames} ${surname}`.trim();
-    const normalizedTarget = normalizeName(fullCombined);
+    // B. Fallback matching by Fuzzy Name if passportNumber not supplied
+    if (givenNames || surname) {
+      const fullCombined = `${givenNames} ${surname}`.trim();
+      const normalizedTarget = normalizeName(fullCombined);
 
-    // Fetch all buffered videos from database to do dynamic fuzzy/normalized space-collapsed name-matching
-    const preRegistered = await prisma.preRegisteredVideo.findMany();
+      // Fetch all buffered videos from database
+      const preRegistered = await prisma.preRegisteredVideo.findMany();
 
-    // Find a match where the normalized forms (ignoring all spaces/special chars) match
-    const matchingVideo = preRegistered.find(item => {
-      const normalizedItemName = normalizeName(item.fullName);
-      
-      // Exact match after normalization or if one contains the other
-      return (
-        normalizedItemName === normalizedTarget ||
-        normalizedItemName.includes(normalizedTarget) ||
-        normalizedTarget.includes(normalizedItemName)
-      );
-    });
-
-    if (matchingVideo) {
-      return res.json({
-        matchFound: true,
-        videoUrl: matchingVideo.videoUrl,
-        matchedName: matchingVideo.fullName,
+      const matchingVideo = preRegistered.find(item => {
+        // Fallback: check passportNumber or name if stored there
+        const normalizedItemName = normalizeName(item.passportNumber);
+        return (
+          normalizedItemName === normalizedTarget ||
+          normalizedItemName.includes(normalizedTarget) ||
+          normalizedTarget.includes(normalizedItemName)
+        );
       });
+
+      if (matchingVideo) {
+        return res.json({
+          matchFound: true,
+          videoUrl: matchingVideo.videoUrl,
+          facePhotoUrl: matchingVideo.facePhotoUrl,
+          fullBodyPhotoUrl: matchingVideo.fullBodyPhotoUrl,
+          matchedName: `PASSPORT: ${matchingVideo.passportNumber}`,
+        });
+      }
     }
 
     res.json({ matchFound: false });
@@ -193,6 +230,8 @@ router.get('/uploaded', async (req: Request, res: Response) => {
         passportNumber: true,
         nationality: true,
         videoUrl: true,
+        facePhotoUrl: true,
+        fullBodyPhotoUrl: true,
         registeredAt: true,
       },
       orderBy: { registeredAt: 'desc' },
@@ -221,7 +260,7 @@ router.get('/uploaded', async (req: Request, res: Response) => {
       });
       if (q) {
         const qUp = q.toUpperCase();
-        preRegs = preRegs.filter((p: any) => p.fullName.includes(qUp));
+        preRegs = preRegs.filter((p: any) => (p.passportNumber || '').includes(qUp));
       }
     } catch (_) { /* table may not exist */ }
 
@@ -241,6 +280,8 @@ router.get('/uploaded', async (req: Request, res: Response) => {
           passportNumber: c.passportNumber || '',
           nationality: c.nationality || '',
           videoUrl: c.videoUrl,
+          facePhotoUrl: c.facePhotoUrl || null,
+          fullBodyPhotoUrl: c.fullBodyPhotoUrl || null,
           date: c.registeredAt?.toISOString() || '',
           source: 'candidate' as const,
         })),
@@ -252,6 +293,8 @@ router.get('/uploaded', async (req: Request, res: Response) => {
           passportNumber: r.passportNumber || '',
           nationality: r.nationality || '',
           videoUrl: r.videoUrl,
+          facePhotoUrl: null,
+          fullBodyPhotoUrl: null,
           date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
           source: 'quickRegistration' as const,
         })),
@@ -259,10 +302,12 @@ router.get('/uploaded', async (req: Request, res: Response) => {
         .filter((p: any) => isYouTube(p.videoUrl))
         .map((p: any) => ({
           id: p.id,
-          fullName: p.fullName || '',
-          passportNumber: '',
+          fullName: `PASSPORT: ${p.passportNumber || ''}`,
+          passportNumber: p.passportNumber || '',
           nationality: '',
           videoUrl: p.videoUrl,
+          facePhotoUrl: p.facePhotoUrl || null,
+          fullBodyPhotoUrl: p.fullBodyPhotoUrl || null,
           date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
           source: 'preRegistered' as const,
         })),

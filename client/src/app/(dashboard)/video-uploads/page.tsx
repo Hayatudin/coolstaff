@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import Input from '@/components/ui/Input';
+import FileUpload from '@/components/ui/FileUpload';
 import {
   Video,
   Search,
@@ -14,6 +15,10 @@ import {
   RefreshCw,
   PlusCircle,
   ChevronRight,
+  X,
+  Eye,
+  Camera,
+  UserCircle,
 } from 'lucide-react';
 
 interface CandidateResult {
@@ -28,24 +33,28 @@ interface CandidateResult {
 }
 
 export default function VideoUploadsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [passportNumber, setPassportNumber] = useState('');
   const [searchResults, setSearchResults] = useState<CandidateResult[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
 
-  
   const [videoUrl, setVideoUrl] = useState('');
+  const [facePhotoBase64, setFacePhotoBase64] = useState<string | null>(null);
+  const [fullBodyPhotoBase64, setFullBodyPhotoBase64] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Feedback states
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  
+
+  // Image view modal
+  const [viewingImage, setViewingImage] = useState<{ url: string; title: string } | null>(null);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Debounced real-time candidate search
+  // Debounced real-time candidate search by passport number
   useEffect(() => {
-    if (!searchQuery || searchQuery.trim().length < 2 || selectedCandidate) {
+    if (!passportNumber || passportNumber.trim().length < 2 || selectedCandidate) {
       setSearchResults([]);
       setShowDropdown(false);
       return;
@@ -54,7 +63,7 @@ export default function VideoUploadsPage() {
     const delayDebounce = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/search-candidates?q=${encodeURIComponent(searchQuery)}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/search-candidates?q=${encodeURIComponent(passportNumber)}`);
         if (response.ok) {
           const data = await response.json();
           setSearchResults(data);
@@ -68,7 +77,7 @@ export default function VideoUploadsPage() {
     }, 300);
 
     return () => clearTimeout(delayDebounce);
-  }, [searchQuery, selectedCandidate]);
+  }, [passportNumber, selectedCandidate]);
 
   // Click outside listener for the search autocomplete dropdown
   useEffect(() => {
@@ -83,13 +92,27 @@ export default function VideoUploadsPage() {
 
   const handleSelectCandidate = (candidate: CandidateResult) => {
     setSelectedCandidate(candidate);
-    setSearchQuery(candidate.fullName);
+    setPassportNumber(candidate.passportNumber);
     setShowDropdown(false);
   };
 
   const handleClearSelection = () => {
     setSelectedCandidate(null);
-    setSearchQuery('');
+    setPassportNumber('');
+  };
+
+  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 10 * 1024 * 1024) => {
+    if (file.size > maxBytes) {
+      alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        callback(ev.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,19 +133,25 @@ export default function VideoUploadsPage() {
       return;
     }
 
+    const trimmedPassport = passportNumber.trim().toUpperCase();
+
     const payload = selectedCandidate
       ? {
           id: selectedCandidate.id,
           source: selectedCandidate.source,
           videoUrl: finalUrl,
+          facePhotoUrl: facePhotoBase64 || undefined,
+          fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
         }
       : {
-          fullName: searchQuery.trim(),
+          passportNumber: trimmedPassport,
           videoUrl: finalUrl,
+          facePhotoUrl: facePhotoBase64 || undefined,
+          fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
         };
 
-    if (!selectedCandidate && !searchQuery.trim()) {
-      setMessage({ type: 'error', text: 'Please type a candidate name or select one from the dropdown' });
+    if (!selectedCandidate && !trimmedPassport) {
+      setMessage({ type: 'error', text: 'Please enter a passport number or select a candidate from the dropdown' });
       return;
     }
 
@@ -142,12 +171,14 @@ export default function VideoUploadsPage() {
         setMessage({
           type: 'success',
           text: selectedCandidate
-            ? `Successfully attached YouTube video to registered candidate "${selectedCandidate.fullName}"!`
-            : `Successfully pre-registered video for candidate "${searchQuery.trim().toUpperCase()}"!`,
+            ? `Successfully attached YouTube video to registered candidate "${selectedCandidate.fullName}" (${selectedCandidate.passportNumber})!`
+            : `Successfully pre-registered video for passport "${trimmedPassport}"!`,
         });
-        
+
         // Reset state
         setVideoUrl('');
+        setFacePhotoBase64(null);
+        setFullBodyPhotoBase64(null);
         handleClearSelection();
       } else {
         setMessage({
@@ -167,13 +198,13 @@ export default function VideoUploadsPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">Video Uploads Portal</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Attach YouTube interview videos directly to candidates or buffer them prior to registration.
+            Attach YouTube interview videos & photos directly to candidates or buffer them prior to registration.
           </p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold self-start">
@@ -183,29 +214,29 @@ export default function VideoUploadsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Portal Form Section */}
         <div className="lg:col-span-2 space-y-6">
           <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-2xl shadow-sm p-6 space-y-6 relative overflow-visible">
-            
-            {/* Form Section 1: Candidate Association */}
+
+            {/* Form Section 1: Identify Candidate by Passport Number */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">1</span>
                 <h3 className="text-base font-semibold text-text-primary">Identify Candidate</h3>
               </div>
 
-              {/* Autocomplete Search input */}
+              {/* Passport Number Search input */}
               <div className="relative" ref={dropdownRef}>
                 <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                  Candidate Full Name
+                  Passport Number
                 </label>
                 <div className="relative">
                   <Input
-                    placeholder="Type candidate name to search or pre-register..."
-                    value={searchQuery}
+                    placeholder="Type passport number to search or pre-register..."
+                    value={passportNumber}
                     onChange={(e) => {
-                      setSearchQuery(e.target.value);
+                      setPassportNumber(e.target.value.toUpperCase());
                       if (selectedCandidate) handleClearSelection();
                     }}
                     disabled={!!selectedCandidate}
@@ -240,18 +271,18 @@ export default function VideoUploadsPage() {
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors">
-                              {c.fullName}
+                              {c.passportNumber}
                             </p>
                             <p className="text-xs text-text-tertiary">
-                              PP: {c.passportNumber} • {c.nationality}
+                              {c.fullName} • {c.nationality}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className={cn(
                             "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                            c.source === 'candidate' 
-                              ? "bg-indigo-50 text-indigo-700 border border-indigo-100" 
+                            c.source === 'candidate'
+                              ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
                               : "bg-emerald-50 text-emerald-700 border border-emerald-100"
                           )}>
                             {c.source === 'candidate' ? 'Full candidate' : 'Entry Record'}
@@ -272,7 +303,7 @@ export default function VideoUploadsPage() {
                     <div>
                       <p className="text-xs font-bold text-indigo-900">LINKED CANDIDATE ACTIVE</p>
                       <p className="text-sm font-semibold text-indigo-950 mt-0.5">
-                        {selectedCandidate.fullName} ({selectedCandidate.passportNumber})
+                        {selectedCandidate.passportNumber} — {selectedCandidate.fullName}
                       </p>
                     </div>
                   </div>
@@ -287,11 +318,11 @@ export default function VideoUploadsPage() {
               )}
 
               {/* Manual Entry Hint */}
-              {!selectedCandidate && searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
+              {!selectedCandidate && passportNumber.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
                 <div className="flex items-center gap-2 p-3 bg-amber-50/60 border border-amber-100 rounded-xl text-xs text-amber-800 animate-fade-in">
                   <PlusCircle size={14} className="text-amber-600 shrink-0" />
                   <span>
-                    No matching candidate found. <strong>"{searchQuery.trim().toUpperCase()}"</strong> will be pre-registered when you submit.
+                    No matching candidate found. <strong>"{passportNumber.trim().toUpperCase()}"</strong> will be pre-registered when you submit.
                   </span>
                 </div>
               )}
@@ -320,12 +351,65 @@ export default function VideoUploadsPage() {
               </div>
             </div>
 
+            {/* Form Section 3: Photo Uploads */}
+            <div className="space-y-4 border-t border-border pt-6">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">3</span>
+                <h3 className="text-base font-semibold text-text-primary">Upload Photos <span className="text-text-tertiary font-normal text-sm">(Optional)</span></h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Face Photo */}
+                <div className="space-y-2">
+                  <FileUpload
+                    label="Face Photo"
+                    shape="circle"
+                    preview={facePhotoBase64}
+                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoBase64(base64))}
+                    onClear={() => setFacePhotoBase64(null)}
+                    helperText="Circle crop — Max 10MB"
+                  />
+                  {facePhotoBase64 && (
+                    <button
+                      type="button"
+                      onClick={() => setViewingImage({ url: facePhotoBase64!, title: 'Face Photo' })}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
+                    >
+                      <Eye size={14} /> View Full Image
+                    </button>
+                  )}
+                </div>
+
+                {/* Full Body Photo */}
+                <div className="space-y-2">
+                  <FileUpload
+                    label="Full Body Photo"
+                    shape="rect"
+                    compact
+                    preview={fullBodyPhotoBase64}
+                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFullBodyPhotoBase64(base64))}
+                    onClear={() => setFullBodyPhotoBase64(null)}
+                    helperText="Rectangle — Max 10MB"
+                  />
+                  {fullBodyPhotoBase64 && (
+                    <button
+                      type="button"
+                      onClick={() => setViewingImage({ url: fullBodyPhotoBase64!, title: 'Full Body Photo' })}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
+                    >
+                      <Eye size={14} /> View Full Image
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Alert / Notification Feedback */}
             {message && (
               <div className={cn(
                 "p-4 rounded-xl text-sm border animate-scale-pop flex items-start gap-2.5",
-                message.type === 'success' 
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-100" 
+                message.type === 'success'
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-100"
                   : "bg-red-50 text-red-800 border-red-100"
               )}>
                 {message.type === 'success' ? (
@@ -344,20 +428,20 @@ export default function VideoUploadsPage() {
                 disabled={isSubmitting}
                 className={cn(
                   "w-full py-3 px-4 rounded-xl font-semibold text-sm text-white shadow-sm flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer",
-                  isSubmitting 
-                    ? "bg-primary/70 cursor-not-allowed" 
+                  isSubmitting
+                    ? "bg-primary/70 cursor-not-allowed"
                     : "bg-primary hover:bg-primary/95 active:scale-[0.98] hover:shadow-md"
                 )}
               >
                 {isSubmitting ? (
                   <>
                     <RefreshCw size={16} className="animate-spin" />
-                    Saving Video Link...
+                    Saving Video & Photos...
                   </>
                 ) : (
                   <>
                     <FileVideo size={16} />
-                    Push Video to Database
+                    Push Video & Photos to Database
                   </>
                 )}
               </button>
@@ -367,24 +451,30 @@ export default function VideoUploadsPage() {
 
         {/* Portal Guidelines Card */}
         <div className="space-y-6">
-          
+
           {/* Quick Guide Card */}
           <div className="bg-surface border border-border rounded-2xl p-5 space-y-4 shadow-sm">
             <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
               Uploader Quick Guidelines
             </h3>
-            
+
             <ul className="space-y-3.5 text-xs text-text-secondary leading-relaxed">
               <li className="flex gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                 <span>
-                  <strong>Fuzzy Search First</strong>: Type the candidate's name in Step 1. If they appear in the search dropdown, click to link them.
+                  <strong>Search by Passport Number</strong>: Type the candidate's passport number in Step 1. If they appear in the search dropdown, click to link them directly.
                 </span>
               </li>
               <li className="flex gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                 <span>
-                  <strong>Manual Pre-Registration Fallback</strong>: If the candidate isn't registered, write their full name manually. The recruiter's scanner will auto-match and link it during registration.
+                  <strong>Pre-Registration Fallback</strong>: If the candidate isn't registered yet, type their passport number manually. The recruiter's scanner will auto-match and link the video & photos during registration.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
+                <span>
+                  <strong>Photo Uploads</strong>: Optionally upload a face photo and full body photo. These will be auto-filled into the registration form when the passport number matches.
                 </span>
               </li>
               <li className="flex gap-2">
@@ -397,10 +487,10 @@ export default function VideoUploadsPage() {
 
             <div className="border-t border-border/60 pt-4 flex justify-between items-center text-xs text-text-tertiary">
               <span>Need help? Contact Admin</span>
-              <a 
-                href="https://youtube.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
+              <a
+                href="https://youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-1 text-primary hover:underline font-medium"
               >
                 Go to YouTube <ExternalLink size={12} />
@@ -409,6 +499,43 @@ export default function VideoUploadsPage() {
           </div>
         </div>
       </div>
+
+      {/* Image View Modal */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setViewingImage(null)}
+        >
+          <div
+            className="relative bg-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-scale-pop"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Camera size={16} className="text-primary" />
+                <h3 className="text-sm font-bold text-text-primary">{viewingImage.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingImage(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-text-secondary hover:text-text-primary"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 flex items-center justify-center bg-gray-50 max-h-[75vh] overflow-auto">
+              <img
+                src={viewingImage.url}
+                alt={viewingImage.title}
+                className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

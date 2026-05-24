@@ -272,10 +272,22 @@ router.post('/passport', async (req: Request, res: Response) => {
       return res.status(422).json({ error: 'MRZ not detected – please retake the passport photo' });
     }
     const [line1, line2] = mrz;
-    const issuingCountry = line1.substring(2, 5).replace(/</g, '');
-    const parts = line1.substring(5).split('<<');
+    
+    // Normalize and correct misread chevrons in MRZ line 1
+    let cleanedLine1 = line1.toUpperCase();
+    
+    // 1. Replace sequences of chevrons mixed with common misread characters (like K, X, Y, C, V, F, L, I) to chevrons
+    cleanedLine1 = cleanedLine1.replace(/[<KXYCVFLI]{2,}/g, (match) => {
+      return match.includes('<') || match.length >= 2 ? match.replace(/./g, '<') : match;
+    });
+
+    // 2. Strip single misread characters next to chevrons at word boundaries
+    cleanedLine1 = cleanedLine1.replace(/<([KXYCVFLI])([A-Z]+)/g, '<$2');
+
+    const issuingCountry = cleanedLine1.substring(2, 5).replace(/</g, '');
+    const parts = cleanedLine1.substring(5).split('<<');
     const surname = cleanName(parts[0] || '');
-    const givenNames = cleanName(parts[1] || '');
+    const givenNames = parts.slice(1).map(p => cleanName(p)).filter(Boolean).join(' ');
     
     // Dynamically anchor parser fields based on nationality country code position to make it resilient to character insertion/deletion shifts
     const anchorIdx = findCountryCodeAnchor(line2);

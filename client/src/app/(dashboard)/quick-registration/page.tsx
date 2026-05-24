@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import PassportUploader from '@/components/registration/PassportUploader';
 import PassportDataFields from '@/components/registration/PassportDataFields';
-import { PassportData, WorkExperienceEntry } from '@/types';
+import { PassportData, WorkExperienceEntry, Broker } from '@/types';
 import { Save, Loader2, Trash2, Plus, Phone, Video } from 'lucide-react';
 import { allCountries } from '@/data/countries';
 import Select from '@/components/ui/Select';
@@ -18,10 +18,59 @@ const emptyPassportData: PassportData = {
   dateOfIssue: '', dateOfExpiry: '', placeOfBirth: '',
 };
 
-interface Broker {
-  id: string;
-  name: string;
-}
+const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      // Resize image to standard width (e.g. 1200px) maintaining aspect ratio
+      const maxDim = 1200;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Apply grayscale and high contrast thresholding
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Stretch values to increase contrast
+        const stretched = gray < 120 ? Math.max(0, gray - 50) : Math.min(255, gray + 50);
+        
+        data[i] = stretched;
+        data[i + 1] = stretched;
+        data[i + 2] = stretched;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
 
 export default function QuickRegistrationPage() {
   const router = useRouter();
@@ -61,21 +110,20 @@ export default function QuickRegistrationPage() {
   const [matchedVideoBadge, setMatchedVideoBadge] = useState<string | null>(null);
 
   useEffect(() => {
-    const given = (passportData.givenNames || '').trim();
-    const sur = (passportData.surname || '').trim();
-    if (!given && !sur) {
+    const passportNumber = passportData.passportNumber?.trim();
+    if (!passportNumber || passportNumber.length < 5) {
       setMatchedVideoBadge(null);
       return;
     }
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?givenNames=${encodeURIComponent(given)}&surname=${encodeURIComponent(sur)}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.matchFound && data.videoUrl) {
             setVideoUrl(data.videoUrl);
-            setMatchedVideoBadge(`🎥 Pre-registered Video Auto-Matched: "${data.matchedName}"`);
+            setMatchedVideoBadge(`🎥 Pre-registered Video Auto-Matched!`);
           }
         }
       } catch (err) {
@@ -84,18 +132,28 @@ export default function QuickRegistrationPage() {
     }, 600);
 
     return () => clearTimeout(delayDebounce);
-  }, [passportData.givenNames, passportData.surname]);
+  }, [passportData.passportNumber]);
 
   // Sync passportData givenNames/surname into local fullName state
   useEffect(() => {
     const parts = [];
-    if (passportData.givenNames) parts.push(passportData.givenNames);
     if (passportData.surname) parts.push(passportData.surname);
-    const combined = parts.join(' ');
-
+    if (passportData.givenNames) parts.push(passportData.givenNames);
+    
+    // Join Surname and GivenNames with a comma
+    const combined = passportData.surname && passportData.givenNames
+      ? `${passportData.surname}, ${passportData.givenNames}`
+      : parts.join(' ');
+    
     // Only update if it represents a different parsed state to avoid cursor jumping
-    const parsedParts = fullName.trim().split(/\s+/);
-    const parsedCombined = parsedParts.filter(Boolean).join(' ');
+    const parsedParts = fullName.split(',');
+    let parsedCombined = '';
+    if (parsedParts.length > 1) {
+      parsedCombined = `${parsedParts[0].trim()}, ${parsedParts.slice(1).join(',').trim()}`;
+    } else {
+      parsedCombined = fullName.trim();
+    }
+
     if (combined.toUpperCase() !== parsedCombined.toUpperCase()) {
       setFullName(combined);
     }
@@ -145,9 +203,12 @@ export default function QuickRegistrationPage() {
     setError(null);
     setOcrProgress(0);
     try {
+      const preprocessedUrl = await preprocessImageForOcr(imageUrl);
+      setPassportImage(preprocessedUrl);
+
       const Tesseract = await import('tesseract.js');
       setOcrProgress(10);
-      const result = await Tesseract.recognize(imageUrl, 'eng', {
+      const result = await Tesseract.recognize(preprocessedUrl, 'eng', {
         logger: (m: { status: string; progress: number }) => {
           if (m.status === 'recognizing text') setOcrProgress(10 + m.progress * 80);
         },
@@ -199,16 +260,21 @@ export default function QuickRegistrationPage() {
     const val = e.target.value;
     setFullName(val);
 
-    const parts = val.trim().split(/\s+/);
-    let givenNames = '';
+    const parts = val.split(',');
     let surname = '';
-    if (parts.length > 0) {
-      if (parts.length === 1) {
-        givenNames = parts[0];
-        surname = parts[0];
+    let givenNames = '';
+    if (parts.length > 1) {
+      surname = parts[0].trim();
+      givenNames = parts.slice(1).join(',').trim();
+    } else {
+      // fallback splitting by space
+      const spaceParts = val.trim().split(/\s+/);
+      if (spaceParts.length > 1) {
+        surname = spaceParts[spaceParts.length - 1];
+        givenNames = spaceParts.slice(0, -1).join(' ');
       } else {
-        surname = parts[parts.length - 1];
-        givenNames = parts.slice(0, -1).join(' ');
+        givenNames = spaceParts[0] || '';
+        surname = spaceParts[0] || '';
       }
     }
     setPassportData(prev => ({

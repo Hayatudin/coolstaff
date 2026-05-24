@@ -217,19 +217,10 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
     // Auto-match pre-registered YouTube video if no YouTube link is yet assigned
     if (!hasRemoteVideo) {
       try {
-        const fullCombined = `${qr.givenNames || ''} ${qr.surname || ''}`.trim().toUpperCase();
-        if (fullCombined) {
-          const normalizeName = (name: string) => name.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
-          const normalizedTarget = normalizeName(fullCombined);
-
-          const preRegistered = await prisma.preRegisteredVideo.findMany();
-          const matchingVideo = preRegistered.find(item => {
-            const normalizedItemName = normalizeName(item.fullName);
-            return (
-              normalizedItemName === normalizedTarget ||
-              normalizedItemName.includes(normalizedTarget) ||
-              normalizedTarget.includes(normalizedItemName)
-            );
+        const pNum = (qr.passportNumber || '').trim().toUpperCase();
+        if (pNum) {
+          const matchingVideo = await prisma.preRegisteredVideo.findUnique({
+            where: { passportNumber: pNum }
           });
 
           if (matchingVideo) {
@@ -347,26 +338,19 @@ router.post('/', async (req: Request, res: Response) => {
 
     let finalVideoUrl = isRemoteVideo ? videoUrl : null;
 
-    // Check if there is a pre-registered YouTube video matching this candidate's name
+    // Check if there is a pre-registered YouTube video matching this candidate's passport number
     if (!finalVideoUrl) {
       try {
-        const fullCombined = `${body.passportData.givenNames} ${body.passportData.surname}`.trim().toUpperCase();
-        const normalizeName = (name: string) => name.toUpperCase().replace(/[^A-Z0-9]/g, '').trim();
-        const normalizedTarget = normalizeName(fullCombined);
+        const pNum = (body.passportData.passportNumber || '').trim().toUpperCase();
+        if (pNum) {
+          const matchingVideo = await prisma.preRegisteredVideo.findUnique({
+            where: { passportNumber: pNum }
+          });
 
-        const preRegistered = await prisma.preRegisteredVideo.findMany();
-        const matchingVideo = preRegistered.find(item => {
-          const normalizedItemName = normalizeName(item.fullName);
-          return (
-            normalizedItemName === normalizedTarget ||
-            normalizedItemName.includes(normalizedTarget) ||
-            normalizedTarget.includes(normalizedItemName)
-          );
-        });
-
-        if (matchingVideo) {
-          finalVideoUrl = matchingVideo.videoUrl;
-          console.log(`[AUTO-MATCH] Linked pre-registered YouTube video to Candidate: ${finalVideoUrl}`);
+          if (matchingVideo) {
+            finalVideoUrl = matchingVideo.videoUrl;
+            console.log(`[AUTO-MATCH] Linked pre-registered YouTube video to Candidate: ${finalVideoUrl}`);
+          }
         }
       } catch (err) {
         console.error('Failed to auto-match pre-registered video:', err);

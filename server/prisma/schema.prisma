@@ -244,8 +244,10 @@ model Invoice {
 }
 
 model PreRegisteredVideo {
-  id        String   @id @default(cuid())
-  fullName  String   @unique
-  videoUrl  String   @db.Text
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  passportNumber   String   @unique
+  videoUrl         String   @db.Text
+  facePhotoUrl     String?  @db.Text
+  fullBodyPhotoUrl String?  @db.Text
+  createdAt        DateTime @default(now())
 }

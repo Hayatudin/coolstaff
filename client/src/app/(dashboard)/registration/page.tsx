@@ -14,6 +14,60 @@ import { ArrowRight, ArrowLeft, CheckCircle2, UserPlus, ScanLine, Upload, FileTe
 import { useCandidates } from '@/hooks/useCandidates';
 import { authClient } from '@/lib/auth-client';
 
+const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      // Resize image to standard width (e.g. 1200px) maintaining aspect ratio
+      const maxDim = 1200;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Apply grayscale and high contrast thresholding
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Stretch values to increase contrast
+        const stretched = gray < 120 ? Math.max(0, gray - 50) : Math.min(255, gray + 50);
+        
+        data[i] = stretched;
+        data[i + 1] = stretched;
+        data[i + 2] = stretched;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
+
 const emptyPassportData: PassportData = {
   passportNumber: '', surname: '', givenNames: '', dateOfBirth: '',
   gender: '', nationality: '', issuingCountry: '', dateOfIssue: '',
@@ -326,20 +380,21 @@ function RegistrationContent() {
     checkQuickRegistration();
   }, [passportData.passportNumber, checkedPassportNum, quickRegId]);
 
-  // Auto-fill pre-registered video URLs by fuzzy name matching
+  // Auto-fill pre-registered video URLs & photos by passport number
   useEffect(() => {
-    const given = (passportData.givenNames || '').trim();
-    const sur = (passportData.surname || '').trim();
-    if (!given && !sur) return;
+    const passportNumber = passportData.passportNumber?.trim();
+    if (!passportNumber || passportNumber.length < 5) return;
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?givenNames=${encodeURIComponent(given)}&surname=${encodeURIComponent(sur)}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
         if (response.ok) {
           const data = await response.json();
-          if (data.matchFound && data.videoUrl) {
-            setVideoUrl(data.videoUrl);
-            alert(`🎥 Found pre-registered YouTube video matching candidate name: "${data.matchedName}"! Auto-filling Video URL.`);
+          if (data.matchFound) {
+            if (data.videoUrl) setVideoUrl(data.videoUrl);
+            if (data.facePhotoUrl && !facePhoto) setFacePhoto(data.facePhotoUrl);
+            if (data.fullBodyPhotoUrl && !fullBodyPhoto) setFullBodyPhoto(data.fullBodyPhotoUrl);
+            console.log(`🎥 Pre-registered video/photos auto-matched for passport ${passportNumber}`);
           }
         }
       } catch (err) {
@@ -348,7 +403,7 @@ function RegistrationContent() {
     }, 600);
 
     return () => clearTimeout(delayDebounce);
-  }, [passportData.givenNames, passportData.surname]);
+  }, [passportData.passportNumber]);
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
@@ -356,7 +411,7 @@ function RegistrationContent() {
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [step]);
 
-  // ── OCR for Passport ──
+  // ── OCR for Passport (with canvas preprocessing for better accuracy) ──
   const performOCR = useCallback(async (imageUrl: string) => {
     setPassportImage(imageUrl);
     setIsProcessing(true);
@@ -364,9 +419,12 @@ function RegistrationContent() {
     setError(null);
     setOcrProgress(0);
     try {
+      const preprocessedUrl = await preprocessImageForOcr(imageUrl);
+      setPassportImage(preprocessedUrl);
+
       const Tesseract = await import('tesseract.js');
       setOcrProgress(10);
-      const result = await Tesseract.recognize(imageUrl, 'eng', {
+      const result = await Tesseract.recognize(preprocessedUrl, 'eng', {
         logger: (m: { status: string; progress: number }) => {
           if (m.status === 'recognizing text') setOcrProgress(10 + m.progress * 80);
         },
@@ -381,7 +439,12 @@ function RegistrationContent() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to parse passport data');
       setOcrProgress(100);
-      setPassportData(prev => ({ ...prev, ...data }));
+      setPassportData(prev => ({
+        ...prev,
+        ...data,
+        surname: data.surname ? data.surname.toUpperCase() : '',
+        givenNames: data.givenNames ? data.givenNames.toUpperCase() : ''
+      }));
       setProcessingComplete(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to scan passport');
