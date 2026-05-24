@@ -19,6 +19,8 @@ import {
   Eye,
   Camera,
   UserCircle,
+  ScanLine,
+  Upload,
 } from 'lucide-react';
 
 interface CandidateResult {
@@ -31,6 +33,60 @@ interface CandidateResult {
   source: 'candidate' | 'quickRegistration';
   fullName: string;
 }
+
+const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      // Resize image to standard width (e.g. 1200px) maintaining aspect ratio
+      const maxDim = 1200;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Apply grayscale and high contrast thresholding
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Stretch values to increase contrast
+        const stretched = gray < 120 ? Math.max(0, gray - 50) : Math.min(255, gray + 50);
+        
+        data[i] = stretched;
+        data[i + 1] = stretched;
+        data[i + 2] = stretched;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
 
 export default function VideoUploadsPage() {
   const [passportNumber, setPassportNumber] = useState('');
@@ -50,7 +106,143 @@ export default function VideoUploadsPage() {
   // Image view modal
   const [viewingImage, setViewingImage] = useState<{ url: string; title: string } | null>(null);
 
+  // Camera & Passport Scanning states
+  const [passportImage, setPassportImage] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const startCamera = async () => {
+    setScanError(null);
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      streamRef.current = stream;
+    } catch (err) {
+      console.error('Failed to open camera:', err);
+      setScanError('Camera access denied or unavailable. Please upload an image instead.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureSnapshot = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth || 1280;
+    canvas.height = videoRef.current.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setPassportImage(dataUrl);
+      stopCamera();
+      // Trigger OCR on captured snapshot
+      performOCR(dataUrl);
+    }
+  };
+
+  const performOCR = async (imageUrl: string) => {
+    setPassportImage(imageUrl);
+    setIsScanning(true);
+    setScanError(null);
+    setOcrProgress(0);
+
+    try {
+      const preprocessedUrl = await preprocessImageForOcr(imageUrl);
+      setPassportImage(preprocessedUrl);
+      setOcrProgress(20);
+
+      const Tesseract = await import('tesseract.js');
+      setOcrProgress(40);
+
+      const result = await Tesseract.recognize(preprocessedUrl, 'eng', {
+        logger: (m: { status: string; progress: number }) => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(40 + m.progress * 40);
+          }
+        },
+      });
+      setOcrProgress(80);
+
+      const ocrText = result.data.text;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/ocr/passport`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ocrText }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to parse passport data');
+      
+      setOcrProgress(100);
+      setIsScanning(false);
+
+      if (data.passportNumber) {
+        const pNum = data.passportNumber.toUpperCase();
+        setPassportNumber(pNum);
+        
+        // Auto check if candidate is registered
+        setIsSearching(true);
+        try {
+          const searchRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/search-candidates?q=${encodeURIComponent(pNum)}`);
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            if (searchData.length > 0) {
+              const exactMatch = searchData.find((c: any) => c.passportNumber.toUpperCase() === pNum) || searchData[0];
+              handleSelectCandidate(exactMatch);
+              setMessage({
+                type: 'success',
+                text: `Passport ${pNum} scanned successfully! Candidate "${exactMatch.fullName}" matched and linked.`,
+              });
+            } else {
+              handleClearSelection();
+              setMessage({
+                type: 'success',
+                text: `Passport ${pNum} scanned successfully! This is a new passport number. It will be stored as new when submitted.`,
+              });
+            }
+          }
+        } catch (searchErr) {
+          console.error('Failed to search candidate after scan:', searchErr);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        throw new Error('MRZ was scanned but Passport Number could not be extracted. Please position the passport correctly and try again.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setScanError(err.message || 'Failed to scan passport MRZ. Please position the passport correctly.');
+      setIsScanning(false);
+    }
+  };
 
   // Debounced real-time candidate search by passport number
   useEffect(() => {
@@ -179,6 +371,7 @@ export default function VideoUploadsPage() {
         setVideoUrl('');
         setFacePhotoBase64(null);
         setFullBodyPhotoBase64(null);
+        setPassportImage(null);
         handleClearSelection();
       } else {
         setMessage({
@@ -224,6 +417,128 @@ export default function VideoUploadsPage() {
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">1</span>
                 <h3 className="text-base font-semibold text-text-primary">Identify Candidate</h3>
+              </div>
+
+              {/* Passport Scanner Panel */}
+              <div className="bg-lavender-dark/10 border border-primary/10 rounded-2xl p-5 mb-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ScanLine className="text-primary animate-pulse" size={18} />
+                    <h4 className="text-sm font-bold text-text-primary">Passport OCR Scanner</h4>
+                  </div>
+                  {passportImage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPassportImage(null);
+                        setOcrProgress(0);
+                        setIsScanning(false);
+                        setScanError(null);
+                      }}
+                      className="text-xs font-semibold text-red-600 hover:underline"
+                    >
+                      Reset Scanner
+                    </button>
+                  )}
+                </div>
+
+                {/* Camera / Upload buttons */}
+                {!isCameraActive && !passportImage && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary-50/20 text-xs font-semibold text-primary cursor-pointer transition-all duration-150">
+                      <Upload size={14} />
+                      Import Passport Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              if (ev.target?.result) {
+                                performOCR(ev.target.result as string);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary-50/20 text-xs font-semibold text-primary transition-all duration-150 cursor-pointer"
+                    >
+                      <Camera size={14} />
+                      Take Live Photo
+                    </button>
+                  </div>
+                )}
+
+                {/* Webcam Stream Area */}
+                {isCameraActive && (
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3] max-w-md mx-auto border-2 border-primary">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-4 border border-dashed border-white/50 rounded-lg pointer-events-none flex items-center justify-center">
+                      <div className="text-[10px] text-white/70 bg-black/40 px-2 py-1 rounded">Align Passport MRZ inside frame</div>
+                    </div>
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={captureSnapshot}
+                        className="px-4 py-2 bg-primary hover:bg-primary/95 text-white text-xs font-semibold rounded-lg shadow cursor-pointer active:scale-95 transition-transform"
+                      >
+                        Capture Snapshot
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold rounded-lg shadow cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Scanned Image and Progress Indicator */}
+                {passportImage && (
+                  <div className="relative rounded-xl overflow-hidden border border-border bg-gray-50 p-4 flex flex-col items-center gap-3">
+                    <div className="relative w-full max-w-[200px] aspect-[3/2] overflow-hidden rounded border border-border">
+                      <img src={passportImage} alt="Scanned passport" className="w-full h-full object-contain" />
+                      {isScanning && <div className="scan-animation absolute inset-0" />}
+                    </div>
+                    {isScanning && (
+                      <div className="w-full max-w-xs space-y-1">
+                        <div className="flex justify-between text-[10px] text-text-secondary font-medium">
+                          <span>Reading passport data...</span>
+                          <span>{Math.round(ocrProgress)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+                          <div className="bg-primary h-full transition-all duration-300" style={{ width: `${ocrProgress}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {!isScanning && (
+                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                        <CheckCircle size={14} /> Scan Complete & Extracted!
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {scanError && (
+                  <div className="text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-100">
+                    {scanError}
+                  </div>
+                )}
               </div>
 
               {/* Passport Number Search input */}
