@@ -141,16 +141,16 @@ export default function QuickRegistrationPage() {
     if (passportData.surname) parts.push(passportData.surname);
     if (passportData.givenNames) parts.push(passportData.givenNames);
 
-    // Join Surname and GivenNames with a comma
+    // Join Surname and GivenNames with a space
     const combined = passportData.surname && passportData.givenNames
-      ? `${passportData.surname}, ${passportData.givenNames}`
+      ? `${passportData.surname} ${passportData.givenNames}`
       : parts.join(' ');
 
     // Only update if it represents a different parsed state to avoid cursor jumping
     const parsedParts = fullName.split(' ');
     let parsedCombined = '';
     if (parsedParts.length > 1) {
-      parsedCombined = `${parsedParts[0].trim()}, ${parsedParts.slice(1).join(',').trim()}`;
+      parsedCombined = fullName.trim();
     } else {
       parsedCombined = fullName.trim();
     }

@@ -276,14 +276,9 @@ router.post('/passport', async (req: Request, res: Response) => {
     // Normalize and correct misread chevrons in MRZ line 1
     let cleanedLine1 = line1.toUpperCase();
     
-    // 1. Replace sequences of chevrons mixed with common misread characters (like K, X, Y, C, V, F, L, I) to chevrons
-    cleanedLine1 = cleanedLine1.replace(/[<KXYCVFLI]{2,}/g, (match) => {
-      return match.includes('<') || match.length >= 2 ? match.replace(/./g, '<') : match;
-    });
-
-    // 2. Strip single misread characters next to chevrons at word boundaries
-    cleanedLine1 = cleanedLine1.replace(/<([KXYCVFLI])([A-Z]+)/g, '<$2');
-
+    // We no longer aggressively strip K, X, Y, C, V, F, L, I near chevrons 
+    // because it can destroy valid name data (like middle name LETERA -> ETERA).
+    
     const issuingCountry = cleanedLine1.substring(2, 5).replace(/</g, '');
     const parts = cleanedLine1.substring(5).split('<<');
     const surname = cleanName(parts[0] || '');
