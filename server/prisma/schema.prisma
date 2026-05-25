@@ -190,6 +190,7 @@ model Verification {
 model QuickRegistration {
   id               String   @id @default(cuid())
   passportNumber   String
+  passportType     String?  @default("scan")
   surname          String
   givenNames       String
   dateOfBirth      String?

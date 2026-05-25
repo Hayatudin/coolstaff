@@ -36,6 +36,7 @@ interface QuickReg {
   brokerId?: string | null;
   broker?: { id: string; name: string } | null;
   agency?: string | null;
+  passportType?: string | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -102,6 +103,7 @@ export default function QuickRegisteredPage() {
     relativeIdImageUrl: undefined as string | undefined,
     videoUrl: undefined as string | undefined,
     agency: '',
+    passportType: 'scan',
   });
 
   const handleFileChange = (field: string, file: File | null) => {
@@ -146,6 +148,22 @@ export default function QuickRegisteredPage() {
       r.passportNumber?.toLowerCase().includes(q)
     );
   });
+
+  const sorted = [...filtered].sort((a, b) => {
+    const aPending = a.verificationStatus === 'pending' ? 1 : 0;
+    const bPending = b.verificationStatus === 'pending' ? 1 : 0;
+    if (aPending !== bPending) return bPending - aPending;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE) || 1;
+  const paginated = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   // Handle Musaned PDF upload for verification
   const handleMusanedUpload = async (file: File) => {
@@ -320,6 +338,7 @@ export default function QuickRegisteredPage() {
       relativeIdImageUrl: undefined,
       videoUrl: undefined,
       agency: reg.agency || 'daera',
+      passportType: reg.passportType || 'scan',
     });
   };
 
@@ -347,6 +366,7 @@ export default function QuickRegisteredPage() {
         relativePhones: editForm.relativePhones.filter(p => p.trim() !== ''),
         jobExperience: JSON.stringify(editForm.jobExperience),
         agency: editForm.agency || 'daera',
+        passportType: editForm.passportType || 'scan',
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -438,8 +458,8 @@ export default function QuickRegisteredPage() {
                     <p className="text-text-tertiary text-sm">Loading...</p>
                   </td>
                 </tr>
-              ) : filtered.length > 0 ? (
-                filtered.map(r => {
+              ) : paginated.length > 0 ? (
+                paginated.map(r => {
                   const experienceLabel = parseExperience(r.jobExperience);
                   return (
                     <tr
@@ -585,6 +605,45 @@ export default function QuickRegisteredPage() {
             </tbody>
           </table>
         </div>
+        
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-gray-50/50">
+            <span className="text-sm text-text-tertiary">
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, sorted.length)} of {sorted.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-white border border-border text-text-secondary hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-8 h-8 rounded-lg text-sm font-bold transition-colors ${
+                      currentPage === i + 1
+                        ? 'bg-primary text-white border border-primary'
+                        : 'bg-white border border-border text-text-secondary hover:bg-gray-50'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg bg-white border border-border text-text-secondary hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══ VERIFY MODAL ══ */}
@@ -1021,6 +1080,21 @@ export default function QuickRegisteredPage() {
                         <option value="daera">Daera</option>
                         <option value="coolstaff">Coolstaff</option>
                         <option value="boss">Boss</option>
+                      </select>
+                    </div>
+
+                    {/* Passport Type Dropdown */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Passport Type
+                      </label>
+                      <select
+                        value={editForm.passportType}
+                        onChange={e => setEditForm(prev => ({ ...prev, passportType: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary transition-all cursor-pointer"
+                      >
+                        <option value="scan">Scan</option>
+                        <option value="original">Original</option>
                       </select>
                     </div>
 

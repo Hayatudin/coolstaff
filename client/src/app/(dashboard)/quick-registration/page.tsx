@@ -99,6 +99,7 @@ export default function QuickRegistrationPage() {
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [agency, setAgency] = useState('');
+  const [passportType, setPassportType] = useState('scan');
 
   // Broker list
   const [brokers, setBrokers] = useState<Broker[]>([]);
@@ -334,6 +335,7 @@ export default function QuickRegistrationPage() {
           relativeIdImageUrl,
           videoUrl,
           agency,
+          passportType,
         }),
       });
 
@@ -444,6 +446,26 @@ export default function QuickRegistrationPage() {
         </div>
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Passport Type */}
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Passport Type</label>
+              <div className="flex gap-2 pt-1">
+                {['original', 'scan'].map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setPassportType(type)}
+                    className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all capitalize ${passportType === type
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
+                      }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Religion */}
             <div>
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Religion</label>

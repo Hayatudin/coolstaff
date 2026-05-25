@@ -195,6 +195,7 @@ export async function ensureDatabaseSchema() {
       CREATE TABLE IF NOT EXISTS \`QuickRegistration\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`passportNumber\` VARCHAR(191) NOT NULL,
+        \`passportType\` VARCHAR(191) NOT NULL DEFAULT 'scan',
         \`surname\` VARCHAR(191) NOT NULL,
         \`givenNames\` VARCHAR(191) NOT NULL,
         \`dateOfBirth\` VARCHAR(191) NULL,

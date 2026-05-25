@@ -30,6 +30,30 @@ export default function BrokerCandidatesPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Selection & Templates
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [templates, setTemplates] = useState<Record<string, string>>({});
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(candidates.map(c => c.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelect = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(v => v !== id));
+    }
+  };
+
+  const handleTemplateChange = (id: string, template: string) => {
+    setTemplates(prev => ({ ...prev, [id]: template }));
+  };
+
   const fetchBrokerData = async () => {
     try {
       setIsLoading(true);
@@ -164,6 +188,17 @@ export default function BrokerCandidatesPage() {
             </button>
           )}
         </div>
+
+        {selectedIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
+            <span className="text-xs font-bold text-primary px-3 py-1.5 bg-primary/10 rounded-lg">
+              {selectedIds.length} Candidate{selectedIds.length > 1 ? 's' : ''} Selected
+            </span>
+            <button className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-sm">
+              <Download size={14} /> Generate CVs
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Table Feed */}
@@ -172,11 +207,20 @@ export default function BrokerCandidatesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-border/50 text-[10px] uppercase tracking-[0.2em] text-text-tertiary font-black">
-                <th className="px-3 xl:px-8 py-3.5 xl:py-6">Candidate Details</th>
-                <th className="px-3 xl:px-8 py-3.5 xl:py-6">Passport Number</th>
-                <th className="px-3 xl:px-8 py-3.5 xl:py-6">Status</th>
-                <th className="px-3 xl:px-8 py-3.5 xl:py-6 hidden lg:table-cell">Registered Date</th>
-                <th className="px-3 xl:px-8 py-3.5 xl:py-6 text-right pr-4 xl:pr-12">Actions</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
+                    checked={candidates.length > 0 && selectedIds.length === candidates.length}
+                    onChange={handleSelectAll}
+                  />
+                </th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Candidate Details</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Passport Number</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Status</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6">CV Template</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6 hidden lg:table-cell">Registered Date</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6 text-right pr-4 xl:pr-12">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
@@ -200,7 +244,15 @@ export default function BrokerCandidatesPage() {
                       }
                     }}
                   >
-                    <td className="px-3 xl:px-8 py-3.5 xl:py-5">
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
+                        checked={selectedIds.includes(candidate.id)}
+                        onChange={(e) => handleSelect(candidate.id, e.target.checked)}
+                      />
+                    </td>
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
                       <div className="flex items-center gap-2 xl:gap-4">
                         <div className="w-8 h-8 xl:w-12 xl:h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-primary font-black text-xs xl:text-sm border border-border group-hover:border-primary/30 group-hover:scale-105 transition-all duration-300 overflow-hidden shrink-0">
                           {candidate.facePhotoUrl ? (
@@ -218,18 +270,29 @@ export default function BrokerCandidatesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-8 py-3.5 xl:py-5">
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-mono font-black text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
                         <span className="text-[8px] xl:text-[9px] font-black text-text-tertiary uppercase tracking-widest hidden xl:block">Primary Document</span>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-8 py-3.5 xl:py-5">
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
                       <Badge variant={candidate.isRequested ? 'success' : 'warning'} className="rounded-lg px-2 xl:px-3 py-0.5 xl:py-1 text-[8px] xl:text-[9px] font-black uppercase tracking-widest shadow-sm">
                         {candidate.isRequested ? '✓ Requested' : '○ Available'}
                       </Badge>
                     </td>
-                    <td className="px-3 xl:px-8 py-3.5 xl:py-5 hidden lg:table-cell">
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={templates[candidate.id] || 'default'}
+                        onChange={(e) => handleTemplateChange(candidate.id, e.target.value)}
+                        className="bg-gray-50/50 border border-border/50 rounded-xl px-3 py-2 text-xs font-bold text-text-secondary focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer"
+                      >
+                        <option value="default">Default Template</option>
+                        <option value="modern">Modern Template</option>
+                        <option value="professional">Professional Template</option>
+                      </select>
+                    </td>
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5 hidden lg:table-cell">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-xs xl:text-sm font-bold text-text-secondary">
                           {new Date(candidate.registeredAt).toLocaleDateString(undefined, { 
@@ -241,7 +304,7 @@ export default function BrokerCandidatesPage() {
                         <span className="text-[9px] font-black text-text-tertiary uppercase tracking-widest">Entry Date</span>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-8 py-3.5 xl:py-5 text-right pr-4 xl:pr-12">
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5 text-right pr-4 xl:pr-12">
                       <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
                         <button 
                           onClick={(e) => { e.stopPropagation(); router.push(`/candidates/${candidate.id}`); }}
@@ -256,7 +319,7 @@ export default function BrokerCandidatesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-3 xl:px-8 py-32 text-center">
+                  <td colSpan={7} className="px-3 xl:px-8 py-32 text-center">
                     <div className="max-w-xs mx-auto">
                       <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-dashed border-border">
                         <Search size={32} className="text-text-tertiary opacity-20" />

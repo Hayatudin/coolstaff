@@ -32,6 +32,7 @@ interface QuickRegistration {
   passportImageUrl?: string | null;
   createdAt: string;
   agency?: string | null;
+  passportType?: string | null;
 }
 
 function CopyField({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
@@ -110,6 +111,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     relativeIdImageUrl: undefined as string | undefined,
     videoUrl: undefined as string | undefined,
     agency: '',
+    passportType: 'scan',
   });
 
   useEffect(() => {
@@ -223,6 +225,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       relativeIdImageUrl: undefined,
       videoUrl: undefined,
       agency: reg.agency || 'daera',
+      passportType: reg.passportType || 'scan',
     });
   };
 
@@ -250,6 +253,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         relativePhones: editForm.relativePhones.filter(p => p.trim() !== ''),
         jobExperience: JSON.stringify(editForm.jobExperience),
         agency: editForm.agency || 'daera',
+        passportType: editForm.passportType || 'scan',
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -409,6 +413,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         </div>
         <div className="p-3 sm:p-4 space-y-2">
           <CopyField label="Passport Number" value={data.passportNumber} icon={<User size={16} />} />
+          <CopyField label="Passport Type" value={data.passportType ? data.passportType.charAt(0).toUpperCase() + data.passportType.slice(1) : 'Scan'} icon={<FileText size={16} />} />
           <CopyField label="Surname" value={data.surname} icon={<User size={16} />} />
           <CopyField label="Given Names" value={data.givenNames} icon={<User size={16} />} />
           <CopyField label="Date of Birth" value={data.dateOfBirth || ''} icon={<Calendar size={16} />} />
