@@ -56,10 +56,10 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
         const g = data[i + 1];
         const b = data[i + 2];
         const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        
+
         // Stretch values to increase contrast
         const stretched = gray < 120 ? Math.max(0, gray - 50) : Math.min(255, gray + 50);
-        
+
         data[i] = stretched;
         data[i + 1] = stretched;
         data[i + 2] = stretched;
@@ -140,14 +140,14 @@ export default function QuickRegistrationPage() {
     const parts = [];
     if (passportData.surname) parts.push(passportData.surname);
     if (passportData.givenNames) parts.push(passportData.givenNames);
-    
+
     // Join Surname and GivenNames with a comma
     const combined = passportData.surname && passportData.givenNames
       ? `${passportData.surname}, ${passportData.givenNames}`
       : parts.join(' ');
-    
+
     // Only update if it represents a different parsed state to avoid cursor jumping
-    const parsedParts = fullName.split(',');
+    const parsedParts = fullName.split(' ');
     let parsedCombined = '';
     if (parsedParts.length > 1) {
       parsedCombined = `${parsedParts[0].trim()}, ${parsedParts.slice(1).join(',').trim()}`;
@@ -456,8 +456,8 @@ export default function QuickRegistrationPage() {
                     type="button"
                     onClick={() => setPassportType(type)}
                     className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all capitalize ${passportType === type
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
                       }`}
                   >
                     {type}
@@ -476,8 +476,8 @@ export default function QuickRegistrationPage() {
                     type="button"
                     onClick={() => setReligion(r)}
                     className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all ${religion === r
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
                       }`}
                   >
                     {r}
