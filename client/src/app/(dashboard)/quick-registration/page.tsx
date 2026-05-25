@@ -466,6 +466,21 @@ export default function QuickRegistrationPage() {
               </div>
             </div>
 
+            {/* Broker */}
+            <div className="flex flex-col relative z-10">
+              <Select
+                label="Broker"
+                options={brokers.map(b => ({ value: b.id, label: b.name }))}
+                value={selectedBrokerId}
+                onChange={setSelectedBrokerId}
+                disabled={brokersLoading}
+                placeholder="Select or add broker..."
+                searchable
+                onCreate={handleCreateBroker}
+              />
+            </div>
+
+
             {/* Religion */}
             <div>
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Religion</label>
@@ -486,19 +501,6 @@ export default function QuickRegistrationPage() {
               </div>
             </div>
 
-            {/* Broker */}
-            <div className="flex flex-col relative z-10">
-              <Select
-                label="Broker"
-                options={brokers.map(b => ({ value: b.id, label: b.name }))}
-                value={selectedBrokerId}
-                onChange={setSelectedBrokerId}
-                disabled={brokersLoading}
-                placeholder="Select or add broker..."
-                searchable
-                onCreate={handleCreateBroker}
-              />
-            </div>
 
             {/* Marital Status */}
             <div>
