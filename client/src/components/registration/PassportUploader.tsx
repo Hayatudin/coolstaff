@@ -23,8 +23,8 @@ export default function PassportUploader({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Please upload an image with Max 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Please upload an image with Max 10MB');
       return;
     }
 
@@ -159,7 +159,7 @@ export default function PassportUploader({
               Use camera, drag & drop, or <span className="text-primary font-medium">browse files</span>
             </p>
             <p className="text-xs text-text-tertiary mt-2">
-              Supports JPG, PNG • Max 5MB
+              Supports JPG, PNG • Max 10MB
             </p>
           </div>
         </label>
