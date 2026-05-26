@@ -56,7 +56,7 @@ export default function Select({
   }, []);
 
   return (
-    <div className={cn("flex flex-col gap-1.5 relative", isOpen && "z-30")} ref={ref}>
+    <div className={cn("flex flex-col gap-1.5 relative", isOpen && "z-50")} ref={ref}>
       {label && (
         <label className="text-sm font-medium text-text-secondary">{label}</label>
       )}

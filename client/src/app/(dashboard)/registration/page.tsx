@@ -44,22 +44,61 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Apply grayscale and high contrast thresholding
       const imgData = ctx.getImageData(0, 0, width, height);
       const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        
-        // Stretch values to increase contrast
-        const stretched = gray < 120 ? Math.max(0, gray - 50) : Math.min(255, gray + 50);
-        
-        data[i] = stretched;
-        data[i + 1] = stretched;
-        data[i + 2] = stretched;
+
+      // --- Bradley local adaptive thresholding ---
+      const grayscale = new Uint8Array(width * height);
+      const integral = new Int32Array(width * height);
+
+      // Compute grayscale and build integral image
+      for (let y = 0; y < height; y++) {
+        let sum = 0;
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          grayscale[y * width + x] = gray;
+
+          sum += gray;
+          if (y === 0) {
+            integral[y * width + x] = sum;
+          } else {
+            integral[y * width + x] = integral[(y - 1) * width + x] + sum;
+          }
+        }
       }
+
+      const S = Math.floor(width / 8); // Window size
+      const s2 = Math.floor(S / 2);
+      const t = 0.15; // Threshold percentage
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          const x1 = Math.max(0, x - s2);
+          const x2 = Math.min(width - 1, x + s2);
+          const y1 = Math.max(0, y - s2);
+          const y2 = Math.min(height - 1, y + s2);
+
+          const count = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+          let sum = integral[y2 * width + x2];
+          if (x1 > 0) sum -= integral[y2 * width + (x1 - 1)];
+          if (y1 > 0) sum -= integral[(y1 - 1) * width + x2];
+          if (x1 > 0 && y1 > 0) sum += integral[(y1 - 1) * width + (x1 - 1)];
+
+          const gray = grayscale[y * width + x];
+          const val = (gray * count < sum * (1.0 - t)) ? 0 : 255;
+          data[idx] = val;
+          data[idx + 1] = val;
+          data[idx + 2] = val;
+          data[idx + 3] = 255;
+        }
+      }
+
       ctx.putImageData(imgData, 0, 0);
       resolve(canvas.toDataURL('image/jpeg', 0.8));
     };
@@ -428,7 +467,8 @@ function RegistrationContent() {
         logger: (m: { status: string; progress: number }) => {
           if (m.status === 'recognizing text') setOcrProgress(10 + m.progress * 80);
         },
-      });
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789< '
+      } as any);
       setOcrProgress(90);
       const ocrText = result.data.text;
       const response = await api('/api/ocr/passport', {

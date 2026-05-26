@@ -21,6 +21,7 @@ interface QuickReg {
   givenNames: string;
   nationality: string | null;
   religion: string | null;
+  registeredBy?: string | null;
   gender: string | null;
   jobExperience: string | null;
   verificationStatus: string;
@@ -449,7 +450,7 @@ export default function QuickRegisteredPage() {
               <tr className="bg-gray-50 border-b border-border/50 text-[11px] uppercase tracking-widest font-bold text-text-tertiary">
                 <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Passport No.</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden md:table-cell">Religion</th>
+                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden md:table-cell">Registrar ID</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden md:table-cell">Agency</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden lg:table-cell">Experience</th>
                 <th className="px-3 xl:px-6 py-3.5 font-semibold hidden sm:table-cell">Status</th>
@@ -489,7 +490,14 @@ export default function QuickRegisteredPage() {
                       <td className="px-3 xl:px-6 py-3.5 hidden sm:table-cell">
                         <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-0.5 rounded">{r.passportNumber}</span>
                       </td>
-                      <td className="px-3 xl:px-6 py-3.5 text-xs xl:text-sm text-text-secondary hidden md:table-cell">{r.religion || '—'}</td>
+                      <td className="px-3 xl:px-6 py-3.5 text-xs xl:text-sm text-text-secondary hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                            {r.registeredBy ? r.registeredBy.charAt(0).toUpperCase() : 'A'}
+                          </div>
+                          <span className="text-xs xl:text-sm font-medium text-text-primary">{r.registeredBy || 'Admin'}</span>
+                        </div>
+                      </td>
                       <td className="px-3 xl:px-6 py-3.5 hidden md:table-cell">
                         <span className="capitalize px-2 py-0.5 rounded bg-gray-100 font-semibold text-text-primary text-[10px]">
                           {r.agency || 'daera'}

@@ -129,9 +129,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  candidates    Candidate[]
+  sessions           Session[]
+  accounts           Account[]
+  candidates         Candidate[]
+  quickRegistrations QuickRegistration[]
 
   @@index([email])
   @@index([role])
@@ -224,8 +225,12 @@ model QuickRegistration {
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?
 
+  registeredBy             User?    @relation(fields: [registeredById], references: [id])
+  registeredById           String?
+
   @@index([createdAt])
   @@index([brokerId])
+  @@index([registeredById])
 }
 
 model Invoice {

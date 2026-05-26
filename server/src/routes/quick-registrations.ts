@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
 import { exec } from 'child_process';
 import path from 'path';
+import { auth } from '../lib/auth';
 
 const router = Router();
 
@@ -25,12 +26,24 @@ router.get('/generate-client', (req: Request, res: Response) => {
 // GET /api/quick-registrations
 router.get('/', async (req: Request, res: Response) => {
   try {
-    let registrations = await prisma.quickRegistration.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        broker: { select: { id: true, name: true } },
-      },
-    });
+    let registrations;
+    try {
+      registrations = await prisma.quickRegistration.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          broker: { select: { id: true, name: true } },
+          registeredBy: { select: { name: true } },
+        },
+      });
+    } catch (schemaError) {
+      console.warn('QuickRegistration registeredBy schema out of sync. Falling back.');
+      registrations = await prisma.quickRegistration.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          broker: { select: { id: true, name: true } },
+        },
+      });
+    }
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(`SELECT id, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\``);
@@ -51,9 +64,15 @@ router.get('/', async (req: Request, res: Response) => {
           reg.promotedCandidateId = raw.promotedCandidateId;
           reg.agency = raw.agency;
         }
+        reg.registeredBy = reg.registeredBy?.name || 'Admin';
         return reg;
       });
-    } catch (_) { /* ignore if columns don't exist */ }
+    } catch (_) {
+      registrations = registrations.map((reg: any) => {
+        reg.registeredBy = reg.registeredBy?.name || 'Admin';
+        return reg;
+      });
+    }
 
     res.json(registrations);
   } catch (error) {
@@ -101,6 +120,33 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'A full candidate registration with this passport number already exists.' });
     }
 
+    // Resolve logged in user from session to populate registeredById
+    let registeredById = body.registeredById || null;
+    try {
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+      
+      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
+        method: req.method,
+        headers: webHeaders,
+      });
+
+      const session = await auth.api.getSession({
+        headers: webHeaders,
+        request: request
+      } as any);
+
+      if (session?.user?.id) {
+        registeredById = session.user.id;
+        console.log('[DEBUG] Resolved registeredById from server session in quick-reg:', registeredById);
+      }
+    } catch (sessionError) {
+      console.error('[DEBUG] Failed to get session in POST quick-reg route:', sessionError);
+    }
+
     const [
       passportImageUrl,
       cocDocumentUrl,
@@ -117,29 +163,43 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(body.videoUrl, 'videos'),
     ]);
 
-    const registration: any = await (prisma.quickRegistration as any).create({
-      data: {
-        passportNumber: body.passportNumber || '',
-        surname: body.surname || '',
-        givenNames: body.givenNames || '',
-        dateOfBirth: body.dateOfBirth || null,
-        gender: body.gender || null,
-        nationality: body.nationality || null,
-        dateOfExpiry: body.dateOfExpiry || null,
-        issuingCountry: body.issuingCountry || null,
-        placeOfBirth: body.placeOfBirth || null,
-        educationLevel: body.educationLevel || null,
-        jobExperience: body.jobExperience || null,
-        maritalStatus: body.maritalStatus || null,
-        numberOfChildren: parseInt(body.numberOfChildren) || 0,
-        passportImageUrl,
-        religion: body.religion || null,
-        broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
-      },
-      include: {
-        broker: { select: { id: true, name: true } },
-      },
-    });
+    const createData: any = {
+      passportNumber: body.passportNumber || '',
+      surname: body.surname || '',
+      givenNames: body.givenNames || '',
+      dateOfBirth: body.dateOfBirth || null,
+      gender: body.gender || null,
+      nationality: body.nationality || null,
+      dateOfExpiry: body.dateOfExpiry || null,
+      issuingCountry: body.issuingCountry || null,
+      placeOfBirth: body.placeOfBirth || null,
+      educationLevel: body.educationLevel || null,
+      jobExperience: body.jobExperience || null,
+      maritalStatus: body.maritalStatus || null,
+      numberOfChildren: parseInt(body.numberOfChildren) || 0,
+      passportImageUrl,
+      religion: body.religion || null,
+      broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
+    };
+
+    let registration: any;
+    try {
+      registration = await (prisma.quickRegistration as any).create({
+        data: { ...createData, registeredById },
+        include: {
+          broker: { select: { id: true, name: true } },
+          registeredBy: { select: { name: true } },
+        },
+      });
+    } catch (createError) {
+      console.warn('Failed to create QuickRegistration with registeredById. Falling back.');
+      registration = await (prisma.quickRegistration as any).create({
+        data: createData,
+        include: {
+          broker: { select: { id: true, name: true } },
+        },
+      });
+    }
 
     // Safe Raw SQL Update for new columns (bypasses out-of-sync Prisma Client cache completely)
     try {
@@ -170,6 +230,7 @@ router.post('/', async (req: Request, res: Response) => {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
 
+    registration.registeredBy = registration.registeredBy?.name || 'Admin';
     res.status(201).json(registration);
   } catch (error: any) {
     console.error('Error creating quick registration:', error);
@@ -310,18 +371,35 @@ router.put('/:id', async (req: Request, res: Response) => {
 router.get('/by-passport/:passportNumber', async (req: Request, res: Response) => {
   try {
     const { passportNumber } = req.params;
-    let registration: any = await prisma.quickRegistration.findFirst({
-      where: {
-        OR: [
-          { passportNumber: passportNumber },
-          { passportNumber: passportNumber.toUpperCase() },
-          { passportNumber: passportNumber.toLowerCase() }
-        ]
-      },
-      include: {
-        broker: { select: { id: true, name: true } },
-      },
-    });
+    let registration: any;
+    try {
+      registration = await prisma.quickRegistration.findFirst({
+        where: {
+          OR: [
+            { passportNumber: passportNumber },
+            { passportNumber: passportNumber.toUpperCase() },
+            { passportNumber: passportNumber.toLowerCase() }
+          ]
+        },
+        include: {
+          broker: { select: { id: true, name: true } },
+          registeredBy: { select: { name: true } },
+        },
+      });
+    } catch (schemaError) {
+      registration = await prisma.quickRegistration.findFirst({
+        where: {
+          OR: [
+            { passportNumber: passportNumber },
+            { passportNumber: passportNumber.toUpperCase() },
+            { passportNumber: passportNumber.toLowerCase() }
+          ]
+        },
+        include: {
+          broker: { select: { id: true, name: true } },
+        },
+      });
+    }
     if (!registration) return res.status(404).json({ error: 'Not found' });
 
     try {
@@ -343,6 +421,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
       }
     } catch (_) { /* ignore */ }
 
+    registration.registeredBy = registration.registeredBy?.name || 'Admin';
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration by passport:', error);
@@ -354,12 +433,23 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    let registration: any = await prisma.quickRegistration.findUnique({
-      where: { id },
-      include: {
-        broker: { select: { id: true, name: true } },
-      },
-    });
+    let registration: any;
+    try {
+      registration = await prisma.quickRegistration.findUnique({
+        where: { id },
+        include: {
+          broker: { select: { id: true, name: true } },
+          registeredBy: { select: { name: true } },
+        },
+      });
+    } catch (schemaError) {
+      registration = await prisma.quickRegistration.findUnique({
+        where: { id },
+        include: {
+          broker: { select: { id: true, name: true } },
+        },
+      });
+    }
     if (!registration) return res.status(404).json({ error: 'Not found' });
 
     try {
@@ -381,6 +471,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     } catch (_) { /* ignore */ }
 
+    registration.registeredBy = registration.registeredBy?.name || 'Admin';
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration:', error);

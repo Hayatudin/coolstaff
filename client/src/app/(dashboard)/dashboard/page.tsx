@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const [quickLoading, setQuickLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (userRole === 'registrar' || userRole === 'super_admin' || userRole === 'processor') {
+    if (userRole === 'registrar' || userRole === 'super_admin' || userRole === 'processor' || userRole === 'coordinator' || userRole === 'accountant') {
       setQuickLoading(true);
       api('/api/quick-registrations')
         .then(res => res.json())
@@ -185,10 +185,10 @@ export default function DashboardPage() {
         )}
         {canSee('/candidates') && (
           <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
-            <div className="p-4 rounded-2xl bg-warning/10"><UserPlus size={24} className="text-warning" /></div>
+            <div className="p-4 rounded-2xl bg-warning/10 text-warning"><ClipboardList size={24} /></div>
             <div>
-              <p className="text-2xl font-bold text-text-primary">{allCandidates.length - requestedCount}</p>
-              <p className="text-sm text-text-tertiary">Not Visa Selected</p>
+              <p className="text-2xl font-bold text-text-primary">{quickRegistrations.length}</p>
+              <p className="text-sm text-text-tertiary">Total Records</p>
             </div>
           </div>
         )}
@@ -212,14 +212,13 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-semibold">Passport No.</th>
                   <th className="px-6 py-4 font-semibold">Job / Skills</th>
                   <th className="px-6 py-4 font-semibold">Visa Status</th>
-                  <th className="px-6 py-4 font-semibold">COC</th>
-                  <th className="px-6 py-4 font-semibold">Medical</th>
+                  <th className="px-6 py-4 font-semibold">CV Generated</th>
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {isLoading ? (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading candidates...</p></div></td></tr>
+                  <tr><td colSpan={7} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading candidates...</p></div></td></tr>
                 ) : recentCandidates.length > 0 ? (
                   recentCandidates.map((candidate) => (
                     <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
@@ -252,14 +251,17 @@ export default function DashboardPage() {
                         <Badge variant={candidate.isRequested ? 'success' : 'default'}>{candidate.isRequested ? '✓ Visa Selected' : 'Pending Visa'}</Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {candidate.cocDocumentUrl ? (
-                          <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
-                        ) : <span className="text-xs text-text-tertiary">—</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {candidate.medicalDocumentUrl ? (
-                          <button onClick={() => setViewDoc(candidate.medicalDocumentUrl!)} className="text-sm text-emerald-600 hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
-                        ) : <span className="text-xs text-text-tertiary">—</span>}
+                        <div className="flex gap-2 flex-wrap max-w-[200px]">
+                          {candidate.generatedCVs && candidate.generatedCVs.length > 0 ? (
+                            candidate.generatedCVs.map((tmpl, idx) => (
+                              <span key={idx} className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                                {tmpl.replace('tmpl-', '').toUpperCase()}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-text-tertiary">No CVs</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="relative inline-block" data-action-menu>
@@ -290,7 +292,7 @@ export default function DashboardPage() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center text-text-tertiary">No candidates registered yet. Click &quot;Add Candidate&quot; to get started.</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-text-tertiary">No candidates registered yet. Click &quot;Add Candidate&quot; to get started.</td></tr>
                 )}
               </tbody>
             </table>
@@ -317,14 +319,13 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-semibold">Passport No.</th>
                   <th className="px-6 py-4 font-semibold">Job / Skills</th>
                   <th className="px-6 py-4 font-semibold">Requested</th>
-                  <th className="px-6 py-4 font-semibold">COC</th>
-                  <th className="px-6 py-4 font-semibold">Medical</th>
+                  <th className="px-6 py-4 font-semibold">CV Generated</th>
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {isLoading ? (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading...</p></div></td></tr>
+                  <tr><td colSpan={7} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading...</p></div></td></tr>
                 ) : recentRequested.length > 0 ? (
                   recentRequested.map((candidate) => (
                     <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
@@ -357,14 +358,17 @@ export default function DashboardPage() {
                         <Badge variant="success">✓ Visa Selected</Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {candidate.cocDocumentUrl ? (
-                          <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
-                        ) : <span className="text-xs text-text-tertiary">—</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {candidate.medicalDocumentUrl ? (
-                          <button onClick={() => setViewDoc(candidate.medicalDocumentUrl!)} className="text-sm text-emerald-600 hover:underline font-medium flex items-center gap-1"><Eye size={14} /> View</button>
-                        ) : <span className="text-xs text-text-tertiary">—</span>}
+                        <div className="flex gap-2 flex-wrap max-w-[200px]">
+                          {candidate.generatedCVs && candidate.generatedCVs.length > 0 ? (
+                            candidate.generatedCVs.map((tmpl, idx) => (
+                              <span key={idx} className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                                {tmpl.replace('tmpl-', '').toUpperCase()}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-text-tertiary">No CVs</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="relative inline-block" data-action-menu>
@@ -388,7 +392,7 @@ export default function DashboardPage() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center text-text-tertiary">No visa selected candidates yet.</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-text-tertiary">No visa selected candidates yet.</td></tr>
                 )}
               </tbody>
             </table>
