@@ -22,7 +22,7 @@ const NAV_LINKS = [
 const SERVICES = [
   { icon: '👩‍💼', title: 'Domestic Workers', desc: 'Trained housemaids, nannies, and caregivers deployed to families across the Gulf region.' },
   { icon: '📋', title: 'Document Processing', desc: 'Complete visa, COC, medical, and contract documentation handled end-to-end.' },
-  { icon: '✈️', title: 'Gulf Deployment', desc: 'Reliable deployment to Saudi Arabia, UAE, Kuwait, Bahrain and beyond.' },
+  { icon: '✈️', title: 'Gulf Deployment', desc: 'Reliable deployment to Saudi Arabia, UAE, Kuwait, Bahrain, Jordan, Oman, Qatar, Lebanon and beyond.' },
   { icon: '🎓', title: 'Pre-Departure Training', desc: 'Language, cultural orientation, and professional skill training programs.' },
   { icon: '🤝', title: 'Partner Coordination', desc: 'Seamless collaboration with recruitment partners and agencies abroad.' },
   { icon: '🛡️', title: 'Post-Deployment Support', desc: 'Ongoing support and follow-up for workers and employers after placement.' },
@@ -472,13 +472,13 @@ export default function HomePage() {
               <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                 <img
                   src="/img-03.jpeg"
-                  alt="Hospitality Workers"
+                  alt="Pre-Deployment Training"
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                 <div className="absolute bottom-5 left-6 text-white z-10">
-                  <h3 className="text-lg font-bold tracking-tight">Hospitality Workers</h3>
-                  <p className="text-white/70 text-xs mt-1.5 font-medium">Placed in premium hotels & services</p>
+                  <h3 className="text-lg font-bold tracking-tight">Pre-Deployment Training</h3>
+                  <p className="text-white/70 text-xs mt-1.5 font-medium">Professional skills and language training before deployment</p>
                 </div>
               </div>
 
@@ -555,7 +555,7 @@ export default function HomePage() {
               <div className="space-y-3">
                 {[
                   ['📍', 'Address', 'Girar, Ayer Tena, Addis Ababa, Ethiopia'],
-                  ['📱', 'WhatsApp', '+251 972 928 263'],
+                  ['📱', 'WhatsApp', '+251 960 178 117'],
                   ['📧', 'Email', 'info@coolstaffagency.com'],
                 ].map(([icon, label, value]) => (
                   <div key={label} className="flex items-center gap-4 bg-white/[0.06] rounded-xl px-5 py-4 border border-white/10">
