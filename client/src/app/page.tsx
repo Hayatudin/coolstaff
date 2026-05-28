@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from '@/lib/auth-client';
-import { LogOut, LayoutDashboard, User, ChevronDown, Loader2, MapPin } from 'lucide-react';
+import { LogOut, LayoutDashboard, User, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
@@ -395,8 +395,9 @@ export default function HomePage() {
       <section id="portfolio" className="py-28 bg-white border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">CITY NOT TO BE MISSED</h2>
-            <p className="text-gray-400 mt-4 max-w-xl mx-auto text-[15px]">Discover incredible accommodation options in the heart of the city</p>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: BRAND }}>Our Portfolio</span>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mt-3">SUCCESSFUL DEPLOYMENTS</h2>
+            <p className="text-gray-400 mt-4 max-w-xl mx-auto text-[15px]">Deploying qualified candidates to families and partners across the Gulf. We are trusted by thousands.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -406,15 +407,13 @@ export default function HomePage() {
               <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                 <img
                   src="/img-01.jpeg"
-                  alt="This Miami Beach"
+                  alt="Domestic Placements"
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                 <div className="absolute bottom-5 left-6 text-white z-10">
-                  <h3 className="text-lg font-bold tracking-tight">This Miami Beach</h3>
-                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
-                    <MapPin size={12} className="text-white/70 shrink-0" /> South Beach
-                  </p>
+                  <h3 className="text-lg font-bold tracking-tight">Domestic Placements</h3>
+                  <p className="text-white/70 text-xs mt-1.5 font-medium">Over 1000+ candidates successfully deployed</p>
                 </div>
               </div>
 
@@ -424,15 +423,13 @@ export default function HomePage() {
                 <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                   <img
                     src="/img-04.jpeg"
-                    alt="Locanda Vivaldi"
+                    alt="Certified Housekeepers"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                   <div className="absolute bottom-5 left-5 text-white z-10 pr-2">
-                    <h3 className="text-base font-bold leading-snug tracking-tight">Locanda Vivaldi</h3>
-                    <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
-                      <MapPin size={12} className="text-white/70 shrink-0" /> Venice, Italy
-                    </p>
+                    <h3 className="text-base font-bold leading-snug tracking-tight">Certified Housekeepers</h3>
+                    <p className="text-white/70 text-xs mt-1.5 font-medium">Experienced in modern home management</p>
                   </div>
                 </div>
 
@@ -440,15 +437,13 @@ export default function HomePage() {
                 <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                   <img
                     src="/img-05.jpeg"
-                    alt="Homes Aqua"
+                    alt="Home Care Assistants"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                   <div className="absolute bottom-5 left-5 text-white z-10 pr-2">
-                    <h3 className="text-base font-bold leading-snug tracking-tight">Homes Aqua</h3>
-                    <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
-                      <MapPin size={12} className="text-white/70 shrink-0" /> Aegean Sea
-                    </p>
+                    <h3 className="text-base font-bold leading-snug tracking-tight">Home Care Assistants</h3>
+                    <p className="text-white/70 text-xs mt-1.5 font-medium">Dedicated child and elderly care</p>
                   </div>
                 </div>
               </div>
@@ -459,16 +454,14 @@ export default function HomePage() {
               {/* Card 2 */}
               <div className="relative h-[380px] lg:h-[464px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                 <img
-                  src="/img-02.jpeg"
-                  alt="Eden Villas"
+                  src="/img-06.jpeg"
+                  alt="Trusted Nannies & Caregivers"
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                 <div className="absolute bottom-6 left-6 text-white z-10">
-                  <h3 className="text-xl font-bold tracking-tight">Eden Villas</h3>
-                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
-                    <MapPin size={12} className="text-white/70 shrink-0" /> Perched on Caldera
-                  </p>
+                  <h3 className="text-xl font-bold tracking-tight">Trusted Nannies & Caregivers</h3>
+                  <p className="text-white/70 text-xs mt-1.5 font-medium">Screened and trained for family support</p>
                 </div>
               </div>
             </div>
@@ -479,31 +472,27 @@ export default function HomePage() {
               <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                 <img
                   src="/img-03.jpeg"
-                  alt="Apartments Opens"
+                  alt="Hospitality Workers"
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                 <div className="absolute bottom-5 left-6 text-white z-10">
-                  <h3 className="text-lg font-bold tracking-tight">Apartments Opens</h3>
-                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
-                    <MapPin size={12} className="text-white/70 shrink-0" /> Venice, Italy
-                  </p>
+                  <h3 className="text-lg font-bold tracking-tight">Hospitality Workers</h3>
+                  <p className="text-white/70 text-xs mt-1.5 font-medium">Placed in premium hotels & services</p>
                 </div>
               </div>
 
               {/* Card 6 */}
               <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
                 <img
-                  src="/img-06.jpeg"
-                  alt="Alba Cave Villa"
+                  src="/img-02.jpeg"
+                  alt="Verified Candidates"
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
                 <div className="absolute bottom-5 left-6 text-white z-10 pr-4">
-                  <h3 className="text-lg font-bold tracking-tight">Alba Cave Villa</h3>
-                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
-                    <MapPin size={12} className="text-white/70 shrink-0" /> Featuring a seasonal outdoor
-                  </p>
+                  <h3 className="text-lg font-bold tracking-tight">Verified Candidates</h3>
+                  <p className="text-white/70 text-xs mt-1.5 font-medium">Selected through our ethical process</p>
                 </div>
               </div>
             </div>
