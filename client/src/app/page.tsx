@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from '@/lib/auth-client';
-import { LogOut, LayoutDashboard, User, ChevronDown, Loader2 } from 'lucide-react';
+import { LogOut, LayoutDashboard, User, ChevronDown, Loader2, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { label: 'Home', href: '#home' },
   { label: 'About', href: '#about' },
   { label: 'Services', href: '#services' },
+  { label: 'Portfolio', href: '#portfolio' },
   { label: 'Why Us', href: '#why-us' },
   { label: 'Contact', href: '#contact' },
 ];
@@ -326,7 +327,7 @@ export default function HomePage() {
 
         {/* Trust bar */}
         <div className="relative z-10 max-w-5xl mx-auto px-6 mt-20">
-          <p className="text-center text-xs font-bold text-gray-300 uppercase tracking-[0.2em] mb-6">Trusted by <span className="text-gray-500">1000+</span> partners for best candidates</p>
+          <p className="text-center text-xs font-bold text-gray-300 uppercase tracking-[0.2em] mb-6">Trusted by <span className="text-gray-500">100+</span> partners for best candidates</p>
           <div className="flex items-center justify-center gap-10 md:gap-16 opacity-30 grayscale">
             {['Saudi Arabia', 'UAE', 'Kuwait', 'Bahrain', 'Oman', 'Jordan', 'Qatar', 'Lebanon'].map(c => (
               <span key={c} className="text-base md:text-lg font-black text-gray-900 tracking-tight whitespace-nowrap">{c}</span>
@@ -386,6 +387,126 @@ export default function HomePage() {
                 <p className="text-sm text-gray-400 leading-relaxed">{s.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ PORTFOLIO ═══ */}
+      <section id="portfolio" className="py-28 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">CITY NOT TO BE MISSED</h2>
+            <p className="text-gray-400 mt-4 max-w-xl mx-auto text-[15px]">Discover incredible accommodation options in the heart of the city</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Column 1 */}
+            <div className="flex flex-col gap-6">
+              {/* Card 1 */}
+              <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
+                <img
+                  src="/img-01.jpeg"
+                  alt="This Miami Beach"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                <div className="absolute bottom-5 left-6 text-white z-10">
+                  <h3 className="text-lg font-bold tracking-tight">This Miami Beach</h3>
+                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
+                    <MapPin size={12} className="text-white/70 shrink-0" /> South Beach
+                  </p>
+                </div>
+              </div>
+
+              {/* Row with Card 4 & 5 */}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Card 4 */}
+                <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
+                  <img
+                    src="/img-04.jpeg"
+                    alt="Locanda Vivaldi"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  <div className="absolute bottom-5 left-5 text-white z-10 pr-2">
+                    <h3 className="text-base font-bold leading-snug tracking-tight">Locanda Vivaldi</h3>
+                    <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
+                      <MapPin size={12} className="text-white/70 shrink-0" /> Venice, Italy
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 5 */}
+                <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
+                  <img
+                    src="/img-05.jpeg"
+                    alt="Homes Aqua"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  <div className="absolute bottom-5 left-5 text-white z-10 pr-2">
+                    <h3 className="text-base font-bold leading-snug tracking-tight">Homes Aqua</h3>
+                    <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
+                      <MapPin size={12} className="text-white/70 shrink-0" /> Aegean Sea
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2 */}
+            <div>
+              {/* Card 2 */}
+              <div className="relative h-[380px] lg:h-[464px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
+                <img
+                  src="/img-02.jpeg"
+                  alt="Eden Villas"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                <div className="absolute bottom-6 left-6 text-white z-10">
+                  <h3 className="text-xl font-bold tracking-tight">Eden Villas</h3>
+                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
+                    <MapPin size={12} className="text-white/70 shrink-0" /> Perched on Caldera
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3 */}
+            <div className="flex flex-col gap-6">
+              {/* Card 3 */}
+              <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
+                <img
+                  src="/img-03.jpeg"
+                  alt="Apartments Opens"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                <div className="absolute bottom-5 left-6 text-white z-10">
+                  <h3 className="text-lg font-bold tracking-tight">Apartments Opens</h3>
+                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
+                    <MapPin size={12} className="text-white/70 shrink-0" /> Venice, Italy
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 6 */}
+              <div className="relative h-[220px] rounded-2xl overflow-hidden group shadow-sm border border-gray-100">
+                <img
+                  src="/img-06.jpeg"
+                  alt="Alba Cave Villa"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                <div className="absolute bottom-5 left-6 text-white z-10 pr-4">
+                  <h3 className="text-lg font-bold tracking-tight">Alba Cave Villa</h3>
+                  <p className="text-white/80 text-xs mt-1.5 flex items-center gap-1 font-medium">
+                    <MapPin size={12} className="text-white/70 shrink-0" /> Featuring a seasonal outdoor
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
