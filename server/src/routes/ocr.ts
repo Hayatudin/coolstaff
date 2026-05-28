@@ -157,8 +157,162 @@ function findMrzLines(text: string): [string, string] | null {
   return null;
 }
 
+function preCleanMrzLine1(line: string): string {
+  // Convert to uppercase and normalize common punctuation
+  let cleaned = line.toUpperCase().replace(/[\/\\|:;(),.\[\]{}?_\-+=~—«»]/g, '<');
+  cleaned = cleaned.replace(/[^A-Z0-9< ]/g, '<');
+
+  // Ensure it starts with P<
+  if (cleaned.startsWith('P') && cleaned[1] !== '<') {
+    cleaned = 'P<' + cleaned.substring(2);
+  } else if (!cleaned.startsWith('P')) {
+    cleaned = 'P<' + (cleaned.startsWith('<') ? cleaned.substring(1) : cleaned);
+  }
+
+  // Extract name part (starting at index 5)
+  const prefix = cleaned.substring(0, 5);
+  let namePart = cleaned.substring(5);
+
+  // Ensure total length is 44 characters (namePart is 39 characters)
+  namePart = namePart.padEnd(39, '<').substring(0, 39);
+
+  // A. Recover trailing chevrons (scan from right to left)
+  // Stop at definite name letters: A, D, E, G, M, N, P, Q, R, U, W
+  const DEFINITE_NAME_CHARS = new Set(['A', 'D', 'E', 'G', 'M', 'N', 'P', 'Q', 'R', 'U', 'W']);
+  const LIKELY_CHEVRONS = new Set(['<', 'K', 'C', 'L', 'X', 'V', 'F', 'Y', 'H', 'Z', 'I', 'J', ' ', '0', '1', '2', '8', '9']);
+
+  let chars = namePart.split('');
+  let i = chars.length - 1;
+  while (i >= 0) {
+    const char = chars[i];
+    if (DEFINITE_NAME_CHARS.has(char)) {
+      break;
+    }
+    if (LIKELY_CHEVRONS.has(char)) {
+      chars[i] = '<';
+    } else {
+      break;
+    }
+    i--;
+  }
+  namePart = chars.join('');
+
+  // B. Recover the primary double chevron separator '<<'
+  // Find the first position where two consecutive characters are both chevron-like
+  // (misread '<<' as 'KK', 'KC', 'CK', 'CC', 'LL', etc.)
+  // We replace ONLY that pair (and any adjacent '<') with '<<' to avoid eating name characters.
+  const CHEVRON_LIKE = new Set(['<', 'K', 'C', 'L', 'X']);
+  let separatorStart = -1;
+  let separatorEnd = -1;
+  for (let j = 0; j < namePart.length - 1; j++) {
+    if (CHEVRON_LIKE.has(namePart[j]) && CHEVRON_LIKE.has(namePart[j + 1])) {
+      separatorStart = j;
+      separatorEnd = j + 2;
+      // Extend to consume any additional adjacent '<' (but NOT other chevron-like letters)
+      while (separatorEnd < namePart.length && namePart[separatorEnd] === '<') {
+        separatorEnd++;
+      }
+      break;
+    }
+  }
+  if (separatorStart !== -1) {
+    namePart = namePart.substring(0, separatorStart) + '<<' + namePart.substring(separatorEnd);
+  }
+
+  return prefix + namePart;
+}
+
+function cleanPassportNumber(raw: string): string {
+  let cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  
+  // Ethiopian and many other passports start with 2 letters followed by 7 digits.
+  // Let's detect if it matches this pattern but with common misreads (like 'B' for '8').
+  if (cleaned.startsWith('EP') && cleaned.length === 9) {
+    const digitsPart = cleaned.substring(2);
+    const correctedDigits = digitsPart
+      .replace(/[OOD]/g, '0')
+      .replace(/[IL|T]/g, '1')
+      .replace(/[Z]/g, '2')
+      .replace(/[S]/g, '5')
+      .replace(/[G]/g, '6')
+      .replace(/[B]/g, '8');
+    return 'EP' + correctedDigits;
+  }
+  
+  // Generic fallback: if it starts with 1-3 letters followed by digits
+  const match = cleaned.match(/^([A-Z]{1,3})(.*)$/);
+  if (match) {
+    const letters = match[1];
+    const rest = match[2];
+    const correctedDigits = rest
+      .replace(/[OOD]/g, '0')
+      .replace(/[IL|T]/g, '1')
+      .replace(/[Z]/g, '2')
+      .replace(/[S]/g, '5')
+      .replace(/[G]/g, '6')
+      .replace(/[B]/g, '8');
+    return letters + correctedDigits;
+  }
+  
+  return cleaned;
+}
+
 function cleanName(name: string): string {
-  return name.replace(/<+/g, ' ').replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+  return name.toUpperCase().replace(/<+/g, ' ').replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Recursively try to split a name fragment at single K/C/L/X characters
+ * that are likely misread '<' separators between given names.
+ * Requirements for a valid split:
+ *  - Both sides must be >= 4 characters
+ *  - Both sides must contain a vowel
+ *  - The character immediately before the separator must be a vowel
+ *    (since names typically end in vowels: CHALTU, MERTA, WORKU, etc.)
+ */
+function trySplitMisreadChevron(name: string): string[] {
+  const SEPARATOR_CHARS = new Set(['K', 'C', 'L', 'X']);
+  const VOWELS = /[AEIOU]/;
+  const IS_VOWEL = new Set(['A', 'E', 'I', 'O', 'U']);
+
+  for (let i = 4; i < name.length - 3; i++) {
+    if (SEPARATOR_CHARS.has(name[i])) {
+      const left = name.substring(0, i);
+      const right = name.substring(i + 1);
+
+      // The char before the separator must be a vowel (name ending)
+      const charBefore = name[i - 1];
+      if (!IS_VOWEL.has(charBefore)) continue;
+
+      if (left.length >= 4 && right.length >= 3 && VOWELS.test(left) && VOWELS.test(right)) {
+        // Valid split found – recursively check the right part for more separators
+        return [left, ...trySplitMisreadChevron(right)];
+      }
+    }
+  }
+
+  return [name];
+}
+
+/**
+ * Process the raw given-names section from after the '<<' split.
+ * Splits on existing '<', then recovers any misread single-chevron separators
+ * within fragments that are suspiciously long (>= 7 chars).
+ */
+function recoverGivenNames(rawGivenNames: string): string {
+  const fragments = rawGivenNames.split(/<+/).filter(Boolean);
+
+  const result: string[] = [];
+  for (const frag of fragments) {
+    const cleaned = frag.replace(/[^A-Z]/g, '');
+    if (cleaned.length >= 7) {
+      result.push(...trySplitMisreadChevron(cleaned));
+    } else if (cleaned.length > 0) {
+      result.push(cleaned);
+    }
+  }
+
+  return result.map(n => cleanName(n)).filter(Boolean).join(' ');
 }
 
 function findCountryCodeAnchor(line2: string): number {
@@ -273,23 +427,22 @@ router.post('/passport', async (req: Request, res: Response) => {
     }
     const [line1, line2] = mrz;
     
-    // Normalize and correct misread chevrons in MRZ line 1
-    let cleanedLine1 = line1.toUpperCase();
-    
-    // We no longer aggressively strip K, X, Y, C, V, F, L, I near chevrons 
-    // because it can destroy valid name data (like middle name LETERA -> ETERA).
+    // Normalize and correct misread chevrons in MRZ line 1 using the advanced structural recovery logic
+    let cleanedLine1 = preCleanMrzLine1(line1);
     
     const issuingCountry = cleanedLine1.substring(2, 5).replace(/</g, '');
     const parts = cleanedLine1.substring(5).split('<<');
     const surname = cleanName(parts[0] || '');
-    const givenNames = parts.slice(1).map(p => cleanName(p)).filter(Boolean).join(' ');
+    const rawGivenNames = parts.slice(1).join('<<');
+    const givenNames = recoverGivenNames(rawGivenNames);
     
     // Dynamically anchor parser fields based on nationality country code position to make it resilient to character insertion/deletion shifts
     const anchorIdx = findCountryCodeAnchor(line2);
-    let passportNumber = line2.substring(0, anchorIdx).replace(/</g, '');
-    if (passportNumber.length > 9) {
-      passportNumber = passportNumber.substring(0, 9);
+    let rawPassportNumber = line2.substring(0, anchorIdx).replace(/</g, '');
+    if (rawPassportNumber.length > 9) {
+      rawPassportNumber = rawPassportNumber.substring(0, 9);
     }
+    const passportNumber = cleanPassportNumber(rawPassportNumber);
     const nationality = line2.substring(anchorIdx, anchorIdx + 3).replace(/</g, '');
     
     // Use the extremely robust layout-independent dates and gender extraction scanner on the rest of the MRZ line

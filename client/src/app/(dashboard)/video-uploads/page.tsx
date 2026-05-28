@@ -93,7 +93,7 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
 
       const S = Math.floor(width / 8); // Window size
       const s2 = Math.floor(S / 2);
-      const t = 0.15; // Threshold percentage
+      const t = 0.12; // Soft threshold percentage
 
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -111,7 +111,21 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
           if (x1 > 0 && y1 > 0) sum += integral[(y1 - 1) * width + (x1 - 1)];
 
           const gray = grayscale[y * width + x];
-          const val = (gray * count < sum * (1.0 - t)) ? 0 : 255;
+          const localAvg = sum / count;
+
+          // Soft local adaptive thresholding to preserve anti-aliasing edges on chevrons and digits
+          const diff = localAvg - gray;
+          const threshold = localAvg * t;
+          let val = 255;
+          if (diff > threshold) {
+            val = 0; // Solid text
+          } else if (diff < -threshold) {
+            val = 255; // Solid background
+          } else {
+            // Smooth transition mapping from dark to light
+            val = Math.round(((threshold - diff) / (2 * threshold)) * 255);
+          }
+
           data[idx] = val;
           data[idx + 1] = val;
           data[idx + 2] = val;
