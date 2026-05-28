@@ -328,7 +328,7 @@ export default function HomePage() {
         <div className="relative z-10 max-w-5xl mx-auto px-6 mt-20">
           <p className="text-center text-xs font-bold text-gray-300 uppercase tracking-[0.2em] mb-6">Trusted by <span className="text-gray-500">1000+</span> partners for best candidates</p>
           <div className="flex items-center justify-center gap-10 md:gap-16 opacity-30 grayscale">
-            {['Saudi Arabia', 'UAE', 'Kuwait', 'Bahrain', 'Oman'].map(c => (
+            {['Saudi Arabia', 'UAE', 'Kuwait', 'Bahrain', 'Oman', 'Jordan', 'Qatar', 'Lebanon'].map(c => (
               <span key={c} className="text-base md:text-lg font-black text-gray-900 tracking-tight whitespace-nowrap">{c}</span>
             ))}
           </div>
