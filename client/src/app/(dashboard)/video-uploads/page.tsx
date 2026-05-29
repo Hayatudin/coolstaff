@@ -46,8 +46,8 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
         return;
       }
 
-      // Resize image to standard width (e.g. 1200px) maintaining aspect ratio
-      const maxDim = 1200;
+      // Resize image to standard width (e.g. 1600px) maintaining aspect ratio
+      const maxDim = 1600;
       let width = img.width;
       let height = img.height;
       if (width > maxDim || height > maxDim) {
@@ -64,77 +64,7 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      const imgData = ctx.getImageData(0, 0, width, height);
-      const data = imgData.data;
-
-      // --- Bradley local adaptive thresholding ---
-      const grayscale = new Uint8Array(width * height);
-      const integral = new Int32Array(width * height);
-
-      // Compute grayscale and build integral image
-      for (let y = 0; y < height; y++) {
-        let sum = 0;
-        for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4;
-          const r = data[idx];
-          const g = data[idx + 1];
-          const b = data[idx + 2];
-          const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-          grayscale[y * width + x] = gray;
-
-          sum += gray;
-          if (y === 0) {
-            integral[y * width + x] = sum;
-          } else {
-            integral[y * width + x] = integral[(y - 1) * width + x] + sum;
-          }
-        }
-      }
-
-      const S = Math.floor(width / 8); // Window size
-      const s2 = Math.floor(S / 2);
-      const t = 0.12; // Soft threshold percentage
-
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4;
-          const x1 = Math.max(0, x - s2);
-          const x2 = Math.min(width - 1, x + s2);
-          const y1 = Math.max(0, y - s2);
-          const y2 = Math.min(height - 1, y + s2);
-
-          const count = (x2 - x1 + 1) * (y2 - y1 + 1);
-
-          let sum = integral[y2 * width + x2];
-          if (x1 > 0) sum -= integral[y2 * width + (x1 - 1)];
-          if (y1 > 0) sum -= integral[(y1 - 1) * width + x2];
-          if (x1 > 0 && y1 > 0) sum += integral[(y1 - 1) * width + (x1 - 1)];
-
-          const gray = grayscale[y * width + x];
-          const localAvg = sum / count;
-
-          // Soft local adaptive thresholding to preserve anti-aliasing edges on chevrons and digits
-          const diff = localAvg - gray;
-          const threshold = localAvg * t;
-          let val = 255;
-          if (diff > threshold) {
-            val = 0; // Solid text
-          } else if (diff < -threshold) {
-            val = 255; // Solid background
-          } else {
-            // Smooth transition mapping from dark to light
-            val = Math.round(((threshold - diff) / (2 * threshold)) * 255);
-          }
-
-          data[idx] = val;
-          data[idx + 1] = val;
-          data[idx + 2] = val;
-          data[idx + 3] = 255;
-        }
-      }
-
-      ctx.putImageData(imgData, 0, 0);
-      resolve(canvas.toDataURL('image/jpeg', 0.8));
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
