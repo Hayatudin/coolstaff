@@ -210,45 +210,73 @@ export default function CandidateDetailPage() {
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Candidate Video */}
-          {(c.quickVideoUrl || c.videoUrl) && (
-            <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-              <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
-                <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Candidate Video Profile
-              </h2>
-              <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
-                <video
-                  src={getFileUrl(c.quickVideoUrl || c.videoUrl!)}
-                  controls
-                  className="w-full h-full object-contain"
-                  crossOrigin="anonymous"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Watch on YouTube Link */}
-          {c.videoUrl && c.videoUrl.includes('youtu') && (
-            <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
-              <a
-                href={c.videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 group"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0">
-                  <svg className="w-6 h-6 text-red-600" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" /></svg>
+          {(() => {
+            const hasLocalVideo = c.quickVideoUrl || (c.videoUrl && c.videoUrl.startsWith('/uploads'));
+            const hasYoutubeVideo = c.videoUrl && (c.videoUrl.includes('youtube.com') || c.videoUrl.includes('youtu.be'));
+            
+            if (hasLocalVideo) {
+              return (
+                <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+                  <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Candidate Video Profile
+                  </h2>
+                  <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
+                    <video
+                      src={getFileUrl(c.quickVideoUrl || c.videoUrl!)}
+                      controls
+                      className="w-full h-full object-contain"
+                      crossOrigin="anonymous"
+                    />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-text-primary group-hover:text-red-600 transition-colors">Watch on YouTube</p>
-                  <p className="text-xs text-text-tertiary mt-0.5 truncate max-w-md">{c.videoUrl}</p>
+              );
+            } else if (hasYoutubeVideo) {
+              return (
+                <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+                  <h2 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                    YouTube Video Profile
+                  </h2>
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-red-50/20 rounded-2xl border border-red-100/50">
+                    <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
+                      <svg className="w-9 h-9 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 text-center sm:text-left min-w-0">
+                      <p className="text-base font-bold text-text-primary">Watch YouTube Video</p>
+                      <p className="text-xs text-text-tertiary mt-1 truncate max-w-md">{c.videoUrl}</p>
+                    </div>
+                    <a
+                      href={c.videoUrl!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2.5 px-6 py-2.5 border border-red-200/60 bg-white hover:bg-red-50 text-red-600 rounded-xl text-sm font-black shadow-sm transition-all shrink-0 cursor-pointer"
+                    >
+                      <svg className="w-4.5 h-4.5 text-red-600 fill-current" viewBox="0 0 24 24">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                      </svg>
+                      Watch
+                    </a>
+                  </div>
                 </div>
-                <ExternalLink size={16} className="text-text-tertiary group-hover:text-red-500 transition-colors shrink-0" />
-              </a>
-            </div>
-          )}
+              );
+            } else {
+              return (
+                <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 text-center py-12">
+                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-text-secondary font-semibold text-sm">Video URL is not inserted</p>
+                </div>
+              );
+            }
+          })()}
 
           {/* Passport Information */}
           <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">

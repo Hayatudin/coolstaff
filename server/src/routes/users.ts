@@ -12,6 +12,70 @@ const requireSuperAdmin = async (req: Request | any, res: Response, next: NextFu
   next();
 };
 
+// GET /api/users/analytics
+router.get('/analytics', requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    const candidateCounts = await prisma.candidate.groupBy({
+      by: ['registeredById'],
+      _count: {
+        id: true,
+      },
+      where: {
+        registeredById: { not: null },
+      },
+    });
+
+    const quickRegistrationCounts = await prisma.quickRegistration.groupBy({
+      by: ['registeredById'],
+      _count: {
+        id: true,
+      },
+      where: {
+        registeredById: { not: null },
+      },
+    });
+
+    const candidateCountMap: Record<string, number> = {};
+    candidateCounts.forEach((c) => {
+      if (c.registeredById) {
+        candidateCountMap[c.registeredById] = c._count.id;
+      }
+    });
+
+    const quickCountMap: Record<string, number> = {};
+    quickRegistrationCounts.forEach((q) => {
+      if (q.registeredById) {
+        quickCountMap[q.registeredById] = q._count.id;
+      }
+    });
+
+    const analyticsData = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+      candidatesRegistered: candidateCountMap[user.id] || 0,
+      quickRegistrations: quickCountMap[user.id] || 0,
+    }));
+
+    res.json(analyticsData);
+  } catch (error: any) {
+    console.error('Failed to fetch user analytics:', error);
+    res.status(500).json({ error: 'Failed to fetch user analytics: ' + error.message });
+  }
+});
+
 // GET /api/users
 router.get('/', requireSuperAdmin, async (req: Request, res: Response) => {
   try {

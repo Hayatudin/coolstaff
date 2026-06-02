@@ -9,7 +9,8 @@ import {
   Lock,
   Save,
   CheckCircle2,
-  DollarSign
+  DollarSign,
+  BarChart3
 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -45,9 +46,55 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 export default function SettingsPage() {
   const { data: session, isPending } = useSession();
-  const [activeTab, setActiveTab] = useState<'profile' | 'agency' | 'notifications' | 'preferences'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'agency' | 'notifications' | 'preferences' | 'analytics'>('profile');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // User Analytics states
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+  const [analyticsSearch, setAnalyticsSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'candidates' | 'quick' | 'name'>('candidates');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  // Fetch analytics data when analytics tab is active
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      const fetchAnalytics = async () => {
+        setLoadingAnalytics(true);
+        try {
+          const res = await api('/api/users/analytics');
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setAnalyticsData(data);
+          }
+        } catch (err) {
+          console.error('Failed to fetch analytics', err);
+          showToast('Failed to load user analytics', 'error');
+        } finally {
+          setLoadingAnalytics(false);
+        }
+      };
+      fetchAnalytics();
+    }
+  }, [activeTab]);
+
+  const filteredAndSortedAnalytics = analyticsData
+    .filter(user => 
+      (user.name || '').toLowerCase().includes(analyticsSearch.toLowerCase()) ||
+      (user.email || '').toLowerCase().includes(analyticsSearch.toLowerCase())
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'candidates') {
+        comparison = a.candidatesRegistered - b.candidatesRegistered;
+      } else if (sortBy === 'quick') {
+        comparison = a.quickRegistrations - b.quickRegistrations;
+      } else if (sortBy === 'name') {
+        comparison = (a.name || '').localeCompare(b.name || '');
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
 
   // Form states
   const [profile, setProfile] = useState({ name: '', email: '', role: '' });
@@ -175,6 +222,7 @@ export default function SettingsPage() {
   
   if (profile.role === 'super_admin') {
     tabs.splice(1, 0, { id: 'agency', label: 'Agency Price', icon: DollarSign });
+    tabs.push({ id: 'analytics', label: 'User Analytics', icon: BarChart3 });
   }
 
   const getSaveHandler = () => {
@@ -196,13 +244,15 @@ export default function SettingsPage() {
           </h1>
           <p className="text-text-secondary mt-1 ml-12">Manage your account and agency preferences</p>
         </div>
-        <Button 
-          onClick={getSaveHandler()} 
-          disabled={isSaving || isPending}
-          icon={isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={16} />}
-        >
-          {isSaving ? 'Saving...' : 'Save Changes'}
-        </Button>
+        {activeTab !== 'analytics' && (
+          <Button 
+            onClick={getSaveHandler()} 
+            disabled={isSaving || isPending}
+            icon={isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={16} />}
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 mt-8">
@@ -389,6 +439,163 @@ export default function SettingsPage() {
                     ]}
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* User Analytics Dashboard */}
+          {activeTab === 'analytics' && profile.role === 'super_admin' && (
+            <div className="space-y-8 animate-fade-in">
+              <div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary mb-1 flex items-center gap-2">
+                      <BarChart3 size={18} className="text-primary" /> User Activity Analytics
+                    </h2>
+                    <p className="text-sm text-text-secondary">Monitor registration metrics and platform usage across all active system operators.</p>
+                  </div>
+                  
+                  {/* Search and Sort controls */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-60">
+                      <Input 
+                        placeholder="Search operators..." 
+                        value={analyticsSearch} 
+                        onChange={(e) => setAnalyticsSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="w-48">
+                      <Select
+                        value={`${sortBy}-${sortOrder}`}
+                        onChange={(val) => {
+                          const [field, order] = val.split('-');
+                          setSortBy(field as any);
+                          setSortOrder(order as any);
+                        }}
+                        options={[
+                          { value: 'candidates-desc', label: 'Candidates (High to Low)' },
+                          { value: 'candidates-asc', label: 'Candidates (Low to High)' },
+                          { value: 'quick-desc', label: 'Quick Registrations (High)' },
+                          { value: 'name-asc', label: 'Name (A to Z)' },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {loadingAnalytics ? (
+                  <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                    <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <p className="text-text-secondary text-sm font-medium">Analyzing operator activities...</p>
+                  </div>
+                ) : analyticsData.length === 0 ? (
+                  <div className="text-center py-16 border border-dashed border-border rounded-2xl bg-gray-50/30">
+                    <p className="text-text-secondary font-medium">No operator activity records found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Stat Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-5 shadow-sm">
+                        <span className="text-xs font-semibold text-primary uppercase tracking-wider">Total Candidates Registered</span>
+                        <div className="text-3xl font-extrabold text-text-primary mt-2">
+                          {analyticsData.reduce((sum, u) => sum + (u.candidatesRegistered || 0), 0)}
+                        </div>
+                        <p className="text-xs text-text-secondary mt-1">Successfully promoted into system</p>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-100 rounded-2xl p-5 shadow-sm">
+                        <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Total Walk-In (Quick) Records</span>
+                        <div className="text-3xl font-extrabold text-text-primary mt-2">
+                          {analyticsData.reduce((sum, u) => sum + (u.quickRegistrations || 0), 0)}
+                        </div>
+                        <p className="text-xs text-text-secondary mt-1">Temporary or scan registrations</p>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100 rounded-2xl p-5 shadow-sm">
+                        <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Top Performing Operator</span>
+                        <div className="text-xl font-bold text-text-primary mt-2 truncate">
+                          {(() => {
+                            const top = [...analyticsData].sort((a, b) => (b.candidatesRegistered || 0) - (a.candidatesRegistered || 0))[0];
+                            return top ? `${top.name} (${top.candidatesRegistered || 0})` : 'None';
+                          })()}
+                        </div>
+                        <p className="text-xs text-text-secondary mt-1">Highest registration count</p>
+                      </div>
+                    </div>
+
+                    {/* Table View */}
+                    <div className="border border-border/60 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-border/80 text-xs font-bold text-text-secondary uppercase tracking-wider">
+                              <th className="py-4 px-6">Operator</th>
+                              <th className="py-4 px-4">Role</th>
+                              <th className="py-4 px-4 text-center">Candidates</th>
+                              <th className="py-4 px-4 text-center">Quick Regs</th>
+                              <th className="py-4 px-6">Activity Share</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40 text-sm">
+                            {filteredAndSortedAnalytics.map((user) => {
+                              const totalCandidates = analyticsData.reduce((sum, u) => sum + (u.candidatesRegistered || 0), 0) || 1;
+                              const share = Math.round(((user.candidatesRegistered || 0) / totalCandidates) * 100);
+                              
+                              // Role styling helper
+                              const getRoleBadge = (role: string) => {
+                                const classes = {
+                                  super_admin: "bg-purple-50 text-purple-700 border-purple-100",
+                                  registrar: "bg-blue-50 text-blue-700 border-blue-100",
+                                  processor: "bg-orange-50 text-orange-700 border-orange-100",
+                                  coordinator: "bg-teal-50 text-teal-700 border-teal-100",
+                                  accountant: "bg-amber-50 text-amber-700 border-amber-100",
+                                  video_uploader: "bg-pink-50 text-pink-700 border-pink-100"
+                                }[role] || "bg-gray-50 text-gray-700 border-gray-100";
+                                
+                                return (
+                                  <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold border", classes)}>
+                                    {role.replace('_', ' ')}
+                                  </span>
+                                );
+                              };
+
+                              return (
+                                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                                  <td className="py-4 px-6">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-600 text-white font-bold flex items-center justify-center shadow-sm">
+                                        {user.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div>
+                                        <div className="font-semibold text-text-primary">{user.name}</div>
+                                        <div className="text-xs text-text-secondary">{user.email}</div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4">{getRoleBadge(user.role)}</td>
+                                  <td className="py-4 px-4 text-center font-bold text-text-primary">{user.candidatesRegistered || 0}</td>
+                                  <td className="py-4 px-4 text-center font-medium text-text-secondary">{user.quickRegistrations || 0}</td>
+                                  <td className="py-4 px-6 min-w-[150px]">
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                                        <div 
+                                          className="bg-primary h-full rounded-full transition-all duration-500" 
+                                          style={{ width: `${share}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs font-bold text-text-secondary w-8 text-right">{share}%</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

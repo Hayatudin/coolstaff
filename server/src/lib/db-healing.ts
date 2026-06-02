@@ -438,5 +438,74 @@ export async function ensureDatabaseSchema() {
     }
   }
 
+  // 11. Run auto-migration for previously registered candidates' videos
+  try {
+    console.log('🔄 Running auto-migration for existing candidates with missing videos...');
+    const candidates = await prisma.candidate.findMany({
+      where: {
+        OR: [
+          { quickVideoUrl: null },
+          { quickVideoUrl: '' },
+          { videoUrl: null },
+          { videoUrl: '' }
+        ]
+      },
+      select: {
+        id: true,
+        passportNumber: true,
+        quickVideoUrl: true,
+        videoUrl: true
+      }
+    });
+
+    console.log(`🔍 Found ${candidates.length} candidates with missing video fields to check.`);
+
+    let migrationCount = 0;
+    for (const cand of candidates) {
+      if (!cand.passportNumber) continue;
+      
+      // Find matching QuickRegistration record
+      const quickReg = await prisma.quickRegistration.findFirst({
+        where: {
+          passportNumber: cand.passportNumber,
+          AND: [
+            { videoUrl: { not: null } },
+            { videoUrl: { not: '' } }
+          ]
+        },
+        select: {
+          videoUrl: true
+        }
+      });
+
+      if (quickReg && quickReg.videoUrl) {
+        const isLocalVideo = quickReg.videoUrl.startsWith('/uploads');
+        
+        if (isLocalVideo) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE \`Candidate\` SET \`quickVideoUrl\` = ? WHERE \`id\` = ?`,
+            quickReg.videoUrl,
+            cand.id
+          );
+        } else {
+          await prisma.$executeRawUnsafe(
+            `UPDATE \`Candidate\` SET \`videoUrl\` = ? WHERE \`id\` = ?`,
+            quickReg.videoUrl,
+            cand.id
+          );
+        }
+        migrationCount++;
+      }
+    }
+    
+    if (migrationCount > 0) {
+      console.log(`✅ Successfully auto-migrated video paths for ${migrationCount} existing candidates!`);
+    } else {
+      console.log('ℹ️ No existing candidate videos needed migration.');
+    }
+  } catch (migErr: any) {
+    console.warn('⚠️ Auto-migration of existing candidate videos failed:', migErr.message || migErr);
+  }
+
   console.log('✅ Database self-healing complete.');
 }

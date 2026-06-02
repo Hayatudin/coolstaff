@@ -315,8 +315,7 @@ router.post('/', async (req: Request, res: Response) => {
       candidateIdImageUrl,
       relativeIdImageUrl,
       labourIdUrl,
-      videoUrl,
-      count
+      videoUrl
     ] = await Promise.all([
       uploadToLocal(body.passportImageUrl, 'passports'),
       uploadToLocal(body.facePhotoUrl, 'faces'),
@@ -326,11 +325,52 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(body.personalInfo.candidateIdImageUrl, 'candidate-id'),
       uploadToLocal(body.personalInfo.relativeIdImageUrl, 'relative-id'),
       uploadToLocal(body.personalInfo.labourIdUrl, 'labour-id'),
-      uploadToLocal(body.videoUrl, 'videos'),
-      prisma.candidate.count()
+      uploadToLocal(body.videoUrl, 'videos')
     ]);
 
-    const nextShelfId = body.shelfId || String(count + 1).padStart(3, '0');
+    // Separate file counter for shelfId to prevent reuse when candidate is deleted
+    const fs = require('fs');
+    const path = require('path');
+    const counterFilePath = path.join(process.cwd(), 'shelf_counter.json');
+    let currentCounter = 0;
+
+    // 1. Try reading from file
+    if (fs.existsSync(counterFilePath)) {
+      try {
+        const data = fs.readFileSync(counterFilePath, 'utf8');
+        const parsed = JSON.parse(data);
+        if (typeof parsed.counter === 'number') {
+          currentCounter = parsed.counter;
+        }
+      } catch (e) {
+        console.error("Error reading shelf_counter.json:", e);
+      }
+    }
+
+    // 2. Fallback to DB if file counter is 0
+    if (currentCounter === 0) {
+      const lastCand = await prisma.candidate.findFirst({
+        where: { shelfId: { not: null } },
+        orderBy: { shelfId: 'desc' }
+      });
+      if (lastCand && lastCand.shelfId) {
+        const parsed = parseInt(lastCand.shelfId, 10);
+        if (!isNaN(parsed)) {
+          currentCounter = parsed;
+        }
+      }
+    }
+
+    const nextNum = currentCounter + 1;
+
+    // 3. Write back to file
+    try {
+      fs.writeFileSync(counterFilePath, JSON.stringify({ counter: nextNum }), 'utf8');
+    } catch (e) {
+      console.error("Error writing shelf_counter.json:", e);
+    }
+
+    const nextShelfId = body.shelfId || String(nextNum).padStart(3, '0');
 
     // Separate local video upload and remote YouTube URL
     const isLocalVideo = videoUrl && videoUrl.startsWith('/uploads');
