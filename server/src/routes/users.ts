@@ -25,39 +25,63 @@ router.get('/analytics', requireSuperAdmin, async (req: Request, res: Response) 
       },
     });
 
-    const candidateCounts = await prisma.candidate.groupBy({
-      by: ['registeredById'],
-      _count: {
-        id: true,
-      },
-      where: {
-        registeredById: { not: null },
-      },
-    });
-
-    const quickRegistrationCounts = await prisma.quickRegistration.groupBy({
-      by: ['registeredById'],
-      _count: {
-        id: true,
-      },
-      where: {
-        registeredById: { not: null },
-      },
-    });
-
     const candidateCountMap: Record<string, number> = {};
-    candidateCounts.forEach((c) => {
-      if (c.registeredById) {
-        candidateCountMap[c.registeredById] = c._count.id;
+    try {
+      // Use raw SQL to bypass stale Prisma Client generator issues on VPS
+      const candidateCounts: any[] = await prisma.$queryRawUnsafe(
+        'SELECT `registeredById`, COUNT(`id`) as `count` FROM `Candidate` WHERE `registeredById` IS NOT NULL GROUP BY `registeredById`'
+      );
+      candidateCounts.forEach((c) => {
+        if (c.registeredById) {
+          candidateCountMap[c.registeredById] = Number(c.count);
+        }
+      });
+    } catch (e: any) {
+      console.warn('[ANALYTICS] Failed to fetch candidate counts via raw SQL, trying Prisma fallback:', e.message || e);
+      try {
+        const candidateCounts = await prisma.candidate.groupBy({
+          by: ['registeredById'],
+          _count: { id: true },
+          where: { registeredById: { not: null } },
+        });
+        candidateCounts.forEach((c) => {
+          if (c.registeredById) {
+            candidateCountMap[c.registeredById] = c._count.id;
+          }
+        });
+      } catch (fallbackErr) {
+        console.error('[ANALYTICS] Candidate count fallback also failed:', fallbackErr);
       }
-    });
+    }
 
     const quickCountMap: Record<string, number> = {};
-    quickRegistrationCounts.forEach((q) => {
-      if (q.registeredById) {
-        quickCountMap[q.registeredById] = q._count.id;
+    try {
+      // Use raw SQL to bypass stale Prisma Client generator issues on VPS
+      const quickRegistrationCounts: any[] = await prisma.$queryRawUnsafe(
+        'SELECT `registeredById`, COUNT(`id`) as `count` FROM `QuickRegistration` WHERE `registeredById` IS NOT NULL GROUP BY `registeredById`'
+      );
+      quickRegistrationCounts.forEach((q) => {
+        if (q.registeredById) {
+          quickCountMap[q.registeredById] = Number(q.count);
+        }
+      });
+    } catch (e: any) {
+      console.warn('[ANALYTICS] Failed to fetch quick registration counts via raw SQL, trying Prisma fallback:', e.message || e);
+      try {
+        const quickRegistrationCounts = await prisma.quickRegistration.groupBy({
+          by: ['registeredById'],
+          _count: { id: true },
+          where: { registeredById: { not: null } },
+        });
+        quickRegistrationCounts.forEach((q) => {
+          if (q.registeredById) {
+            quickCountMap[q.registeredById] = q._count.id;
+          }
+        });
+      } catch (fallbackErr) {
+        console.error('[ANALYTICS] Quick registration count fallback also failed:', fallbackErr);
       }
-    });
+    }
 
     const analyticsData = users.map((user) => ({
       id: user.id,
