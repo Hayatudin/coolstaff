@@ -94,7 +94,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     >
       {/* Logo Section */}
       <div className={cn(
-        "w-full bg-[#9286FF] flex items-center justify-center transition-all duration-300 relative shrink-0",
+        "w-full bg-[#464479] flex items-center justify-center transition-all duration-300 relative shrink-0",
         isCollapsed && !isMobile ? "py-4 px-2" : "py-2 px-6"
       )}>
         <div className={cn(

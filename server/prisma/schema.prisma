@@ -71,6 +71,7 @@ model Candidate {
   visaOrContractNumber     String?
   isFlagged                Boolean   @default(false)
   videoUrl                 String?
+  quickVideoUrl            String?   @db.LongText
   registeredAt             DateTime  @default(now())
   status                   String    @default("pending")
   visaSelected             Boolean   @default(false)
@@ -221,6 +222,7 @@ model QuickRegistration {
   candidateIdImageUrl String?  @db.LongText
   relativeIdImageUrl  String?  @db.LongText
   agency              String?  @default("daera")
+  videoUrl            String?  @db.VarChar(500)
 
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?

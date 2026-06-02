@@ -353,6 +353,9 @@ function RegistrationContent() {
         if (data.passportImageUrl) {
           setPassportImage(data.passportImageUrl);
         }
+        if (data.videoUrl) {
+          setVideoUrl(data.videoUrl);
+        }
         setProcessingComplete(true);
         
         alert(`Found associated Quick Registration details for passport ${passportNumber}! Auto-filling candidate fields & documents.`);
