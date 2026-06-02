@@ -5,6 +5,34 @@ import { auth } from '../lib/auth';
 
 const router = Router();
 
+// Helper: Check if a candidate's broker is locked
+async function isCandidateBrokerLocked(candidateId: string): Promise<{ locked: boolean; brokerName?: string }> {
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: { brokerId: true, broker: { select: { isLocked: true, name: true } } }
+    });
+    if (candidate?.broker?.isLocked) {
+      return { locked: true, brokerName: candidate.broker.name };
+    }
+  } catch (_) { /* ignore if broker relation fails */ }
+  return { locked: false };
+}
+
+async function isBrokerLockedById(brokerId: string | null | undefined): Promise<{ locked: boolean; brokerName?: string }> {
+  if (!brokerId) return { locked: false };
+  try {
+    const broker = await prisma.broker.findUnique({
+      where: { id: brokerId },
+      select: { isLocked: true, name: true }
+    });
+    if (broker?.isLocked) {
+      return { locked: true, brokerName: broker.name };
+    }
+  } catch (_) { /* ignore */ }
+  return { locked: false };
+}
+
 // GET /api/candidates
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -15,7 +43,8 @@ router.get('/', async (req: Request, res: Response) => {
         include: {
           generatedCVs: { select: { templateId: true } },
           registeredBy: { select: { name: true } },
-          invoices: { select: { isDelivered: true } }
+          invoices: { select: { isDelivered: true } },
+          broker: { select: { id: true, name: true, isLocked: true } }
         }
       });
     } catch (schemaError: any) {
@@ -101,6 +130,7 @@ router.get('/', async (req: Request, res: Response) => {
           salary: c.salary || '1000SR',
         },
         brokerId: c.brokerId,
+        broker: (c as any).broker || null,
         passportImageUrl: c.passportImageUrl || '',
         facePhotoUrl: c.facePhotoUrl || '',
         fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
@@ -153,6 +183,14 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
     });
     if (!qr) {
       return res.status(404).json({ error: 'Quick registration not found' });
+    }
+
+    // Check if broker is locked
+    if (qr.brokerId) {
+      const lockStatus = await isBrokerLockedById(qr.brokerId);
+      if (lockStatus.locked) {
+        return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Promotion is not allowed.` });
+      }
     }
 
     // Also fetch raw videoUrl which may not be in Prisma Client cache
@@ -273,6 +311,15 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const body = req.body;
+
+    // Check if broker is locked
+    const brokerId = body.personalInfo?.brokerId;
+    if (brokerId) {
+      const lockStatus = await isBrokerLockedById(brokerId);
+      if (lockStatus.locked) {
+        return res.status(403).json({ error: `Selected broker (${lockStatus.brokerName}) is locked. Cannot register candidate under a locked broker.` });
+      }
+    }
 
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
@@ -626,6 +673,12 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Broker lock check
+    const lockStatus = await isCandidateBrokerLocked(id);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. No modifications allowed until unlocked.` });
+    }
     const body = req.body;
 
     // Resolve logged in user from session to populate registeredById
@@ -797,6 +850,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const body = req.body;
+
+    // Broker lock check
+    const lockStatus = await isCandidateBrokerLocked(id);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. No modifications allowed until unlocked.` });
+    }
     console.log(`[PATCH] /api/candidates/${id}`, body);
 
     if (body.medicalStatus === 'Unfit') {
@@ -875,6 +934,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Broker lock check
+    const lockStatus = await isCandidateBrokerLocked(id);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. No deletions allowed until unlocked.` });
+    }
 
     // 1. Delete all generated CVs
     try {

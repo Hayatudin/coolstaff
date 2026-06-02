@@ -4,6 +4,19 @@ import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
+async function isCandidateBrokerLocked(candidateId: string): Promise<{ locked: boolean; brokerName?: string }> {
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: { broker: { select: { isLocked: true, name: true } } }
+    });
+    if (candidate?.broker?.isLocked) {
+      return { locked: true, brokerName: candidate.broker.name };
+    }
+  } catch (_) {}
+  return { locked: false };
+}
+
 // GET /api/invoices
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -95,6 +108,12 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (!candidate) {
       return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    // Check if broker is locked
+    const lockStatus = await isCandidateBrokerLocked(candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
     }
 
     // Determine price based on the most recent generated CV template for this candidate
@@ -196,6 +215,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'isDelivered must be a boolean' });
     }
 
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { id },
+      select: { candidateId: true }
+    });
+
+    if (!existingInvoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const lockStatus = await isCandidateBrokerLocked(existingInvoice.candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
+    }
+
     const deployedDate = isDelivered ? new Date() : null;
 
     try {
@@ -227,6 +260,20 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { price, lmisQrCodeUrl, insuranceUrl, ticketUrl, deployedDate } = req.body;
+
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { id },
+      select: { candidateId: true }
+    });
+
+    if (!existingInvoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const lockStatus = await isCandidateBrokerLocked(existingInvoice.candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
+    }
 
     // Price is now optional on PUT because it can just be kept as is if not provided
     // Wait, the UI doesn't have price field anymore, so we shouldn't fail if price is not passed on PUT.
@@ -355,9 +402,17 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Check if exists
-    const existing = await prisma.$queryRawUnsafe<any[]>(`SELECT id FROM \`Invoice\` WHERE id = ?`, id);
-    if (existing.length === 0) {
+    const existing = await prisma.invoice.findUnique({
+      where: { id },
+      select: { candidateId: true }
+    });
+    if (!existing) {
       return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const lockStatus = await isCandidateBrokerLocked(existing.candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
     }
 
     try {

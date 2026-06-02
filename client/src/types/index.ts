@@ -96,6 +96,7 @@ export interface Broker {
   _count?: {
     candidates: number;
   };
+  isLocked?: boolean;
   createdAt: string;
 }
 

@@ -51,6 +51,10 @@ export default function CandidatesPage() {
     setVisaNumberInput('');
 
     const cand = candidates.find(c => c.id === id);
+    if (cand?.broker?.isLocked) {
+      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
+      return;
+    }
     if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
       alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
       return;
@@ -94,6 +98,11 @@ export default function CandidatesPage() {
 
   // Update Medical Status
   const updateMedicalStatus = async (id: string, newStatus: string) => {
+    const cand = candidates.find(c => c.id === id);
+    if (cand?.broker?.isLocked) {
+      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
+      return;
+    }
     try {
       const res = await api(`/api/candidates/${id}`, {
         method: 'PATCH',
@@ -116,6 +125,11 @@ export default function CandidatesPage() {
 
   // Toggle Flag Status
   const toggleFlag = async (id: string, current: boolean) => {
+    const cand = candidates.find(c => c.id === id);
+    if (cand?.broker?.isLocked) {
+      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
+      return;
+    }
     setOpenMenuId(null);
     try {
       const res = await api(`/api/candidates/${id}`, {
@@ -136,6 +150,11 @@ export default function CandidatesPage() {
 
   // Delete candidate
   const deleteCandidate = async (id: string) => {
+    const cand = candidates.find(c => c.id === id);
+    if (cand?.broker?.isLocked) {
+      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
+      return;
+    }
     setOpenMenuId(null);
     if (!confirm('Are you sure you want to delete this candidate? This action cannot be undone.')) return;
     try {

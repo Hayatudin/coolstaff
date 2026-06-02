@@ -94,12 +94,14 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Verification table check warning:', e.message || e);
   }
 
+
   // 2. Create Broker Table
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS \`Broker\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`name\` VARCHAR(191) NOT NULL,
+        \`isLocked\` TINYINT(1) NOT NULL DEFAULT 0,
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         PRIMARY KEY (\`id\`),
         UNIQUE KEY \`Broker_name_key\` (\`name\`)
@@ -436,6 +438,19 @@ export async function ensureDatabaseSchema() {
       } else {
         console.warn(`⚠️ QuickRegistration column fallback update warning for '${col.name}':`, msg);
       }
+    }
+  }
+
+  // 10b. Incremental Broker column additions
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE \`Broker\` ADD COLUMN \`isLocked\` TINYINT(1) NOT NULL DEFAULT 0`);
+    console.log(`✅ Successfully added column 'isLocked' to Broker table.`);
+  } catch (e: any) {
+    const msg = e.message || String(e);
+    if (msg.includes('Duplicate column') || msg.includes('already exists') || e.code === 'P2010') {
+      // column already exists
+    } else {
+      console.warn(`⚠️ Broker column fallback update warning for 'isLocked':`, msg);
     }
   }
 

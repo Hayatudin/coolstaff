@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { ClipboardList, Loader2, Download, Search, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { ClipboardList, Loader2, Download, Search, AlertCircle, FileText } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { generateDeploymentsPdf } from '@/lib/deploymentsPdfGenerator';
 
 export default function DeploymentsPage() {
   const [candidates, setCandidates] = useState<any[]>([]);
@@ -32,30 +33,12 @@ export default function DeploymentsPage() {
     fetchDeployments();
   }, []);
 
-  const handleExportExcel = async () => {
+  const handleExportPdf = () => {
     setIsExporting(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${backendUrl}/api/deployments/export`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) throw new Error('Failed to export Excel');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'candidate_deployments.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      generateDeploymentsPdf(filtered);
     } catch (err) {
-      alert('Failed to export Excel spreadsheet');
+      alert('Failed to export PDF');
       console.error(err);
     } finally {
       setIsExporting(false);
@@ -88,12 +71,12 @@ export default function DeploymentsPage() {
 
         {candidates.length > 0 && (
           <button
-            onClick={handleExportExcel}
+            onClick={handleExportPdf}
             disabled={isExporting}
-            className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-emerald-600/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-700 hover:to-rose-600 text-white font-bold px-5 py-3 rounded-2xl shadow-lg shadow-rose-600/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isExporting ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
-            <span>Export to Excel</span>
+            {isExporting ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+            <span>Export to PDF</span>
           </button>
         )}
       </div>

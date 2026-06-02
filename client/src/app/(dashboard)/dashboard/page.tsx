@@ -59,11 +59,15 @@ export default function DashboardPage() {
   }, []);
 
   const toggleRequested = async (id: string, current: boolean, visaNum?: string) => {
+    const cand = allCandidates.find(c => c.id === id);
+    if (cand?.broker?.isLocked) {
+      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
+      return;
+    }
     setOpenMenuId(null);
     setVisaModalId(null);
     setVisaNumberInput('');
 
-    const cand = allCandidates.find(c => c.id === id);
     if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
       alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
       return;
@@ -98,6 +102,11 @@ export default function DashboardPage() {
   };
 
   const deleteCandidate = async (id: string) => {
+    const cand = allCandidates.find(c => c.id === id);
+    if (cand?.broker?.isLocked) {
+      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
+      return;
+    }
     setOpenMenuId(null);
     if (!confirm('Are you sure you want to delete this candidate? This action cannot be undone.')) return;
     try {

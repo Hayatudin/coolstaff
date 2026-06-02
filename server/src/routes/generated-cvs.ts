@@ -4,6 +4,19 @@ import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
+async function isCandidateBrokerLocked(candidateId: string): Promise<{ locked: boolean; brokerName?: string }> {
+  try {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      select: { broker: { select: { isLocked: true, name: true } } }
+    });
+    if (candidate?.broker?.isLocked) {
+      return { locked: true, brokerName: candidate.broker.name };
+    }
+  } catch (_) {}
+  return { locked: false };
+}
+
 const formatCandidate = (c: any) => {
   if (!c) return null;
   const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
@@ -122,6 +135,12 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
+    // Check if broker is locked
+    const lockStatus = await isCandidateBrokerLocked(candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. CV generation is not allowed.` });
+    }
+
     const duplicateCV = await prisma.generatedCV.findFirst({
       where: {
         candidateId: candidateId
@@ -183,6 +202,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Generated CV not found' });
     }
 
+    // Check if broker is locked
+    const lockStatus = await isCandidateBrokerLocked(existingCV.candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. CV modifications are not allowed.` });
+    }
+
     const duplicateCV = await prisma.generatedCV.findFirst({
       where: {
         candidateId: existingCV.candidateId,
@@ -211,6 +236,21 @@ router.patch('/:id', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    
+    const existingCV = await prisma.generatedCV.findUnique({
+      where: { id }
+    });
+    
+    if (!existingCV) {
+      return res.status(404).json({ error: 'Generated CV not found' });
+    }
+
+    // Check if broker is locked
+    const lockStatus = await isCandidateBrokerLocked(existingCV.candidateId);
+    if (lockStatus.locked) {
+      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. CV deletion is not allowed.` });
+    }
+
     await prisma.generatedCV.delete({
       where: { id }
     });

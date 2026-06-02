@@ -208,4 +208,48 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/brokers/:id/toggle-lock
+router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Verify session and role
+    let userRole = '';
+    try {
+      const session = await auth.api.getSession({
+        headers: req.headers as any,
+      });
+      userRole = (session?.user as any)?.role || '';
+    } catch (sessionError) {
+      console.error('Session verification failed in toggle-lock:', sessionError);
+    }
+
+    if (userRole !== 'super_admin' && userRole !== 'accountant') {
+      return res.status(403).json({ error: 'Access denied: Only Super Admin and Accountant can lock/unlock brokers' });
+    }
+
+    // Find the broker
+    const broker = await prisma.broker.findUnique({ where: { id } });
+    if (!broker) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
+
+    // Toggle the lock status
+    const updated = await prisma.broker.update({
+      where: { id },
+      data: { isLocked: !broker.isLocked },
+      include: {
+        _count: { select: { candidates: true } }
+      }
+    });
+
+    console.log(`[BROKER-LOCK] Broker "${updated.name}" ${updated.isLocked ? 'LOCKED' : 'UNLOCKED'} by ${userRole}`);
+
+    res.json(updated);
+  } catch (error: any) {
+    console.error('Failed to toggle broker lock:', error);
+    res.status(500).json({ error: error.message || 'Failed to toggle broker lock' });
+  }
+});
+
 export default router;

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { 
   Users, Loader2, Plus, Search, ChevronRight, Calendar, 
-  TrendingUp, Award, Clock, ArrowUpRight, Trash2, X, AlertTriangle, CheckCircle2
+  TrendingUp, Award, Clock, ArrowUpRight, Trash2, X, AlertTriangle, CheckCircle2,
+  Lock, Unlock
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -18,6 +19,7 @@ export default function BrokersPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isSuperAdmin = role === 'super_admin';
+  const isAuthorized = role === 'super_admin' || role === 'accountant';
 
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,7 +209,12 @@ export default function BrokersPage() {
             <div 
               key={broker.id}
               onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
-              className="group bg-surface rounded-[2rem] border border-border/50 p-6 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 cursor-pointer relative overflow-hidden flex flex-col"
+              className={cn(
+                "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 cursor-pointer relative overflow-hidden flex flex-col",
+                broker.isLocked
+                  ? "border-red-300 hover:border-red-400 bg-red-50/5 hover:shadow-red-500/5"
+                  : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5"
+              )}
             >
               {/* Background accent */}
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full translate-x-10 -translate-y-10 group-hover:translate-x-5 group-hover:-translate-y-5 transition-transform duration-700" />
@@ -220,6 +227,43 @@ export default function BrokersPage() {
                   <div className="bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10">
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Verified</p>
                   </div>
+                  
+                  {isAuthorized ? (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const res = await api(`/api/brokers/${broker.id}/toggle-lock`, {
+                            method: 'PATCH',
+                          });
+                          if (res.ok) {
+                            const updated = await res.json();
+                            setBrokers(prev => prev.map(b => b.id === broker.id ? { ...b, isLocked: updated.isLocked } : b));
+                          } else {
+                            const data = await res.json();
+                            alert(data.error || 'Failed to toggle lock');
+                          }
+                        } catch (err) {
+                          alert('Failed to toggle lock');
+                        }
+                      }}
+                      className={cn(
+                        "p-1.5 rounded-full transition-colors z-20 shrink-0 cursor-pointer border",
+                        broker.isLocked
+                          ? "bg-red-50 hover:bg-red-100 text-red-600 border-red-200/50 hover:text-red-700"
+                          : "bg-gray-50 hover:bg-gray-100 text-gray-500 border-gray-200/50 hover:text-gray-700"
+                      )}
+                      title={broker.isLocked ? "Unlock Partner" : "Lock Partner"}
+                    >
+                      {broker.isLocked ? <Lock size={14} /> : <Unlock size={14} />}
+                    </button>
+                  ) : broker.isLocked ? (
+                    <div className="bg-red-50 text-red-600 px-2 py-1 rounded-full border border-red-100/50 flex items-center gap-1">
+                      <Lock size={10} />
+                      <span className="text-[9px] font-bold uppercase tracking-wider">Locked</span>
+                    </div>
+                  ) : null}
+
                   {isSuperAdmin && (
                     <button
                       onClick={(e) => {
