@@ -206,6 +206,34 @@ export default function InvoicePage() {
   // Only show download button if a specific template is selected and there's at least one delivered candidate in this view
   const canDownload = selectedTemplateId !== 'all' && filtered.some(inv => inv.isDelivered);
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every(inv => inv.isDelivered);
+
+  const handleSelectAllToggle = async () => {
+    const targetStatus = !allFilteredSelected;
+    const toUpdate = filtered.filter(inv => inv.isDelivered !== targetStatus);
+    if (toUpdate.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      await Promise.all(
+        toUpdate.map(async (inv) => {
+          const res = await api(`/api/invoices/${inv.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isDelivered: targetStatus }),
+          });
+          if (!res.ok) throw new Error();
+        })
+      );
+      await fetchInvoices();
+    } catch (err) {
+      alert('Failed to update some invoices. Make sure their candidate brokers are not locked.');
+      await fetchInvoices();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Header */}
@@ -269,7 +297,22 @@ export default function InvoicePage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-2.5 xl:px-5 py-3.5 font-semibold">Delivered</th>
+                <th className="px-2.5 xl:px-5 py-3.5 font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={handleSelectAllToggle}
+                      className="p-1 rounded-md hover:bg-gray-200 transition-colors inline-flex items-center justify-center cursor-pointer"
+                      title={allFilteredSelected ? "Deselect All" : "Select All"}
+                    >
+                      {allFilteredSelected ? (
+                        <CheckCircle2 size={16} className="text-green-600 fill-green-50" />
+                      ) : (
+                        <Circle size={16} className="text-text-tertiary" />
+                      )}
+                    </button>
+                    <span>Delivered</span>
+                  </div>
+                </th>
                 <th className="px-2.5 xl:px-5 py-3.5 font-semibold">Candidate</th>
                 <th className="px-2.5 xl:px-5 py-3.5 font-semibold">Passport No.</th>
                 <th className="px-2.5 xl:px-5 py-3.5 font-semibold hidden xl:table-cell">Visa Date</th>

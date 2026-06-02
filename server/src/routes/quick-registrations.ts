@@ -83,16 +83,16 @@ router.get('/', async (req: Request, res: Response) => {
           }
         }
         
-        // Resolve operator name from userMap first, then relation, falling back to 'Admin'
+        // Resolve operator name from userMap first, then relation, falling back to 'Walk-in'
         const matchedUserId = reg.registeredById || raw?.registeredById;
-        const registrarName = (matchedUserId ? userMap.get(matchedUserId) : null) || reg.registeredBy?.name || 'Admin';
+        const registrarName = (matchedUserId ? userMap.get(matchedUserId) : null) || reg.registeredBy?.name || 'Walk-in';
         reg.registeredBy = registrarName;
         return reg;
       });
     } catch (_) {
       registrations = registrations.map((reg: any) => {
         const matchedUserId = reg.registeredById;
-        const registrarName = (matchedUserId ? userMap.get(matchedUserId) : null) || reg.registeredBy?.name || 'Admin';
+        const registrarName = (matchedUserId ? userMap.get(matchedUserId) : null) || reg.registeredBy?.name || 'Walk-in';
         reg.registeredBy = registrarName;
         return reg;
       });

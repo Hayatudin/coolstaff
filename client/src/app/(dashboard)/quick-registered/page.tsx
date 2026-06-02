@@ -493,9 +493,9 @@ export default function QuickRegisteredPage() {
                       <td className="px-3 xl:px-6 py-3.5 text-xs xl:text-sm text-text-secondary hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                            {r.registeredBy ? r.registeredBy.charAt(0).toUpperCase() : 'A'}
+                            {r.registeredBy ? r.registeredBy.charAt(0).toUpperCase() : 'W'}
                           </div>
-                          <span className="text-xs xl:text-sm font-medium text-text-primary">{r.registeredBy || 'Admin'}</span>
+                          <span className="text-xs xl:text-sm font-medium text-text-primary">{r.registeredBy || 'Walk-in'}</span>
                         </div>
                       </td>
                       <td className="px-3 xl:px-6 py-3.5 hidden md:table-cell">

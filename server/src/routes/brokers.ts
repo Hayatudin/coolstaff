@@ -133,9 +133,19 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // 1. Resolve and verify session
     let isSuperAdmin = false;
     try {
-      const session = await auth.api.getSession({
-        headers: req.headers as any,
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
+        method: req.method,
+        headers: webHeaders,
       });
+      const session = await auth.api.getSession({
+        headers: webHeaders,
+        request: request
+      } as any);
 
       if (session?.user?.role === 'super_admin') {
         isSuperAdmin = true;
@@ -216,9 +226,19 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
     // Verify session and role
     let userRole = '';
     try {
-      const session = await auth.api.getSession({
-        headers: req.headers as any,
+      const webHeaders = new Headers();
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
+        else if (value) webHeaders.set(key, value);
+      }
+      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
+        method: req.method,
+        headers: webHeaders,
       });
+      const session = await auth.api.getSession({
+        headers: webHeaders,
+        request: request
+      } as any);
       userRole = (session?.user as any)?.role || '';
     } catch (sessionError) {
       console.error('Session verification failed in toggle-lock:', sessionError);

@@ -17,7 +17,9 @@ const getAgencyName = (templateId: string | null | undefined): string => {
   if (!templateId) return 'N/A';
   const tid = templateId.toLowerCase().trim();
   const found = TEMPLATES[tid];
-  return found ? found.fullName : templateId.toUpperCase();
+  const fullName = found ? found.fullName : templateId;
+  const firstWord = fullName.trim().split(/\s+/)[0];
+  return firstWord.toUpperCase();
 };
 
 const formatDateKey = (dateStr: string | null | undefined): string => {
@@ -77,7 +79,7 @@ export const generateDeploymentsPdf = (candidates: any[]) => {
   const columns = [
     'Name',
     'Passport Number',
-    'Agency (CV Template Full Name)',
+    'Agency',
     'Broker',
     'Deployment Date',
   ];
@@ -141,12 +143,13 @@ export const generateDeploymentsPdf = (candidates: any[]) => {
       textColor: [51, 65, 85],
       lineColor: [241, 245, 249],
       lineWidth: 0.2,
+      overflow: 'ellipsize', // Force single line
     },
     columnStyles: {
-      0: { cellWidth: 40 },
+      0: { cellWidth: 55 },
       1: { cellWidth: 30 },
-      2: { cellWidth: 65 },
-      3: { cellWidth: 25 },
+      2: { cellWidth: 35 },
+      3: { cellWidth: 35 },
       4: { cellWidth: 25 },
     },
     didParseCell: (data) => {
