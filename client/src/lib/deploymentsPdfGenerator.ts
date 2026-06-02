@@ -90,7 +90,7 @@ export const generateDeploymentsPdf = (candidates: any[]) => {
     // 1. Full-row header for the date (distinct styles will be applied in drawCell)
     bodyData.push([
       {
-        content: `DEPLOYMENT DATE: ${dateKey.toUpperCase()} (${groups[dateKey].length} Candidates)`,
+        content: `${dateKey.toUpperCase()} (${groups[dateKey].length})`,
         colSpan: 5,
         isDateHeader: true,
       },
@@ -139,7 +139,7 @@ export const generateDeploymentsPdf = (candidates: any[]) => {
     },
     styles: {
       fontSize: 9,
-      cellPadding: 4,
+      cellPadding: 3,
       textColor: [51, 65, 85],
       lineColor: [241, 245, 249],
       lineWidth: 0.2,
@@ -148,9 +148,9 @@ export const generateDeploymentsPdf = (candidates: any[]) => {
     columnStyles: {
       0: { cellWidth: 55 },
       1: { cellWidth: 30 },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 35 },
-      4: { cellWidth: 25 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 35 },
     },
     didParseCell: (data) => {
       const row = data.row.raw as any[];
