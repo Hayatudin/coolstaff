@@ -45,8 +45,23 @@ router.get('/', async (req: Request, res: Response) => {
       });
     }
 
+    // Build a map of user names as a fail-safe fallback
+    const userMap = new Map<string, string>();
     try {
-      const rawRows = await prisma.$queryRawUnsafe<any[]>(`SELECT id, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\``);
+      const users = await prisma.user.findMany({ select: { id: true, name: true } });
+      users.forEach(u => userMap.set(u.id, u.name));
+    } catch (_) {
+      try {
+        const rawUsers = await prisma.$queryRawUnsafe<any[]>('SELECT `id`, `name` FROM `User`');
+        rawUsers.forEach(u => userMap.set(u.id, u.name));
+      } catch (__) {}
+    }
+
+    try {
+      // Include registeredById in raw query to bypass any stale schema generator definitions
+      const rawRows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\``
+      );
       const rawMap = new Map();
       for (const row of rawRows) {
         rawMap.set(row.id, row);
@@ -63,13 +78,22 @@ router.get('/', async (req: Request, res: Response) => {
           reg.verificationStatus = raw.verificationStatus;
           reg.promotedCandidateId = raw.promotedCandidateId;
           reg.agency = raw.agency;
+          if (raw.registeredById) {
+            reg.registeredById = raw.registeredById;
+          }
         }
-        reg.registeredBy = reg.registeredBy?.name || 'Admin';
+        
+        // Resolve operator name from userMap first, then relation, falling back to 'Admin'
+        const matchedUserId = reg.registeredById || raw?.registeredById;
+        const registrarName = (matchedUserId ? userMap.get(matchedUserId) : null) || reg.registeredBy?.name || 'Admin';
+        reg.registeredBy = registrarName;
         return reg;
       });
     } catch (_) {
       registrations = registrations.map((reg: any) => {
-        reg.registeredBy = reg.registeredBy?.name || 'Admin';
+        const matchedUserId = reg.registeredById;
+        const registrarName = (matchedUserId ? userMap.get(matchedUserId) : null) || reg.registeredBy?.name || 'Admin';
+        reg.registeredBy = registrarName;
         return reg;
       });
     }
@@ -206,7 +230,7 @@ router.post('/', async (req: Request, res: Response) => {
       const relPhonesString = body.relativePhones ? JSON.stringify(body.relativePhones) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
@@ -215,6 +239,7 @@ router.post('/', async (req: Request, res: Response) => {
         relPhonesString,
         videoUrl || null,
         body.agency || 'daera',
+        registeredById || null,
         registration.id
       );
 
@@ -230,7 +255,17 @@ router.post('/', async (req: Request, res: Response) => {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
 
-    registration.registeredBy = registration.registeredBy?.name || 'Admin';
+    // Resolve operator name robustly
+    let registrarName = registration.registeredBy?.name || 'Admin';
+    if (registeredById && registrarName === 'Admin') {
+      try {
+        const userRows = await prisma.$queryRawUnsafe<any[]>('SELECT `name` FROM `User` WHERE `id` = ?', registeredById);
+        if (userRows.length > 0 && userRows[0].name) {
+          registrarName = userRows[0].name;
+        }
+      } catch (_) {}
+    }
+    registration.registeredBy = registrarName;
     res.status(201).json(registration);
   } catch (error: any) {
     console.error('Error creating quick registration:', error);

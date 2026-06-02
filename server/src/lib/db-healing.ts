@@ -508,5 +508,23 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Auto-migration of existing candidate videos failed:', migErr.message || migErr);
   }
 
+  // 12. Auto-backfill registeredById for promoted QuickRegistration records using matched Candidates
+  try {
+    console.log('🔄 Running auto-backfill of registeredById for QuickRegistration records...');
+    const backfilledCount = await prisma.$executeRawUnsafe(`
+      UPDATE \`QuickRegistration\` q 
+      INNER JOIN \`Candidate\` c ON q.passportNumber = c.passportNumber 
+      SET q.registeredById = c.registeredById 
+      WHERE q.registeredById IS NULL AND c.registeredById IS NOT NULL
+    `);
+    if (backfilledCount > 0) {
+      console.log(`✅ Successfully backfilled registeredById for ${backfilledCount} QuickRegistration records!`);
+    } else {
+      console.log('ℹ️ No QuickRegistration records needed registeredById backfilling.');
+    }
+  } catch (backfillErr: any) {
+    console.warn('⚠️ Auto-backfill of QuickRegistration registeredById failed:', backfillErr.message || backfillErr);
+  }
+
   console.log('✅ Database self-healing complete.');
 }
