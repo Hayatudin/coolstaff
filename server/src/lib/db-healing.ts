@@ -413,6 +413,7 @@ export async function ensureDatabaseSchema() {
   }
 
   const quickRegColumns = [
+    { name: 'passportType', type: "VARCHAR(191) NULL DEFAULT 'original'" },
     { name: 'verificationStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'pending'" },
     { name: 'musanedCvUrl', type: 'LONGTEXT NULL' },
     { name: 'verificationNotes', type: 'VARCHAR(191) NULL' },
