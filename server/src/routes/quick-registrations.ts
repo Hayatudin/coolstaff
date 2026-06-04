@@ -4,6 +4,7 @@ import { uploadToLocal } from '../lib/upload';
 import { exec } from 'child_process';
 import path from 'path';
 import { auth } from '../lib/auth';
+import { fromNodeHeaders } from 'better-auth/node';
 
 const router = Router();
 
@@ -147,21 +148,9 @@ router.post('/', async (req: Request, res: Response) => {
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
     try {
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-      
-      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
-        method: req.method,
-        headers: webHeaders,
-      });
-
       const session = await auth.api.getSession({
-        headers: webHeaders,
-        request: request
-      } as any);
+        headers: fromNodeHeaders(req.headers),
+      });
 
       if (session?.user?.id) {
         registeredById = session.user.id;

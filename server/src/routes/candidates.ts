@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
 import { auth } from '../lib/auth';
+import { fromNodeHeaders } from 'better-auth/node';
 
 const router = Router();
 
@@ -327,21 +328,9 @@ router.post('/', async (req: Request, res: Response) => {
 
     try {
       // Build proper Web Request for Better Auth
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-      
-      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
-        method: req.method,
-        headers: webHeaders,
-      });
-
       const session = await auth.api.getSession({
-        headers: webHeaders,
-        request: request
-      } as any);
+        headers: fromNodeHeaders(req.headers),
+      });
 
       if (session?.user?.id) {
         registeredById = session.user.id;
@@ -686,21 +675,9 @@ router.put('/:id', async (req: Request, res: Response) => {
     console.log('[DEBUG] PUT /candidates/:id - body.registeredById:', body.registeredById);
 
     try {
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-      
-      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
-        method: req.method,
-        headers: webHeaders,
-      });
-
       const session = await auth.api.getSession({
-        headers: webHeaders,
-        request: request
-      } as any);
+        headers: fromNodeHeaders(req.headers),
+      });
 
       if (session?.user?.id) {
         registeredById = session.user.id;

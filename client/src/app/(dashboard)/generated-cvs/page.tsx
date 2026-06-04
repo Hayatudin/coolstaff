@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
-  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye, Search
+  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye, Search, Lock
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -611,26 +611,30 @@ function GeneratedCVsContent() {
     return fullName.includes(q) || passportNumber.includes(q);
   }, []);
 
-  // ── Group by template and filter/sort by search matches ────────────────────
+  // ── Group by template and filter out locked broker candidates ─────────────
   const processedFolders = TEMPLATES.map(t => {
-    const folderCvs = cvs.filter(c => c.templateId === t.id);
-    const matchingCvs = folderCvs.filter(cv => cvMatchesSearch(cv, searchQuery));
+    const folderCvs = cvs.filter(c => c.templateId === t.id && c.candidate?.broker?.isLocked !== true);
     return {
       ...t,
       cvs: folderCvs,
-      matchingCvs,
-      matchCount: matchingCvs.length
     };
   });
 
-  if (searchQuery) {
-    processedFolders.sort((a, b) => {
-      if (a.matchCount !== b.matchCount) {
-        return b.matchCount - a.matchCount; // Folders with more matches come first
-      }
-      return TEMPLATES.findIndex(t => t.id === a.id) - TEMPLATES.findIndex(t => t.id === b.id);
-    });
-  }
+  const backupCvs = cvs.filter(c => c.candidate?.broker?.isLocked === true);
+  const backupFolder = {
+    id: '__backup__',
+    name: 'Back-up CVs',
+    category: 'Archive',
+    color: 'bg-rose-500',
+    textColor: 'text-rose-600',
+    bgLight: 'bg-rose-50',
+    cvs: backupCvs,
+  };
+
+  const displayedFolders = [
+    ...processedFolders,
+    ...(backupCvs.length > 0 ? [backupFolder] : [])
+  ];
 
   const someSelected = selectedCVIds.size > 0;
 
@@ -666,33 +670,13 @@ function GeneratedCVsContent() {
             </Link>
           </div>
 
-          {/* Search Bar */}
-          <div className="max-w-md relative">
-            <input
-              type="text"
-              placeholder="Search folders by candidate name or passport..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-lg hover:bg-surface-hover transition-all"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
           {isLoading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-              {processedFolders.map(folder => (
+              {displayedFolders.map(folder => (
                 <div
                   key={folder.id}
                   onClick={() => setSelectedFolder(folder.id)}
@@ -701,25 +685,25 @@ function GeneratedCVsContent() {
                   <div className={cn('absolute top-0 inset-x-0 h-1 rounded-t-2xl', folder.color)} />
                   <div className="flex items-start justify-between mb-4 pt-1">
                     <div className={cn('p-2.5 rounded-xl', folder.bgLight)}>
-                      <FolderOpen size={22} className={folder.textColor} />
+                      {folder.id === '__backup__' ? <Lock size={22} className={folder.textColor} /> : <FolderOpen size={22} className={folder.textColor} />}
                     </div>
                     <span className="text-xs font-bold px-2 py-1 rounded-full bg-surface-hover border border-border text-text-secondary">
-                      {searchQuery ? `${folder.matchCount} match${folder.matchCount !== 1 ? 'es' : ''}` : folder.cvs.length}
+                      {folder.cvs.length}
                     </span>
                   </div>
                   <p className="font-bold text-text-primary mb-0.5">{folder.name}</p>
                   <p className="text-xs text-text-tertiary mb-4">{folder.category} layout</p>
                   <div className="flex -space-x-2">
-                    {(searchQuery ? folder.matchingCvs : folder.cvs).slice(0, 4).map(cv => (
+                    {folder.cvs.slice(0, 4).map(cv => (
                       <div key={cv.id} className="w-7 h-7 rounded-full ring-2 ring-surface overflow-hidden bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)
                           ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                           : cv.candidate.passportData?.givenNames?.charAt(0) || ''}
                       </div>
                     ))}
-                    {(searchQuery ? folder.matchingCvs : folder.cvs).length > 4 && (
+                    {folder.cvs.length > 4 && (
                       <div className="w-7 h-7 rounded-full ring-2 ring-surface bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">
-                        +{(searchQuery ? folder.matchingCvs : folder.cvs).length - 4}
+                        +{folder.cvs.length - 4}
                       </div>
                     )}
                   </div>
@@ -740,8 +724,22 @@ function GeneratedCVsContent() {
   }
 
   // ── Folder Detail View ────────────────────────────────────────────────────
-  const activeTemplate = TEMPLATES.find(t => t.id === selectedFolder)!;
-  const allFolderCVs = cvs.filter(c => c.templateId === selectedFolder);
+  const isBackupFolder = selectedFolder === '__backup__';
+  const activeTemplate = isBackupFolder
+    ? {
+        id: '__backup__',
+        name: 'Back-up CVs',
+        category: 'Archive',
+        color: 'bg-rose-500',
+        textColor: 'text-rose-600',
+        bgLight: 'bg-rose-50',
+      }
+    : TEMPLATES.find(t => t.id === selectedFolder)!;
+
+  const allFolderCVs = isBackupFolder
+    ? cvs.filter(c => c.candidate?.broker?.isLocked === true)
+    : cvs.filter(c => c.templateId === selectedFolder && c.candidate?.broker?.isLocked !== true);
+
   const activeCVs = allFolderCVs.filter(cv => {
     if (religionFilter) {
       const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase();
@@ -764,7 +762,6 @@ function GeneratedCVsContent() {
 
     return true;
   });
-  const TC = activeTemplate.component;
 
   const allSelected = activeCVs.length > 0 && activeCVs.every(cv => selectedCVIds.has(cv.id));
 
@@ -805,9 +802,10 @@ function GeneratedCVsContent() {
         container.appendChild(wrapper);
         const root = createRoot(wrapper);
 
+        const FolderTemplate = TEMPLATES.find(t => t.id === cv.templateId)?.component || ALMTemplate;
         await new Promise<void>((resolve) => {
           root.render(
-            React.createElement(TC, {
+            React.createElement(FolderTemplate, {
               candidate: cv.candidate,
               facePhoto: getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl),
               fullBodyPhoto: getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl),
@@ -895,7 +893,7 @@ function GeneratedCVsContent() {
         {/* Breadcrumb + Actions */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setFlagFilter('all'); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
+            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setFlagFilter('all'); setSearchQuery(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
               <ArrowLeft size={18} />
             </button>
             <div>
@@ -921,7 +919,7 @@ function GeneratedCVsContent() {
                 <span className="text-sm font-semibold text-primary">{selectedCVIds.size} selected</span>
                 <button
                   onClick={() => setBulkChangeOpen(true)}
-                  disabled={actionLoading}
+                  disabled={actionLoading || isBackupFolder}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   <LayoutTemplate size={13} /> Change Template
@@ -1058,9 +1056,11 @@ function GeneratedCVsContent() {
               <FileText size={28} className="text-gray-300" />
             </div>
             <h3 className="text-base font-semibold text-text-primary mb-1">{religionFilter ? 'No matching candidates' : 'This folder is empty'}</h3>
-            <p className="text-sm text-text-tertiary mb-6 max-w-xs">{religionFilter ? `No ${religionFilter} candidates found in ${activeTemplate.name}.` : `No CVs generated with ${activeTemplate.name} yet.`}</p>
+            <p className="text-sm text-text-tertiary mb-6 max-w-xs">{religionFilter ? `No ${religionFilter} candidates found in ${activeTemplate.name}.` : isBackupFolder ? 'No locked candidates\' CVs found.' : `No CVs generated with ${activeTemplate.name} yet.`}</p>
             {religionFilter ? (
               <Button onClick={() => setReligionFilter('')}>Clear Filter</Button>
+            ) : isBackupFolder ? (
+              <p className="text-xs text-text-tertiary">All candidate folders are operating normally.</p>
             ) : (
               <Link href="/cv-generator"><Button>Generate a CV</Button></Link>
             )}
@@ -1103,11 +1103,17 @@ function GeneratedCVsContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {activeCVs.map(cv => {
               const isSelected = selectedCVIds.has(cv.id);
+              const CardTemplate = TEMPLATES.find(t => t.id === cv.templateId)?.component || ALMTemplate;
+              const isLocked = cv.candidate.broker?.isLocked;
               return (
               <div 
                 key={cv.id} 
                 className={`bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col select-none ${
-                  isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50'
+                  isSelected 
+                    ? 'border-primary ring-2 ring-primary/20' 
+                    : isLocked 
+                      ? 'border-red-200/60 hover:border-red-300 bg-red-50/5' 
+                      : 'border-border/50'
                 }`}
                 onMouseDown={() => handleCardMouseDown(cv.id, isSelected)}
                 onMouseEnter={() => handleCardMouseEnter(cv.id)}
@@ -1119,7 +1125,7 @@ function GeneratedCVsContent() {
                 >
                   {/* Scaled live template render */}
                   <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
-                    <TC
+                    <CardTemplate
                       candidate={cv.candidate}
                       facePhoto={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
                       fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)}
@@ -1155,14 +1161,20 @@ function GeneratedCVsContent() {
                       </div>
                     </div>
 
-                    <ActionMenu
-                      cvId={cv.id}
-                      currentTemplateId={cv.templateId}
-                      onDelete={() => setDeleteTarget(cv)}
-                      onChangeTemplate={() => setChangeTarget(cv)}
-                      isFlagged={cv.candidate.isFlagged || false}
-                      onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
-                    />
+                    {isLocked ? (
+                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={`Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
+                        <Lock size={14} />
+                      </div>
+                    ) : (
+                      <ActionMenu
+                        cvId={cv.id}
+                        currentTemplateId={cv.templateId}
+                        onDelete={() => setDeleteTarget(cv)}
+                        onChangeTemplate={() => setChangeTarget(cv)}
+                        isFlagged={cv.candidate.isFlagged || false}
+                        onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
+                      />
+                    )}
                   </div>
 
                   <div className="mt-auto pt-3 border-t border-dashed border-border flex items-center justify-between">
@@ -1230,7 +1242,7 @@ function GeneratedCVsContent() {
         {someSelected && (
           <button
             onClick={handleBulkDelete}
-            disabled={actionLoading}
+            disabled={actionLoading || isBackupFolder}
             className="fixed bottom-8 right-8 z-50 flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 hover:scale-[1.03] active:scale-[0.97] transition-all disabled:opacity-50"
           >
             <Trash2 size={16} /> Delete Selected ({selectedCVIds.size})

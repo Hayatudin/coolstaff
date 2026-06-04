@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { auth } from '../lib/auth';
+import { fromNodeHeaders } from 'better-auth/node';
+
 
 const router = Router();
 
@@ -133,19 +135,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // 1. Resolve and verify session
     let isSuperAdmin = false;
     try {
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
-        method: req.method,
-        headers: webHeaders,
-      });
       const session = await auth.api.getSession({
-        headers: webHeaders,
-        request: request
-      } as any);
+        headers: fromNodeHeaders(req.headers),
+      });
 
       if (session?.user?.role === 'super_admin') {
         isSuperAdmin = true;
@@ -226,19 +218,9 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
     // Verify session and role
     let userRole = '';
     try {
-      const webHeaders = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value)) value.forEach(v => webHeaders.append(key, v));
-        else if (value) webHeaders.set(key, value);
-      }
-      const request = new Request(`http://${req.headers.host || 'localhost'}${req.url}`, {
-        method: req.method,
-        headers: webHeaders,
-      });
       const session = await auth.api.getSession({
-        headers: webHeaders,
-        request: request
-      } as any);
+        headers: fromNodeHeaders(req.headers),
+      });
       userRole = (session?.user as any)?.role || '';
     } catch (sessionError) {
       console.error('Session verification failed in toggle-lock:', sessionError);

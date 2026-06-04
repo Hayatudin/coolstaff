@@ -74,6 +74,7 @@ const formatCandidate = (c: any) => {
       salary: c.salary || '1000SR',
     },
     brokerId: c.brokerId,
+    broker: c.broker,
     passportImageUrl: c.passportImageUrl || '',
     facePhotoUrl: c.facePhotoUrl || '',
     fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
@@ -99,7 +100,11 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const generatedCVs = await prisma.generatedCV.findMany({
       include: {
-        candidate: true
+        candidate: {
+          include: {
+            broker: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
