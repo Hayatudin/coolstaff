@@ -101,7 +101,7 @@ export default function FitCandidatesPage() {
                         {c.generatedCVs && c.generatedCVs.length > 0 ? (
                           c.generatedCVs.map((tmpl, idx) => (
                             <span key={idx} className="px-2 py-0.5 text-[9px] xl:text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                              {tmpl.replace('tmpl-', '').toUpperCase()}
+                              {tmpl.templateId.replace('tmpl-', '').toUpperCase()}
                             </span>
                           ))
                         ) : (

@@ -264,7 +264,7 @@ export default function DashboardPage() {
                           {candidate.generatedCVs && candidate.generatedCVs.length > 0 ? (
                             candidate.generatedCVs.map((tmpl, idx) => (
                               <span key={idx} className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                                {tmpl.replace('tmpl-', '').toUpperCase()}
+                                {tmpl.templateId.replace('tmpl-', '').toUpperCase()}
                               </span>
                             ))
                           ) : (
@@ -371,7 +371,7 @@ export default function DashboardPage() {
                           {candidate.generatedCVs && candidate.generatedCVs.length > 0 ? (
                             candidate.generatedCVs.map((tmpl, idx) => (
                               <span key={idx} className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                                {tmpl.replace('tmpl-', '').toUpperCase()}
+                                {tmpl.templateId.replace('tmpl-', '').toUpperCase()}
                               </span>
                             ))
                           ) : (

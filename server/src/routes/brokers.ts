@@ -110,8 +110,18 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
             passportNumber: true,
             job: true,
             facePhotoUrl: true,
+            fullBodyPhotoUrl: true,
             isRequested: true,
             registeredAt: true,
+            generatedCVs: {
+              select: {
+                id: true,
+                templateId: true,
+                facePhotoUrl: true,
+                fullBodyPhotoUrl: true,
+                createdAt: true,
+              }
+            }
           },
         },
       },
