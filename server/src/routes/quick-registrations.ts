@@ -192,7 +192,6 @@ router.post('/', async (req: Request, res: Response) => {
       numberOfChildren: parseInt(body.numberOfChildren) || 0,
       passportImageUrl,
       religion: body.religion || null,
-      passportType: body.passportType || 'original',
       broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
     };
 
@@ -220,7 +219,7 @@ router.post('/', async (req: Request, res: Response) => {
       const relPhonesString = body.relativePhones ? JSON.stringify(body.relativePhones) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
@@ -230,6 +229,7 @@ router.post('/', async (req: Request, res: Response) => {
         videoUrl || null,
         body.agency || 'daera',
         registeredById || null,
+        body.passportType || 'original',
         registration.id
       );
 
@@ -241,6 +241,7 @@ router.post('/', async (req: Request, res: Response) => {
       registration.relativePhones = body.relativePhones || null;
       registration.videoUrl = videoUrl || null;
       registration.agency = body.agency || 'daera';
+      registration.passportType = body.passportType || 'original';
     } catch (rawError) {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
@@ -308,7 +309,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateData.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateData.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateData.religion = body.religion;
-    if (body.passportType !== undefined) updateData.passportType = body.passportType;
     if (body.brokerId !== undefined) {
       if (body.brokerId === null || body.brokerId === '') {
         updateData.broker = { disconnect: true };
@@ -332,7 +332,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       relativeIdImageUrl !== undefined ||
       body.relativePhones !== undefined ||
       videoUrl !== undefined ||
-      body.agency !== undefined
+      body.agency !== undefined ||
+      body.passportType !== undefined
     ) {
       try {
         const setClauses: string[] = [];
@@ -372,6 +373,11 @@ router.put('/:id', async (req: Request, res: Response) => {
           setClauses.push('`agency` = ?');
           queryParams.push(body.agency || 'daera');
           updated.agency = body.agency || 'daera';
+        }
+        if (body.passportType !== undefined) {
+          setClauses.push('`passportType` = ?');
+          queryParams.push(body.passportType || 'original');
+          updated.passportType = body.passportType || 'original';
         }
 
         if (setClauses.length > 0) {
