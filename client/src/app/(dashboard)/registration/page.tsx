@@ -141,24 +141,21 @@ function RegistrationContent() {
         return dateStr;
       };
 
-      const extractedPlaceOfBirth = extractedData.placeOfBirth || quickRegistration.placeOfBirth || extractedData.city || quickRegistration.city || '';
-      const extractedIssuingCountry = extractedData.placeOfIssue || extractedData.issuingCountry || quickRegistration.issuingCountry || '';
+      const extractedPlaceOfBirth = extractedData.placeOfBirth || extractedData.city || '';
+      const extractedIssuingCountry = extractedData.placeOfIssue || extractedData.issuingCountry || '';
 
       setPassportData({
         passportNumber: extractedData.passportNumber || quickRegistration.passportNumber || '',
         surname: (extractedData.surname || quickRegistration.surname || '').toUpperCase(),
         givenNames: (extractedData.givenNames || quickRegistration.givenNames || '').toUpperCase(),
-        dateOfBirth: convertDate(extractedData.dateOfBirth) || convertDate(quickRegistration.dateOfBirth) || '',
-        gender: extractedData.gender || quickRegistration.gender || '',
-        nationality: extractedData.nationality || quickRegistration.nationality || '',
+        dateOfBirth: convertDate(extractedData.dateOfBirth) || '',
+        gender: extractedData.gender || '',
+        nationality: extractedData.nationality || '',
         issuingCountry: extractedIssuingCountry,
-        dateOfIssue: convertDate(extractedData.dateOfIssue) || convertDate(quickRegistration.dateOfIssue) || '',
-        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || convertDate(quickRegistration.dateOfExpiry) || '',
+        dateOfIssue: convertDate(extractedData.dateOfIssue) || '',
+        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || '',
         placeOfBirth: extractedPlaceOfBirth,
       });
-
-      let parsedExp: any[] = [];
-      try { parsedExp = JSON.parse(quickRegistration.jobExperience || '[]'); } catch { /* ignore */ }
 
       const mapReligion = (r?: string): string => {
         if (!r) return '';
@@ -179,13 +176,13 @@ function RegistrationContent() {
         maritalStatus: extractedData.maritalStatus || quickRegistration.maritalStatus || prev.maritalStatus,
         phone: extractedData.phone || prev.phone,
         email: extractedData.email || prev.email,
-        educationLevel: extractedData.educationLevel || quickRegistration.educationLevel || prev.educationLevel,
+        educationLevel: extractedData.educationLevel || prev.educationLevel,
         numberOfChildren: extractedData.numberOfChildren ? parseInt(extractedData.numberOfChildren) : (quickRegistration.numberOfChildren || prev.numberOfChildren),
         height: extractedData.height || prev.height,
         weight: extractedData.weight || prev.weight,
         city: extractedData.city || prev.city,
         address: extractedData.address || prev.address,
-        country: extractedData.nationality ? extractedData.nationality.toUpperCase() : (quickRegistration.nationality ? quickRegistration.nationality.toUpperCase() : prev.country),
+        country: extractedData.nationality ? extractedData.nationality.toUpperCase() : prev.country,
         languages: extractedData.languages ? extractedData.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.languages,
         skills: extractedData.skills ? extractedData.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
         emergencyContactName: extractedData.emergencyContactName || prev.emergencyContactName,
@@ -198,8 +195,8 @@ function RegistrationContent() {
         labourIdUrl: quickRegistration.labourIdUrl || '',
         candidateIdImageUrl: quickRegistration.candidateIdImageUrl || '',
         relativeIdImageUrl: quickRegistration.relativeIdImageUrl || '',
-        additionalPhones: Array.isArray(quickRegistration.relativePhones) ? quickRegistration.relativePhones : prev.additionalPhones,
-        workExperience: parsedExp.length > 0 ? parsedExp : prev.workExperience,
+        additionalPhones: prev.additionalPhones,
+        workExperience: prev.workExperience,
       }));
 
       setPassportImage(quickRegistration.passportImageUrl || null);
@@ -263,27 +260,24 @@ function RegistrationContent() {
           passportNumber: data.passportNumber || '',
           surname: data.surname || '',
           givenNames: data.givenNames || '',
-          dateOfBirth: data.dateOfBirth || '',
-          gender: data.gender || '',
-          nationality: data.nationality || '',
-          issuingCountry: data.issuingCountry || '',
-          dateOfIssue: data.dateOfIssue || '',
-          dateOfExpiry: data.dateOfExpiry || '',
-          placeOfBirth: data.placeOfBirth || '',
+          dateOfBirth: '',
+          gender: '',
+          nationality: '',
+          issuingCountry: '',
+          dateOfIssue: '',
+          dateOfExpiry: '',
+          placeOfBirth: '',
         });
-        
-        let parsedExp: any[] = [];
-        try { parsedExp = JSON.parse(data.jobExperience || '[]'); } catch { /* ignore */ }
         
         setPersonalInfo(prev => ({
           ...prev,
           religion: data.religion || '',
           maritalStatus: data.maritalStatus || '',
           numberOfChildren: data.numberOfChildren || 0,
-          educationLevel: data.educationLevel || '',
+          educationLevel: '',
           brokerId: data.brokerId || '',
-          additionalPhones: Array.isArray(data.relativePhones) ? data.relativePhones : [],
-          workExperience: parsedExp,
+          additionalPhones: [],
+          workExperience: [],
           cocDocumentUrl: data.cocDocumentUrl || '',
           labourIdUrl: data.labourIdUrl || '',
           candidateIdImageUrl: data.candidateIdImageUrl || '',
@@ -324,26 +318,23 @@ function RegistrationContent() {
           passportNumber: data.passportNumber || prev.passportNumber || '',
           surname: data.surname || prev.surname || '',
           givenNames: data.givenNames || prev.givenNames || '',
-          dateOfBirth: data.dateOfBirth || prev.dateOfBirth || '',
-          gender: data.gender || prev.gender || '',
-          nationality: data.nationality || prev.nationality || '',
-          issuingCountry: data.issuingCountry || prev.issuingCountry || '',
-          dateOfExpiry: data.dateOfExpiry || prev.dateOfExpiry || '',
-          placeOfBirth: data.placeOfBirth || prev.placeOfBirth || '',
+          dateOfBirth: prev.dateOfBirth || '',
+          gender: prev.gender || '',
+          nationality: prev.nationality || '',
+          issuingCountry: prev.issuingCountry || '',
+          dateOfExpiry: prev.dateOfExpiry || '',
+          placeOfBirth: prev.placeOfBirth || '',
         }));
-
-        let parsedExp: any[] = [];
-        try { parsedExp = JSON.parse(data.jobExperience || '[]'); } catch { /* ignore */ }
 
         setPersonalInfo(prev => ({
           ...prev,
           religion: data.religion || prev.religion || '',
           maritalStatus: data.maritalStatus || prev.maritalStatus || '',
           numberOfChildren: data.numberOfChildren || prev.numberOfChildren || 0,
-          educationLevel: data.educationLevel || prev.educationLevel || '',
+          educationLevel: prev.educationLevel || '',
           brokerId: data.brokerId || prev.brokerId || '',
-          additionalPhones: Array.isArray(data.relativePhones) ? data.relativePhones : prev.additionalPhones || [],
-          workExperience: parsedExp.length > 0 ? parsedExp : prev.workExperience,
+          additionalPhones: prev.additionalPhones || [],
+          workExperience: prev.workExperience || [],
           cocDocumentUrl: data.cocDocumentUrl || prev.cocDocumentUrl || '',
           labourIdUrl: data.labourIdUrl || prev.labourIdUrl || '',
           candidateIdImageUrl: data.candidateIdImageUrl || prev.candidateIdImageUrl || '',

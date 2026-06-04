@@ -197,7 +197,7 @@ export async function ensureDatabaseSchema() {
       CREATE TABLE IF NOT EXISTS \`QuickRegistration\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`passportNumber\` VARCHAR(191) NOT NULL,
-        \`passportType\` VARCHAR(191) NOT NULL DEFAULT 'scan',
+        \`passportType\` VARCHAR(191) NOT NULL DEFAULT 'original',
         \`surname\` VARCHAR(191) NOT NULL,
         \`givenNames\` VARCHAR(191) NOT NULL,
         \`dateOfBirth\` VARCHAR(191) NULL,
@@ -452,6 +452,14 @@ export async function ensureDatabaseSchema() {
     } else {
       console.warn(`⚠️ Broker column fallback update warning for 'isLocked':`, msg);
     }
+  }
+
+  // 10c. Alter QuickRegistration passportType default to original
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE \`QuickRegistration\` ALTER COLUMN \`passportType\` SET DEFAULT 'original'`);
+    console.log(`✅ Successfully updated default of 'passportType' to 'original' in QuickRegistration table.`);
+  } catch (e: any) {
+    console.warn(`⚠️ QuickRegistration default update warning for 'passportType':`, e.message || e);
   }
 
   // 11. Run auto-migration for previously registered candidates' videos

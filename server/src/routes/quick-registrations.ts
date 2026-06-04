@@ -203,6 +203,7 @@ router.post('/', async (req: Request, res: Response) => {
       numberOfChildren: parseInt(body.numberOfChildren) || 0,
       passportImageUrl,
       religion: body.religion || null,
+      passportType: body.passportType || 'original',
       broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
     };
 
@@ -256,8 +257,8 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Resolve operator name robustly
-    let registrarName = registration.registeredBy?.name || 'Admin';
-    if (registeredById && registrarName === 'Admin') {
+    let registrarName = registration.registeredBy?.name || 'Walk-in';
+    if (registeredById && registrarName === 'Walk-in') {
       try {
         const userRows = await prisma.$queryRawUnsafe<any[]>('SELECT `name` FROM `User` WHERE `id` = ?', registeredById);
         if (userRows.length > 0 && userRows[0].name) {
@@ -318,6 +319,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateData.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateData.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateData.religion = body.religion;
+    if (body.passportType !== undefined) updateData.passportType = body.passportType;
     if (body.brokerId !== undefined) {
       if (body.brokerId === null || body.brokerId === '') {
         updateData.broker = { disconnect: true };
@@ -456,7 +458,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
       }
     } catch (_) { /* ignore */ }
 
-    registration.registeredBy = registration.registeredBy?.name || 'Admin';
+    registration.registeredBy = registration.registeredBy?.name || 'Walk-in';
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration by passport:', error);
@@ -506,7 +508,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     } catch (_) { /* ignore */ }
 
-    registration.registeredBy = registration.registeredBy?.name || 'Admin';
+    registration.registeredBy = registration.registeredBy?.name || 'Walk-in';
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration:', error);

@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
-  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye
+  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye, Search
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -290,9 +290,10 @@ function DeleteModal({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-export default function GeneratedCVsPage() {
+// ── Main Content ──────────────────────────────────────────────────────────────
+function GeneratedCVsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cvs, setCvs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -303,6 +304,14 @@ export default function GeneratedCVsPage() {
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    const folder = searchParams.get('folder');
+    const search = searchParams.get('search');
+    if (folder) setSelectedFolder(folder);
+    if (search) setSearchQuery(search);
+  }, [searchParams]);
 
   // Modals
   const [changeTarget, setChangeTarget] = useState<any | null>(null);
@@ -591,8 +600,37 @@ export default function GeneratedCVsPage() {
     setDownloadFormat(format);
   };
 
-  // ── Group by template ──────────────────────────────────────────────────────
-  const folders = TEMPLATES.map(t => ({ ...t, cvs: cvs.filter(c => c.templateId === t.id) }));
+  // Helper to check if a CV matches the search query (by candidate name or passport number)
+  const cvMatchesSearch = useCallback((cv: any, query: string) => {
+    if (!query) return true;
+    const q = query.toLowerCase().trim();
+    const givenNames = (cv.candidate?.passportData?.givenNames || cv.candidate?.givenNames || '').toLowerCase();
+    const surname = (cv.candidate?.passportData?.surname || cv.candidate?.surname || '').toLowerCase();
+    const fullName = `${givenNames} ${surname}`;
+    const passportNumber = (cv.candidate?.passportData?.passportNumber || cv.candidate?.passportNumber || '').toLowerCase();
+    return fullName.includes(q) || passportNumber.includes(q);
+  }, []);
+
+  // ── Group by template and filter/sort by search matches ────────────────────
+  const processedFolders = TEMPLATES.map(t => {
+    const folderCvs = cvs.filter(c => c.templateId === t.id);
+    const matchingCvs = folderCvs.filter(cv => cvMatchesSearch(cv, searchQuery));
+    return {
+      ...t,
+      cvs: folderCvs,
+      matchingCvs,
+      matchCount: matchingCvs.length
+    };
+  });
+
+  if (searchQuery) {
+    processedFolders.sort((a, b) => {
+      if (a.matchCount !== b.matchCount) {
+        return b.matchCount - a.matchCount; // Folders with more matches come first
+      }
+      return TEMPLATES.findIndex(t => t.id === a.id) - TEMPLATES.findIndex(t => t.id === b.id);
+    });
+  }
 
   const someSelected = selectedCVIds.size > 0;
 
@@ -628,13 +666,33 @@ export default function GeneratedCVsPage() {
             </Link>
           </div>
 
+          {/* Search Bar */}
+          <div className="max-w-md relative">
+            <input
+              type="text"
+              placeholder="Search folders by candidate name or passport..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-lg hover:bg-surface-hover transition-all"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="flex justify-center py-20">
               <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-              {folders.map(folder => (
+              {processedFolders.map(folder => (
                 <div
                   key={folder.id}
                   onClick={() => setSelectedFolder(folder.id)}
@@ -646,22 +704,22 @@ export default function GeneratedCVsPage() {
                       <FolderOpen size={22} className={folder.textColor} />
                     </div>
                     <span className="text-xs font-bold px-2 py-1 rounded-full bg-surface-hover border border-border text-text-secondary">
-                      {folder.cvs.length}
+                      {searchQuery ? `${folder.matchCount} match${folder.matchCount !== 1 ? 'es' : ''}` : folder.cvs.length}
                     </span>
                   </div>
                   <p className="font-bold text-text-primary mb-0.5">{folder.name}</p>
                   <p className="text-xs text-text-tertiary mb-4">{folder.category} layout</p>
                   <div className="flex -space-x-2">
-                    {folder.cvs.slice(0, 4).map(cv => (
+                    {(searchQuery ? folder.matchingCvs : folder.cvs).slice(0, 4).map(cv => (
                       <div key={cv.id} className="w-7 h-7 rounded-full ring-2 ring-surface overflow-hidden bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
-                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
-                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)
+                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                           : cv.candidate.passportData?.givenNames?.charAt(0) || ''}
                       </div>
                     ))}
-                    {folder.cvs.length > 4 && (
+                    {(searchQuery ? folder.matchingCvs : folder.cvs).length > 4 && (
                       <div className="w-7 h-7 rounded-full ring-2 ring-surface bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600">
-                        +{folder.cvs.length - 4}
+                        +{(searchQuery ? folder.matchingCvs : folder.cvs).length - 4}
                       </div>
                     )}
                   </div>
@@ -701,6 +759,8 @@ export default function GeneratedCVsPage() {
       if (min !== null && age < min) return false;
       if (max !== null && age > max) return false;
     }
+
+    if (searchQuery && !cvMatchesSearch(cv, searchQuery)) return false;
 
     return true;
   });
@@ -874,6 +934,25 @@ export default function GeneratedCVsPage() {
                 </button>
               </div>
             )}
+            {/* Search Input */}
+            <div className="w-56 relative">
+              <input
+                type="text"
+                placeholder="Search candidates..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={14} />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-lg hover:bg-surface-hover transition-all"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
             {/* Religion Filter */}
             <div className="w-36">
               <select
@@ -1252,6 +1331,18 @@ export default function GeneratedCVsPage() {
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </>
+  );
+}
+
+export default function GeneratedCVsPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="flex justify-center py-20">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    }>
+      <GeneratedCVsContent />
+    </React.Suspense>
   );
 }
 

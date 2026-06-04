@@ -84,7 +84,7 @@ export default function QuickRegistrationPage() {
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [agency, setAgency] = useState('');
-  const [passportType, setPassportType] = useState('scan');
+  const [passportType, setPassportType] = useState('original');
 
   // Broker list
   const [brokers, setBrokers] = useState<Broker[]>([]);

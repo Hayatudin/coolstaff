@@ -455,10 +455,16 @@ export default function CandidateDetailPage() {
                   <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl">
                     <FileText size={18} />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-[10px] text-emerald-700/70 uppercase tracking-[0.1em] font-bold">Template Layout</p>
-                    <span className="text-[15px] font-bold text-emerald-800 uppercase">{c.latestCVTemplate}</span>
+                    <span className="text-[15px] font-bold text-emerald-800 uppercase block truncate">{c.latestCVTemplate}</span>
                   </div>
+                  <button
+                    onClick={() => router.push(`/generated-cvs?folder=${c.latestCVTemplate}&search=${c.passportData.passportNumber}`)}
+                    className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                  >
+                    View
+                  </button>
                 </div>
               </div>
             ) : (

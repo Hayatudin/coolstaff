@@ -926,61 +926,6 @@ export default function QuickRegisteredPage() {
                       />
                     </div>
 
-                    {/* Nationality */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Nationality
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.nationality}
-                        onChange={e => setEditForm(prev => ({ ...prev, nationality: e.target.value.toUpperCase() }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
-                      />
-                    </div>
-
-                    {/* Issuing Country */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Issuing Country
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.issuingCountry}
-                        onChange={e => setEditForm(prev => ({ ...prev, issuingCountry: e.target.value.toUpperCase() }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
-                      />
-                    </div>
-
-                    {/* Place of Birth */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Place of Birth
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.placeOfBirth}
-                        onChange={e => setEditForm(prev => ({ ...prev, placeOfBirth: e.target.value.toUpperCase() }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
-                      />
-                    </div>
-
-                    {/* Gender */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Gender
-                      </label>
-                      <select
-                        value={editForm.gender}
-                        onChange={e => setEditForm(prev => ({ ...prev, gender: e.target.value }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
-                      >
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
-                    </div>
-
                     {/* Religion */}
                     <div>
                       <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
@@ -996,32 +941,6 @@ export default function QuickRegisteredPage() {
                         <option value="Non-Muslim">Non-Muslim</option>
                       </select>
                     </div>
-
-                    {/* Date of Birth */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Date of Birth
-                      </label>
-                      <input
-                        type="date"
-                        value={editForm.dateOfBirth}
-                        onChange={e => setEditForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
-                      />
-                    </div>
-
-                    {/* Date of Expiry */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Date of Expiry
-                      </label>
-                      <input
-                        type="date"
-                        value={editForm.dateOfExpiry}
-                        onChange={e => setEditForm(prev => ({ ...prev, dateOfExpiry: e.target.value }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary"
-                      />
-                    </div>
                   </div>
                 </div>
 
@@ -1031,26 +950,6 @@ export default function QuickRegisteredPage() {
                     <Globe size={14} /> Additional Information
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Education Level */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Education Level
-                      </label>
-                      <select
-                        value={editForm.educationLevel}
-                        onChange={e => setEditForm(prev => ({ ...prev, educationLevel: e.target.value }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
-                      >
-                        <option value="">Select...</option>
-                        <option value="No Education">No Education</option>
-                        <option value="Primary">Primary</option>
-                        <option value="Secondary">Secondary</option>
-                        <option value="High School">High School</option>
-                        <option value="Diploma">Diploma</option>
-                        <option value="Degree">Degree</option>
-                      </select>
-                    </div>
-
                     {/* Marital Status */}
                     <div>
                       <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
@@ -1135,144 +1034,7 @@ export default function QuickRegisteredPage() {
                   </div>
                 </div>
 
-                {/* Section 3: Job Experience */}
-                <div>
-                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center justify-between border-b border-border pb-1.5">
-                    <span className="flex items-center gap-1.5"><Briefcase size={14} /> Job / Experience</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditForm(prev => ({
-                        ...prev,
-                        jobExperience: [...prev.jobExperience, { experienceStatus: 'Have experience', country: '', yearsOfExperience: '' }]
-                      }))}
-                      className="text-xs text-primary hover:underline font-bold flex items-center gap-1"
-                    >
-                      <Plus size={12} /> Add Experience
-                    </button>
-                  </h4>
-                  
-                  <div className="space-y-3">
-                    {editForm.jobExperience.map((exp, idx) => (
-                      <div key={idx} className="p-3 bg-gray-50 border border-border rounded-xl flex flex-col md:flex-row gap-3 items-end relative">
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Experience</label>
-                          <select
-                            value={exp.experienceStatus}
-                            onChange={e => {
-                              const updated = [...editForm.jobExperience];
-                              updated[idx].experienceStatus = e.target.value;
-                              setEditForm(prev => ({ ...prev, jobExperience: updated }));
-                            }}
-                            className="w-full px-3 py-1.5 rounded-lg border border-border text-xs focus:outline-none bg-white text-text-primary"
-                          >
-                            <option value="Have experience">Have experience</option>
-                            <option value="New">New</option>
-                          </select>
-                        </div>
-
-                        {exp.experienceStatus === 'Have experience' && (
-                          <>
-                            <div className="flex-1">
-                              <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Country</label>
-                              <input
-                                type="text"
-                                placeholder="e.g. SAUDI ARABIA"
-                                value={exp.country}
-                                onChange={e => {
-                                  const updated = [...editForm.jobExperience];
-                                  updated[idx].country = e.target.value.toUpperCase();
-                                  setEditForm(prev => ({ ...prev, jobExperience: updated }));
-                                }}
-                                className="w-full px-3 py-1.5 rounded-lg border border-border text-xs focus:outline-none text-text-primary"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-[10px] font-bold text-text-secondary uppercase mb-1">Years</label>
-                              <input
-                                type="number"
-                                placeholder="Years"
-                                value={exp.yearsOfExperience}
-                                onChange={e => {
-                                  const updated = [...editForm.jobExperience];
-                                  updated[idx].yearsOfExperience = e.target.value;
-                                  setEditForm(prev => ({ ...prev, jobExperience: updated }));
-                                }}
-                                className="w-full px-3 py-1.5 rounded-lg border border-border text-xs focus:outline-none text-text-primary"
-                              />
-                            </div>
-                          </>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = editForm.jobExperience.filter((_, i) => i !== idx);
-                            setEditForm(prev => ({ ...prev, jobExperience: updated }));
-                          }}
-                          className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    {editForm.jobExperience.length === 0 && (
-                      <p className="text-xs text-text-tertiary text-center py-2">No job experience recorded. Click Add Experience above.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Section 4: Relative Phone Numbers */}
-                <div>
-                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center justify-between border-b border-border pb-1.5">
-                    <span className="flex items-center gap-1.5"><Phone size={14} /> Relative Phone Numbers</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditForm(prev => ({
-                        ...prev,
-                        relativePhones: [...prev.relativePhones, '']
-                      }))}
-                      className="text-xs text-primary hover:underline font-bold flex items-center gap-1"
-                    >
-                      <Plus size={12} /> Add Phone
-                    </button>
-                  </h4>
-                  
-                  <div className="space-y-2.5">
-                    {editForm.relativePhones.map((phone, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary/50" />
-                          <input
-                            type="tel"
-                            placeholder={`Relative Phone ${idx + 1}`}
-                            value={phone}
-                            onChange={e => {
-                              const updated = [...editForm.relativePhones];
-                              updated[idx] = e.target.value;
-                              setEditForm(prev => ({ ...prev, relativePhones: updated }));
-                            }}
-                            className="w-full pl-10 pr-4 py-2 rounded-xl border border-border text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 text-text-primary"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = editForm.relativePhones.filter((_, i) => i !== idx);
-                            setEditForm(prev => ({ ...prev, relativePhones: updated }));
-                          }}
-                          className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    {editForm.relativePhones.length === 0 && (
-                      <p className="text-xs text-text-tertiary text-center py-2">No phone numbers recorded. Click Add Phone above.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Section 5: Documents & Video Uploads */}
+                {/* Section 3: Documents & Video Uploads */}
                 <div className="pt-4 border-t border-border mt-6">
                   <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
                     <FileText size={14} className="text-primary" /> Uploaded Documents & Video

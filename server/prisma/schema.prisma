@@ -193,7 +193,7 @@ model Verification {
 model QuickRegistration {
   id               String   @id @default(cuid())
   passportNumber   String
-  passportType     String?  @default("scan")
+  passportType     String?  @default("original")
   surname          String
   givenNames       String
   dateOfBirth      String?
