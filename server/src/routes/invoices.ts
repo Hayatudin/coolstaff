@@ -4,18 +4,7 @@ import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
-async function isCandidateBrokerLocked(candidateId: string): Promise<{ locked: boolean; brokerName?: string }> {
-  try {
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId },
-      select: { broker: { select: { isLocked: true, name: true } } }
-    });
-    if (candidate?.broker?.isLocked) {
-      return { locked: true, brokerName: candidate.broker.name };
-    }
-  } catch (_) {}
-  return { locked: false };
-}
+
 
 // GET /api/invoices
 router.get('/', async (req: Request, res: Response) => {
@@ -110,11 +99,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    // Check if broker is locked
-    const lockStatus = await isCandidateBrokerLocked(candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
-    }
+
 
     // Determine price based on the most recent generated CV template for this candidate
     let price = "0";
@@ -224,10 +209,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const lockStatus = await isCandidateBrokerLocked(existingInvoice.candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
-    }
+
 
     const deployedDate = isDelivered ? new Date() : null;
 
@@ -270,10 +252,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const lockStatus = await isCandidateBrokerLocked(existingInvoice.candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
-    }
+
 
     // Price is now optional on PUT because it can just be kept as is if not provided
     // Wait, the UI doesn't have price field anymore, so we shouldn't fail if price is not passed on PUT.
@@ -410,10 +389,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const lockStatus = await isCandidateBrokerLocked(existing.candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. Invoice operations are not allowed.` });
-    }
+
 
     try {
       await prisma.invoice.delete({ where: { id } });

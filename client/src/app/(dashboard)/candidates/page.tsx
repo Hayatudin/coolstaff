@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -51,10 +51,6 @@ export default function CandidatesPage() {
     setVisaNumberInput('');
 
     const cand = candidates.find(c => c.id === id);
-    if (cand?.broker?.isLocked) {
-      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
-      return;
-    }
     if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
       alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
       return;
@@ -98,11 +94,6 @@ export default function CandidatesPage() {
 
   // Update Medical Status
   const updateMedicalStatus = async (id: string, newStatus: string) => {
-    const cand = candidates.find(c => c.id === id);
-    if (cand?.broker?.isLocked) {
-      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
-      return;
-    }
     try {
       const res = await api(`/api/candidates/${id}`, {
         method: 'PATCH',
@@ -125,11 +116,6 @@ export default function CandidatesPage() {
 
   // Toggle Flag Status
   const toggleFlag = async (id: string, current: boolean) => {
-    const cand = candidates.find(c => c.id === id);
-    if (cand?.broker?.isLocked) {
-      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
-      return;
-    }
     setOpenMenuId(null);
     try {
       const res = await api(`/api/candidates/${id}`, {
@@ -150,11 +136,6 @@ export default function CandidatesPage() {
 
   // Delete candidate
   const deleteCandidate = async (id: string) => {
-    const cand = candidates.find(c => c.id === id);
-    if (cand?.broker?.isLocked) {
-      alert(`The candidate's broker (${cand.broker.name}) is locked. All activity is suspended.`);
-      return;
-    }
     setOpenMenuId(null);
     if (!confirm('Are you sure you want to delete this candidate? This action cannot be undone.')) return;
     try {
@@ -336,6 +317,11 @@ export default function CandidatesPage() {
                           <p className="font-semibold text-text-primary text-xs xl:text-sm flex items-center gap-1.5">
                             {candidate.passportData.givenNames} {candidate.passportData.surname}
                             {candidate.isFlagged && <Flag size={13} className="text-red-500 fill-red-500" />}
+                            {candidate.broker?.isLocked && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 border border-red-200 rounded-md text-red-500" title={`Broker "${candidate.broker.name}" is locked`}>
+                                <Lock size={11} />
+                              </span>
+                            )}
                           </p>
                           <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">{candidate.personalInfo.email}</p>
                         </div>

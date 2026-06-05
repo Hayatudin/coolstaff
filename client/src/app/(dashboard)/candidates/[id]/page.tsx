@@ -5,10 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
-  Heart, GraduationCap, Globe, Shield, FileText, Eye, Loader2, Clock, Download, ExternalLink
+  Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
-import { cn, getFileUrl, getDownloadUrl } from '@/lib/utils';
+import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
@@ -121,15 +121,7 @@ export default function CandidateDetailPage() {
         </button>
       </div>
 
-      {c.broker?.isLocked && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center gap-3 shadow-sm">
-          <Shield size={20} className="text-red-500 shrink-0 animate-pulse" />
-          <div>
-            <p className="font-bold text-sm">Broker Suspended/Locked</p>
-            <p className="text-xs text-red-600/90 mt-0.5">This candidate belongs to a locked broker (<span className="font-semibold">{c.broker?.name}</span>). All activity, edits, deletions, and CV operations are suspended until unlocked.</p>
-          </div>
-        </div>
-      )}
+
 
       {/* Profile Header Card (Inspiration Design) */}
       <div className="bg-white rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
@@ -178,38 +170,14 @@ export default function CandidateDetailPage() {
               {/* Top Right Actions (Like the 'send message' button) */}
               <div className="flex flex-row xl:flex-col items-center xl:items-end justify-center gap-2 mt-4 xl:mt-0">
                 <button
-                  onClick={() => {
-                    if (c.broker?.isLocked) {
-                      alert(`The broker "${c.broker?.name}" is locked. Action is suspended.`);
-                      return;
-                    }
-                    router.push(`/registration?edit=${c.id}`);
-                  }}
-                  disabled={c.broker?.isLocked}
-                  className={cn(
-                    "flex items-center justify-center gap-2 px-5 py-2 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto",
-                    c.broker?.isLocked
-                      ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
-                      : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
-                  )}
+                  onClick={() => router.push(`/registration?edit=${c.id}`)}
+                  className="flex items-center justify-center gap-2 px-5 py-2 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
                 >
                   <Edit3 size={14} /> Edit Profile
                 </button>
                 <button
-                  onClick={() => {
-                    if (c.broker?.isLocked) {
-                      alert(`The broker "${c.broker?.name}" is locked. Action is suspended.`);
-                      return;
-                    }
-                    handleDelete();
-                  }}
-                  disabled={c.broker?.isLocked}
-                  className={cn(
-                    "flex items-center justify-center gap-2 px-5 py-2 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto",
-                    c.broker?.isLocked
-                      ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
-                      : "bg-white text-red-600 border border-red-100 hover:bg-red-50 hover:border-red-200 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto cursor-pointer"
-                  )}
+                  onClick={() => handleDelete()}
+                  className="flex items-center justify-center gap-2 px-5 py-2 bg-white text-red-600 border border-red-100 hover:bg-red-50 hover:border-red-200 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto cursor-pointer"
                 >
                   <Trash2 size={14} /> Delete
                 </button>
@@ -239,20 +207,8 @@ export default function CandidateDetailPage() {
 
           <div className="mt-6 sm:mt-0 w-full sm:w-auto">
             <button
-              onClick={() => {
-                if (c.broker?.isLocked) {
-                  alert(`The broker "${c.broker?.name}" is locked. Action is suspended.`);
-                  return;
-                }
-                router.push(`/cv-generator?candidateId=${c.id}`);
-              }}
-              disabled={c.broker?.isLocked}
-              className={cn(
-                "w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm shadow-md transition-all transform",
-                c.broker?.isLocked
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-[#00A4EF] text-white hover:bg-[#0093D6] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
-              )}
+              onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm shadow-md transition-all transform bg-[#00A4EF] text-white hover:bg-[#0093D6] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
             >
               <FileText size={16} /> Generate CV
             </button>

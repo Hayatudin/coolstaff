@@ -4,18 +4,7 @@ import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
-async function isCandidateBrokerLocked(candidateId: string): Promise<{ locked: boolean; brokerName?: string }> {
-  try {
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId },
-      select: { broker: { select: { isLocked: true, name: true } } }
-    });
-    if (candidate?.broker?.isLocked) {
-      return { locked: true, brokerName: candidate.broker.name };
-    }
-  } catch (_) {}
-  return { locked: false };
-}
+
 
 const formatCandidate = (c: any) => {
   if (!c) return null;
@@ -140,11 +129,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    // Check if broker is locked
-    const lockStatus = await isCandidateBrokerLocked(candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. CV generation is not allowed.` });
-    }
+
 
     const duplicateCV = await prisma.generatedCV.findFirst({
       where: {
@@ -207,11 +192,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Generated CV not found' });
     }
 
-    // Check if broker is locked
-    const lockStatus = await isCandidateBrokerLocked(existingCV.candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. CV modifications are not allowed.` });
-    }
+
 
     const duplicateCV = await prisma.generatedCV.findFirst({
       where: {
@@ -250,11 +231,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Generated CV not found' });
     }
 
-    // Check if broker is locked
-    const lockStatus = await isCandidateBrokerLocked(existingCV.candidateId);
-    if (lockStatus.locked) {
-      return res.status(403).json({ error: `This candidate's broker (${lockStatus.brokerName}) is locked. CV deletion is not allowed.` });
-    }
+
 
     await prisma.generatedCV.delete({
       where: { id }

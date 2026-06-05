@@ -143,10 +143,6 @@ function CVGeneratorContent() {
 
   const handleSave = async () => {
     if (!selectedCandidate) return;
-    if (selectedCandidate.broker?.isLocked) {
-      alert(`The candidate's broker (${selectedCandidate.broker.name}) is locked. CV operations are suspended.`);
-      return;
-    }
     if (alreadyGeneratedTemplate) {
       setToast(`Template already saved as ${alreadyGeneratedTemplate}`);
       return;
