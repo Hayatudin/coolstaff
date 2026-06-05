@@ -30,7 +30,7 @@ export default function CandidateDetailPage() {
   const [isImporting, setIsImporting] = useState<string | null>(null);
 
   const handleImportFile = async (field: string, file: File) => {
-    const limit = field === 'quickVideoUrl' ? 30 * 1024 * 1024 : 10 * 1024 * 1024;
+    const limit = 30 * 1024 * 1024;
     if (file.size > limit) {
       alert(`Max file size is ${limit / (1024 * 1024)}MB`);
       return;

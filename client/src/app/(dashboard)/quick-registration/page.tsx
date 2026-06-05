@@ -224,7 +224,7 @@ export default function QuickRegistrationPage() {
     }
   }, []);
 
-  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 10 * 1024 * 1024) => {
+  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 30 * 1024 * 1024) => {
     if (file.size > maxBytes) {
       alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
       return;
@@ -533,7 +533,7 @@ export default function QuickRegistrationPage() {
               preview={cocDocumentUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCocDocumentUrl(base64))}
               onClear={() => setCocDocumentUrl(null)}
-              helperText="COC Document — Max 10MB"
+              helperText="COC Document — Max 30MB"
             />
             <FileUpload
               label="Labour ID"
@@ -542,7 +542,7 @@ export default function QuickRegistrationPage() {
               preview={labourIdUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setLabourIdUrl(base64))}
               onClear={() => setLabourIdUrl(null)}
-              helperText="Labour ID Image — Max 10MB"
+              helperText="Labour ID Image — Max 30MB"
             />
             <FileUpload
               label="Candidate ID"
@@ -551,7 +551,7 @@ export default function QuickRegistrationPage() {
               preview={candidateIdImageUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCandidateIdImageUrl(base64))}
               onClear={() => setCandidateIdImageUrl(null)}
-              helperText="Candidate ID Image — Max 10MB"
+              helperText="Candidate ID Image — Max 30MB"
             />
             <FileUpload
               label="Relative ID"
@@ -560,7 +560,7 @@ export default function QuickRegistrationPage() {
               preview={relativeIdImageUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setRelativeIdImageUrl(base64))}
               onClear={() => setRelativeIdImageUrl(null)}
-              helperText="Relative ID Image — Max 10MB"
+              helperText="Relative ID Image — Max 30MB"
             />
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video</label>

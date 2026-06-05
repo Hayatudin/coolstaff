@@ -277,7 +277,7 @@ export default function VideoUploadsPage() {
     setPassportNumber('');
   };
 
-  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 10 * 1024 * 1024) => {
+  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 30 * 1024 * 1024) => {
     if (file.size > maxBytes) {
       alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
       return;
@@ -666,7 +666,7 @@ export default function VideoUploadsPage() {
                     preview={facePhotoBase64}
                     onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoBase64(base64))}
                     onClear={() => setFacePhotoBase64(null)}
-                    helperText="Circle crop — Max 10MB"
+                    helperText="Circle crop — Max 30MB"
                   />
                   {facePhotoBase64 && (
                     <button
@@ -688,7 +688,7 @@ export default function VideoUploadsPage() {
                     preview={fullBodyPhotoBase64}
                     onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFullBodyPhotoBase64(base64))}
                     onClear={() => setFullBodyPhotoBase64(null)}
-                    helperText="Rectangle — Max 10MB"
+                    helperText="Rectangle — Max 30MB"
                   />
                   {fullBodyPhotoBase64 && (
                     <button
