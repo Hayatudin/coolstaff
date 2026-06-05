@@ -99,11 +99,15 @@ export default function FitCandidatesPage() {
                     <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden xl:table-cell">
                       <div className="flex gap-2 flex-wrap max-w-[200px]">
                         {c.generatedCVs && c.generatedCVs.length > 0 ? (
-                          c.generatedCVs.map((tmpl, idx) => (
-                            <span key={idx} className="px-2 py-0.5 text-[9px] xl:text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                              {tmpl.templateId.replace('tmpl-', '').toUpperCase()}
-                            </span>
-                          ))
+                          c.generatedCVs.map((tmpl, idx) => {
+                            const templateId = typeof tmpl === 'string' ? tmpl : tmpl?.templateId;
+                            if (!templateId) return null;
+                            return (
+                              <span key={idx} className="px-2 py-0.5 text-[9px] xl:text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                                {templateId.replace('tmpl-', '').toUpperCase()}
+                              </span>
+                            );
+                          })
                         ) : (
                           <span className="text-xs text-text-tertiary">No CVs</span>
                         )}
