@@ -73,8 +73,8 @@ app.all('/api/auth/*', express.text({ type: '*/*', limit: '50mb' }), async (req,
 });
 
 // Body parsers — AFTER auth handler (express.json drains the stream)
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '80mb' }));
+app.use(express.urlencoded({ extended: true, limit: '80mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));

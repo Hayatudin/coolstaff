@@ -35,8 +35,8 @@ interface PersonalInfoFormProps {
 
 export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange }: PersonalInfoFormProps) {
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
-    if (file.size > 30 * 1024 * 1024) {
-      alert('Max file size is 30MB');
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Max file size is 50MB');
       return;
     }
     const reader = new FileReader();
@@ -126,7 +126,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
             preview={facePhoto ? getFileUrl(facePhoto) : null}
             onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFacePhotoChange?.(base64))}
             onClear={onFacePhotoChange ? () => onFacePhotoChange('') : undefined}
-            helperText="Circle — Max 30MB"
+            helperText="Circle — Max 50MB"
           />
 
           {/* Full Body Photo */}
@@ -137,7 +137,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
             preview={fullBodyPhoto ? getFileUrl(fullBodyPhoto) : null}
             onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFullBodyPhotoChange?.(base64))}
             onClear={onFullBodyPhotoChange ? () => onFullBodyPhotoChange('') : undefined}
-            helperText="Rectangle — Max 30MB"
+            helperText="Rectangle — Max 50MB"
           />
         </div>
 
@@ -331,7 +331,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
             preview={passportImage ? getFileUrl(passportImage) : null}
             onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onPassportImageChange?.(base64))}
             onClear={onPassportImageChange ? () => onPassportImageChange('') : undefined}
-            helperText="Passport Image — Max 30MB"
+            helperText="Passport Image — Max 50MB"
           />
         </div>
 
