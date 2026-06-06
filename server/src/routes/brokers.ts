@@ -135,29 +135,66 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/brokers/:id
+// POST /api/brokers/:id/move-candidates — Move all candidates to another broker
+router.post('/:id/move-candidates', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { targetBrokerId } = req.body;
+
+    if (!targetBrokerId) {
+      return res.status(400).json({ error: 'Target broker ID is required' });
+    }
+
+    if (id === targetBrokerId) {
+      return res.status(400).json({ error: 'Cannot move candidates to the same broker' });
+    }
+
+    // Verify source broker exists
+    const sourceBroker = await prisma.broker.findUnique({
+      where: { id },
+      include: { _count: { select: { candidates: true } } }
+    });
+    if (!sourceBroker) {
+      return res.status(404).json({ error: 'Source broker not found' });
+    }
+
+    // Verify target broker exists
+    const targetBroker = await prisma.broker.findUnique({ where: { id: targetBrokerId } });
+    if (!targetBroker) {
+      return res.status(404).json({ error: 'Target broker not found' });
+    }
+
+    // Move all candidates
+    const result = await prisma.candidate.updateMany({
+      where: { brokerId: id },
+      data: { brokerId: targetBrokerId }
+    });
+
+    // Also move quick registrations
+    await prisma.quickRegistration.updateMany({
+      where: { brokerId: id },
+      data: { brokerId: targetBrokerId }
+    });
+
+    console.log(`[BROKER-MOVE] Moved ${result.count} candidates from "${sourceBroker.name}" to "${targetBroker.name}"`);
+
+    res.json({
+      success: true,
+      movedCount: result.count,
+      message: `Successfully moved ${result.count} candidate(s) from "${sourceBroker.name}" to "${targetBroker.name}"`
+    });
+  } catch (error: any) {
+    console.error('Failed to move candidates:', error);
+    res.status(500).json({ error: error.message || 'Failed to move candidates' });
+  }
+});
+
+// DELETE /api/brokers/:id — Delete broker directly
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { reassignBrokerId } = req.body;
 
-    // 1. Resolve and verify session
-    let isSuperAdmin = false;
-    try {
-      const session = await getSession(req);
-
-      if (session?.user?.role === 'super_admin') {
-        isSuperAdmin = true;
-      }
-    } catch (sessionError) {
-      console.error('Session verification failed in delete broker:', sessionError);
-    }
-
-    if (!isSuperAdmin) {
-      return res.status(403).json({ error: 'Access denied: Only Super Admin can delete brokers' });
-    }
-
-    // 2. Check if broker exists
+    // Check if broker exists
     const broker = await prisma.broker.findUnique({
       where: { id },
       include: {
@@ -171,78 +208,36 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Broker not found' });
     }
 
-    // 3. Handle reassign/merge or disconnect
-    if (reassignBrokerId && reassignBrokerId !== 'none') {
-      // Reassign to another broker
-      const targetBroker = await prisma.broker.findUnique({
-        where: { id: reassignBrokerId }
-      });
-      if (!targetBroker) {
-        return res.status(400).json({ error: 'Target broker for reassignment does not exist' });
-      }
+    // Disconnect all candidates (set brokerId to null)
+    await prisma.candidate.updateMany({
+      where: { brokerId: id },
+      data: { brokerId: null }
+    });
 
-      // Reassign candidates
-      await prisma.candidate.updateMany({
-        where: { brokerId: id },
-        data: { brokerId: reassignBrokerId }
-      });
+    // Disconnect all quick registrations
+    await prisma.quickRegistration.updateMany({
+      where: { brokerId: id },
+      data: { brokerId: null }
+    });
 
-      // Reassign quick registrations
-      await prisma.quickRegistration.updateMany({
-        where: { brokerId: id },
-        data: { brokerId: reassignBrokerId }
-      });
-    } else {
-      // Disconnect - set brokerId to null
-      await prisma.candidate.updateMany({
-        where: { brokerId: id },
-        data: { brokerId: null }
-      });
-
-      await prisma.quickRegistration.updateMany({
-        where: { brokerId: id },
-        data: { brokerId: null }
-      });
-    }
-
-    // 4. Finally delete the broker
+    // Delete the broker
     await prisma.broker.delete({
       where: { id }
     });
 
-    res.json({ success: true, message: 'Broker deleted and candidates reassigned/disconnected successfully' });
+    console.log(`[BROKER-DELETE] Broker "${broker.name}" deleted. ${broker._count.candidates} candidates disconnected.`);
+
+    res.json({ success: true, message: `Broker "${broker.name}" deleted successfully` });
   } catch (error: any) {
     console.error('Failed to delete broker:', error);
     res.status(500).json({ error: error.message || 'Failed to delete broker' });
   }
 });
 
-// PATCH /api/brokers/:id/toggle-lock
+// PATCH /api/brokers/:id/toggle-lock — Lock/Unlock broker (hides/shows CVs)
 router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
-    // Verify session and role
-    let userRole = '';
-    let sessionDetails = 'No Session';
-    try {
-      const session = await getSession(req);
-      if (session) {
-        userRole = (session.user as any)?.role || '';
-        sessionDetails = `User ID: ${session.user.id}, Role: ${userRole}`;
-      } else {
-        sessionDetails = `Session is null. Cookies present: ${req.headers.cookie ? 'Yes' : 'No'}`;
-      }
-    } catch (sessionError: any) {
-      console.error('Session verification failed in toggle-lock:', sessionError);
-      sessionDetails = `Error: ${sessionError.message || String(sessionError)}`;
-    }
-
-    if (userRole !== 'super_admin' && userRole !== 'accountant') {
-      return res.status(403).json({ 
-        error: `Access denied. Resolved Role: "${userRole}". Details: ${sessionDetails}` 
-      });
-    }
 
     // Find the broker
     const broker = await prisma.broker.findUnique({ where: { id } });
@@ -250,16 +245,18 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Broker not found' });
     }
 
+    const newLockState = !broker.isLocked;
+
     // Toggle the lock status
     const updated = await prisma.broker.update({
       where: { id },
-      data: { isLocked: !broker.isLocked },
+      data: { isLocked: newLockState },
       include: {
         _count: { select: { candidates: true } }
       }
     });
 
-    console.log(`[BROKER-LOCK] Broker "${updated.name}" ${updated.isLocked ? 'LOCKED' : 'UNLOCKED'} by ${userRole}`);
+    console.log(`[BROKER-LOCK] Broker "${updated.name}" ${updated.isLocked ? 'LOCKED' : 'UNLOCKED'}`);
 
     res.json(updated);
   } catch (error: any) {

@@ -7,9 +7,9 @@ import { useRouter } from 'next/navigation';
 import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
-  FileDown, Image as ImageIcon, ChevronDown, PackageOpen
+  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Lock
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -332,7 +332,8 @@ export default function BackupPage() {
       setCvs(data.filter((c: any) => 
         c.candidate.isRequested || 
         c.candidate.medicalStatus === 'Unfit' || 
-        c.candidate.visaSelected
+        c.candidate.visaSelected ||
+        c.candidate?.broker?.isLocked === true
       ));
     } catch {
       showToast('Failed to load CVs', 'error');
@@ -496,8 +497,8 @@ export default function BackupPage() {
                   <div className="flex -space-x-2">
                     {folder.cvs.slice(0, 4).map(cv => (
                       <div key={cv.id} className="w-7 h-7 rounded-full ring-2 ring-surface overflow-hidden bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
-                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
-                          ? <img src={cv.facePhotoUrl || cv.candidate.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)
+                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                           : cv.candidate.givenNames.charAt(0)}
                       </div>
                     ))}
@@ -736,8 +737,13 @@ export default function BackupPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {activeCVs.map(cv => (
-              <div key={cv.id} className="bg-surface border border-border/50 rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-shadow flex flex-col">
+            {activeCVs.map(cv => {
+              const isLocked = cv.candidate?.broker?.isLocked === true;
+              return (
+              <div key={cv.id} className={cn(
+                "bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col",
+                isLocked ? "border-red-200 bg-red-50/5" : "border-border/50"
+              )}>
                 {/* Live Preview */}
                 <div
                   className="relative h-56 bg-gray-100 overflow-hidden cursor-pointer group border-b border-border"
@@ -747,8 +753,8 @@ export default function BackupPage() {
                   <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
                     <TC
                       candidate={cv.candidate}
-                      facePhoto={cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
-                      fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl}
+                      facePhoto={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
+                      fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)}
                     />
                   </div>
                   {/* Hover overlay */}
@@ -764,8 +770,8 @@ export default function BackupPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden border border-border bg-primary-50 text-primary flex items-center justify-center font-bold text-sm">
-                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl)
-                          ? <img src={cv.facePhotoUrl || cv.candidate.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                        {(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)
+                          ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                           : cv.candidate.givenNames.charAt(0)}
                       </div>
                       <div className="min-w-0">
@@ -776,11 +782,17 @@ export default function BackupPage() {
                       </div>
                     </div>
 
-                    <ActionMenu
-                      cvId={cv.id}
-                      currentTemplateId={cv.templateId}
-                      onRestore={() => handleRestore(cv)}
-                    />
+                    {isLocked ? (
+                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={`Broker "${cv.candidate.broker?.name}" is locked. Restore by unlocking the broker.`}>
+                        <Lock size={14} />
+                      </div>
+                    ) : (
+                      <ActionMenu
+                        cvId={cv.id}
+                        currentTemplateId={cv.templateId}
+                        onRestore={() => handleRestore(cv)}
+                      />
+                    )}
                   </div>
 
                   <div className="mt-auto pt-3 border-t border-dashed border-border flex items-center justify-between">
@@ -819,7 +831,8 @@ export default function BackupPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 
@@ -831,8 +844,8 @@ export default function BackupPage() {
               <div ref={cvRenderRef}>
                 <DlTemplate
                   candidate={downloadingCv.candidate}
-                  facePhoto={downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl}
-                  fullBodyPhoto={downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl}
+                  facePhoto={getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
+                  fullBodyPhoto={getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
                 />
               </div>
             </div>

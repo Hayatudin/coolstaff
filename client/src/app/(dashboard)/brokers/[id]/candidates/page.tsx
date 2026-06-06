@@ -455,8 +455,14 @@ export default function BrokerCandidatesPage() {
               <ChevronRight size={12} />
               <span className="text-primary/60">Portfolio</span>
             </nav>
-            <h1 className="text-4xl font-black text-text-primary tracking-tight">
+            <h1 className="text-4xl font-black text-text-primary tracking-tight flex items-center gap-3">
               {broker?.name || 'Recruitment Source'}
+              {broker?.isLocked && (
+                <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider">
+                  <Lock size={12} />
+                  <span>Locked</span>
+                </div>
+              )}
             </h1>
           </div>
         </div>
@@ -686,7 +692,12 @@ export default function BrokerCandidatesPage() {
                       </div>
                     </td>
                     <td className="px-3 xl:px-6 py-3.5 xl:py-5" onClick={(e) => e.stopPropagation()}>
-                      {candidate.generatedCVs?.[0] ? (
+                      {broker?.isLocked ? (
+                        <div className="text-red-600 bg-red-50 border border-red-100 px-2 xl:px-3 py-1.5 rounded-xl flex items-center justify-center gap-1 font-bold inline-flex" title="Broker is locked. CV is in backup.">
+                          <Lock size={12} />
+                          <span className="text-[10px] uppercase tracking-wider">Backup</span>
+                        </div>
+                      ) : candidate.generatedCVs?.[0] ? (
                         <button
                           onClick={() => handleOpenCV(candidate)}
                           className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-1.5 font-bold shadow-sm"
