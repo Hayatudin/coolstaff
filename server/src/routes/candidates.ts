@@ -6,9 +6,43 @@ import { getSession } from '../lib/auth-helper';
 const router = Router();
 
 
+async function getBrokerLockMap(): Promise<Record<string, boolean>> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
+      'SELECT id, isLocked FROM Broker'
+    );
+    const map: Record<string, boolean> = {};
+    for (const row of rows) {
+      map[row.id] = row.isLocked === 1 || row.isLocked === true;
+    }
+    return map;
+  } catch (e) {
+    console.warn('[CANDIDATES] Could not fetch isLocked column via raw SQL:', e);
+    return {};
+  }
+}
+
 // GET /api/candidates
 router.get('/', async (req: Request, res: Response) => {
   try {
+    // Fetch all brokers and their lock status safely
+    const lockMap = await getBrokerLockMap();
+    const brokerMap = new Map<string, any>();
+    try {
+      const dbBrokers = await prisma.broker.findMany({
+        select: { id: true, name: true }
+      });
+      for (const b of dbBrokers) {
+        brokerMap.set(b.id, {
+          id: b.id,
+          name: b.name,
+          isLocked: lockMap[b.id] ?? false
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fetch brokers for candidates mapping:', err);
+    }
+
     let dbCandidates;
     try {
       dbCandidates = await prisma.candidate.findMany({
@@ -16,8 +50,7 @@ router.get('/', async (req: Request, res: Response) => {
         include: {
           generatedCVs: { select: { templateId: true } },
           registeredBy: { select: { name: true } },
-          invoices: { select: { isDelivered: true } },
-          broker: { select: { id: true, name: true, isLocked: true } }
+          invoices: { select: { isDelivered: true } }
         }
       });
     } catch (schemaError: any) {
@@ -103,7 +136,7 @@ router.get('/', async (req: Request, res: Response) => {
           salary: c.salary || '1000SR',
         },
         brokerId: c.brokerId,
-        broker: (c as any).broker || null,
+        broker: c.brokerId ? (brokerMap.get(c.brokerId) || null) : null,
         passportImageUrl: c.passportImageUrl || '',
         facePhotoUrl: c.facePhotoUrl || '',
         fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',

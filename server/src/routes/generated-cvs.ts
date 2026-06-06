@@ -84,6 +84,22 @@ const formatCandidate = (c: any) => {
   };
 };
 
+async function getBrokerLockMap(): Promise<Record<string, boolean>> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
+      'SELECT id, isLocked FROM Broker'
+    );
+    const map: Record<string, boolean> = {};
+    for (const row of rows) {
+      map[row.id] = row.isLocked === 1 || row.isLocked === true;
+    }
+    return map;
+  } catch (e) {
+    console.warn('[GENERATED-CVS] Could not fetch isLocked column via raw SQL:', e);
+    return {};
+  }
+}
+
 // GET /api/generated-cvs
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -100,10 +116,17 @@ router.get('/', async (req: Request, res: Response) => {
       }
     });
     
-    const mappedCVs = generatedCVs.map((cv: any) => ({
-      ...cv,
-      candidate: formatCandidate(cv.candidate)
-    }));
+    const lockMap = await getBrokerLockMap();
+    const mappedCVs = generatedCVs.map((cv: any) => {
+      const formattedCandidateObj = formatCandidate(cv.candidate);
+      if (formattedCandidateObj && formattedCandidateObj.broker) {
+        formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
+      }
+      return {
+        ...cv,
+        candidate: formattedCandidateObj
+      };
+    });
     
     res.json(mappedCVs);
   } catch (error) {

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
-  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Lock
+  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Lock, Eye
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -130,7 +130,7 @@ function ChangeTemplateModal({
           <div>
             <h2 className="text-lg font-bold text-text-primary">Change Template</h2>
             <p className="text-sm text-text-secondary mt-0.5">
-              Select a new template for <strong>{cv.candidate.givenNames} {cv.candidate.surname}</strong>
+              Select a new template for <strong>{cv.candidate.passportData?.givenNames || cv.candidate.givenNames} {cv.candidate.passportData?.surname || cv.candidate.surname}</strong>
             </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-surface transition-colors text-text-tertiary hover:text-text-primary">
@@ -268,7 +268,7 @@ function DeleteModal({
           <h2 className="text-lg font-bold text-text-primary mb-2">Delete Generated CV?</h2>
           <p className="text-sm text-text-secondary">
             This will permanently remove the generated CV record for{' '}
-            <strong>{cv.candidate.givenNames} {cv.candidate.surname}</strong> from the database.
+            <strong>{cv.candidate.passportData?.givenNames || cv.candidate.givenNames} {cv.candidate.passportData?.surname || cv.candidate.surname}</strong> from the database.
             This action cannot be undone.
           </p>
         </div>
@@ -308,6 +308,7 @@ export default function BackupPage() {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   // Modals
+  const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -499,7 +500,7 @@ export default function BackupPage() {
                       <div key={cv.id} className="w-7 h-7 rounded-full ring-2 ring-surface overflow-hidden bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)
                           ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                          : cv.candidate.givenNames.charAt(0)}
+                          : (cv.candidate.passportData?.givenNames || cv.candidate.givenNames || '').charAt(0)}
                       </div>
                     ))}
                     {folder.cvs.length > 4 && (
@@ -550,8 +551,8 @@ export default function BackupPage() {
 
       for (let i = 0; i < activeCVs.length; i++) {
         const cv = activeCVs[i];
-        const safeName = `${cv.candidate.givenNames}_${cv.candidate.surname}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${activeCVs.length}: ${cv.candidate.givenNames}...`);
+        const safeName = `${cv.candidate.passportData?.givenNames || cv.candidate.givenNames || ''}_${cv.candidate.passportData?.surname || cv.candidate.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        showToast(`Processing ${i + 1}/${activeCVs.length}: ${cv.candidate.passportData?.givenNames || cv.candidate.givenNames || ''}...`);
 
         // Render the CV template into the hidden container
         const { createRoot } = await import('react-dom/client');
@@ -747,7 +748,7 @@ export default function BackupPage() {
                 {/* Live Preview */}
                 <div
                   className="relative h-56 bg-gray-100 overflow-hidden cursor-pointer group border-b border-border"
-                  onClick={() => { setDownloadingCv(cv); }}
+                  onClick={() => { setPreviewCv(cv); }}
                 >
                   {/* Scaled live template render */}
                   <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
@@ -760,7 +761,7 @@ export default function BackupPage() {
                   {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-gray-900 rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg font-medium text-sm">
-                      <Download size={15} /> Download
+                      <Eye size={15} /> Preview
                     </div>
                   </div>
                 </div>
@@ -772,13 +773,13 @@ export default function BackupPage() {
                       <div className="w-9 h-9 rounded-full shrink-0 overflow-hidden border border-border bg-primary-50 text-primary flex items-center justify-center font-bold text-sm">
                         {(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)
                           ? <img src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                          : cv.candidate.givenNames.charAt(0)}
+                          : (cv.candidate.passportData?.givenNames || cv.candidate.givenNames || '').charAt(0)}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-text-primary truncate">
-                          {cv.candidate.givenNames} {cv.candidate.surname}
+                          {cv.candidate.passportData?.givenNames || cv.candidate.givenNames} {cv.candidate.passportData?.surname || cv.candidate.surname}
                         </p>
-                        <p className="text-xs text-text-tertiary">{cv.candidate.passportNumber}</p>
+                        <p className="text-xs text-text-tertiary">{cv.candidate.passportData?.passportNumber || cv.candidate.passportNumber}</p>
                       </div>
                     </div>
 
@@ -853,6 +854,26 @@ export default function BackupPage() {
         })()}
       </div>
 
+      {/* Preview Modal */}
+      {previewCv && (() => {
+        const PrevTemplate = TEMPLATES.find(t => t.id === previewCv.templateId)?.component || ALMTemplate;
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewCv(null)}>
+            <div className="relative bg-white rounded-2xl overflow-y-auto max-h-[95vh] p-8 max-w-4xl shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setPreviewCv(null)} className="absolute top-4 right-4 z-10 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors backdrop-blur-md">
+                ✕
+              </button>
+              <div className="w-[800px]">
+                <PrevTemplate
+                  candidate={previewCv.candidate}
+                  facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
+                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl)}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </>
