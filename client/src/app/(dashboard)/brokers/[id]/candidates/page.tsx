@@ -7,14 +7,15 @@ import {
   ChevronRight, Filter, Download, Trash2, Edit3, Briefcase, 
   MapPin, Phone, Mail, Clock, CheckCircle2, AlertCircle,
   MoreVertical, CheckCircle, Eye, CalendarDays, X, Lock, 
-  FileDown, ImageIcon, LayoutTemplate, Check, AlertTriangle, PackageOpen, ChevronDown
+  FileDown, ImageIcon, LayoutTemplate, Check, AlertTriangle, PackageOpen, ChevronDown,
+  ArrowRightLeft
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Broker, Candidate } from '@/types';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
-import { getFileUrl } from '@/lib/utils';
+import { getFileUrl, cn } from '@/lib/utils';
 
 // Import CV templates
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -86,6 +87,13 @@ export default function BrokerCandidatesPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const cvRenderRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  // Move candidates state
+  const [brokers, setBrokers] = useState<Broker[]>([]);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [selectedTargetBrokerId, setSelectedTargetBrokerId] = useState('');
+  const [isMoving, setIsMoving] = useState(false);
+  const [brokerSearchQuery, setBrokerSearchQuery] = useState('');
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -423,6 +431,48 @@ export default function BrokerCandidatesPage() {
     }
   };
 
+  const fetchBrokers = async () => {
+    try {
+      const res = await api('/api/brokers');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setBrokers(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch brokers:', err);
+    }
+  };
+
+  const handleMoveSelectedCandidates = async () => {
+    if (selectedIds.length === 0 || !selectedTargetBrokerId) return;
+    setIsMoving(true);
+    try {
+      const res = await api('/api/brokers/move-candidates-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateIds: selectedIds,
+          targetBrokerId: selectedTargetBrokerId
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Candidates moved successfully');
+        setMoveModalOpen(false);
+        setSelectedTargetBrokerId('');
+        setBrokerSearchQuery('');
+        setSelectedIds([]);
+        fetchBrokerData();
+      } else {
+        showToast(data.error || 'Failed to move candidates', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to move candidates', 'error');
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchBrokerData();
@@ -563,6 +613,18 @@ export default function BrokerCandidatesPage() {
                 <LayoutTemplate size={14} />
               )}
               Change Template
+            </button>
+
+            {/* Move Candidates Button */}
+            <button 
+              onClick={() => {
+                fetchBrokers();
+                setMoveModalOpen(true);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm"
+            >
+              <ArrowRightLeft size={14} />
+              Move Candidates
             </button>
 
             {/* Download Dropdown */}
@@ -888,6 +950,107 @@ export default function BrokerCandidatesPage() {
           <div className="bg-white rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-3">
             <Loader2 size={32} className="text-primary animate-spin" />
             <p className="text-xs font-bold text-text-secondary uppercase tracking-widest">Fetching CV Details...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Move Candidates Modal */}
+      {moveModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-surface border border-border/80 rounded-[2rem] w-full max-w-md shadow-2xl p-8 relative animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => { setMoveModalOpen(false); setSelectedTargetBrokerId(''); setBrokerSearchQuery(''); }}
+              className="absolute right-6 top-6 text-text-tertiary hover:text-text-primary hover:bg-border/50 p-2 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-start gap-4 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 shrink-0">
+                <ArrowRightLeft size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-text-primary">Move Candidates</h3>
+                <p className="text-sm text-text-tertiary mt-1">
+                  Move <span className="font-semibold text-text-primary">{selectedIds.length} selected candidate(s)</span> to another broker.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <label className="block text-xs uppercase tracking-wider font-bold text-text-tertiary">
+                Select Destination Broker:
+              </label>
+
+              {/* Search input for brokers */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                <input
+                  type="text"
+                  placeholder="Search destination broker..."
+                  value={brokerSearchQuery}
+                  onChange={e => setBrokerSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 h-10 bg-surface border border-border/50 rounded-xl text-xs text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                />
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {brokers
+                  .filter(b => b.id !== brokerId)
+                  .filter(b => b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase()))
+                  .map(otherBroker => (
+                    <label
+                      key={otherBroker.id}
+                      className={cn(
+                        "flex items-center gap-3 p-4 border rounded-2xl transition-all cursor-pointer",
+                        selectedTargetBrokerId === otherBroker.id
+                          ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                          : "border-border/50 hover:border-primary/30 bg-surface-hover/20"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="targetBroker"
+                        value={otherBroker.id}
+                        checked={selectedTargetBrokerId === otherBroker.id}
+                        onChange={() => setSelectedTargetBrokerId(otherBroker.id)}
+                        className="w-4 h-4 text-primary border-border focus:ring-primary/20 cursor-pointer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-text-primary truncate">{otherBroker.name}</p>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-primary/5 flex items-center justify-center text-primary text-sm font-black shrink-0">
+                        {otherBroker.name.charAt(0).toUpperCase()}
+                      </div>
+                    </label>
+                  ))}
+              </div>
+              {brokers.filter(b => b.id !== brokerId).length === 0 && (
+                <p className="text-sm text-text-tertiary text-center py-4">No other brokers available. Create another broker first.</p>
+              )}
+              {brokers.filter(b => b.id !== brokerId).length > 0 &&
+               brokers.filter(b => b.id !== brokerId && b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase())).length === 0 && (
+                <p className="text-sm text-text-tertiary text-center py-4">No matching brokers found.</p>
+              )}
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                onClick={() => { setMoveModalOpen(false); setSelectedTargetBrokerId(''); setBrokerSearchQuery(''); }}
+                className="flex-1 h-12 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleMoveSelectedCandidates}
+                loading={isMoving}
+                disabled={!selectedTargetBrokerId}
+                className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/15"
+              >
+                Move Selected
+              </Button>
+            </div>
           </div>
         </div>
       )}

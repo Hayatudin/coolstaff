@@ -36,6 +36,7 @@ export default function BrokersPage() {
   const [moveTarget, setMoveTarget] = useState<Broker | null>(null);
   const [selectedTargetBrokerId, setSelectedTargetBrokerId] = useState('');
   const [isMoving, setIsMoving] = useState(false);
+  const [brokerSearchQuery, setBrokerSearchQuery] = useState('');
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState<Broker | null>(null);
@@ -112,6 +113,7 @@ export default function BrokersPage() {
       const data = await res.json();
       setMoveTarget(null);
       setSelectedTargetBrokerId('');
+      setBrokerSearchQuery('');
       fetchBrokers();
     } catch (err: any) {
       alert(err.message || 'Failed to move candidates');
@@ -397,7 +399,7 @@ export default function BrokersPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface border border-border/80 rounded-[2rem] w-full max-w-md shadow-2xl p-8 relative animate-scale-in">
             <button
-              onClick={() => { setMoveTarget(null); setSelectedTargetBrokerId(''); }}
+              onClick={() => { setMoveTarget(null); setSelectedTargetBrokerId(''); setBrokerSearchQuery(''); }}
               className="absolute right-6 top-6 text-text-tertiary hover:text-text-primary hover:bg-border/50 p-2 rounded-xl transition-all cursor-pointer"
             >
               <X size={20} />
@@ -419,9 +421,23 @@ export default function BrokersPage() {
               <label className="block text-xs uppercase tracking-wider font-bold text-text-tertiary">
                 Select Destination Broker:
               </label>
+
+              {/* Search input for brokers */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                <input
+                  type="text"
+                  placeholder="Search destination broker..."
+                  value={brokerSearchQuery}
+                  onChange={e => setBrokerSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 h-10 bg-surface border border-border/50 rounded-xl text-xs text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                />
+              </div>
+
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {safeBrokers
                   .filter(b => b.id !== moveTarget.id)
+                  .filter(b => b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase()))
                   .map(otherBroker => (
                     <label
                       key={otherBroker.id}
@@ -453,12 +469,16 @@ export default function BrokersPage() {
               {safeBrokers.filter(b => b.id !== moveTarget.id).length === 0 && (
                 <p className="text-sm text-text-tertiary text-center py-4">No other brokers available. Create another broker first.</p>
               )}
+              {safeBrokers.filter(b => b.id !== moveTarget.id).length > 0 &&
+               safeBrokers.filter(b => b.id !== moveTarget.id && b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase())).length === 0 && (
+                <p className="text-sm text-text-tertiary text-center py-4">No matching brokers found.</p>
+              )}
             </div>
 
             <div className="flex gap-4">
               <Button
                 variant="outline"
-                onClick={() => { setMoveTarget(null); setSelectedTargetBrokerId(''); }}
+                onClick={() => { setMoveTarget(null); setSelectedTargetBrokerId(''); setBrokerSearchQuery(''); }}
                 className="flex-1 h-12 rounded-xl"
               >
                 Cancel

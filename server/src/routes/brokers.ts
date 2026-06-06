@@ -64,6 +64,44 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/brokers/move-candidates-bulk — Move specific candidates to another broker in bulk
+router.post('/move-candidates-bulk', async (req: Request, res: Response) => {
+  try {
+    const { candidateIds, targetBrokerId } = req.body;
+
+    if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ error: 'Candidate IDs array is required' });
+    }
+
+    if (!targetBrokerId) {
+      return res.status(400).json({ error: 'Target broker ID is required' });
+    }
+
+    // Verify target broker exists
+    const targetBroker = await prisma.broker.findUnique({ where: { id: targetBrokerId } });
+    if (!targetBroker) {
+      return res.status(404).json({ error: 'Target broker not found' });
+    }
+
+    // Move candidates
+    const result = await prisma.candidate.updateMany({
+      where: { id: { in: candidateIds } },
+      data: { brokerId: targetBrokerId }
+    });
+
+    console.log(`[BROKER-MOVE-BULK] Moved ${result.count} candidate(s) to "${targetBroker.name}"`);
+
+    res.json({
+      success: true,
+      movedCount: result.count,
+      message: `Successfully moved ${result.count} candidate(s) to "${targetBroker.name}"`
+    });
+  } catch (error: any) {
+    console.error('Failed to move candidates in bulk:', error);
+    res.status(500).json({ error: error.message || 'Failed to move candidates' });
+  }
+});
+
 // GET /api/brokers/:id/candidates
 router.get('/:id/candidates', async (req: Request, res: Response) => {
   try {
