@@ -3,8 +3,7 @@ import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
 import { exec } from 'child_process';
 import path from 'path';
-import { auth } from '../lib/auth';
-import { fromNodeHeaders } from 'better-auth/node';
+import { getSession } from '../lib/auth-helper';
 
 const router = Router();
 
@@ -148,9 +147,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
+      const session = await getSession(req);
 
       if (session?.user?.id) {
         registeredById = session.user.id;

@@ -31,11 +31,12 @@ export const auth = betterAuth({
 
   advanced: {
     basePath: '/api/auth',
-    cookie: {
-      useSecureCookie: true,
-      sameSite: "none",
-    }
-  } as any,
+    useSecureCookies: process.env.BETTER_AUTH_URL?.startsWith('https://') ?? false,
+    defaultCookieAttributes: {
+      sameSite: "none" as const,
+      secure: true,
+    },
+  },
 
   user: {
     additionalFields: {

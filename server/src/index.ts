@@ -46,7 +46,7 @@ app.all('/api/auth/*', express.text({ type: '*/*', limit: '50mb' }), async (req,
   }
 
   // Create standard Web Request with pre-read string body
-  const request = new Request(`http://${req.headers.host}${req.url}`, {
+  const request = new globalThis.Request(`http://${req.headers.host}${req.url}`, {
     method: req.method,
     headers: headers,
     body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,

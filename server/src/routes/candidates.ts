@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
-import { auth } from '../lib/auth';
-import { fromNodeHeaders } from 'better-auth/node';
+import { getSession } from '../lib/auth-helper';
 
 const router = Router();
 
@@ -286,9 +285,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     try {
       // Build proper Web Request for Better Auth
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
+      const session = await getSession(req);
 
       if (session?.user?.id) {
         registeredById = session.user.id;
@@ -628,9 +625,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     console.log('[DEBUG] PUT /candidates/:id - body.registeredById:', body.registeredById);
 
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
+      const session = await getSession(req);
 
       if (session?.user?.id) {
         registeredById = session.user.id;

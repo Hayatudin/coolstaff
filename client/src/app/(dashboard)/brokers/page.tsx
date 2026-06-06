@@ -236,15 +236,11 @@ export default function BrokersPage() {
                           const res = await api(`/api/brokers/${broker.id}/toggle-lock`, {
                             method: 'PATCH',
                           });
-                          if (res.ok) {
-                            const updated = await res.json();
-                            setBrokers(prev => prev.map(b => b.id === broker.id ? { ...b, isLocked: updated.isLocked } : b));
-                          } else {
-                            const data = await res.json();
-                            alert(data.error || 'Failed to toggle lock');
-                          }
-                        } catch (err) {
-                          alert('Failed to toggle lock');
+                          const updated = await res.json();
+                          setBrokers(prev => prev.map(b => b.id === broker.id ? { ...b, isLocked: updated.isLocked } : b));
+                        } catch (err: any) {
+                          console.error('Failed to toggle lock:', err);
+                          alert(err.message || 'Failed to toggle lock');
                         }
                       }}
                       className={cn(

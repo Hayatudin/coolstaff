@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { auth } from '../lib/auth';
-import { fromNodeHeaders } from 'better-auth/node';
+import { getSession } from '../lib/auth-helper';
 
 
 const router = Router();
@@ -145,9 +144,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // 1. Resolve and verify session
     let isSuperAdmin = false;
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
+      const session = await getSession(req);
 
       if (session?.user?.role === 'super_admin') {
         isSuperAdmin = true;
@@ -227,17 +224,24 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
 
     // Verify session and role
     let userRole = '';
+    let sessionDetails = 'No Session';
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
-      userRole = (session?.user as any)?.role || '';
-    } catch (sessionError) {
+      const session = await getSession(req);
+      if (session) {
+        userRole = (session.user as any)?.role || '';
+        sessionDetails = `User ID: ${session.user.id}, Role: ${userRole}`;
+      } else {
+        sessionDetails = `Session is null. Cookies present: ${req.headers.cookie ? 'Yes' : 'No'}`;
+      }
+    } catch (sessionError: any) {
       console.error('Session verification failed in toggle-lock:', sessionError);
+      sessionDetails = `Error: ${sessionError.message || String(sessionError)}`;
     }
 
     if (userRole !== 'super_admin' && userRole !== 'accountant') {
-      return res.status(403).json({ error: 'Access denied: Only Super Admin and Accountant can lock/unlock brokers' });
+      return res.status(403).json({ 
+        error: `Access denied. Resolved Role: "${userRole}". Details: ${sessionDetails}` 
+      });
     }
 
     // Find the broker
