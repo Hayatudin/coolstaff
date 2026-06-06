@@ -5,6 +5,46 @@ import { getSession } from '../lib/auth-helper';
 
 const router = Router();
 
+// Helper: fetch isLocked values for all brokers via raw SQL
+async function getBrokerLockMap(): Promise<Record<string, boolean>> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
+      'SELECT id, isLocked FROM Broker'
+    );
+    const map: Record<string, boolean> = {};
+    for (const row of rows) {
+      map[row.id] = row.isLocked === 1 || row.isLocked === true;
+    }
+    return map;
+  } catch (e) {
+    console.warn('[BROKER] Could not fetch isLocked column via raw SQL, defaulting all to false:', e);
+    return {};
+  }
+}
+
+// Helper: fetch single broker isLocked via raw SQL
+async function getBrokerIsLocked(id: string): Promise<boolean> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ isLocked: number | boolean }[]>(
+      'SELECT isLocked FROM Broker WHERE id = ?', id
+    );
+    if (rows.length === 0) return false;
+    return rows[0].isLocked === 1 || rows[0].isLocked === true;
+  } catch (e) {
+    console.warn('[BROKER] Could not fetch isLocked for broker', id, e);
+    return false;
+  }
+}
+
+// Helper: set broker isLocked via raw SQL
+async function setBrokerIsLocked(id: string, locked: boolean): Promise<void> {
+  await prisma.$executeRawUnsafe(
+    'UPDATE Broker SET isLocked = ? WHERE id = ?',
+    locked ? 1 : 0,
+    id
+  );
+}
+
 // GET /api/brokers
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -25,7 +65,14 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { name: 'asc' }
     });
 
-    res.json(brokers);
+    // Augment each broker with isLocked from raw SQL
+    const lockMap = await getBrokerLockMap();
+    const augmented = brokers.map((b: any) => ({
+      ...b,
+      isLocked: lockMap[b.id] ?? false,
+    }));
+
+    res.json(augmented);
   } catch (error: any) {
     console.error('Error fetching brokers:', error);
     res.status(500).json({ 
@@ -166,7 +213,14 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
 
     if (!broker) return res.status(404).json({ error: 'Broker not found' });
 
-    res.json(broker);
+    // Augment with isLocked status via raw SQL
+    const isLocked = await getBrokerIsLocked(id);
+    const augmentedBroker = {
+      ...broker,
+      isLocked
+    };
+
+    res.json(augmentedBroker);
   } catch (error) {
     console.error('Error fetching broker candidates:', error);
     res.status(500).json({ error: 'Failed to fetch broker candidates' });
@@ -283,20 +337,32 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Broker not found' });
     }
 
-    const newLockState = !broker.isLocked;
+    const currentLockState = await getBrokerIsLocked(id);
+    const newLockState = !currentLockState;
 
-    // Toggle the lock status
-    const updated = await prisma.broker.update({
+    // Toggle the lock status using raw SQL
+    await setBrokerIsLocked(id, newLockState);
+
+    // Re-fetch to get candidate count and name cleanly
+    const updated = await prisma.broker.findUnique({
       where: { id },
-      data: { isLocked: newLockState },
       include: {
         _count: { select: { candidates: true } }
       }
     });
 
-    console.log(`[BROKER-LOCK] Broker "${updated.name}" ${updated.isLocked ? 'LOCKED' : 'UNLOCKED'}`);
+    if (!updated) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
 
-    res.json(updated);
+    const responseObj = {
+      ...updated,
+      isLocked: newLockState
+    };
+
+    console.log(`[BROKER-LOCK] Broker "${updated.name}" ${newLockState ? 'LOCKED' : 'UNLOCKED'}`);
+
+    res.json(responseObj);
   } catch (error: any) {
     console.error('Failed to toggle broker lock:', error);
     res.status(500).json({ error: error.message || 'Failed to toggle broker lock' });

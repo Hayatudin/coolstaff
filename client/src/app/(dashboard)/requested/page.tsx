@@ -217,7 +217,13 @@ export default function RequestedPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const candidates = allCandidates.filter(c => c.isRequested);
+  const candidates = allCandidates
+    .filter(c => c.isRequested)
+    .sort((a, b) => {
+      const dateA = a.visaDate ? new Date(a.visaDate).getTime() : (a.registeredAt ? new Date(a.registeredAt).getTime() : 0);
+      const dateB = b.visaDate ? new Date(b.visaDate).getTime() : (b.registeredAt ? new Date(b.registeredAt).getTime() : 0);
+      return dateB - dateA;
+    });
 
   const cancelVisa = async (c: any) => {
     setOpenMenuId(null);
