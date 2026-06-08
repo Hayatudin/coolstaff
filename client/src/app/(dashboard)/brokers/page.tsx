@@ -61,8 +61,6 @@ export default function BrokersPage() {
   const [deleteLeaderTarget, setDeleteLeaderTarget] = useState<Leader | null>(null);
   const [isDeletingLeader, setIsDeletingLeader] = useState(false);
 
-  // Layout View mode: 'leaders' (folder cards) or 'all' (flat grid list)
-  const [viewMode, setViewMode] = useState<'leaders' | 'all'>('leaders');
   const [expandedLeaderId, setExpandedLeaderId] = useState<string | null>(null);
 
   // Close menu when clicking outside
@@ -579,45 +577,18 @@ export default function BrokersPage() {
         </div>
       )}
 
-      {/* ───── View Mode Toggle Toggles ───── */}
-      <div className="flex gap-2 bg-surface border border-border/50 p-1.5 rounded-2xl shadow-sm w-max">
-        <button
-          onClick={() => setViewMode('leaders')}
-          className={cn(
-            "px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer flex items-center gap-2",
-            viewMode === 'leaders'
-              ? "bg-gradient-to-r from-lime-400 to-emerald-500 text-black shadow-md font-extrabold"
-              : "text-text-tertiary hover:text-text-primary"
-          )}
-        >
-          <Folder size={16} />
-          Grouped by Leader
-        </button>
-        <button
-          onClick={() => setViewMode('all')}
-          className={cn(
-            "px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer flex items-center gap-2",
-            viewMode === 'all'
-              ? "bg-gradient-to-r from-lime-400 to-emerald-500 text-black shadow-md font-extrabold"
-              : "text-text-tertiary hover:text-text-primary"
-          )}
-        >
-          <Users size={16} />
-          All Brokers ({brokers.length})
-        </button>
-      </div>
-
-      {/* ───── Main View Grid ───── */}
-      {viewMode === 'leaders' ? (
-        <div className="space-y-12">
-          {/* Leaders Folders */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {isLeadersLoading || isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-48 bg-surface rounded-[2rem] border border-border animate-pulse mt-8" />
-              ))
-            ) : filteredLeaders.length > 0 ? (
-              filteredLeaders.map(leader => {
+      {/* ───── Main View Grid (Grouped by Leaders Folders) ───── */}
+      <div className="space-y-12 animate-fade-in">
+        {/* Leaders Folders */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {isLeadersLoading || isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-48 bg-surface rounded-[2rem] border border-border animate-pulse mt-8" />
+            ))
+          ) : (
+            <>
+              {/* Leader Folders */}
+              {filteredLeaders.map(leader => {
                 const isExpanded = expandedLeaderId === leader.id;
                 return (
                   <div key={leader.id} className="relative pt-10 group/folder flex flex-col">
@@ -683,34 +654,84 @@ export default function BrokersPage() {
                     </div>
                   </div>
                 );
-              })
-            ) : (
-              <div className="col-span-full py-16 text-center bg-surface border border-dashed border-border rounded-[2rem]">
-                <Folder size={32} className="mx-auto text-text-tertiary opacity-30 mb-3" />
-                <h4 className="text-lg font-bold text-text-primary">No Leaders Registered</h4>
-                <p className="text-xs text-text-tertiary max-w-xs mx-auto mt-1">Create a leader above to group your brokers network.</p>
-              </div>
-            )}
-          </div>
+              })}
 
-          {/* Expanded Leader Broker Grid */}
-          {expandedLeaderId && (() => {
-            const selectedLeader = leaders.find(l => l.id === expandedLeaderId);
-            if (!selectedLeader) return null;
+              {/* Independent Brokers Virtual Folder */}
+              {independentBrokers.length > 0 && (
+                <div key="independent-folder" className="relative pt-10 group/folder flex flex-col">
+                  {/* Folder Tab shape */}
+                  <div 
+                    onClick={() => setExpandedLeaderId(expandedLeaderId === 'independent' ? null : 'independent')}
+                    className={cn(
+                      "absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300",
+                      expandedLeaderId === 'independent'
+                        ? "bg-gradient-to-r from-gray-400 to-slate-500 scale-105 text-white"
+                        : "bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
+                    )}
+                  >
+                    {expandedLeaderId === 'independent' ? <FolderOpen size={14} className="text-white shrink-0" /> : <Folder size={14} className="text-gray-700 shrink-0" />}
+                    <span className="truncate max-w-[120px]">Independent</span>
+                  </div>
+                  {/* Folder Top Line */}
+                  <div className="absolute top-0 left-[180px] right-0 h-10 border-b border-border/50" />
 
-            // Get brokers of this leader that match the broker search query
-            const leaderBrokers = filteredBrokers.filter(b => b.leaderId === expandedLeaderId);
+                  {/* Folder Body */}
+                  <div
+                    onClick={() => setExpandedLeaderId(expandedLeaderId === 'independent' ? null : 'independent')}
+                    className={cn(
+                      "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-slate-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden flex-1 min-h-[160px]",
+                      expandedLeaderId === 'independent' && "ring-2 ring-slate-400/20 border-slate-400/30"
+                    )}
+                  >
+                    <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-slate-500/5 rounded-full blur-xl" />
 
+                    <div className="space-y-3 relative z-10">
+                      <h3 className="text-lg font-bold text-text-primary mt-2">Independent Brokers</h3>
+                      <p className="text-xs text-text-tertiary">Unassigned recruitment source group</p>
+                    </div>
+
+                    <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4">
+                      <div>
+                        <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
+                        <p className="text-2xl font-black text-text-primary leading-none tabular-nums">
+                          {independentBrokers.length}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Candidates</p>
+                        <p className="text-2xl font-black text-slate-500 leading-none tabular-nums">
+                          {independentBrokers.reduce((sum, b) => sum + (b._count?.candidates || 0), 0)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {filteredLeaders.length === 0 && independentBrokers.length === 0 && (
+                <div className="col-span-full py-16 text-center bg-surface border border-dashed border-border rounded-[2rem]">
+                  <Folder size={32} className="mx-auto text-text-tertiary opacity-30 mb-3" />
+                  <h4 className="text-lg font-bold text-text-primary">No Leaders or Brokers Registered</h4>
+                  <p className="text-xs text-text-tertiary max-w-xs mx-auto mt-1">Create a leader or register a broker above to build your network.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Expanded Leader/Independent Broker Grid */}
+        {expandedLeaderId && (() => {
+          if (expandedLeaderId === 'independent') {
             return (
               <div className="bg-gradient-to-b from-surface-hover/10 to-surface-hover/20 border border-border/80 rounded-[2rem] p-8 space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center border-b border-border/40 pb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-lime-500/10 flex items-center justify-center text-lime-500 font-bold">
+                    <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center text-slate-500 font-bold">
                       <FolderOpen size={20} />
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-text-primary">{selectedLeader.name}'s Brokers</h4>
-                      <p className="text-xs text-text-tertiary">{leaderBrokers.length} broker(s) under this leader</p>
+                      <h4 className="text-lg font-bold text-text-primary">Independent Brokers</h4>
+                      <p className="text-xs text-text-tertiary">{independentBrokers.length} broker(s) without a leader</p>
                     </div>
                   </div>
                   <button
@@ -722,54 +743,56 @@ export default function BrokersPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {leaderBrokers.length > 0 ? (
-                    leaderBrokers.map(broker => renderBrokerCard(broker))
+                  {independentBrokers.length > 0 ? (
+                    independentBrokers.map(broker => renderBrokerCard(broker))
                   ) : (
                     <div className="col-span-full py-12 text-center">
-                      <p className="text-sm text-text-tertiary">No brokers inside this leader yet.</p>
+                      <p className="text-sm text-text-tertiary">No independent brokers.</p>
                     </div>
                   )}
                 </div>
               </div>
             );
-          })()}
+          }
 
-          {/* Independent Brokers Section */}
-          {independentBrokers.length > 0 && (
-            <div className="space-y-6 pt-6 border-t border-border/40">
-              <div className="flex items-center gap-2">
-                <Users className="text-text-tertiary" size={20} />
-                <h2 className="text-xl font-bold text-text-primary">Independent Brokers</h2>
-                <span className="bg-surface border border-border/50 text-text-secondary text-xs px-2.5 py-0.5 rounded-full font-bold">
-                  {independentBrokers.length}
-                </span>
+          const selectedLeader = leaders.find(l => l.id === expandedLeaderId);
+          if (!selectedLeader) return null;
+
+          const leaderBrokers = filteredBrokers.filter(b => b.leaderId === expandedLeaderId);
+
+          return (
+            <div className="bg-gradient-to-b from-surface-hover/10 to-surface-hover/20 border border-border/80 rounded-[2rem] p-8 space-y-6 animate-fade-in">
+              <div className="flex justify-between items-center border-b border-border/40 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-lime-500/10 flex items-center justify-center text-lime-500 font-bold">
+                    <FolderOpen size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-text-primary">{selectedLeader.name}'s Brokers</h4>
+                    <p className="text-xs text-text-tertiary">{leaderBrokers.length} broker(s) under this leader</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setExpandedLeaderId(null)}
+                  className="text-xs font-semibold text-text-tertiary hover:text-text-primary cursor-pointer hover:bg-border/45 px-3 py-1.5 rounded-lg transition-all"
+                >
+                  Close Folder
+                </button>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {independentBrokers.map(broker => renderBrokerCard(broker))}
+                {leaderBrokers.length > 0 ? (
+                  leaderBrokers.map(broker => renderBrokerCard(broker))
+                ) : (
+                  <div className="col-span-full py-12 text-center">
+                    <p className="text-sm text-text-tertiary">No brokers inside this leader yet.</p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
-      ) : (
-        /* Flat Grid View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-64 bg-surface rounded-[2rem] border border-border animate-pulse" />
-            ))
-          ) : filteredBrokers.length > 0 ? (
-            filteredBrokers.map(broker => renderBrokerCard(broker))
-          ) : (
-            <div className="col-span-full py-32 text-center">
-              <div className="w-24 h-24 bg-surface rounded-[2rem] border border-dashed border-border flex items-center justify-center mx-auto mb-6">
-                <Users size={32} className="text-text-tertiary opacity-30" />
-              </div>
-              <h3 className="text-2xl font-bold text-text-primary mb-2">Network is Empty</h3>
-              <p className="text-text-tertiary max-w-xs mx-auto">No partners registered in your recruitment network yet.</p>
-            </div>
-          )}
-        </div>
-      )}
+          );
+        })()}
+      </div>
 
       {/* ═══════════ Move Candidates Modal ═══════════ */}
       {moveTarget && (
