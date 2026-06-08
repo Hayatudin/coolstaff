@@ -91,9 +91,22 @@ export interface Candidate {
   visaDate?: string | null;
 }
 
+export interface Leader {
+  id: string;
+  name: string;
+  brokers?: Broker[];
+  createdAt: string;
+  _count?: {
+    brokers: number;
+  };
+  totalCandidates?: number;
+}
+
 export interface Broker {
   id: string;
   name: string;
+  leaderId?: string | null;
+  leader?: Leader | null;
   candidates?: Candidate[];
   _count?: {
     candidates: number;

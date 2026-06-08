@@ -50,6 +50,7 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const brokers = await prisma.broker.findMany({
       include: {
+        leader: true,
         candidates: {
           select: {
             id: true,
@@ -387,6 +388,47 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Failed to toggle broker lock:', error);
     res.status(500).json({ error: error.message || 'Failed to toggle broker lock' });
+  }
+});
+
+// PATCH /api/brokers/:id/leader — Assign or change broker's leader
+router.patch('/:id/leader', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { leaderId } = req.body; // Can be string or null
+
+    // Find the broker
+    const broker = await prisma.broker.findUnique({ where: { id } });
+    if (!broker) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
+
+    // If leaderId is provided, make sure the leader exists
+    if (leaderId !== null && leaderId !== undefined && leaderId !== '') {
+      const leader = await prisma.leader.findUnique({ where: { id: leaderId } });
+      if (!leader) {
+        return res.status(404).json({ error: 'Target leader not found' });
+      }
+    }
+
+    // Update the broker's leaderId
+    const updated = await prisma.broker.update({
+      where: { id },
+      data: { leaderId: leaderId || null },
+      include: {
+        leader: true,
+        _count: {
+          select: { candidates: true }
+        }
+      }
+    });
+
+    console.log(`[BROKER-LEADER] Moved broker "${updated.name}" to leader: ${updated.leader?.name || 'None'}`);
+
+    res.json(updated);
+  } catch (error: any) {
+    console.error('Failed to update broker leader:', error);
+    res.status(500).json({ error: error.message || 'Failed to update broker leader' });
   }
 });
 

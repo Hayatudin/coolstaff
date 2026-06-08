@@ -16,6 +16,16 @@ model Broker {
   candidates         Candidate[]
   quickRegistrations QuickRegistration[]
   createdAt          DateTime            @default(now())
+
+  leaderId           String?
+  leader             Leader?             @relation(fields: [leaderId], references: [id])
+}
+
+model Leader {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  brokers   Broker[]
+  createdAt DateTime @default(now())
 }
 
 model Candidate {

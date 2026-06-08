@@ -94,6 +94,21 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Verification table check warning:', e.message || e);
   }
 
+  // 1b. Create Leader Table
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`Leader\` (
+        \`id\` VARCHAR(191) NOT NULL,
+        \`name\` VARCHAR(191) NOT NULL,
+        \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY \`Leader_name_key\` (\`name\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    `);
+    console.log(`✅ Verified/Created 'Leader' table.`);
+  } catch (e: any) {
+    console.warn('⚠️ Leader table check warning:', e.message || e);
+  }
 
   // 2. Create Broker Table
   try {
@@ -455,6 +470,37 @@ export async function ensureDatabaseSchema() {
     } else {
       console.warn(`⚠️ Broker column fallback update warning for 'isLocked':`, msg);
     }
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE \`Broker\` ADD COLUMN \`leaderId\` VARCHAR(191) NULL`);
+    console.log(`✅ Successfully added column 'leaderId' to Broker table.`);
+  } catch (e: any) {
+    const msg = e.message || String(e);
+    if (msg.includes('Duplicate column') || msg.includes('already exists') || e.code === 'P2010') {
+      // column already exists
+    } else {
+      console.warn(`⚠️ Broker column fallback update warning for 'leaderId':`, msg);
+    }
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE \`Broker\` ADD INDEX \`Broker_leaderId_idx\` (\`leaderId\`)`);
+    console.log(`✅ Successfully added index 'Broker_leaderId_idx' to Broker table.`);
+  } catch (e: any) {
+    // Index may exist
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE \`Broker\` 
+      ADD CONSTRAINT \`Broker_leaderId_fkey\` 
+      FOREIGN KEY (\`leaderId\`) REFERENCES \`Leader\`(\`id\`) 
+      ON DELETE SET NULL ON UPDATE CASCADE
+    `);
+    console.log(`✅ Successfully added foreign key constraint for leaderId in Broker table.`);
+  } catch (e: any) {
+    // FK may exist
   }
 
   // 10c. Alter QuickRegistration passportType default to original

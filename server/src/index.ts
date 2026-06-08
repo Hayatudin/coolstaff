@@ -96,6 +96,7 @@ app.get('/api/assets/*', (req: Request, res: Response) => {
 // Routes
 import candidateRoutes from './routes/candidates';
 import brokerRoutes from './routes/brokers';
+import leaderRoutes from './routes/leaders';
 import userRoutes from './routes/users';
 import cvRoutes from './routes/cv';
 import generatedCvRoutes from './routes/generated-cvs';
@@ -114,6 +115,7 @@ import videoUploadsRoutes from './routes/video-uploads';
 
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/brokers', brokerRoutes);
+app.use('/api/leaders', leaderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cv', cvRoutes);
 app.use('/api/generated-cvs', generatedCvRoutes);
