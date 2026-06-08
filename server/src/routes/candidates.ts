@@ -79,6 +79,19 @@ router.get('/', async (req: Request, res: Response) => {
       }
     }
 
+    // Read Youtube_URL and deployedDate via raw SQL (before synchronous map)
+    let youtubeUrlMap: Record<string, string | null> = {};
+    let deployedDateMap: Record<string, string | null> = {};
+    try {
+      const rawRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id, Youtube_URL, deployedDate FROM \`Candidate\``
+      );
+      for (const row of rawRows) {
+        youtubeUrlMap[row.id] = row.Youtube_URL || null;
+        deployedDateMap[row.id] = row.deployedDate ? new Date(row.deployedDate).toISOString() : null;
+      }
+    } catch (_) { /* columns may not exist yet */ }
+
     const candidates = dbCandidates.map((c: any) => {
       const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
 
@@ -148,7 +161,9 @@ router.get('/', async (req: Request, res: Response) => {
         isRequested: c.isRequested || false,
         visaOrContractNumber: c.visaOrContractNumber || null,
         isFlagged: c.isFlagged || false,
-        videoUrl: c.videoUrl || null,
+        videoUrl: youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null,
+        Youtube_URL: youtubeUrlMap[c.id] ?? null,
+        deployedDate: deployedDateMap[c.id] ?? null,
         registeredAt: c.registeredAt.toISOString(),
         status: c.status,
         visaSelected: c.visaSelected,
@@ -472,7 +487,7 @@ router.post('/', async (req: Request, res: Response) => {
         candidateIdImageUrl,
         relativeIdImageUrl,
         labourIdUrl,
-        videoUrl: finalVideoUrl,
+        videoUrl: null, // YouTube URL saved separately via raw SQL
         status: body.status || 'pending',
     };
 
@@ -490,6 +505,19 @@ router.post('/', async (req: Request, res: Response) => {
         });
       } else {
         throw new Error(`Database Error: ${createError.message}`);
+      }
+    }
+
+    // Save YouTube URL separately via raw SQL to bypass stale Prisma Client
+    if (finalVideoUrl) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`Youtube_URL\` = ? WHERE \`id\` = ?`,
+          finalVideoUrl,
+          candidate.id
+        );
+      } catch (err) {
+        console.error('Failed to save Youtube_URL via raw SQL:', err);
       }
     }
 
@@ -566,6 +594,19 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     if (!c) return res.status(404).json({ error: 'Not found' });
 
+    // Read Youtube_URL and deployedDate via raw SQL
+    let youtubeUrl: string | null = null;
+    let candidateDeployedDate: string | null = null;
+    try {
+      const rawRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT Youtube_URL, deployedDate FROM \`Candidate\` WHERE id = ?`, id
+      );
+      if (rawRows.length > 0) {
+        youtubeUrl = rawRows[0].Youtube_URL || null;
+        candidateDeployedDate = rawRows[0].deployedDate ? new Date(rawRows[0].deployedDate).toISOString() : null;
+      }
+    } catch (_) { /* columns may not exist yet */ }
+
     const candidate = {
       id: c.id,
       shelfId: c.shelfId,
@@ -630,8 +671,10 @@ router.get('/:id', async (req: Request, res: Response) => {
       status: c.status,
       isRequested: c.isRequested,
       visaOrContractNumber: c.visaOrContractNumber || null,
-      videoUrl: c.videoUrl || null,
+      videoUrl: youtubeUrl ?? (c as any).videoUrl ?? null,
+      Youtube_URL: youtubeUrl,
       quickVideoUrl: (c as any).quickVideoUrl || null,
+      deployedDate: candidateDeployedDate,
       registeredAt: c.registeredAt.toISOString(),
       broker: c.broker,
       visaSelected: c.visaSelected,
@@ -752,12 +795,25 @@ router.put('/:id', async (req: Request, res: Response) => {
         ...(candidateIdImageUrl && { candidateIdImageUrl }),
         ...(relativeIdImageUrl && { relativeIdImageUrl }),
         ...(labourIdUrl && { labourIdUrl }),
-        ...(videoUrl && { videoUrl }),
+        ...(videoUrl && videoUrl.startsWith('http') ? {} : (videoUrl ? { videoUrl } : {})),
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
       },
     });
+
+    // Save YouTube URL separately via raw SQL
+    if (videoUrl && videoUrl.startsWith('http')) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`Youtube_URL\` = ? WHERE \`id\` = ?`,
+          videoUrl,
+          candidate.id
+        );
+      } catch (err) {
+        console.warn('[DEBUG] Failed to save Youtube_URL via raw SQL:', err);
+      }
+    }
 
     // Save registeredById separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
     if (!existingCandidate?.registeredById && registeredById) {
@@ -832,8 +888,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
       visaDateVal = null;
     }
 
-    // Strip visaDate from the payload to prevent Prisma Client validation error on stale client builds
+    // Strip videoUrl and deployedDate from the payload to prevent Prisma Client validation error on stale client builds
     delete body.visaDate;
+    delete body.videoUrl;
+    const deployedDateVal = body.deployedDate;
+    delete body.deployedDate;
+    delete body.Youtube_URL;
 
     // Process base64 file uploads if any are passed
     const docFields = [
@@ -873,6 +933,21 @@ router.patch('/:id', async (req: Request, res: Response) => {
         updated.visaDate = visaDateVal;
       } catch (e) {
         console.error('Failed to save visaDate via raw SQL:', e);
+      }
+    }
+
+    // Save deployedDate if passed
+    if (deployedDateVal !== undefined) {
+      try {
+        const depDateParsed = deployedDateVal ? new Date(deployedDateVal) : null;
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`deployedDate\` = ? WHERE \`id\` = ?`,
+          depDateParsed,
+          id
+        );
+        (updated as any).deployedDate = depDateParsed;
+      } catch (e) {
+        console.error('Failed to save deployedDate via raw SQL:', e);
       }
     }
 

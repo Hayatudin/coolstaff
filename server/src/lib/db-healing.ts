@@ -168,7 +168,7 @@ export async function ensureDatabaseSchema() {
         \`isRequested\` TINYINT(1) NOT NULL DEFAULT 0,
         \`visaOrContractNumber\` VARCHAR(191) NULL,
         \`isFlagged\` TINYINT(1) NOT NULL DEFAULT 0,
-        \`videoUrl\` VARCHAR(191) NULL,
+        \`Youtube_URL\` VARCHAR(191) NULL,
         \`quickVideoUrl\` LONGTEXT NULL,
         \`registeredAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         \`status\` VARCHAR(191) NOT NULL DEFAULT 'pending',
@@ -395,7 +395,8 @@ export async function ensureDatabaseSchema() {
     { name: 'cocDocumentUrl', type: 'LONGTEXT NULL' },
     { name: 'labourIdUrl', type: 'LONGTEXT NULL' },
     { name: 'candidateIdImageUrl', type: 'LONGTEXT NULL' },
-    { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' }
+    { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
+    { name: 'deployedDate', type: 'DATETIME(3) NULL' }
   ];
 
   for (const col of candidateColumns) {
@@ -463,25 +464,37 @@ export async function ensureDatabaseSchema() {
     console.warn(`⚠️ QuickRegistration default update warning for 'passportType':`, e.message || e);
   }
 
+  // 10d. Rename Candidate.videoUrl → Youtube_URL (if old column still exists)
+  try {
+    const candidateCols: any[] = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`Candidate\``);
+    const hasOldVideoUrl = candidateCols.some((c: any) => c.Field === 'videoUrl');
+    const hasYoutubeUrl = candidateCols.some((c: any) => c.Field === 'Youtube_URL');
+
+    if (hasOldVideoUrl && !hasYoutubeUrl) {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` CHANGE COLUMN \`videoUrl\` \`Youtube_URL\` VARCHAR(191) NULL`);
+        console.log(`✅ Successfully renamed Candidate column 'videoUrl' to 'Youtube_URL'.`);
+      } catch (renameErr: any) {
+        console.warn(`⚠️ Candidate videoUrl rename warning:`, renameErr.message || renameErr);
+      }
+    } else if (!hasOldVideoUrl && !hasYoutubeUrl) {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`Youtube_URL\` VARCHAR(191) NULL`);
+        console.log(`✅ Successfully added column 'Youtube_URL' to Candidate table.`);
+      } catch (_) {}
+    } else {
+      // Youtube_URL already exists, nothing to do
+    }
+  } catch (colCheckErr: any) {
+    console.warn(`⚠️ Candidate Youtube_URL column check warning:`, colCheckErr.message || colCheckErr);
+  }
+
   // 11. Run auto-migration for previously registered candidates' videos
   try {
     console.log('🔄 Running auto-migration for existing candidates with missing videos...');
-    const candidates = await prisma.candidate.findMany({
-      where: {
-        OR: [
-          { quickVideoUrl: null },
-          { quickVideoUrl: '' },
-          { videoUrl: null },
-          { videoUrl: '' }
-        ]
-      },
-      select: {
-        id: true,
-        passportNumber: true,
-        quickVideoUrl: true,
-        videoUrl: true
-      }
-    });
+    const candidates: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id, passportNumber, quickVideoUrl, Youtube_URL FROM \`Candidate\` WHERE quickVideoUrl IS NULL OR quickVideoUrl = '' OR Youtube_URL IS NULL OR Youtube_URL = ''`
+    );
 
     console.log(`🔍 Found ${candidates.length} candidates with missing video fields to check.`);
 
@@ -514,7 +527,7 @@ export async function ensureDatabaseSchema() {
           );
         } else {
           await prisma.$executeRawUnsafe(
-            `UPDATE \`Candidate\` SET \`videoUrl\` = ? WHERE \`id\` = ?`,
+            `UPDATE \`Candidate\` SET \`Youtube_URL\` = ? WHERE \`id\` = ?`,
             quickReg.videoUrl,
             cand.id
           );

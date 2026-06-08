@@ -40,7 +40,6 @@ export default function InvoicePage() {
   const [editLmisFile, setEditLmisFile] = useState<any | null>(null);
   const [editInsuranceFile, setEditInsuranceFile] = useState<any | null>(null);
   const [editTicketFile, setEditTicketFile] = useState<any | null>(null);
-  const [editDeployedDate, setEditDeployedDate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -48,7 +47,6 @@ export default function InvoicePage() {
       setEditLmisFile(null);
       setEditInsuranceFile(null);
       setEditTicketFile(null);
-      setEditDeployedDate(editingInvoice.deployedDate ? new Date(editingInvoice.deployedDate).toISOString().split('T')[0] : '');
     }
   }, [editingInvoice]);
 
@@ -564,7 +562,6 @@ export default function InvoicePage() {
                   if (editLmisFile?.base64) payload.lmisQrCodeUrl = editLmisFile.base64;
                   if (editInsuranceFile?.base64) payload.insuranceUrl = editInsuranceFile.base64;
                   if (editTicketFile?.base64) payload.ticketUrl = editTicketFile.base64;
-                  payload.deployedDate = editDeployedDate || null;
 
                   const res = await api(`/api/invoices/${editingInvoice.id}`, {
                     method: 'PUT',
@@ -585,7 +582,6 @@ export default function InvoicePage() {
                     lmisQrCodeUrl: updatedInvoice.lmisQrCodeUrl,
                     insuranceUrl: updatedInvoice.insuranceUrl,
                     ticketUrl: updatedInvoice.ticketUrl,
-                    deployedDate: updatedInvoice.deployedDate,
                   } : inv));
 
                   setEditingInvoice(null);
@@ -661,18 +657,6 @@ export default function InvoicePage() {
                 </div>
               </div>
 
-              {/* Deployment Date */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                  Deployment Date
-                </label>
-                <input
-                  type="date"
-                  value={editDeployedDate}
-                  onChange={(e) => setEditDeployedDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-border focus:outline-none focus:border-primary bg-surface-hover"
-                />
-              </div>
 
               {/* Actions Footer */}
               <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">

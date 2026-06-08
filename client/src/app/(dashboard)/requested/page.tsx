@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag } from 'lucide-react';
+import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag, CalendarDays } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
@@ -18,6 +18,8 @@ export default function RequestedPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [deployDateModal, setDeployDateModal] = useState<{ candidateId: string; name: string; currentDate: string } | null>(null);
+  const [deployDateValue, setDeployDateValue] = useState('');
 
   const handleGenerateReport = async () => {
     if (candidates.length === 0) {
@@ -268,6 +270,33 @@ export default function RequestedPage() {
     } catch { alert('Failed to delete candidate'); }
   };
 
+  const openDeployDateModal = (c: Candidate) => {
+    setOpenMenuId(null);
+    const currentDate = c.deployedDate ? new Date(c.deployedDate).toISOString().split('T')[0] : '';
+    setDeployDateValue(currentDate);
+    setDeployDateModal({
+      candidateId: c.id,
+      name: `${c.passportData.givenNames} ${c.passportData.surname}`,
+      currentDate,
+    });
+  };
+
+  const saveDeployedDate = async () => {
+    if (!deployDateModal) return;
+    try {
+      const res = await api(`/api/candidates/${deployDateModal.candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deployedDate: deployDateValue || null }),
+      });
+      if (!res.ok) throw new Error();
+      mutate(prev => prev.map(cand => cand.id === deployDateModal.candidateId ? { ...cand, deployedDate: deployDateValue || null } : cand));
+      setDeployDateModal(null);
+    } catch {
+      alert('Failed to save deployment date');
+    }
+  };
+
   const filtered = candidates.filter(c => {
     const name = `${c.passportData.givenNames} ${c.passportData.surname}`.toLowerCase();
     return name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
@@ -399,6 +428,10 @@ export default function RequestedPage() {
                             <button onClick={() => deleteCandidate(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
                               <Trash2 size={16} /><span>Delete</span>
                             </button>
+                            <div className="border-t border-border my-1" />
+                            <button onClick={() => openDeployDateModal(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600">
+                              <CalendarDays size={16} /><span>{c.deployedDate ? 'Edit' : 'Set'} Deployment Date</span>
+                            </button>
                           </div>
                         )}
                       </div>
@@ -440,6 +473,59 @@ export default function RequestedPage() {
                   <a href={viewDoc} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in new tab</a>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deployment Date Modal */}
+      {deployDateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setDeployDateModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-50">
+                  <CalendarDays size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-text-primary">Set Deployment Date</h3>
+                  <p className="text-xs text-text-tertiary">{deployDateModal.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setDeployDateModal(null)} className="text-text-tertiary hover:text-text-primary text-xl font-bold px-2">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">Deployment Date</label>
+                <input
+                  type="date"
+                  value={deployDateValue}
+                  onChange={e => setDeployDateValue(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setDeployDateModal(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-border text-text-secondary hover:bg-gray-50 transition-colors font-medium text-sm"
+                >
+                  Cancel
+                </button>
+                {deployDateModal.currentDate && (
+                  <button
+                    onClick={() => { setDeployDateValue(''); saveDeployedDate(); }}
+                    className="px-4 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors font-medium text-sm"
+                  >
+                    Remove
+                  </button>
+                )}
+                <button
+                  onClick={saveDeployedDate}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 text-white font-bold text-sm hover:from-blue-700 hover:to-indigo-600 transition-all shadow-lg shadow-blue-600/20"
+                >
+                  Save Date
+                </button>
+              </div>
             </div>
           </div>
         </div>

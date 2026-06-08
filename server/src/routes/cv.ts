@@ -246,7 +246,17 @@ router.post('/generate', async (req: Request, res: Response) => {
       const facePhotoData = await fetchImageAsBase64(facePhoto || candidate.passportImageUrl || '');
       const fullBodyPhotoData = await fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || '');
       const passportPhotoData = await fetchImageAsBase64(candidate.passportImageUrl || '');
-      const qrCodeData = candidate.videoUrl ? await QRCode.toDataURL(candidate.videoUrl) : '';
+      let finalVideoUrl = (candidate as any).videoUrl;
+      try {
+        const rawRows: any[] = await prisma.$queryRawUnsafe(
+          `SELECT Youtube_URL FROM \`Candidate\` WHERE id = ?`,
+          candidateId
+        );
+        if (rawRows.length > 0 && rawRows[0].Youtube_URL) {
+          finalVideoUrl = rawRows[0].Youtube_URL;
+        }
+      } catch (_) {}
+      const qrCodeData = finalVideoUrl ? await QRCode.toDataURL(finalVideoUrl) : '';
 
       const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
 

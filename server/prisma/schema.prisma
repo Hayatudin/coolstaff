@@ -71,7 +71,7 @@ model Candidate {
   isRequested              Boolean   @default(false)
   visaOrContractNumber     String?
   isFlagged                Boolean   @default(false)
-  videoUrl                 String?
+  videoUrl                 String?   @map("Youtube_URL")
   quickVideoUrl            String?   @db.LongText
   registeredAt             DateTime  @default(now())
   status                   String    @default("pending")
@@ -79,6 +79,7 @@ model Candidate {
   visaDate                 DateTime?
   salary                   String?   @default("1000SR")
   agency                   String?   @default("daera")
+  deployedDate             DateTime?
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?

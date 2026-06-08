@@ -63,7 +63,7 @@ export const generateDeploymentsPdf = (candidates: any[]) => {
   // Group candidates by deployment date
   const groups: Record<string, any[]> = {};
   for (const c of candidates) {
-    const depDateVal = c.invoices?.[0]?.deployedDate;
+    const depDateVal = c.deployedDate;
     const key = formatDateKey(depDateVal);
     if (!groups[key]) groups[key] = [];
     groups[key].push(c);

@@ -121,9 +121,8 @@ export default function DeploymentsPage() {
                 <TableSkeleton rows={5} cols={6} />
               ) : filtered.length > 0 ? (
                 filtered.map(c => {
-                  const invoice = c.invoices?.[0];
-                  const depDate = invoice?.deployedDate
-                    ? new Date(invoice.deployedDate).toLocaleDateString(undefined, {
+                  const depDate = c.deployedDate
+                    ? new Date(c.deployedDate).toLocaleDateString(undefined, {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
