@@ -215,9 +215,30 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
 
     // Augment with isLocked status via raw SQL
     const isLocked = await getBrokerIsLocked(id);
+
+    // Fetch per-candidate isLocked via raw SQL
+    let candidateIsLockedMap: Record<string, boolean> = {};
+    try {
+      const candidateIds = broker.candidates.map((c: any) => c.id);
+      if (candidateIds.length > 0) {
+        const placeholders = candidateIds.map(() => '?').join(',');
+        const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
+          `SELECT id, isLocked FROM Candidate WHERE id IN (${placeholders})`,
+          ...candidateIds
+        );
+        for (const row of rows) {
+          candidateIsLockedMap[row.id] = row.isLocked === 1 || row.isLocked === true;
+        }
+      }
+    } catch (_) { /* isLocked column may not exist yet */ }
+
     const augmentedBroker = {
       ...broker,
-      isLocked
+      isLocked,
+      candidates: broker.candidates.map((c: any) => ({
+        ...c,
+        isLocked: candidateIsLockedMap[c.id] ?? false,
+      })),
     };
 
     res.json(augmentedBroker);

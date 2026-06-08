@@ -33,6 +33,7 @@ interface QuickRegistration {
   createdAt: string;
   agency?: string | null;
   passportType?: string | null;
+  languages?: string[] | null;
 }
 
 function CopyField({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
@@ -112,7 +113,27 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     videoUrl: undefined as string | undefined,
     agency: '',
     passportType: 'scan',
+    languages: [] as string[],
   });
+
+  const [customLanguage, setCustomLanguage] = useState('');
+  const [selectedLang, setSelectedLang] = useState('');
+
+  const addLanguage = (lang: string) => {
+    const trimmed = lang.trim();
+    if (!trimmed) return;
+    if (editForm.languages && !editForm.languages.includes(trimmed)) {
+      setEditForm(prev => ({
+        ...prev,
+        languages: [...(prev.languages || []), trimmed]
+      }));
+    } else if (!editForm.languages) {
+      setEditForm(prev => ({
+        ...prev,
+        languages: [trimmed]
+      }));
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -226,6 +247,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       videoUrl: undefined,
       agency: reg.agency || 'daera',
       passportType: reg.passportType || 'scan',
+      languages: Array.isArray(reg.languages) ? reg.languages : [],
     });
   };
 
@@ -254,6 +276,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         jobExperience: JSON.stringify(editForm.jobExperience),
         agency: editForm.agency || 'daera',
         passportType: editForm.passportType || 'scan',
+        languages: editForm.languages,
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -431,6 +454,21 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
           <CopyField label="Marital Status" value={data.maritalStatus || ''} icon={<Heart size={16} />} />
           {data.numberOfChildren > 0 && (
             <CopyField label="Number of Children" value={String(data.numberOfChildren)} icon={<Baby size={16} />} />
+          )}
+          {data.languages && Array.isArray(data.languages) && data.languages.length > 0 && (
+            <div className="py-3 px-4 rounded-xl bg-gray-50/80 border border-border/50 flex items-center gap-3">
+              <div className="text-primary/50 shrink-0"><BookOpen size={16} /></div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-0.5">Languages</p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {data.languages.map(lang => (
+                    <span key={lang} className="px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-bold rounded-lg border border-primary/20">
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -875,6 +913,70 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* Languages Section */}
+                    <div className="md:col-span-2 pt-4 border-t border-border/60">
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">Languages</label>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {(editForm.languages || []).map(lang => (
+                          <span key={lang} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                            {lang}
+                            <button
+                              type="button"
+                              onClick={() => setEditForm(prev => ({ ...prev, languages: (prev.languages || []).filter(l => l !== lang) }))}
+                              className="hover:text-primary-dark ml-1 font-bold text-sm"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                        {(editForm.languages || []).length === 0 && (
+                          <span className="text-xs text-text-tertiary italic">No languages added yet.</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <select
+                          value={selectedLang}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setSelectedLang(val);
+                            if (val) {
+                              addLanguage(val);
+                              setSelectedLang('');
+                            }
+                          }}
+                          className="flex-1 h-11 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
+                        >
+                          <option value="">Choose a language...</option>
+                          {["Arabic", "English", "Amharic", "Tagalog", "Urdu", "Hindi", "Bengali", "Bahasa Indonesia", "Sinhala", "Nepali"]
+                            .filter(l => !(editForm.languages || []).includes(l))
+                            .map(l => (
+                              <option key={l} value={l}>{l}</option>
+                            ))}
+                        </select>
+                        <div className="flex gap-2 flex-1">
+                          <input
+                            type="text"
+                            placeholder="Or type custom language..."
+                            value={customLanguage}
+                            onChange={e => setCustomLanguage(e.target.value)}
+                            className="flex-1 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (customLanguage.trim()) {
+                                addLanguage(customLanguage);
+                                setCustomLanguage('');
+                              }
+                            }}
+                            className="px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all shadow-sm"
+                          >
+                            + Add
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

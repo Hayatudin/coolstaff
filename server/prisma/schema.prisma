@@ -80,6 +80,7 @@ model Candidate {
   salary                   String?   @default("1000SR")
   agency                   String?   @default("daera")
   deployedDate             DateTime?
+  isLocked                 Boolean   @default(false)
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?
@@ -225,6 +226,7 @@ model QuickRegistration {
   relativeIdImageUrl  String?  @db.LongText
   agency              String?  @default("daera")
   videoUrl            String?  @db.VarChar(500)
+  languages           Json?
 
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?

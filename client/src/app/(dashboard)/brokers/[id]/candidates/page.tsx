@@ -57,6 +57,7 @@ interface BrokerCandidate {
     fullBodyPhotoUrl?: string;
     createdAt?: string;
   }[];
+  isLocked?: boolean;
 }
 
 export default function BrokerCandidatesPage() {
@@ -94,6 +95,7 @@ export default function BrokerCandidatesPage() {
   const [selectedTargetBrokerId, setSelectedTargetBrokerId] = useState('');
   const [isMoving, setIsMoving] = useState(false);
   const [brokerSearchQuery, setBrokerSearchQuery] = useState('');
+  const [lockingCandidateId, setLockingCandidateId] = useState<string | null>(null);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -409,6 +411,26 @@ export default function BrokerCandidatesPage() {
       showToast('Failed to download CVs', 'error');
     } finally {
       setIsDownloadingAll(false);
+    }
+  };
+
+  const handleToggleCandidateLock = async (candidateId: string, currentlyLocked: boolean) => {
+    setLockingCandidateId(candidateId);
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isLocked: !currentlyLocked }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setCandidates(prev => prev.map(c => 
+        c.id === candidateId ? { ...c, isLocked: !currentlyLocked } : c
+      ));
+      showToast(currentlyLocked ? 'Candidate unlocked' : 'Candidate locked');
+    } catch {
+      showToast('Failed to update lock status', 'error');
+    } finally {
+      setLockingCandidateId(null);
     }
   };
 
@@ -739,7 +761,12 @@ export default function BrokerCandidatesPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-text-primary text-xs xl:text-base group-hover:text-primary transition-colors">{candidate.givenNames} {candidate.surname}</p>
+                          <p className="font-bold text-text-primary text-xs xl:text-base group-hover:text-primary transition-colors flex items-center gap-1.5">
+                            {candidate.givenNames} {candidate.surname}
+                            {candidate.isLocked && (
+                              <Lock size={12} className="text-red-500 fill-red-100 shrink-0" />
+                            )}
+                          </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Briefcase size={10} className="text-primary/60" />
                             <p className="text-[9px] xl:text-[10px] text-text-tertiary font-black uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
@@ -799,7 +826,24 @@ export default function BrokerCandidatesPage() {
                       </div>
                     </td>
                     <td className="px-3 xl:px-6 py-3.5 xl:py-5 text-right pr-4 xl:pr-12">
-                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                      <div className="flex items-center justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 md:translate-x-4 md:group-hover:translate-x-0">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleToggleCandidateLock(candidate.id, candidate.isLocked ?? false); }}
+                          disabled={lockingCandidateId === candidate.id}
+                          className={cn(
+                            'p-1.5 xl:p-2.5 rounded-xl transition-all flex items-center gap-1',
+                            candidate.isLocked 
+                              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                              : 'bg-gray-50 text-text-tertiary border border-border hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
+                          )}
+                          title={candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}
+                        >
+                          {lockingCandidateId === candidate.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Lock size={14} />
+                          )}
+                        </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); router.push(`/candidates/${candidate.id}`); }}
                           className="p-1.5 xl:p-2.5 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all "

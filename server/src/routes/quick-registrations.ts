@@ -60,7 +60,7 @@ router.get('/', async (req: Request, res: Response) => {
     try {
       // Include registeredById in raw query to bypass any stale schema generator definitions
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\``
+        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages FROM \`QuickRegistration\``
       );
       const rawMap = new Map();
       for (const row of rawRows) {
@@ -78,6 +78,7 @@ router.get('/', async (req: Request, res: Response) => {
           reg.verificationStatus = raw.verificationStatus;
           reg.promotedCandidateId = raw.promotedCandidateId;
           reg.agency = raw.agency;
+          reg.languages = raw.languages ? (typeof raw.languages === 'string' ? JSON.parse(raw.languages) : raw.languages) : null;
           if (raw.registeredById) {
             reg.registeredById = raw.registeredById;
           }
@@ -214,9 +215,10 @@ router.post('/', async (req: Request, res: Response) => {
     // Safe Raw SQL Update for new columns (bypasses out-of-sync Prisma Client cache completely)
     try {
       const relPhonesString = body.relativePhones ? JSON.stringify(body.relativePhones) : null;
+      const languagesString = body.languages ? JSON.stringify(body.languages) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?, \`languages\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
@@ -227,6 +229,7 @@ router.post('/', async (req: Request, res: Response) => {
         body.agency || 'daera',
         registeredById || null,
         body.passportType || 'original',
+        languagesString,
         registration.id
       );
 
@@ -239,6 +242,7 @@ router.post('/', async (req: Request, res: Response) => {
       registration.videoUrl = videoUrl || null;
       registration.agency = body.agency || 'daera';
       registration.passportType = body.passportType || 'original';
+      registration.languages = body.languages || null;
     } catch (rawError) {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
@@ -330,7 +334,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       body.relativePhones !== undefined ||
       videoUrl !== undefined ||
       body.agency !== undefined ||
-      body.passportType !== undefined
+      body.passportType !== undefined ||
+      body.languages !== undefined
     ) {
       try {
         const setClauses: string[] = [];
@@ -375,6 +380,11 @@ router.put('/:id', async (req: Request, res: Response) => {
           setClauses.push('`passportType` = ?');
           queryParams.push(body.passportType || 'original');
           updated.passportType = body.passportType || 'original';
+        }
+        if (body.languages !== undefined) {
+          setClauses.push('`languages` = ?');
+          queryParams.push(body.languages ? JSON.stringify(body.languages) : null);
+          updated.languages = body.languages;
         }
 
         if (setClauses.length > 0) {
@@ -433,7 +443,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
@@ -447,6 +457,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
         registration.verificationStatus = raw.verificationStatus;
         registration.promotedCandidateId = raw.promotedCandidateId;
         registration.agency = raw.agency;
+        registration.languages = raw.languages ? (typeof raw.languages === 'string' ? JSON.parse(raw.languages) : raw.languages) : null;
       }
     } catch (_) { /* ignore */ }
 
@@ -483,7 +494,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
@@ -497,6 +508,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         registration.verificationStatus = raw.verificationStatus;
         registration.promotedCandidateId = raw.promotedCandidateId;
         registration.agency = raw.agency;
+        registration.languages = raw.languages ? (typeof raw.languages === 'string' ? JSON.parse(raw.languages) : raw.languages) : null;
       }
     } catch (_) { /* ignore */ }
 

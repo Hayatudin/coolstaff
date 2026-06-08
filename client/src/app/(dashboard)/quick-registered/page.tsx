@@ -45,6 +45,7 @@ interface QuickReg {
   broker?: { id: string; name: string } | null;
   agency?: string | null;
   passportType?: string | null;
+  languages?: string[] | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -87,6 +88,26 @@ export default function QuickRegisteredPage() {
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<QuickReg | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [customLanguage, setCustomLanguage] = useState('');
+  const [selectedLang, setSelectedLang] = useState('');
+
+  const addLanguage = (lang: string) => {
+    const trimmed = lang.trim();
+    if (!trimmed) return;
+    if (editForm.languages && !editForm.languages.includes(trimmed)) {
+      setEditForm(prev => ({
+        ...prev,
+        languages: [...(prev.languages || []), trimmed]
+      }));
+    } else if (!editForm.languages) {
+      setEditForm(prev => ({
+        ...prev,
+        languages: [trimmed]
+      }));
+    }
+  };
+
   const [editForm, setEditForm] = useState({
     passportNumber: '',
     givenNames: '',
@@ -112,6 +133,7 @@ export default function QuickRegisteredPage() {
     videoUrl: undefined as string | undefined,
     agency: '',
     passportType: 'scan',
+    languages: [] as string[],
   });
 
   const handleFileChange = (field: string, file: File | null) => {
@@ -347,6 +369,7 @@ export default function QuickRegisteredPage() {
       videoUrl: undefined,
       agency: reg.agency || 'daera',
       passportType: reg.passportType || 'scan',
+      languages: Array.isArray(reg.languages) ? reg.languages : [],
     });
   };
 
@@ -375,6 +398,7 @@ export default function QuickRegisteredPage() {
         jobExperience: JSON.stringify(editForm.jobExperience),
         agency: editForm.agency || 'daera',
         passportType: editForm.passportType || 'scan',
+        languages: editForm.languages,
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -484,6 +508,15 @@ export default function QuickRegisteredPage() {
                           <div className="min-w-0">
                             <p className="font-semibold text-text-primary text-xs xl:text-sm truncate">{r.givenNames} {r.surname}</p>
                             <p className="text-[10px] text-text-tertiary sm:hidden">{r.passportNumber}</p>
+                            {r.languages && Array.isArray(r.languages) && r.languages.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {r.languages.map(l => (
+                                  <span key={l} className="text-[8px] font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10">
+                                    {l}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -1030,6 +1063,70 @@ export default function QuickRegisteredPage() {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* Languages Section */}
+                    <div className="md:col-span-2 pt-4 border-t border-border/60">
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">Languages</label>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {(editForm.languages || []).map(lang => (
+                          <span key={lang} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                            {lang}
+                            <button
+                              type="button"
+                              onClick={() => setEditForm(prev => ({ ...prev, languages: (prev.languages || []).filter(l => l !== lang) }))}
+                              className="hover:text-primary-dark ml-1 font-bold text-sm"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                        {(editForm.languages || []).length === 0 && (
+                          <span className="text-xs text-text-tertiary italic">No languages added yet.</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <select
+                          value={selectedLang}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setSelectedLang(val);
+                            if (val) {
+                              addLanguage(val);
+                              setSelectedLang('');
+                            }
+                          }}
+                          className="flex-1 h-11 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
+                        >
+                          <option value="">Choose a language...</option>
+                          {["Arabic", "English", "Amharic", "Tagalog", "Urdu", "Hindi", "Bengali", "Bahasa Indonesia", "Sinhala", "Nepali"]
+                            .filter(l => !(editForm.languages || []).includes(l))
+                            .map(l => (
+                              <option key={l} value={l}>{l}</option>
+                            ))}
+                        </select>
+                        <div className="flex gap-2 flex-1">
+                          <input
+                            type="text"
+                            placeholder="Or type custom language..."
+                            value={customLanguage}
+                            onChange={e => setCustomLanguage(e.target.value)}
+                            className="flex-1 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (customLanguage.trim()) {
+                                addLanguage(customLanguage);
+                                setCustomLanguage('');
+                              }
+                            }}
+                            className="px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all shadow-sm"
+                          >
+                            + Add
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

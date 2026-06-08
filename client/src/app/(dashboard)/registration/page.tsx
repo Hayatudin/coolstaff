@@ -282,6 +282,7 @@ function RegistrationContent() {
           labourIdUrl: data.labourIdUrl || '',
           candidateIdImageUrl: data.candidateIdImageUrl || '',
           relativeIdImageUrl: data.relativeIdImageUrl || '',
+          languages: Array.isArray(data.languages) ? data.languages : [],
         }));
         
         setPassportImage(data.passportImageUrl || null);
@@ -339,6 +340,7 @@ function RegistrationContent() {
           labourIdUrl: data.labourIdUrl || prev.labourIdUrl || '',
           candidateIdImageUrl: data.candidateIdImageUrl || prev.candidateIdImageUrl || '',
           relativeIdImageUrl: data.relativeIdImageUrl || prev.relativeIdImageUrl || '',
+          languages: Array.isArray(data.languages) ? data.languages : (prev.languages || []),
         }));
 
         if (data.passportImageUrl) {

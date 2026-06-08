@@ -271,6 +271,18 @@ export default function QuickRegistrationPage() {
     }));
   };
 
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [customLanguage, setCustomLanguage] = useState('');
+  const [selectedLang, setSelectedLang] = useState('');
+
+  const addLanguage = (lang: string) => {
+    const trimmed = lang.trim();
+    if (!trimmed) return;
+    if (!selectedLanguages.includes(trimmed)) {
+      setSelectedLanguages(prev => [...prev, trimmed]);
+    }
+  };
+
   const handleSave = async () => {
     if (!passportData.passportNumber || !passportData.surname) {
       setError('Please scan a passport or fill in the Passport Number and Full Name.');
@@ -323,6 +335,7 @@ export default function QuickRegistrationPage() {
           agency,
           passportType,
           registeredById: session?.user?.id || null,
+          languages: selectedLanguages,
         }),
       });
 
@@ -515,6 +528,70 @@ export default function QuickRegistrationPage() {
                 />
               </div>
             )}
+
+            {/* Languages Section */}
+            <div className="sm:col-span-2 pt-4 border-t border-border/60">
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Languages</label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedLanguages.map(lang => (
+                  <span key={lang} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                    {lang}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLanguages(prev => prev.filter(l => l !== lang))}
+                      className="hover:text-primary-dark ml-1 font-bold text-sm"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+                {selectedLanguages.length === 0 && (
+                  <span className="text-xs text-text-tertiary italic">No languages added yet.</span>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select
+                  value={selectedLang}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSelectedLang(val);
+                    if (val) {
+                      addLanguage(val);
+                      setSelectedLang('');
+                    }
+                  }}
+                  className="flex-1 h-11 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
+                >
+                  <option value="">Choose a language...</option>
+                  {["Arabic", "English", "Amharic", "Tagalog", "Urdu", "Hindi", "Bengali", "Bahasa Indonesia", "Sinhala", "Nepali"]
+                    .filter(l => !selectedLanguages.includes(l))
+                    .map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                </select>
+                <div className="flex gap-2 flex-1">
+                  <input
+                    type="text"
+                    placeholder="Or type custom language..."
+                    value={customLanguage}
+                    onChange={e => setCustomLanguage(e.target.value)}
+                    className="flex-1 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (customLanguage.trim()) {
+                        addLanguage(customLanguage);
+                        setCustomLanguage('');
+                      }
+                    }}
+                    className="px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all shadow-sm"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

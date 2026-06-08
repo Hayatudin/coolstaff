@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
-  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Lock, Eye
+  FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Lock, Eye, Search, Filter
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -305,6 +305,8 @@ export default function BackupPage() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [religionFilter, setReligionFilter] = useState<string>('');
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'locked' | 'visa-selected'>('all');
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   // Modals
@@ -454,21 +456,75 @@ export default function BackupPage() {
     setDownloadFormat(format);
   };
 
+  // ── Shared search + status filter helper ──────────────────────────────────
+  const matchesSearch = (cv: any) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const name = `${cv.candidate.passportData?.givenNames || cv.candidate.givenNames || ''} ${cv.candidate.passportData?.surname || cv.candidate.surname || ''}`.toLowerCase();
+    const passport = (cv.candidate.passportData?.passportNumber || cv.candidate.passportNumber || '').toLowerCase();
+    return name.includes(q) || passport.includes(q);
+  };
+  const matchesStatus = (cv: any) => {
+    if (statusFilter === 'all') return true;
+    const isLocked = cv.candidate?.broker?.isLocked === true;
+    const isVisaSelected = cv.candidate.isRequested || cv.candidate.visaSelected;
+    if (statusFilter === 'locked') return isLocked;
+    if (statusFilter === 'visa-selected') return isVisaSelected;
+    return true;
+  };
+
   // ── Group by template ──────────────────────────────────────────────────────
-  const folders = TEMPLATES.map(t => ({ ...t, cvs: cvs.filter(c => c.templateId === t.id) }));
+  const folders = TEMPLATES.map(t => {
+    const templateCVs = cvs.filter(c => c.templateId === t.id);
+    const filteredCVs = templateCVs.filter(c => matchesSearch(c) && matchesStatus(c));
+    return { ...t, cvs: filteredCVs, totalCvs: templateCVs.length };
+  });
 
   // ── Folder View ───────────────────────────────────────────────────────────
   if (!selectedFolder) {
     return (
       <>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-primary-50"><FolderOpen size={22} className="text-primary" /></div>
-                Backup CVs
-              </h1>
-              <p className="text-text-secondary mt-1 ml-12">CV templates for candidates with Visa Selected status</p>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-primary-50"><FolderOpen size={22} className="text-primary" /></div>
+                  Backup CVs
+                </h1>
+                <p className="text-text-secondary mt-1 ml-12">CV templates for candidates with Visa Selected status</p>
+              </div>
+            </div>
+
+            {/* Search & Status Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                <input
+                  type="text"
+                  placeholder="Search by name or passport number…"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary transition-colors">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Filter size={14} className="text-text-tertiary hidden sm:block" />
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value as 'all' | 'locked' | 'visa-selected')}
+                  className="px-3 py-2.5 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer min-w-[160px]"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="locked">🔒 Locked</option>
+                  <option value="visa-selected">✅ Visa Selected</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -490,7 +546,7 @@ export default function BackupPage() {
                       <FolderOpen size={22} className={folder.textColor} />
                     </div>
                     <span className="text-xs font-bold px-2 py-1 rounded-full bg-surface-hover border border-border text-text-secondary">
-                      {folder.cvs.length}
+                      {folder.cvs.length}{folder.cvs.length !== folder.totalCvs ? `/${folder.totalCvs}` : ''}
                     </span>
                   </div>
                   <p className="font-bold text-text-primary mb-0.5">{folder.name}</p>
@@ -526,10 +582,15 @@ export default function BackupPage() {
   const activeTemplate = TEMPLATES.find(t => t.id === selectedFolder)!;
   const allFolderCVs = cvs.filter(c => c.templateId === selectedFolder);
   const activeCVs = allFolderCVs.filter(cv => {
-    if (!religionFilter) return true;
-    const rel = (cv.candidate.religion || '').toLowerCase();
-    if (religionFilter === 'muslim') return rel === 'muslim';
-    if (religionFilter === 'non-muslim') return rel !== 'muslim' && rel !== '';
+    // Religion filter
+    if (religionFilter) {
+      const rel = (cv.candidate.religion || '').toLowerCase();
+      if (religionFilter === 'muslim' && rel !== 'muslim') return false;
+      if (religionFilter === 'non-muslim' && (rel === 'muslim' || rel === '')) return false;
+    }
+    // Search + status filters
+    if (!matchesSearch(cv)) return false;
+    if (!matchesStatus(cv)) return false;
     return true;
   });
   const TC = activeTemplate.component;
@@ -642,83 +703,116 @@ export default function BackupPage() {
     <>
       <div className="space-y-6">
         {/* Breadcrumb + Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
-              <ArrowLeft size={18} />
-            </button>
-            <div>
-              <div className="flex items-center gap-1.5 text-xs text-text-tertiary mb-0.5">
-                <span className="hover:text-primary cursor-pointer" onClick={() => { setSelectedFolder(null); setReligionFilter(''); }}>Folders</span>
-                <ChevronRight size={12} />
-                <span className="text-text-primary font-medium">{activeTemplate.name}</span>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <div className="flex items-center gap-1.5 text-xs text-text-tertiary mb-0.5">
+                  <span className="hover:text-primary cursor-pointer" onClick={() => { setSelectedFolder(null); setReligionFilter(''); }}>Folders</span>
+                  <ChevronRight size={12} />
+                  <span className="text-text-primary font-medium">{activeTemplate.name}</span>
+                </div>
+                <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+                  {activeTemplate.name}
+                  <span className={cn('text-sm font-semibold px-2 py-0.5 rounded-full', activeTemplate.bgLight, activeTemplate.textColor)}>
+                    {activeCVs.length} CV{activeCVs.length !== 1 ? 's' : ''}
+                  </span>
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-                {activeTemplate.name}
-                <span className={cn('text-sm font-semibold px-2 py-0.5 rounded-full', activeTemplate.bgLight, activeTemplate.textColor)}>
-                  {activeCVs.length} CV{activeCVs.length !== 1 ? 's' : ''}
-                </span>
-              </h1>
+            </div>
+
+            {/* Right side: Religion filter + Download All */}
+            <div className="flex items-center gap-3">
+              {/* Religion Filter */}
+              <div className="w-44">
+                <select
+                  value={religionFilter}
+                  onChange={e => setReligionFilter(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
+                >
+                  <option value="">All Religions</option>
+                  <option value="muslim">Muslim</option>
+                  <option value="non-muslim">Non-Muslim</option>
+                </select>
+              </div>
+
+              {/* Download All */}
+              <div className="relative">
+                <button
+                  onClick={() => setDownloadAllOpen(p => !p)}
+                  disabled={activeCVs.length === 0 || isDownloadingAll}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
+                    activeCVs.length > 0
+                      ? 'bg-primary text-white border-primary hover:bg-primary/90 shadow-md shadow-primary/20'
+                      : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  )}
+                >
+                  {isDownloadingAll ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <PackageOpen size={16} />
+                  )}
+                  {isDownloadingAll ? 'Creating ZIP...' : `Download All (${activeCVs.length})`}
+                  <ChevronDown size={14} className={cn('transition-transform', downloadAllOpen && 'rotate-180')} />
+                </button>
+                {downloadAllOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-border rounded-xl shadow-2xl overflow-hidden z-50">
+                    <button
+                      onClick={() => handleDownloadAll('pdf')}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors whitespace-nowrap"
+                    >
+                      <FileDown size={14} className="text-red-500 shrink-0" /> All as PDF
+                    </button>
+                    <button
+                      onClick={() => handleDownloadAll('jpg')}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
+                    >
+                      <ImageIcon size={14} className="text-emerald-500 shrink-0" /> All as JPG
+                    </button>
+                    <button
+                      onClick={() => handleDownloadAll('doc')}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
+                    >
+                      <FileText size={14} className="text-blue-500 shrink-0" /> All as DOCX
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Right side: Religion filter + Download All */}
-          <div className="flex items-center gap-3">
-            {/* Religion Filter */}
-            <div className="w-44">
-              <select
-                value={religionFilter}
-                onChange={e => setReligionFilter(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
-              >
-                <option value="">All Religions</option>
-                <option value="muslim">Muslim</option>
-                <option value="non-muslim">Non-Muslim</option>
-              </select>
-            </div>
-
-            {/* Download All */}
-            <div className="relative">
-              <button
-                onClick={() => setDownloadAllOpen(p => !p)}
-                disabled={activeCVs.length === 0 || isDownloadingAll}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
-                  activeCVs.length > 0
-                    ? 'bg-primary text-white border-primary hover:bg-primary/90 shadow-md shadow-primary/20'
-                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                )}
-              >
-                {isDownloadingAll ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <PackageOpen size={16} />
-                )}
-                {isDownloadingAll ? 'Creating ZIP...' : `Download All (${activeCVs.length})`}
-                <ChevronDown size={14} className={cn('transition-transform', downloadAllOpen && 'rotate-180')} />
-              </button>
-              {downloadAllOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-border rounded-xl shadow-2xl overflow-hidden z-50">
-                  <button
-                    onClick={() => handleDownloadAll('pdf')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors whitespace-nowrap"
-                  >
-                    <FileDown size={14} className="text-red-500 shrink-0" /> All as PDF
-                  </button>
-                  <button
-                    onClick={() => handleDownloadAll('jpg')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
-                  >
-                    <ImageIcon size={14} className="text-emerald-500 shrink-0" /> All as JPG
-                  </button>
-                  <button
-                    onClick={() => handleDownloadAll('doc')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
-                  >
-                    <FileText size={14} className="text-blue-500 shrink-0" /> All as DOCX
-                  </button>
-                </div>
+          {/* Search & Status Filter Bar (inside folder detail) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+              <input
+                type="text"
+                placeholder="Search by name or passport number…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary transition-colors">
+                  <X size={14} />
+                </button>
               )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Filter size={14} className="text-text-tertiary hidden sm:block" />
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value as 'all' | 'locked' | 'visa-selected')}
+                className="px-3 py-2.5 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer min-w-[160px]"
+              >
+                <option value="all">All Statuses</option>
+                <option value="locked">🔒 Locked</option>
+                <option value="visa-selected">✅ Visa Selected</option>
+              </select>
             </div>
           </div>
         </div>
@@ -740,6 +834,8 @@ export default function BackupPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {activeCVs.map(cv => {
               const isLocked = cv.candidate?.broker?.isLocked === true;
+              const isVisaSelected = cv.candidate.isRequested || cv.candidate.visaSelected;
+              const isUnfit = cv.candidate.medicalStatus === 'Unfit';
               return (
               <div key={cv.id} className={cn(
                 "bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col",
@@ -779,7 +875,24 @@ export default function BackupPage() {
                         <p className="text-sm font-semibold text-text-primary truncate">
                           {cv.candidate.passportData?.givenNames || cv.candidate.givenNames} {cv.candidate.passportData?.surname || cv.candidate.surname}
                         </p>
-                        <p className="text-xs text-text-tertiary">{cv.candidate.passportData?.passportNumber || cv.candidate.passportNumber}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs text-text-tertiary">{cv.candidate.passportData?.passportNumber || cv.candidate.passportNumber}</p>
+                          {isLocked && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">
+                              <Lock size={8} /> Locked
+                            </span>
+                          )}
+                          {isVisaSelected && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                              <Check size={8} /> Visa Selected
+                            </span>
+                          )}
+                          {isUnfit && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                              <AlertTriangle size={8} /> Unfit
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 

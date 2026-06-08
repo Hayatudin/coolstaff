@@ -79,16 +79,18 @@ router.get('/', async (req: Request, res: Response) => {
       }
     }
 
-    // Read Youtube_URL and deployedDate via raw SQL (before synchronous map)
+    // Read Youtube_URL, deployedDate and isLocked via raw SQL (before synchronous map)
     let youtubeUrlMap: Record<string, string | null> = {};
     let deployedDateMap: Record<string, string | null> = {};
+    let candidateLockMap: Record<string, boolean> = {};
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, Youtube_URL, deployedDate FROM \`Candidate\``
+        `SELECT id, Youtube_URL, deployedDate, isLocked FROM \`Candidate\``
       );
       for (const row of rawRows) {
         youtubeUrlMap[row.id] = row.Youtube_URL || null;
         deployedDateMap[row.id] = row.deployedDate ? new Date(row.deployedDate).toISOString() : null;
+        candidateLockMap[row.id] = row.isLocked === 1 || row.isLocked === true;
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -161,6 +163,7 @@ router.get('/', async (req: Request, res: Response) => {
         isRequested: c.isRequested || false,
         visaOrContractNumber: c.visaOrContractNumber || null,
         isFlagged: c.isFlagged || false,
+        isLocked: candidateLockMap[c.id] ?? false,
         videoUrl: youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null,
         Youtube_URL: youtubeUrlMap[c.id] ?? null,
         deployedDate: deployedDateMap[c.id] ?? null,
@@ -594,16 +597,18 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     if (!c) return res.status(404).json({ error: 'Not found' });
 
-    // Read Youtube_URL and deployedDate via raw SQL
+    // Read Youtube_URL, deployedDate and isLocked via raw SQL
     let youtubeUrl: string | null = null;
     let candidateDeployedDate: string | null = null;
+    let candidateIsLocked = false;
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT Youtube_URL, deployedDate FROM \`Candidate\` WHERE id = ?`, id
+        `SELECT Youtube_URL, deployedDate, isLocked FROM \`Candidate\` WHERE id = ?`, id
       );
       if (rawRows.length > 0) {
         youtubeUrl = rawRows[0].Youtube_URL || null;
         candidateDeployedDate = rawRows[0].deployedDate ? new Date(rawRows[0].deployedDate).toISOString() : null;
+        candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -680,6 +685,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       visaSelected: c.visaSelected,
       visaDate: c.visaDate ? c.visaDate.toISOString() : null,
       salary: c.salary || '1000SR',
+      isLocked: candidateIsLocked,
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
       registeredBy: (c as any).registeredBy?.name || 'Admin',
     };
@@ -880,6 +886,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
       body.isFlagged = Boolean(body.isFlagged);
     }
 
+    // Handle isLocked via raw SQL to bypass stale Prisma Client
+    const isLockedVal = body.isLocked;
+    delete body.isLocked;
+
     let visaDateVal: any = undefined;
     if (body.visaSelected) {
       const existing = await prisma.candidate.findUnique({ where: { id } });
@@ -948,6 +958,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
         (updated as any).deployedDate = depDateParsed;
       } catch (e) {
         console.error('Failed to save deployedDate via raw SQL:', e);
+      }
+    }
+
+    // Save isLocked if passed
+    if (isLockedVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`isLocked\` = ? WHERE \`id\` = ?`,
+          isLockedVal ? 1 : 0,
+          id
+        );
+        (updated as any).isLocked = Boolean(isLockedVal);
+      } catch (e) {
+        console.error('Failed to save isLocked via raw SQL:', e);
       }
     }
 

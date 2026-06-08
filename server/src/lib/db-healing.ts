@@ -386,7 +386,6 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ TemplatePrice table check warning:', e.message || e);
   }
 
-  // 10. Run incremental column additions to support table upgrades seamlessly
   const candidateColumns = [
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
     { name: 'visaDate', type: 'DATETIME(3) NULL' },
@@ -396,7 +395,8 @@ export async function ensureDatabaseSchema() {
     { name: 'labourIdUrl', type: 'LONGTEXT NULL' },
     { name: 'candidateIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
-    { name: 'deployedDate', type: 'DATETIME(3) NULL' }
+    { name: 'deployedDate', type: 'DATETIME(3) NULL' },
+    { name: 'isLocked', type: 'TINYINT(1) NOT NULL DEFAULT 0' }
   ];
 
   for (const col of candidateColumns) {
@@ -426,7 +426,8 @@ export async function ensureDatabaseSchema() {
     { name: 'candidateIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'videoUrl', type: 'VARCHAR(500) NULL' },
-    { name: 'registeredById', type: 'VARCHAR(191) NULL' }
+    { name: 'registeredById', type: 'VARCHAR(191) NULL' },
+    { name: 'languages', type: 'JSON NULL' }
   ];
 
   for (const col of quickRegColumns) {
