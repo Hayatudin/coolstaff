@@ -58,7 +58,7 @@ export default function FitCandidatesPage() {
   const [agencyFilter, setAgencyFilter] = useState('all');
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  
+
   // Selection & Modal states
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
@@ -152,8 +152,8 @@ export default function FitCandidatesPage() {
       mutate(prev => prev.filter(c => c.id !== id));
       setSelectedIds(prev => prev.filter(v => v !== id));
       showToast('Candidate deleted successfully');
-    } catch { 
-      showToast('Failed to delete candidate', 'error'); 
+    } catch {
+      showToast('Failed to delete candidate', 'error');
     }
   };
 
@@ -192,13 +192,13 @@ export default function FitCandidatesPage() {
   const handleOpenCV = async (candidate: Candidate) => {
     setOpenMenuId(null);
     const templateId = getNormalizedTemplateId(candidate) || 'alm';
-    
+
     try {
       setIsPreviewLoading(true);
       const res = await api(`/api/candidates/${candidate.id}`);
       if (!res.ok) throw new Error('Failed to fetch details');
       const fullCandidate = await res.json();
-      
+
       setPreviewCv({
         id: candidate.id,
         templateId,
@@ -232,7 +232,7 @@ export default function FitCandidatesPage() {
           if (!cand) continue;
           const cv = cand.generatedCVs?.[0];
           const cvId = typeof cv === 'object' ? cv?.id : null;
-          
+
           try {
             if (cvId) {
               await api(`/api/generated-cvs/${cvId}`, {
@@ -265,7 +265,7 @@ export default function FitCandidatesPage() {
       } else {
         const cv = changeTarget.generatedCVs?.[0];
         const cvId = typeof cv === 'object' ? cv?.id : null;
-        
+
         if (cvId) {
           const res = await api(`/api/generated-cvs/${cvId}`, {
             method: 'PATCH',
@@ -314,9 +314,9 @@ export default function FitCandidatesPage() {
 
         const origH = el.style.height; const origO = el.style.overflow;
         el.style.height = 'auto'; el.style.overflow = 'visible';
-        const dataUrl = await htmlToImage.toJpeg(el, { 
-          quality: 0.95, 
-          backgroundColor: '#ffffff', 
+        const dataUrl = await htmlToImage.toJpeg(el, {
+          quality: 0.95,
+          backgroundColor: '#ffffff',
           pixelRatio: 2,
           imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
         });
@@ -385,7 +385,7 @@ export default function FitCandidatesPage() {
     if (selectedIds.length === 0) return;
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
-    
+
     try {
       const JSZip = (await import('jszip')).default;
       const htmlToImage = await import('html-to-image');
@@ -402,7 +402,7 @@ export default function FitCandidatesPage() {
         const candidateId = selectedIds[i];
         const candidateSummary = allCandidates.find(c => c.id === candidateId);
         if (!candidateSummary) continue;
-        
+
         const safeName = `${candidateSummary.passportData.givenNames || ''}_${candidateSummary.passportData.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
         showToast(`Processing ${i + 1}/${selectedIds.length}: ${candidateSummary.passportData.givenNames}...`);
 
@@ -411,7 +411,7 @@ export default function FitCandidatesPage() {
           const detailRes = await api(`/api/candidates/${candidateId}`);
           if (!detailRes.ok) throw new Error('Failed to fetch details');
           const fullCandidate = await detailRes.json();
-          
+
           const templateId = getNormalizedTemplateId(fullCandidate) || 'alm';
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
 
@@ -455,14 +455,14 @@ export default function FitCandidatesPage() {
             const origO = wrapper.style.overflow;
             wrapper.style.height = 'auto';
             wrapper.style.overflow = 'visible';
-            
-            const dataUrl = await htmlToImage.toJpeg(wrapper, { 
-              quality: 0.92, 
-              backgroundColor: '#ffffff', 
+
+            const dataUrl = await htmlToImage.toJpeg(wrapper, {
+              quality: 0.92,
+              backgroundColor: '#ffffff',
               pixelRatio: 2,
               imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
             });
-            
+
             wrapper.style.height = origH;
             wrapper.style.overflow = origO;
 
@@ -557,11 +557,11 @@ export default function FitCandidatesPage() {
           <div className="flex w-full md:w-auto items-center gap-3">
             <div className="w-full md:w-44">
               <Select
-                placeholder="All Languages"
+                placeholder="All Religion"
                 value={languageFilter}
                 onChange={setLanguageFilter}
                 options={[
-                  { value: '', label: 'All Languages' },
+                  { value: '', label: 'All Religions' },
                   { value: 'muslim', label: 'Muslim' },
                   { value: 'non-muslim', label: 'Non-Muslim' }
                 ]}
@@ -722,7 +722,7 @@ export default function FitCandidatesPage() {
                                 <LayoutTemplate size={16} className="text-text-secondary" />
                                 <span>Change Template</span>
                               </button>
-                              
+
                               <button
                                 onClick={() => toggleFlag(c.id, c.isFlagged || false)}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
@@ -732,7 +732,7 @@ export default function FitCandidatesPage() {
                               </button>
 
                               <div className="border-t border-border/60 my-1" />
-                              
+
                               <button
                                 onClick={() => deleteCandidate(c.id)}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold"
@@ -776,11 +776,10 @@ export default function FitCandidatesPage() {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${
-                    page === currentPage
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${page === currentPage
                       ? 'bg-primary text-white border-primary shadow-md'
                       : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   {page}
                 </button>
@@ -818,7 +817,7 @@ export default function FitCandidatesPage() {
             <LayoutTemplate size={14} className="text-primary" />
             Change Template
           </button>
-          
+
           <div className="relative">
             <button
               onClick={() => setDownloadAllOpen(prev => !prev)}
@@ -833,7 +832,7 @@ export default function FitCandidatesPage() {
               Download CVs
               <ChevronDown size={12} className={`transition-transform duration-200 ${downloadAllOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {downloadAllOpen && (
               <div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-border rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
                 <button
@@ -857,7 +856,7 @@ export default function FitCandidatesPage() {
               </div>
             )}
           </div>
-          
+
           <button
             onClick={() => setSelectedIds([])}
             className="px-4 py-2.5 bg-gray-100 text-text-secondary text-xs font-bold rounded-xl hover:bg-gray-200 transition-all cursor-pointer"
@@ -920,7 +919,7 @@ export default function FitCandidatesPage() {
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="w-[800px] max-w-full shrink-0 bg-white shadow-xl relative mt-16 rounded-b-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <PrevTemplate
                   candidate={previewCv.candidate}
@@ -937,7 +936,7 @@ export default function FitCandidatesPage() {
       {changeTarget && (() => {
         const isBulk = changeTarget === 'bulk';
         const currentTmpl = isBulk ? 'alm' : (getNormalizedTemplateId(changeTarget) || 'alm');
-        
+
         return (
           <ChangeTemplateModal
             candidate={isBulk ? { passportData: { givenNames: 'Selected', surname: 'Candidates' } } : changeTarget}
@@ -1018,7 +1017,7 @@ function ChangeTemplateModal({
               const TC = template.component;
               const isSelected = selected === template.id;
               const isCurrent = template.id === currentTemplateId;
-              
+
               return (
                 <button
                   key={template.id}

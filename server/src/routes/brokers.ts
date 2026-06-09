@@ -223,6 +223,7 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
             religion: true,
             isFlagged: true,
             medicalStatus: true,
+            visaOrContractNumber: true,
             generatedCVs: {
               select: {
                 id: true,

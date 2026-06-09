@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-  Users, Loader2, Search, ArrowLeft, FileText, 
-  ChevronRight, Filter, Download, Trash2, Briefcase, 
+import {
+  Users, Loader2, Search, ArrowLeft, FileText,
+  ChevronRight, Filter, Download, Trash2, Briefcase,
   Lock, FileDown, ImageIcon, LayoutTemplate, Check, X, AlertCircle,
   MoreVertical, CheckCircle, Eye, ChevronDown, ArrowRightLeft, Flag
 } from 'lucide-react';
@@ -94,11 +94,11 @@ export default function BrokerCandidatesPage() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  
+
   // Custom states
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  
+
   // Template Changer states
   const [templateChangeTarget, setTemplateChangeTarget] = useState<BrokerCandidate | 'bulk' | null>(null);
   const [isChangingTemplate, setIsChangingTemplate] = useState(false);
@@ -162,13 +162,13 @@ export default function BrokerCandidatesPage() {
   // Open single CV preview modal (fetching details dynamically)
   const handleOpenCV = async (candidate: any) => {
     const activeTemplate = getNormalizedTemplateId(candidate) || 'alm';
-    
+
     try {
       setIsPreviewLoading(true);
       const res = await api(`/api/candidates/${candidate.id}`);
       if (!res.ok) throw new Error('Failed to fetch details');
       const fullCandidate = await res.json();
-      
+
       setPreviewCv({
         id: candidate.id,
         templateId: activeTemplate,
@@ -188,7 +188,7 @@ export default function BrokerCandidatesPage() {
   const handleConfirmChangeTemplate = async (newTemplateId: string) => {
     if (!templateChangeTarget) return;
     setIsChangingTemplate(true);
-    
+
     try {
       const isBulk = templateChangeTarget === 'bulk';
       if (isBulk) {
@@ -207,8 +207,8 @@ export default function BrokerCandidatesPage() {
             await api('/api/generated-cvs', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                candidateId, 
+              body: JSON.stringify({
+                candidateId,
                 templateId: newTemplateId,
                 facePhotoUrl: candidate.facePhotoUrl,
                 fullBodyPhotoUrl: candidate.fullBodyPhotoUrl
@@ -232,8 +232,8 @@ export default function BrokerCandidatesPage() {
           await api('/api/generated-cvs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              candidateId: candidate.id, 
+            body: JSON.stringify({
+              candidateId: candidate.id,
               templateId: newTemplateId,
               facePhotoUrl: candidate.facePhotoUrl,
               fullBodyPhotoUrl: candidate.fullBodyPhotoUrl
@@ -264,7 +264,7 @@ export default function BrokerCandidatesPage() {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to update medical status');
       }
-      setCandidates(prev => prev.map(c => 
+      setCandidates(prev => prev.map(c =>
         c.id === candidateId ? { ...c, medicalStatus: newStatus } : c
       ));
       showToast(`Medical status updated to ${newStatus}`);
@@ -287,7 +287,7 @@ export default function BrokerCandidatesPage() {
         body: JSON.stringify({ isFlagged: !currentFlagged }),
       });
       if (!res.ok) throw new Error();
-      setCandidates(prev => prev.map(c => 
+      setCandidates(prev => prev.map(c =>
         c.id === candidateId ? { ...c, isFlagged: !currentFlagged } : c
       ));
       showToast(!currentFlagged ? 'Candidate Flagged' : 'Candidate Unflagged');
@@ -332,9 +332,9 @@ export default function BrokerCandidatesPage() {
 
         const origH = el.style.height; const origO = el.style.overflow;
         el.style.height = 'auto'; el.style.overflow = 'visible';
-        const dataUrl = await htmlToImage.toJpeg(el, { 
-          quality: 0.95, 
-          backgroundColor: '#ffffff', 
+        const dataUrl = await htmlToImage.toJpeg(el, {
+          quality: 0.95,
+          backgroundColor: '#ffffff',
           pixelRatio: 2,
           imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
         });
@@ -412,10 +412,10 @@ export default function BrokerCandidatesPage() {
       showToast('No candidates selected under the current visa filter option', 'error');
       return;
     }
-    
+
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
-    
+
     try {
       const JSZip = (await import('jszip')).default;
       const htmlToImage = await import('html-to-image');
@@ -432,7 +432,7 @@ export default function BrokerCandidatesPage() {
         const candidateId = candidatesToDownload[i];
         const candidateSummary = candidates.find(c => c.id === candidateId);
         if (!candidateSummary) continue;
-        
+
         const safeName = `${candidateSummary.givenNames || ''}_${candidateSummary.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
         showToast(`Processing ${i + 1}/${candidatesToDownload.length}: ${candidateSummary.givenNames}...`);
 
@@ -441,7 +441,7 @@ export default function BrokerCandidatesPage() {
           const detailRes = await api(`/api/candidates/${candidateId}`);
           if (!detailRes.ok) throw new Error('Failed to fetch details');
           const fullCandidate = await detailRes.json();
-          
+
           const templateId = getNormalizedTemplateId(candidateSummary) || 'alm';
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
 
@@ -485,14 +485,14 @@ export default function BrokerCandidatesPage() {
             const origO = wrapper.style.overflow;
             wrapper.style.height = 'auto';
             wrapper.style.overflow = 'visible';
-            
-            const dataUrl = await htmlToImage.toJpeg(wrapper, { 
-              quality: 0.92, 
-              backgroundColor: '#ffffff', 
+
+            const dataUrl = await htmlToImage.toJpeg(wrapper, {
+              quality: 0.92,
+              backgroundColor: '#ffffff',
               pixelRatio: 2,
               imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
             });
-            
+
             wrapper.style.height = origH;
             wrapper.style.overflow = origO;
 
@@ -551,7 +551,7 @@ export default function BrokerCandidatesPage() {
         body: JSON.stringify({ isLocked: !currentlyLocked }),
       });
       if (!res.ok) throw new Error('Failed');
-      setCandidates(prev => prev.map(c => 
+      setCandidates(prev => prev.map(c =>
         c.id === candidateId ? { ...c, isLocked: !currentlyLocked } : c
       ));
       showToast(currentlyLocked ? 'Candidate unlocked' : 'Candidate locked');
@@ -676,7 +676,7 @@ export default function BrokerCandidatesPage() {
       {/* Dynamic Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-6">
-          <button 
+          <button
             onClick={() => router.push('/brokers')}
             className="w-12 h-12 bg-surface border border-border/50 rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 group"
           >
@@ -717,15 +717,15 @@ export default function BrokerCandidatesPage() {
         <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
           <div className="flex-1 relative group w-full">
             <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors" />
-            <input 
+            <input
               type="text"
-              placeholder="Search within this portfolio..." 
+              placeholder="Search within this portfolio..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 h-14 bg-gray-50/50 border border-border/50 rounded-2xl text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-lg font-medium"
             />
           </div>
-          
+
           {/* Visa Status Filter Tabs */}
           <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shrink-0 w-full lg:w-auto shadow-inner">
             <button
@@ -759,11 +759,11 @@ export default function BrokerCandidatesPage() {
             {/* Language dropdown */}
             <div className="w-full sm:w-44">
               <Select
-                placeholder="All Languages"
+                placeholder="All Religions"
                 value={languageFilter}
                 onChange={setLanguageFilter}
                 options={[
-                  { value: '', label: 'All Languages' },
+                  { value: '', label: 'All Religions' },
                   { value: 'muslim', label: 'Muslim' },
                   { value: 'non-muslim', label: 'Non-Muslim' }
                 ]}
@@ -785,7 +785,7 @@ export default function BrokerCandidatesPage() {
           </div>
 
           {(searchQuery || languageFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
-            <button 
+            <button
               onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
               className="px-4 py-2.5 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-2 border border-red-200"
             >
@@ -824,9 +824,9 @@ export default function BrokerCandidatesPage() {
             <span className="text-xs font-bold text-primary px-3 py-1.5 bg-primary/10 rounded-lg">
               {selectedIds.length} Candidate{selectedIds.length > 1 ? 's' : ''} Selected
             </span>
-            
+
             {/* Change Template Button */}
-            <button 
+            <button
               onClick={() => setTemplateChangeTarget('bulk')}
               disabled={isChangingTemplate}
               className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
@@ -840,7 +840,7 @@ export default function BrokerCandidatesPage() {
             </button>
 
             {/* Move Candidates Button */}
-            <button 
+            <button
               onClick={() => {
                 fetchBrokers();
                 setMoveModalOpen(true);
@@ -853,7 +853,7 @@ export default function BrokerCandidatesPage() {
 
             {/* Download Dropdown */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setDownloadAllOpen(prev => !prev)}
                 disabled={isDownloadingAll}
                 className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
@@ -866,22 +866,22 @@ export default function BrokerCandidatesPage() {
                 Download CVs
                 <ChevronDown size={12} className={`transition-transform duration-200 ${downloadAllOpen ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {downloadAllOpen && (
                 <div className="absolute left-0 mt-2 w-48 bg-white border border-border rounded-xl shadow-xl overflow-hidden z-30 animate-in fade-in slide-in-from-top-2">
-                  <button 
+                  <button
                     onClick={() => handleBulkDownload('pdf')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors font-semibold cursor-pointer text-left"
                   >
                     <FileDown size={14} className="text-red-500" /> As PDF
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleBulkDownload('jpg')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors border-t border-border font-semibold cursor-pointer text-left"
                   >
                     <ImageIcon size={14} className="text-emerald-500" /> As JPG
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleBulkDownload('doc')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors border-t border-border font-semibold cursor-pointer text-left"
                   >
@@ -890,9 +890,9 @@ export default function BrokerCandidatesPage() {
                 </div>
               )}
             </div>
-            
+
             {/* Cancel Selection button */}
-            <button 
+            <button
               onClick={() => setSelectedIds([])}
               className="px-4 py-2 bg-gray-100 text-text-secondary text-xs font-bold rounded-xl hover:bg-gray-200 transition-all cursor-pointer"
             >
@@ -940,8 +940,8 @@ export default function BrokerCandidatesPage() {
                 paginatedCandidates.map((candidate) => {
                   const activeTmplId = getNormalizedTemplateId(candidate);
                   return (
-                    <tr 
-                      key={candidate.id} 
+                    <tr
+                      key={candidate.id}
                       className="hover:bg-gray-50/30 transition-colors cursor-pointer group relative"
                       onClick={(e) => {
                         if (!(e.target as HTMLElement).closest('button') && !(e.target as HTMLElement).closest('select') && !(e.target as HTMLElement).closest('input')) {
@@ -1041,7 +1041,7 @@ export default function BrokerCandidatesPage() {
                         {activeTmplId ? (() => {
                           const tmpl = TEMPLATES.find(t => t.id === activeTmplId);
                           return (
-                            <span 
+                            <span
                               className={`rounded-lg px-2.5 py-1 text-[8px] xl:text-[9px] font-bold uppercase tracking-widest shadow-sm border ${tmpl?.textColor || 'text-text-secondary'} ${tmpl?.bgLight || 'bg-gray-50'} ${tmpl?.textColor ? 'border-' + tmpl.textColor.split('-')[1] + '-100' : 'border-gray-200'}`}
                             >
                               {tmpl?.name || activeTmplId.toUpperCase()}
@@ -1053,16 +1053,16 @@ export default function BrokerCandidatesPage() {
                       </td>
                       <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
                         <span className="text-xs xl:text-sm font-bold text-text-secondary">
-                          {new Date(candidate.registeredAt).toLocaleDateString(undefined, { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
+                          {new Date(candidate.registeredAt).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
                           })}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right pr-12 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="relative inline-block" data-action-menu>
-                          <button 
+                          <button
                             onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)}
                             className="p-1.5 rounded-xl hover:bg-gray-100 text-text-tertiary hover:text-primary transition-colors cursor-pointer"
                             title="Actions"
@@ -1078,7 +1078,7 @@ export default function BrokerCandidatesPage() {
                                 <ChevronRight size={16} className="text-text-secondary" />
                                 <span>View Details</span>
                               </button>
-                              
+
                               <button
                                 onClick={() => { setOpenMenuId(null); setTemplateChangeTarget(candidate); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
@@ -1109,7 +1109,7 @@ export default function BrokerCandidatesPage() {
                               </button>
 
                               <div className="border-t border-border/60 my-1" />
-                              
+
                               <button
                                 onClick={() => handleDeleteCandidate(candidate.id)}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-red-600 font-semibold cursor-pointer"
@@ -1162,11 +1162,10 @@ export default function BrokerCandidatesPage() {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${
-                    page === currentPage
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${page === currentPage
                       ? 'bg-primary text-white border-primary shadow-md'
                       : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   {page}
                 </button>
@@ -1189,12 +1188,12 @@ export default function BrokerCandidatesPage() {
       )}
 
       {/* Modals & Overlays */}
-      
+
       {/* Change Template Modal */}
       {templateChangeTarget && (() => {
         const isBulk = templateChangeTarget === 'bulk';
         const currentTmpl = isBulk ? 'alm' : (getNormalizedTemplateId(templateChangeTarget) || 'alm');
-        
+
         return (
           <ChangeTemplateModal
             candidate={isBulk ? { givenNames: 'Selected', surname: 'Candidates' } : templateChangeTarget}
@@ -1244,7 +1243,7 @@ export default function BrokerCandidatesPage() {
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="w-[800px] max-w-full shrink-0 bg-white shadow-xl relative mt-16 rounded-b-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <PrevTemplate
                   candidate={previewCv.candidate}
@@ -1436,7 +1435,7 @@ function ChangeTemplateModal({
               const TC = template.component;
               const isSelected = selected === template.id;
               const isCurrent = template.id === currentTemplateId;
-              
+
               return (
                 <button
                   key={template.id}
