@@ -211,28 +211,31 @@ export default function UploadedVideosPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-[11px] uppercase tracking-widest font-bold text-gray-400">
-                <th className="px-4 xl:px-6 py-3.5">Candidate</th>
-                <th className="px-4 xl:px-6 py-3.5 hidden sm:table-cell">Passport</th>
-                <th className="px-4 xl:px-6 py-3.5 hidden md:table-cell">Source</th>
-                <th className="px-4 xl:px-6 py-3.5 hidden lg:table-cell">Date</th>
-                <th className="px-4 xl:px-6 py-3.5 text-right">Action</th>
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold">Candidate</th>
+                <th className="px-6 py-4 font-semibold hidden sm:table-cell">Passport</th>
+                <th className="px-6 py-4 font-semibold hidden md:table-cell">Source</th>
+                <th className="px-6 py-4 font-semibold hidden lg:table-cell">Date</th>
+                <th className="px-6 py-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center">
-                    <Loader2 size={28} className="mx-auto text-rose-500 animate-spin" />
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 size={32} className="text-primary animate-spin" />
+                      <p className="text-sm font-medium text-text-tertiary">Loading videos...</p>
+                    </div>
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center">
+                  <td colSpan={5} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
                         <Video size={24} className="text-gray-300" />
@@ -247,17 +250,17 @@ export default function UploadedVideosPage() {
               ) : filtered.map(v => {
                 const badge = SOURCE_BADGE[v.source] || SOURCE_BADGE.candidate;
                 return (
-                  <tr key={`${v.source}-${v.id}`} className="hover:bg-gray-50/60 transition-colors group">
+                  <tr key={`${v.source}-${v.id}`} className="hover:bg-gray-50/30 transition-colors group">
                     {/* Name */}
-                    <td className="px-4 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2 xl:gap-3">
-                        <div className="w-9 h-9 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
                           <User size={16} className="text-rose-600" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate max-w-[200px]">{v.fullName || '—'}</p>
+                          <p className="font-semibold text-text-primary text-sm truncate max-w-[200px]">{v.fullName || '—'}</p>
                           {v.nationality && (
-                            <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                            <p className="text-[10px] text-text-tertiary flex items-center gap-1 mt-0.5">
                               <Globe size={10} /> {v.nationality}
                             </p>
                           )}
@@ -266,18 +269,18 @@ export default function UploadedVideosPage() {
                     </td>
 
                     {/* Passport */}
-                    <td className="px-4 xl:px-6 py-3.5 whitespace-nowrap hidden sm:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                       {v.passportNumber ? (
-                        <span className="text-xs font-mono font-bold text-gray-600 px-2 py-1 bg-gray-50 rounded-md border border-gray-100">
+                        <span className="text-xs font-mono font-bold text-text-secondary px-2.5 py-1 bg-gray-50 rounded-lg border border-border/40">
                           {v.passportNumber}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-300">—</span>
+                        <span className="text-xs text-text-tertiary">—</span>
                       )}
                     </td>
 
                     {/* Source */}
-                    <td className="px-4 xl:px-6 py-3.5 whitespace-nowrap hidden md:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
                       <span className={cn(
                         'inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border',
                         badge.bg, badge.text, badge.border
@@ -287,15 +290,15 @@ export default function UploadedVideosPage() {
                     </td>
 
                     {/* Date */}
-                    <td className="px-4 xl:px-6 py-3.5 whitespace-nowrap hidden lg:table-cell">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <Calendar size={12} className="text-gray-400" />
+                    <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
+                      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+                        <Calendar size={12} className="text-text-tertiary" />
                         {formatDate(v.date)}
                       </div>
                     </td>
 
                     {/* Watch/Edit/Delete Actions */}
-                    <td className="px-4 xl:px-6 py-3.5 whitespace-nowrap text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
                         <a
                           href={getYouTubeUrl(v.videoUrl)}
@@ -310,14 +313,14 @@ export default function UploadedVideosPage() {
                         </a>
                         <button
                           onClick={() => handleStartEdit(v)}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
+                          className="p-1.5 text-text-tertiary hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
                           title="Edit URL"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => handleStartDelete(v)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                          className="p-1.5 text-text-tertiary hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
                           title="Delete Video Link"
                         >
                           <Trash2 size={14} />
@@ -333,7 +336,7 @@ export default function UploadedVideosPage() {
 
         {/* Footer count */}
         {!isLoading && (
-          <div className="px-6 py-3 border-t border-gray-50 text-xs text-gray-400 flex items-center justify-between">
+          <div className="px-6 py-3 border-t border-border/20 text-xs text-text-tertiary flex items-center justify-between">
             <span>{filtered.length} video{filtered.length !== 1 ? 's' : ''} shown</span>
             {filterSource !== 'all' && (
               <button onClick={() => setFilterSource('all')} className="text-rose-500 hover:text-rose-700 font-semibold">

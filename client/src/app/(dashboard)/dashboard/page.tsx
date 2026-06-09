@@ -146,21 +146,21 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {userRole === 'registrar' && (
           <>
-            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+            <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all p-6 flex items-center gap-5">
               <div className="p-4 rounded-2xl bg-amber-500/10 text-amber-500"><ClipboardList size={24} /></div>
               <div>
                 <p className="text-2xl font-bold text-text-primary">{quickRegistrations.length}</p>
                 <p className="text-sm text-text-tertiary">Quick Registered Candidates</p>
               </div>
             </div>
-            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+            <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all p-6 flex items-center gap-5">
               <div className="p-4 rounded-2xl bg-green-500/10 text-green-500"><CheckCircle size={24} /></div>
               <div>
                 <p className="text-2xl font-bold text-text-primary">{quickRegistrations.filter(r => r.verificationStatus === 'promoted').length}</p>
                 <p className="text-sm text-text-tertiary">Promoted to Musaned</p>
               </div>
             </div>
-            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+            <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all p-6 flex items-center gap-5">
               <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-500"><Users size={24} /></div>
               <div>
                 <p className="text-2xl font-bold text-text-primary">{quickRegistrations.filter(r => r.verificationStatus !== 'promoted').length}</p>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
           </>
         )}
         {canSee('/candidates') && (
-          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+          <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all p-6 flex items-center gap-5">
             <div className="p-4 rounded-2xl bg-primary-50"><Users size={24} className="text-primary" /></div>
             <div>
               <p className="text-2xl font-bold text-text-primary">{allCandidates.length}</p>
@@ -179,7 +179,7 @@ export default function DashboardPage() {
           </div>
         )}
         {canSee('/requested') && (
-          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+          <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all p-6 flex items-center gap-5">
             <div className="p-4 rounded-2xl bg-success/10"><ClipboardList size={24} className="text-success" /></div>
             <div>
               <p className="text-2xl font-bold text-text-primary">{requestedCount}</p>
@@ -188,7 +188,7 @@ export default function DashboardPage() {
           </div>
         )}
         {canSee('/candidates') && (
-          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all p-6 flex items-center gap-5">
+          <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all p-6 flex items-center gap-5">
             <div className="p-4 rounded-2xl bg-warning/10 text-warning"><ClipboardList size={24} /></div>
             <div>
               <p className="text-2xl font-bold text-text-primary">{quickRegistrations.length}</p>
@@ -206,11 +206,11 @@ export default function DashboardPage() {
           <Link href="/candidates" className="text-sm text-primary hover:underline font-medium">View All →</Link>
         </div>
 
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
-          <div className="overflow-visible">
+        <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
+                <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
                   <th className="px-6 py-4 font-semibold">Shelf ID</th>
                   <th className="px-6 py-4 font-semibold">Candidate</th>
                   <th className="px-6 py-4 font-semibold">Passport No.</th>
@@ -220,22 +220,22 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/20">
                 {isLoading ? (
                   <tr><td colSpan={7} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading candidates...</p></div></td></tr>
                 ) : recentCandidates.length > 0 ? (
                   recentCandidates.map((candidate) => (
-                    <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
+                    <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{candidate.shelfId || 'UNASSIGNED'}</div>
+                        <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{candidate.shelfId || 'UNASSIGNED'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0 border border-primary-100">
                             <span className="text-primary font-bold text-sm">{candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}</span>
                           </div>
                           <div>
-                            <p className="font-semibold text-text-primary flex items-center gap-2">
+                            <p className="font-semibold text-text-primary flex items-center gap-2 text-sm">
                               {candidate.passportData.givenNames} {candidate.passportData.surname}
                               {candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500" />}
                             </p>
@@ -252,7 +252,17 @@ export default function DashboardPage() {
                         <p className="text-xs text-text-tertiary truncate max-w-[200px]">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={candidate.isRequested ? 'success' : 'default'}>{candidate.isRequested ? '✓ Visa Selected' : 'Pending Visa'}</Badge>
+                        {candidate.isRequested ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Visa Selected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Pending Visa
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2 flex-wrap max-w-[200px]">
@@ -273,24 +283,24 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="relative inline-block" data-action-menu>
-                          <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-primary-50">
+                          <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100">
                             <MoreVertical size={18} />
                           </button>
                           {openMenuId === candidate.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
                               {candidate.isRequested ? (
-                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
                                   <CheckCircle size={16} className="text-amber-500" />
                                   <span>Cancel Visa Selected</span>
                                 </button>
                               ) : (
-                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
                                   <CheckCircle size={16} className="text-text-tertiary" />
                                   <span>Visa Selected</span>
                                 </button>
                               )}
-                              <div className="border-t border-border my-1" />
-                              <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
+                              <div className="border-t border-border/60 my-1" />
+                              <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
                                 <Trash2 size={16} /><span>Delete</span>
                               </button>
                             </div>
@@ -317,11 +327,11 @@ export default function DashboardPage() {
           <Link href="/requested" className="text-sm text-primary hover:underline font-medium">View All →</Link>
         </div>
 
-        <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
-          <div className="overflow-visible">
+        <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
+                <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
                   <th className="px-6 py-4 font-semibold">Shelf ID</th>
                   <th className="px-6 py-4 font-semibold">Candidate</th>
                   <th className="px-6 py-4 font-semibold">Passport No.</th>
@@ -331,22 +341,22 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/20">
                 {isLoading ? (
                   <tr><td colSpan={7} className="px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading...</p></div></td></tr>
                 ) : recentRequested.length > 0 ? (
                   recentRequested.map((candidate) => (
-                    <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
+                    <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{candidate.shelfId || 'UNASSIGNED'}</div>
+                        <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{candidate.shelfId || 'UNASSIGNED'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0 border border-green-100">
                             <span className="text-green-600 font-bold text-sm">{candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}</span>
                           </div>
                           <div>
-                            <p className="font-semibold text-text-primary flex items-center gap-2">
+                            <p className="font-semibold text-text-primary flex items-center gap-2 text-sm">
                               {candidate.passportData.givenNames} {candidate.passportData.surname}
                               {candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500" />}
                             </p>
@@ -363,7 +373,10 @@ export default function DashboardPage() {
                         <p className="text-xs text-text-tertiary truncate max-w-[200px]">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant="success">✓ Visa Selected</Badge>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Visa Selected
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2 flex-wrap max-w-[200px]">
@@ -384,17 +397,17 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="relative inline-block" data-action-menu>
-                          <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-primary-50">
+                          <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100">
                             <MoreVertical size={18} />
                           </button>
                           {openMenuId === candidate.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
-                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
                                 <CheckCircle size={16} className="text-amber-500" />
                                 <span>Cancel Visa Selected</span>
                               </button>
-                              <div className="border-t border-border my-1" />
-                              <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
+                              <div className="border-t border-border/60 my-1" />
+                              <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
                                 <Trash2 size={16} /><span>Delete</span>
                               </button>
                             </div>
@@ -424,11 +437,11 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
+                  <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
                     <th className="px-6 py-4 font-semibold">Candidate</th>
                     <th className="px-6 py-4 font-semibold">Passport No.</th>
                     <th className="px-6 py-4 font-semibold">Nationality</th>
@@ -436,7 +449,7 @@ export default function DashboardPage() {
                     <th className="px-6 py-4 font-semibold">Date Registered</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/20">
                   {quickLoading ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-10 text-center">
@@ -450,18 +463,18 @@ export default function DashboardPage() {
                     quickRegistrations.slice(0, 5).map((r) => (
                       <tr 
                         key={r.id} 
-                        className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        className="hover:bg-gray-50/30 transition-colors cursor-pointer"
                         onClick={() => router.push(`/quick-registration/preview/${r.id}`)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
                               <span className="text-amber-600 font-bold text-sm">
                                 {r.givenNames?.charAt(0)}{r.surname?.charAt(0)}
                               </span>
                             </div>
                             <div>
-                              <p className="font-semibold text-text-primary">
+                              <p className="font-semibold text-text-primary text-sm">
                                 {r.givenNames} {r.surname}
                               </p>
                               <p className="text-xs text-text-tertiary">{r.religion || 'Non-Muslim'}</p>
@@ -469,24 +482,30 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-1 rounded">
+                          <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
                             {r.passportNumber}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary capitalize">
                           {r.nationality || '—'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-full border",
-                            r.verificationStatus === 'promoted'
-                              ? "text-green-700 bg-green-50 border-green-100"
-                              : r.verificationStatus === 'verified'
-                              ? "text-blue-700 bg-blue-50 border-blue-100"
-                              : "text-amber-700 bg-amber-50 border-amber-100"
-                          )}>
-                            {r.verificationStatus === 'promoted' ? 'Promoted' : r.verificationStatus === 'verified' ? 'Verified' : 'Pending'}
-                          </span>
+                          {r.verificationStatus === 'promoted' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                              Promoted
+                            </span>
+                          ) : r.verificationStatus === 'verified' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                              Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Pending
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-xs text-text-tertiary">
                           {new Date(r.createdAt).toLocaleDateString()}
@@ -515,7 +534,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
               <ClipboardList className="text-primary" size={20} /> System Notes & Registrar Guides
             </h2>
-            <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 space-y-4">
+            <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] p-6 space-y-4">
               <div className="flex gap-4 items-start p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
                 <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 font-bold shrink-0">1</div>
                 <div>
@@ -544,7 +563,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
               <Flag className="text-warning" size={20} /> Quick Reminders
             </h2>
-            <div className="bg-gradient-to-br from-primary to-accent rounded-[1.5rem] p-6 text-white space-y-4 shadow-xl shadow-primary/20">
+            <div className="bg-gradient-to-br from-primary to-accent rounded-[2rem] p-6 text-white space-y-4 shadow-xl shadow-primary/20">
               <div>
                 <h3 className="font-bold text-lg">Registrar Hub</h3>
                 <p className="text-xs text-white/80 mt-1 leading-relaxed">Welcome back! You are logged in with the Registrar administrative role. Your daily tasks include quick candidate registration, managing broker listings, and candidate previews.</p>

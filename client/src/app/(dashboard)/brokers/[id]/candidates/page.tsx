@@ -722,12 +722,12 @@ export default function BrokerCandidatesPage() {
       </div>
 
       {/* Table Feed */}
-      <div className="bg-surface rounded-[2.5rem] border border-border/50 overflow-hidden">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50/50 border-b border-border/50 text-[10px] uppercase tracking-[0.2em] text-text-tertiary font-black">
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6 w-10 text-center">
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 w-10 text-center">
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
@@ -735,22 +735,22 @@ export default function BrokerCandidatesPage() {
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Candidate Details</th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Passport Number</th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Visa Status</th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6">CV</th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Agency</th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6 hidden lg:table-cell">Registered Date</th>
-                <th className="px-3 xl:px-6 py-3.5 xl:py-6 text-right pr-4 xl:pr-12">Actions</th>
+                <th className="px-6 py-4 font-semibold">Candidate Details</th>
+                <th className="px-6 py-4 font-semibold">Passport Number</th>
+                <th className="px-6 py-4 font-semibold">Visa Status</th>
+                <th className="px-6 py-4 font-semibold">CV</th>
+                <th className="px-6 py-4 font-semibold">Agency</th>
+                <th className="px-6 py-4 hidden lg:table-cell font-semibold">Registered Date</th>
+                <th className="px-6 py-4 text-right pr-12 font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-3 xl:px-8 py-20 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <Loader2 size={40} className="text-primary animate-spin" />
-                      <p className="text-text-tertiary font-bold uppercase tracking-widest text-[10px]">Syncing Portfolio...</p>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 size={32} className="text-primary animate-spin" />
+                      <p className="text-sm font-medium text-text-tertiary">Syncing portfolio...</p>
                     </div>
                   </td>
                 </tr>
@@ -758,14 +758,14 @@ export default function BrokerCandidatesPage() {
                 filteredCandidates.map((candidate: any) => (
                   <tr 
                     key={candidate.id} 
-                    className="hover:bg-primary/[0.02] transition-all cursor-pointer group relative"
+                    className="hover:bg-gray-50/30 transition-colors cursor-pointer group relative"
                     onClick={(e) => {
                       if (!(e.target as HTMLElement).closest('button')) {
                         router.push(`/candidates/${candidate.id}`);
                       }
                     }}
                   >
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-6 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
@@ -773,9 +773,9 @@ export default function BrokerCandidatesPage() {
                         onChange={(e) => handleSelect(candidate.id, e.target.checked)}
                       />
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
-                      <div className="flex items-center gap-2 xl:gap-4">
-                        <div className="w-8 h-8 xl:w-12 xl:h-12 rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center text-primary font-black text-xs xl:text-sm border border-border group-hover:border-primary/30 group-hover:scale-105 transition-all duration-300 overflow-hidden shrink-0">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center text-primary font-bold text-sm border border-primary-100 overflow-hidden shrink-0">
                           {candidate.facePhotoUrl ? (
                             <img src={getFileUrl(candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -783,7 +783,7 @@ export default function BrokerCandidatesPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-text-primary text-xs xl:text-base group-hover:text-primary transition-colors flex items-center gap-1.5">
+                          <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
                             {candidate.givenNames} {candidate.surname}
                             {candidate.isLocked && (
                               <Lock size={12} className="text-red-500 fill-red-100 shrink-0" />
@@ -791,29 +791,35 @@ export default function BrokerCandidatesPage() {
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Briefcase size={10} className="text-primary/60" />
-                            <p className="text-[9px] xl:text-[10px] text-text-tertiary font-black uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
+                            <p className="text-[9px] xl:text-[10px] text-text-tertiary font-bold uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-mono font-black text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
-                        <span className="text-[8px] xl:text-[9px] font-black text-text-tertiary uppercase tracking-widest hidden xl:block">Primary Document</span>
+                        <span className="font-mono font-bold text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
+                        <span className="text-[8px] xl:text-[9px] font-bold text-text-tertiary uppercase tracking-widest hidden xl:block">Primary Document</span>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {candidate.visaSelected ? (
-                        <Badge variant="success" className="text-[10px] xl:text-xs px-2.5 py-1">Visa Selected</Badge>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Visa Selected
+                        </span>
                       ) : (
-                        <Badge variant="warning" className="text-[10px] xl:text-xs px-2.5 py-1">Pending</Badge>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Pending Visa
+                        </span>
                       )}
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {broker?.isLocked ? (
-                        <div className="text-red-600 bg-red-50 border border-red-100 px-2 xl:px-3 py-1.5 rounded-xl flex items-center justify-center gap-1 font-bold inline-flex" title="Broker is locked. CV is in backup.">
+                        <div className="text-red-600 bg-red-50 border border-red-100 px-2.5 py-1.5 rounded-xl flex items-center justify-center gap-1 font-bold inline-flex" title="Broker is locked. CV is in backup.">
                           <Lock size={12} />
-                          <span className="text-[10px] uppercase tracking-wider">Backup</span>
+                          <span className="text-[10px] uppercase tracking-wider font-semibold">Backup</span>
                         </div>
                       ) : candidate.generatedCVs?.[0] ? (
                         <button
@@ -825,24 +831,24 @@ export default function BrokerCandidatesPage() {
                           <span className="text-[10px] uppercase tracking-wider">Open</span>
                         </button>
                       ) : (
-                        <span className="text-[10px] font-black text-text-tertiary uppercase tracking-wider">No CV</span>
+                        <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">No CV</span>
                       )}
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       {candidate.generatedCVs?.[0] ? (() => {
                         const tmpl = TEMPLATES.find(t => t.id === candidate.generatedCVs[0].templateId);
                         return (
-                          <Badge 
-                            className={`rounded-lg px-2 xl:px-3 py-0.5 xl:py-1 text-[8px] xl:text-[9px] font-black uppercase tracking-widest shadow-sm ${tmpl?.textColor || 'text-text-secondary'} ${tmpl?.bgLight || 'bg-gray-50'}`}
+                          <span 
+                            className={`rounded-lg px-2.5 py-1 text-[8px] xl:text-[9px] font-bold uppercase tracking-widest shadow-sm border ${tmpl?.textColor || 'text-text-secondary'} ${tmpl?.bgLight || 'bg-gray-50'} ${tmpl?.textColor ? 'border-' + tmpl.textColor.split('-')[1] + '-100' : 'border-gray-200'}`}
                           >
                             {tmpl?.name || candidate.generatedCVs[0].templateId.toUpperCase()}
-                          </Badge>
+                          </span>
                         );
                       })() : (
-                        <span className="text-[10px] font-black text-text-tertiary uppercase tracking-wider">None</span>
+                        <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">None</span>
                       )}
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5 hidden lg:table-cell">
+                    <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-xs xl:text-sm font-bold text-text-secondary">
                           {new Date(candidate.registeredAt).toLocaleDateString(undefined, { 
@@ -851,16 +857,16 @@ export default function BrokerCandidatesPage() {
                             day: 'numeric' 
                           })}
                         </span>
-                        <span className="text-[9px] font-black text-text-tertiary uppercase tracking-widest">Entry Date</span>
+                        <span className="text-[9px] font-bold text-text-tertiary uppercase tracking-widest">Entry Date</span>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 xl:py-5 text-right pr-4 xl:pr-12">
+                    <td className="px-6 py-4 text-right pr-12 whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 md:translate-x-4 md:group-hover:translate-x-0">
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleToggleCandidateLock(candidate.id, candidate.isLocked ?? false); }}
                           disabled={lockingCandidateId === candidate.id}
                           className={cn(
-                            'p-1.5 xl:p-2.5 rounded-xl transition-all flex items-center gap-1',
+                            'p-1.5 xl:p-2 rounded-xl transition-all flex items-center gap-1',
                             candidate.isLocked 
                               ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
                               : 'bg-gray-50 text-text-tertiary border border-border hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
@@ -870,12 +876,12 @@ export default function BrokerCandidatesPage() {
                           {lockingCandidateId === candidate.id ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
-                            <Lock size={14} />
+                             <Lock size={14} />
                           )}
                         </button>
                         <button 
                           onClick={(e) => { e.stopPropagation(); router.push(`/candidates/${candidate.id}`); }}
-                          className="p-1.5 xl:p-2.5 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all "
+                          className="p-1.5 xl:p-2 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all"
                           title="View Details"
                         >
                           <ChevronRight size={14} />
@@ -886,14 +892,14 @@ export default function BrokerCandidatesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-3 xl:px-8 py-32 text-center">
-                    <div className="max-w-xs mx-auto">
-                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-dashed border-border">
-                        <Search size={32} className="text-text-tertiary opacity-20" />
+                  <td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                    <div className="max-w-xs mx-auto py-8">
+                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-gray-200">
+                        <Search size={24} className="text-text-tertiary opacity-40" />
                       </div>
-                      <h3 className="text-xl font-bold text-text-primary mb-2">No Candidates Found</h3>
-                      <p className="text-text-tertiary text-sm font-medium mb-8">We couldn't find any candidates in this portfolio matching your current search or date filters.</p>
-                      <Button variant="outline" className="rounded-xl h-12 px-8 font-black uppercase tracking-widest text-[10px]" onClick={() => { setSearchQuery(''); setInterval('ALL'); setStartDate(''); setEndDate(''); }}>
+                      <h3 className="text-base font-bold text-text-primary mb-1">No Candidates Found</h3>
+                      <p className="text-text-tertiary text-xs font-semibold mb-6">No candidates in this portfolio match your current search/date filters.</p>
+                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px]" onClick={() => { setSearchQuery(''); setInterval('ALL'); setStartDate(''); setEndDate(''); }}>
                         Reset All Filters
                       </Button>
                     </div>

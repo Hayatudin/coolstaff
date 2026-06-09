@@ -218,98 +218,115 @@ export default function UsersPage() {
 
       {/* Search */}
       <div className="relative w-full max-w-sm">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by name or email…"
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all"
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
         />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-[11px] uppercase tracking-widest font-bold text-gray-400">
-                <th className="px-3 xl:px-6 py-3.5">User</th>
-                <th className="px-3 xl:px-6 py-3.5">Email</th>
-                <th className="px-3 xl:px-6 py-3.5">Role</th>
-                <th className="px-3 xl:px-6 py-3.5 hidden lg:table-cell">Verified</th>
-                <th className="px-3 xl:px-6 py-3.5 hidden xl:table-cell">Joined</th>
-                <th className="px-3 xl:px-6 py-3.5 text-right">Actions</th>
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold">User</th>
+                <th className="px-6 py-4 font-semibold">Email</th>
+                <th className="px-6 py-4 font-semibold">Role</th>
+                <th className="px-6 py-4 font-semibold hidden lg:table-cell">Verified</th>
+                <th className="px-6 py-4 font-semibold hidden xl:table-cell">Joined</th>
+                <th className="px-6 py-4 text-right pr-6 font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <tr><td colSpan={6} className="py-16 text-center">
-                  <Loader2 size={28} className="mx-auto text-indigo-500 animate-spin" />
-                </td></tr>
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 size={32} className="text-primary animate-spin" />
+                      <p className="text-sm font-medium text-text-tertiary">Loading users...</p>
+                    </div>
+                  </td>
+                </tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="py-16 text-center text-gray-400 text-sm">No users found.</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                    No users found.
+                  </td>
+                </tr>
               ) : filtered.map(user => (
-                <tr key={user.id} className="hover:bg-gray-50/60 transition-colors">
+                <tr key={user.id} className="hover:bg-gray-50/30 transition-colors">
                   {/* Avatar + Name */}
-                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                    <div className="flex items-center gap-2 xl:gap-3">
-                      <div className="w-8 h-8 xl:w-9 xl:h-9 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                        <span className="text-indigo-700 font-bold text-xs xl:text-sm">{user.name.charAt(0).toUpperCase()}</span>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                        <span className="text-indigo-600 font-bold text-sm">{user.name.charAt(0).toUpperCase()}</span>
                       </div>
-                      <span className="font-semibold text-gray-900 text-xs xl:text-sm">{user.name}</span>
+                      <span className="font-semibold text-text-primary text-sm">{user.name}</span>
                     </div>
                   </td>
 
-                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-xs xl:text-sm text-gray-500">{user.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">{user.email}</td>
 
                   {/* Role badge */}
-                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                    <span className={cn('inline-flex items-center px-2 py-0.5 xl:px-2.5 rounded-full text-[10px] xl:text-xs font-semibold border', roleBadge(user.role))}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border', roleBadge(user.role))}>
                       {ROLE_OPTIONS.find(r => r.value === user.role)?.label ?? user.role}
                     </span>
                   </td>
 
-                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden lg:table-cell">
-                    {user.emailVerified
-                      ? <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium"><Check size={13} />Verified</span>
-                      : <span className="text-gray-400 text-xs">Unverified</span>}
+                  <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
+                    {user.emailVerified ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        Unverified
+                      </span>
+                    )}
                   </td>
 
-                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-xs xl:text-sm text-gray-400 hidden xl:table-cell">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-semibold hidden xl:table-cell">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
 
                   {/* Actions */}
-                  <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-right">
+                  <td className="px-6 py-4 whitespace-nowrap text-right pr-6">
                     <div className="relative inline-block" data-menu>
                       <button
                         onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                        className="p-1.5 rounded-lg text-text-tertiary hover:text-primary hover:bg-gray-100 transition-colors"
                       >
                         <MoreVertical size={16} />
                       </button>
 
                       {openMenuId === user.id && (
-                        <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
-                          <p className="px-4 py-2 text-[10px] uppercase tracking-widest font-bold text-gray-400">Change Role</p>
+                        <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+                          <p className="px-4 py-2 text-[10px] uppercase tracking-widest font-bold text-text-tertiary">Change Role</p>
                           {ROLE_OPTIONS.map(opt => (
                             <button
                               key={opt.value}
                               onClick={() => updateRole(user.id, opt.value)}
                               className={cn(
-                                'w-full flex items-center justify-between px-4 py-2 text-sm transition-colors text-left',
+                                'w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors text-left font-semibold',
                                 user.role === opt.value
-                                  ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                                  : 'text-gray-700 hover:bg-gray-50'
+                                  ? 'bg-primary-50 text-primary font-bold'
+                                  : 'text-text-secondary hover:bg-gray-50'
                               )}
                             >
                               {opt.label}
                               {user.role === opt.value && <Check size={13} />}
                             </button>
                           ))}
-                          <div className="border-t border-gray-100 my-1" />
+                          <div className="border-t border-border my-1" />
                           <button
                             onClick={() => deleteUser(user.id)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left font-semibold"
                           >
                             <Trash2 size={15} /> Delete User
                           </button>
@@ -324,8 +341,8 @@ export default function UsersPage() {
         </div>
 
         {/* Footer count */}
-        <div className="px-6 py-3 border-t border-gray-50 text-xs text-gray-400">
-          {filtered.length} user{filtered.length !== 1 ? 's' : ''} total
+        <div className="px-6 py-4 border-t border-border/10 bg-gray-50/30 text-xs text-text-tertiary font-bold uppercase tracking-wider">
+          Showing {filtered.length} user{filtered.length !== 1 ? 's' : ''} total
         </div>
       </div>
 

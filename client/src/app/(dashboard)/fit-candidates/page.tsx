@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, UserCheck,
-  Download, ChevronDown, FileText, Image as ImageIcon, FileDown, X, AlertCircle
+  Download, ChevronDown, FileText, Image as ImageIcon, FileDown, X, AlertCircle,
+  Flag, LayoutTemplate, Check, AlertTriangle
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 import { Candidate } from '@/types';
 
-import { useCandidates } from '@/hooks/useCandidates';
+import { useCandidates, clearCandidatesCache } from '@/hooks/useCandidates';
 import { cn, getFileUrl } from '@/lib/utils';
 
 // Import CV templates
@@ -35,14 +37,29 @@ const TEMPLATES = [
   { id: 'vision', name: 'Vision Layout', category: 'Premium', color: 'bg-[#0a5c4e]', textColor: 'text-[#0a5c4e]', bgLight: 'bg-[#e8f5e9]', component: VisionTemplate },
 ];
 
+const AGENCIES = [
+  { id: 'all', name: 'All' },
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ka7', name: 'KHAAFAAT' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
+
 export default function FitCandidatesPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [viewDoc, setViewDoc] = useState<string | null>(null);
+  const [religionFilter, setReligionFilter] = useState('');
+  const [flaggedFilter, setFlaggedFilter] = useState('');
+  const [agencyFilter, setAgencyFilter] = useState('all');
 
-  // Selection & Downloading states
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
+  // Selection & Modal states
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -53,6 +70,14 @@ export default function FitCandidatesPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const cvRenderRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  // Template Change States
+  const [changeTarget, setChangeTarget] = useState<any | null>(null); // Candidate object or 'bulk'
+  const [actionLoading, setActionLoading] = useState(false);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -68,7 +93,53 @@ export default function FitCandidatesPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const candidates = allCandidates.filter(c => c.personalInfo.medicalStatus === 'Fit');
+  // Filter candidates list
+  const fitCandidates = useMemo(() => {
+    return allCandidates.filter(c => c.personalInfo.medicalStatus === 'Fit');
+  }, [allCandidates]);
+
+  // Helper to extract candidate template ID
+  const getNormalizedTemplateId = (c: Candidate) => {
+    const cvs = c.generatedCVs || [];
+    const firstCV = cvs[0];
+    if (!firstCV) return null;
+    const templateId = typeof firstCV === 'string' ? firstCV : firstCV.templateId;
+    return templateId ? templateId.replace('tmpl-', '').toLowerCase() : null;
+  };
+
+  const filtered = useMemo(() => {
+    return fitCandidates.filter(c => {
+      // 1. Search Query
+      const name = `${c.passportData.givenNames} ${c.passportData.surname}`.toLowerCase();
+      const passport = c.passportData.passportNumber.toLowerCase();
+      const shelfId = (c.shelfId || '').toLowerCase();
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = name.includes(query) || passport.includes(query) || shelfId.includes(query);
+
+      // 2. Religion Filter
+      const matchesReligion = religionFilter
+        ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase()
+        : true;
+
+      // 3. Flagged Filter
+      const matchesFlagged = flaggedFilter
+        ? flaggedFilter === 'flagged' ? c.isFlagged === true : c.isFlagged === false
+        : true;
+
+      // 4. Agency (template) Filter
+      const matchesAgency = agencyFilter === 'all'
+        ? true
+        : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
+
+      return matchesSearch && matchesReligion && matchesFlagged && matchesAgency;
+    });
+  }, [fitCandidates, searchQuery, religionFilter, flaggedFilter, agencyFilter]);
+
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+  }, [searchQuery, religionFilter, flaggedFilter, agencyFilter]);
 
   const deleteCandidate = async (id: string) => {
     setOpenMenuId(null);
@@ -80,18 +151,13 @@ export default function FitCandidatesPage() {
       setSelectedIds(prev => prev.filter(v => v !== id));
       showToast('Candidate deleted successfully');
     } catch { 
-      alert('Failed to delete candidate'); 
+      showToast('Failed to delete candidate', 'error'); 
     }
   };
 
-  const filtered = candidates.filter(c => {
-    const name = `${c.passportData.givenNames} ${c.passportData.surname}`.toLowerCase();
-    return name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(filtered.map(c => c.id));
+      setSelectedIds(paginatedCandidates.map(c => c.id));
     } else {
       setSelectedIds([]);
     }
@@ -105,9 +171,25 @@ export default function FitCandidatesPage() {
     }
   };
 
+  const toggleFlag = async (id: string, current: boolean) => {
+    setOpenMenuId(null);
+    try {
+      const res = await api(`/api/candidates/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFlagged: !current }),
+      });
+      if (!res.ok) throw new Error();
+      mutate(prev => prev.map(c => c.id === id ? { ...c, isFlagged: !current } : c));
+      showToast(!current ? 'Candidate Flagged' : 'Candidate Unflagged');
+    } catch {
+      showToast('Failed to update flag status', 'error');
+    }
+  };
+
   const handleOpenCV = async (candidate: Candidate) => {
     setOpenMenuId(null);
-    const templateId = candidate.latestCVTemplate || (candidate.generatedCVs?.[0] ? (typeof candidate.generatedCVs[0] === 'string' ? candidate.generatedCVs[0] : candidate.generatedCVs[0]?.templateId) : null) || 'alm';
+    const templateId = getNormalizedTemplateId(candidate) || 'alm';
     
     try {
       setIsPreviewLoading(true);
@@ -133,6 +215,86 @@ export default function FitCandidatesPage() {
   const startDownload = (cv: any, format: 'pdf' | 'jpg' | 'doc') => {
     setDownloadingCv(cv);
     setDownloadFormat(format);
+  };
+
+  // Single CV template changing
+  const handleConfirmChange = async (newTemplateId: string) => {
+    if (!changeTarget) return;
+    setActionLoading(true);
+    try {
+      const isBulk = changeTarget === 'bulk';
+      if (isBulk) {
+        let successCount = 0;
+        for (const id of selectedIds) {
+          const cand = fitCandidates.find(c => c.id === id);
+          if (!cand) continue;
+          const cv = cand.generatedCVs?.[0];
+          const cvId = typeof cv === 'object' ? cv?.id : null;
+          
+          try {
+            if (cvId) {
+              await api(`/api/generated-cvs/${cvId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ templateId: newTemplateId }),
+              });
+            } else {
+              await api('/api/generated-cvs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  candidateId: cand.id,
+                  templateId: newTemplateId,
+                  facePhotoUrl: cand.facePhotoUrl,
+                  fullBodyPhotoUrl: cand.fullBodyPhotoUrl,
+                }),
+              });
+            }
+            successCount++;
+          } catch (err) {
+            console.error(err);
+          }
+        }
+        clearCandidatesCache();
+        await mutate();
+        showToast(`Successfully updated templates for ${successCount} candidates`);
+        setSelectedIds([]);
+        setChangeTarget(null);
+      } else {
+        const cv = changeTarget.generatedCVs?.[0];
+        const cvId = typeof cv === 'object' ? cv?.id : null;
+        
+        if (cvId) {
+          const res = await api(`/api/generated-cvs/${cvId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ templateId: newTemplateId }),
+          });
+          if (!res.ok) throw new Error();
+        } else {
+          const res = await api('/api/generated-cvs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              candidateId: changeTarget.id,
+              templateId: newTemplateId,
+              facePhotoUrl: changeTarget.facePhotoUrl,
+              fullBodyPhotoUrl: changeTarget.fullBodyPhotoUrl,
+            }),
+          });
+          if (!res.ok) throw new Error();
+        }
+        clearCandidatesCache();
+        await mutate();
+        showToast('Template updated successfully');
+        setChangeTarget(null);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update template', 'error');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // Single CV download capturing handler
@@ -248,7 +410,7 @@ export default function FitCandidatesPage() {
           if (!detailRes.ok) throw new Error('Failed to fetch details');
           const fullCandidate = await detailRes.json();
           
-          const templateId = fullCandidate.latestCVTemplate || (fullCandidate.generatedCVs?.[0] ? (typeof fullCandidate.generatedCVs[0] === 'string' ? fullCandidate.generatedCVs[0] : fullCandidate.generatedCVs[0]?.templateId) : null) || 'alm';
+          const templateId = getNormalizedTemplateId(fullCandidate) || 'alm';
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
 
           const facePhoto = getFileUrl(fullCandidate.facePhotoUrl || fullCandidate.passportImageUrl);
@@ -348,9 +510,16 @@ export default function FitCandidatesPage() {
     }
   };
 
+  // Pagination Slice
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedCandidates = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
+
   return (
     <div className="space-y-6 animate-fade-in pb-20">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
             <div className="p-2 rounded-xl bg-emerald-50"><UserCheck size={22} className="text-emerald-600" /></div>
@@ -358,119 +527,323 @@ export default function FitCandidatesPage() {
           </h1>
           <p className="text-text-secondary mt-1 ml-12">Candidates who are marked as Medically Fit</p>
         </div>
+
+        {/* Counter */}
+        {!isLoading && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 self-start md:self-auto">
+            <span className="text-2xl font-black text-emerald-600 leading-none">{filtered.length}</span>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/70 leading-none mb-0.5">Showing</span>
+              <span className="text-xs font-semibold text-emerald-600 leading-none">Fit Candidates</span>
+            </div>
+            {filtered.length !== fitCandidates.length && (
+              <div className="ml-3 pl-3 border-l border-emerald-200">
+                <span className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-wider">Total Fit</span>
+                <p className="text-sm font-black text-emerald-600/80 leading-none">{fitCandidates.length}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="w-full md:w-96">
-        <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+      {/* Filters Container */}
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] p-5 space-y-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="w-full md:w-96">
+            <Input placeholder="Search by name, passport, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          </div>
+          <div className="flex w-full md:w-auto items-center gap-3">
+            <div className="w-full md:w-44">
+              <Select
+                placeholder="All Religions"
+                value={religionFilter}
+                onChange={setReligionFilter}
+                options={[
+                  { value: '', label: 'All Religions' },
+                  { value: 'muslim', label: 'Muslim' },
+                  { value: 'christian', label: 'Christian' },
+                  { value: 'other', label: 'Other' }
+                ]}
+              />
+            </div>
+            <div className="w-full md:w-44">
+              <Select
+                placeholder="All Candidates"
+                value={flaggedFilter}
+                onChange={setFlaggedFilter}
+                options={[
+                  { value: '', label: 'All Candidates' },
+                  { value: 'flagged', label: 'Flagged Only' },
+                  { value: 'unflagged', label: 'Unflagged Only' }
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Agency Template Filter Tabs Bar */}
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            <span className="text-xs font-bold text-text-tertiary uppercase tracking-wider mr-2 hidden md:inline-block">Agency CV:</span>
+            {AGENCIES.map(agency => {
+              const isActive = agencyFilter === agency.id;
+              return (
+                <button
+                  key={agency.id}
+                  onClick={() => setAgencyFilter(agency.id)}
+                  className={cn(
+                    "px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer border",
+                    isActive
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-surface text-text-secondary border-border hover:bg-gray-50/50 hover:text-text-primary"
+                  )}
+                >
+                  {agency.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
-        <div className="overflow-visible">
+      {/* Main Table Card Container */}
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-3 xl:px-6 py-3.5 w-10 text-center">
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 w-12 text-center">
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
-                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    checked={paginatedCandidates.length > 0 && selectedIds.length === paginatedCandidates.length}
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Shelf ID</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Passport No.</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Medical</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden xl:table-cell">Generated CVs</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold text-right">Actions</th>
+                <th className="px-6 py-4 font-semibold">Shelf ID</th>
+                <th className="px-6 py-4 font-semibold">Candidate</th>
+                <th className="px-6 py-4 font-semibold">Passport No.</th>
+                <th className="px-6 py-4 font-semibold">Religion</th>
+                <th className="px-6 py-4 font-semibold">Medical Status</th>
+                <th className="px-6 py-4 font-semibold hidden xl:table-cell">Active Template</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <tr><td colSpan={7} className="px-3 xl:px-6 py-10 text-center"><div className="flex flex-col items-center gap-3"><Loader2 size={32} className="text-primary animate-spin" /><p className="text-text-tertiary">Loading...</p></div></td></tr>
-              ) : filtered.length > 0 ? (
-                filtered.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-3 xl:px-6 py-3.5 text-center">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
-                        checked={selectedIds.includes(c.id)}
-                        onChange={(e) => handleSelect(c.id, e.target.checked)}
-                      />
-                    </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
-                    </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2 xl:gap-3">
-                        <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                          <span className="text-emerald-600 font-bold text-xs xl:text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-text-primary text-xs xl:text-sm">{c.passportData.givenNames} {c.passportData.surname}</p>
-                          <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">{c.personalInfo.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <p className="text-xs xl:text-sm font-medium text-text-primary">{c.passportData.passportNumber}</p>
-                    </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <Badge variant="success" className="text-[10px] xl:text-xs px-2 py-0.5 xl:py-1">Fit</Badge>
-                    </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden xl:table-cell">
-                      <div className="flex gap-2 flex-wrap max-w-[200px]">
-                        {c.generatedCVs && c.generatedCVs.length > 0 ? (
-                          c.generatedCVs.map((tmpl, idx) => {
-                            const templateId = typeof tmpl === 'string' ? tmpl : tmpl?.templateId;
-                            if (!templateId) return null;
-                            return (
-                              <span key={idx} className="px-2 py-0.5 text-[9px] xl:text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                                {templateId.replace('tmpl-', '').toUpperCase()}
-                              </span>
-                            );
-                          })
-                        ) : (
-                          <span className="text-xs text-text-tertiary">No CVs</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-right text-xs xl:text-sm font-medium">
-                      <div className="relative inline-block" data-action-menu>
-                        <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-primary-50">
-                          <MoreVertical size={16} />
-                        </button>
-                        {openMenuId === c.id && (
-                          <div className="absolute right-0 top-full mt-1 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
-                            <button onClick={() => handleOpenCV(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary font-medium">
-                              <Eye size={16} /><span>Open CV Preview</span>
-                            </button>
-                            <div className="border-t border-border" />
-                            <button onClick={() => deleteCandidate(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
-                              <Trash2 size={16} /><span>Delete</span>
-                            </button>
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 size={32} className="text-primary animate-spin" />
+                      <p className="text-sm font-medium text-text-tertiary">Loading candidates...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedCandidates.length > 0 ? (
+                paginatedCandidates.map(c => {
+                  const activeTmpl = getNormalizedTemplateId(c);
+                  return (
+                    <tr key={c.id} className="hover:bg-gray-50/30 transition-colors">
+                      <td className="px-6 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                          checked={selectedIds.includes(c.id)}
+                          onChange={(e) => handleSelect(c.id, e.target.checked)}
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200/60 shadow-sm">
+                          {c.shelfId || 'UNASSIGNED'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
+                            <span className="text-emerald-600 font-bold text-sm">
+                              {c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}
+                            </span>
                           </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-text-primary text-sm">
+                                {c.passportData.givenNames} {c.passportData.surname}
+                              </span>
+                              {c.isFlagged && (
+                                <Flag size={14} className="text-red-500 fill-red-500 animate-pulse" />
+                              )}
+                            </div>
+                            <span className="text-xs text-text-tertiary hidden sm:block">{c.personalInfo.phone || 'No Phone'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
+                        {c.passportData.passportNumber}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary capitalize">
+                        {c.personalInfo.religion || 'Unknown'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Fit
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
+                        {activeTmpl ? (
+                          <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-100 rounded-lg">
+                            {activeTmpl}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-text-tertiary">No Template</span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="relative inline-block" data-action-menu>
+                          <button
+                            onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
+                            className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenuId === c.id && (
+                            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-2xl z-50 py-1 animate-fade-in">
+                              <button
+                                onClick={() => handleOpenCV(c)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
+                              >
+                                <Eye size={16} className="text-text-secondary" />
+                                <span>Open CV Preview</span>
+                              </button>
+                              
+                              <button
+                                onClick={() => { setOpenMenuId(null); setChangeTarget(c); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
+                              >
+                                <LayoutTemplate size={16} className="text-text-secondary" />
+                                <span>Change Template</span>
+                              </button>
+                              
+                              <button
+                                onClick={() => toggleFlag(c.id, c.isFlagged || false)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
+                              >
+                                <Flag size={16} className={cn("text-text-secondary", c.isFlagged && "text-red-500 fill-red-500")} />
+                                <span>{c.isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}</span>
+                              </button>
+
+                              <div className="border-t border-border/60 my-1" />
+
+                              <div className="px-4 py-1.5 text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Download:</div>
+                              <button
+                                onClick={() => { setOpenMenuId(null); startDownload({ id: c.id, templateId: activeTmpl || 'alm', candidate: c }, 'pdf'); }}
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-medium"
+                              >
+                                <FileDown size={14} className="text-red-500" />
+                                <span>As PDF</span>
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); startDownload({ id: c.id, templateId: activeTmpl || 'alm', candidate: c }, 'jpg'); }}
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-medium"
+                              >
+                                <ImageIcon size={14} className="text-emerald-500" />
+                                <span>As JPG</span>
+                              </button>
+                              <button
+                                onClick={() => { setOpenMenuId(null); startDownload({ id: c.id, templateId: activeTmpl || 'alm', candidate: c }, 'doc'); }}
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-medium"
+                              >
+                                <FileText size={14} className="text-blue-500" />
+                                <span>As DOCX</span>
+                              </button>
+
+                              <div className="border-t border-border/60 my-1" />
+                              
+                              <button
+                                onClick={() => deleteCandidate(c.id)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold"
+                              >
+                                <Trash2 size={16} />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
-                <tr><td colSpan={7} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No fit candidates found. Mark candidates as &quot;Fit&quot; from the Candidates page.</td></tr>
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                    No fit candidates found matching the filters.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
+      {/* Pagination component */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ‹
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${
+                    page === currentPage
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            }
+            if (page === currentPage - 2 || page === currentPage + 2) {
+              return <span key={page} className="text-text-tertiary px-1 font-bold">…</span>;
+            }
+            return null;
+          })}
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ›
+          </button>
+        </div>
+      )}
+
       {/* Floating Bulk Action Bar */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-surface/90 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 animate-in slide-in-from-bottom-6 duration-300">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-surface/90 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-4 animate-in slide-in-from-bottom-6 duration-300">
           <span className="text-sm font-bold text-text-primary">
-            {selectedIds.length} Candidate{selectedIds.length > 1 ? 's' : ''} Selected
+            {selectedIds.length} Selected
           </span>
           <div className="h-6 w-px bg-border" />
+
+          {/* Change template bulk */}
+          <button
+            onClick={() => setChangeTarget('bulk')}
+            className="px-4 py-2.5 bg-white border border-border text-text-primary hover:bg-gray-50 text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+          >
+            <LayoutTemplate size={14} className="text-primary" />
+            Change Template
+          </button>
           
           <div className="relative">
             <button
@@ -574,7 +947,7 @@ export default function FitCandidatesPage() {
                 </button>
               </div>
               
-              <div className="w-[800px] max-w-full shrink-0 bg-white shadow-xl relative mt-16 rounded-b-xl overflow-hidden">
+              <div className="w-[800px] max-w-full shrink-0 bg-white shadow-xl relative mt-16 rounded-b-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <PrevTemplate
                   candidate={previewCv.candidate}
                   facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
@@ -583,6 +956,22 @@ export default function FitCandidatesPage() {
               </div>
             </div>
           </div>
+        );
+      })()}
+
+      {/* Change Template Modal */}
+      {changeTarget && (() => {
+        const isBulk = changeTarget === 'bulk';
+        const currentTmpl = isBulk ? 'alm' : (getNormalizedTemplateId(changeTarget) || 'alm');
+        
+        return (
+          <ChangeTemplateModal
+            candidate={isBulk ? { passportData: { givenNames: 'Selected', surname: 'Candidates' } } : changeTarget}
+            currentTemplateId={currentTmpl}
+            onChange={handleConfirmChange}
+            onClose={() => setChangeTarget(null)}
+            isLoading={actionLoading}
+          />
         );
       })()}
 
@@ -602,10 +991,132 @@ export default function FitCandidatesPage() {
   );
 }
 
+// ── Change-Template Modal ─────────────────────────────────────────────────────
+function ChangeTemplateModal({
+  candidate,
+  currentTemplateId,
+  onChange,
+  onClose,
+  isLoading,
+}: {
+  candidate: any;
+  currentTemplateId: string;
+  onChange: (newTemplateId: string) => void;
+  onClose: () => void;
+  isLoading: boolean;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // Add Enter key trigger
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && selected && !isLoading) {
+        onChange(selected);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selected, isLoading, onChange]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div
+        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col scale-in"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-gray-50">
+          <div>
+            <h2 className="text-lg font-bold text-text-primary">Change CV Template</h2>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Select a new design layout for <strong>{candidate.passportData?.givenNames} {candidate.passportData?.surname}</strong>
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-text-tertiary hover:text-text-primary">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Template Grid */}
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {TEMPLATES.map(template => {
+              const TC = template.component;
+              const isSelected = selected === template.id;
+              const isCurrent = template.id === currentTemplateId;
+              
+              return (
+                <button
+                  key={template.id}
+                  onClick={() => setSelected(template.id)}
+                  disabled={isCurrent}
+                  className={cn(
+                    'relative rounded-2xl border-2 overflow-hidden transition-all text-left flex flex-col cursor-pointer bg-white group',
+                    isCurrent && 'opacity-65 cursor-not-allowed border-gray-200 bg-gray-50',
+                    isSelected
+                      ? 'border-primary shadow-lg shadow-primary/10 scale-[1.02]'
+                      : 'border-border/60 hover:border-primary/40'
+                  )}
+                >
+                  <div className="h-44 bg-gray-100 overflow-hidden relative border-b border-border/40 shrink-0">
+                    <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
+                      <TC
+                        candidate={candidate.id ? candidate : {
+                          passportData: { givenNames: 'FIRSTNAME', surname: 'LASTNAME', passportNumber: 'AB123456', nationality: 'NATIONALITY', gender: 'F', placeOfBirth: 'BIRTHPLACE', dateOfBirth: '1995-01-01', dateOfIssue: '2020-01-01', dateOfExpiry: '2030-01-01', issuingCountry: 'COUNTRY' },
+                          personalInfo: { idNumber: '1234567890', job: 'HOUSEMAID', maritalStatus: 'Single', numberOfChildren: 0, religion: 'Christian', phone: '0501234567', languages: ['English', 'Somali'], workExperience: [], skills: [] }
+                        }}
+                        facePhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        fullBodyPhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                      />
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow z-10">
+                        <Check size={12} className="text-white" strokeWidth={3} />
+                      </div>
+                    )}
+                    {isCurrent && (
+                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+                        <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Active</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-3 py-2 flex items-center gap-2 mt-auto">
+                    <span className={cn('w-2 h-2 rounded-full shrink-0', template.color)} />
+                    <span className="text-xs font-bold text-text-primary truncate">{template.name}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-gray-50">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-100 transition-colors border border-border">
+            Cancel
+          </button>
+          <button
+            onClick={() => selected && onChange(selected)}
+            disabled={!selected || isLoading}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-colors disabled:opacity-50 rounded-xl cursor-pointer shadow-md hover:shadow-lg"
+          >
+            {isLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <LayoutTemplate size={16} />
+            )}
+            {isLoading ? 'Changing…' : 'Change Template'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Toast Component
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
-    <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-3">
+    <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-3">
       <div className={cn(
         "flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white text-sm font-medium",
         type === 'success' ? 'bg-gray-900' : 'bg-red-600'

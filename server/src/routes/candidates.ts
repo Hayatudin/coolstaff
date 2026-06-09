@@ -48,7 +48,7 @@ router.get('/', async (req: Request, res: Response) => {
       dbCandidates = await prisma.candidate.findMany({
         orderBy: { registeredAt: 'desc' },
         include: {
-          generatedCVs: { select: { templateId: true } },
+          generatedCVs: { select: { id: true, templateId: true } },
           registeredBy: { select: { name: true } },
           invoices: { select: { isDelivered: true } }
         }
@@ -58,7 +58,7 @@ router.get('/', async (req: Request, res: Response) => {
       dbCandidates = await prisma.candidate.findMany({
         orderBy: { registeredAt: 'desc' },
         include: {
-          generatedCVs: { select: { templateId: true } }
+          generatedCVs: { select: { id: true, templateId: true } }
         }
       });
       
@@ -172,7 +172,7 @@ router.get('/', async (req: Request, res: Response) => {
         visaSelected: c.visaSelected,
         visaDate: c.visaDate ? c.visaDate.toISOString() : null,
         salary: c.salary || '1000SR',
-        generatedCVs: c.generatedCVs?.map((cv: any) => cv.templateId) || [],
+        generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
         registeredBy: c.registeredBy?.name || 'Admin',
         hasInvoice: c.invoices && c.invoices.length > 0,
         isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,

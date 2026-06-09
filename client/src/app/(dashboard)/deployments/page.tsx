@@ -89,7 +89,7 @@ export default function DeploymentsPage() {
       )}
 
       {/* Filter and Search */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-[1.5rem] shadow-sm border border-border/50">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-5 rounded-[2rem] shadow-sm border border-border/30">
         <div className="w-full sm:w-80 relative">
           <Input
             placeholder="Search by name, passport, broker..."
@@ -103,22 +103,29 @@ export default function DeploymentsPage() {
       </div>
 
       {/* Table Container */}
-      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
-        <div className="overflow-visible">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-4 xl:px-6 py-3.5 font-semibold">Candidate ID</th>
-                <th className="px-4 xl:px-6 py-3.5 font-semibold">Name</th>
-                <th className="px-4 xl:px-6 py-3.5 font-semibold">Passport No.</th>
-                <th className="px-4 xl:px-6 py-3.5 font-semibold">CV Template</th>
-                <th className="px-4 xl:px-6 py-3.5 font-semibold">Broker</th>
-                <th className="px-4 xl:px-6 py-3.5 font-semibold">Deployment Date</th>
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold">Candidate ID</th>
+                <th className="px-6 py-4 font-semibold">Name</th>
+                <th className="px-6 py-4 font-semibold">Passport No.</th>
+                <th className="px-6 py-4 font-semibold">CV Template</th>
+                <th className="px-6 py-4 font-semibold">Broker</th>
+                <th className="px-6 py-4 font-semibold">Deployment Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <TableSkeleton rows={5} cols={6} />
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 size={32} className="text-primary animate-spin" />
+                      <p className="text-sm font-medium text-text-tertiary">Loading deployments...</p>
+                    </div>
+                  </td>
+                </tr>
               ) : filtered.length > 0 ? (
                 filtered.map(c => {
                   const depDate = c.deployedDate
@@ -130,25 +137,25 @@ export default function DeploymentsPage() {
                     : 'N/A';
 
                   return (
-                    <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={c.id} className="hover:bg-gray-50/30 transition-colors">
                       {/* Candidate ID */}
-                      <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">
                           {c.id.substring(0, 8)}
                         </span>
                       </td>
 
                       {/* Candidate Name */}
-                      <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2 xl:gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-                            <span className="text-primary font-bold text-xs">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center border border-primary-100 shrink-0">
+                            <span className="text-primary font-bold text-sm">
                               {c.givenNames.charAt(0)}
                               {c.surname.charAt(0)}
                             </span>
                           </div>
                           <div>
-                            <p className="font-semibold text-text-primary text-xs xl:text-sm">
+                            <p className="font-semibold text-text-primary text-sm">
                               {c.givenNames} {c.surname}
                             </p>
                           </div>
@@ -156,29 +163,29 @@ export default function DeploymentsPage() {
                       </td>
 
                       {/* Passport Number */}
-                      <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                        <p className="text-xs xl:text-sm font-medium text-text-primary">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm font-medium text-text-primary">
                           {c.passportNumber}
                         </p>
                       </td>
 
                       {/* Generated CV template */}
-                      <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-0.5 text-[9px] xl:text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
                           {c.generatedCVs?.[0]?.templateId?.toUpperCase() || 'N/A'}
                         </span>
                       </td>
 
                       {/* Broker */}
-                      <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                        <p className="text-xs xl:text-sm text-text-secondary font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm text-text-secondary font-semibold">
                           {c.broker?.name || 'DIRECT'}
                         </p>
                       </td>
 
                       {/* Deployment Date */}
-                      <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
-                        <p className="text-xs xl:text-sm text-text-primary font-semibold">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm text-text-primary font-semibold">
                           {depDate}
                         </p>
                       </td>
@@ -187,7 +194,7 @@ export default function DeploymentsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-4 xl:px-6 py-10 text-center text-text-tertiary">
+                  <td colSpan={6} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     No deployed candidates found. Make sure visa selected candidates have a saved invoice with ticket upload and deployment date.
                   </td>
                 </tr>

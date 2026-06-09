@@ -525,19 +525,19 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Table View */}
-                    <div className="border border-border/60 rounded-2xl overflow-hidden bg-white shadow-sm">
+                    <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
-                            <tr className="bg-gray-50 border-b border-border/80 text-xs font-bold text-text-secondary uppercase tracking-wider">
-                              <th className="py-4 px-6">Operator</th>
-                              <th className="py-4 px-4">Role</th>
-                              <th className="py-4 px-4 text-center">Candidates</th>
-                              <th className="py-4 px-4 text-center">Quick Regs</th>
-                              <th className="py-4 px-6">Activity Share</th>
+                            <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                              <th className="px-6 py-4 font-semibold">Operator</th>
+                              <th className="px-6 py-4 font-semibold">Role</th>
+                              <th className="px-6 py-4 font-semibold text-center">Candidates</th>
+                              <th className="px-6 py-4 font-semibold text-center">Quick Regs</th>
+                              <th className="px-6 py-4 font-semibold">Activity Share</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border/40 text-sm">
+                          <tbody className="divide-y divide-border/20 text-sm">
                             {filteredAndSortedAnalytics.map((user) => {
                               const totalCandidates = analyticsData.reduce((sum, u) => sum + (u.candidatesRegistered || 0), 0) || 1;
                               const share = Math.round(((user.candidatesRegistered || 0) / totalCandidates) * 100);
@@ -561,8 +561,8 @@ export default function SettingsPage() {
                               };
 
                               return (
-                                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                                  <td className="py-4 px-6">
+                                <tr key={user.id} className="hover:bg-gray-50/30 transition-colors">
+                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-3">
                                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-600 text-white font-bold flex items-center justify-center shadow-sm">
                                         {user.name.charAt(0).toUpperCase()}
@@ -573,10 +573,10 @@ export default function SettingsPage() {
                                       </div>
                                     </div>
                                   </td>
-                                  <td className="py-4 px-4">{getRoleBadge(user.role)}</td>
-                                  <td className="py-4 px-4 text-center font-bold text-text-primary">{user.candidatesRegistered || 0}</td>
-                                  <td className="py-4 px-4 text-center font-medium text-text-secondary">{user.quickRegistrations || 0}</td>
-                                  <td className="py-4 px-6 min-w-[150px]">
+                                  <td className="px-6 py-4 whitespace-nowrap">{getRoleBadge(user.role)}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-center font-bold text-text-primary">{user.candidatesRegistered || 0}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-center font-medium text-text-secondary">{user.quickRegistrations || 0}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap min-w-[150px]">
                                     <div className="flex items-center gap-2">
                                       <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                                         <div 

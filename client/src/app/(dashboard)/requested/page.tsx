@@ -355,48 +355,55 @@ export default function RequestedPage() {
         <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
       </div>
 
-      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
-        <div className="overflow-visible">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Shelf ID</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Passport No.</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden xl:table-cell">Selected Date</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Status</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Medical</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold text-right">Actions</th>
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold">Shelf ID</th>
+                <th className="px-6 py-4 font-semibold">Candidate</th>
+                <th className="px-6 py-4 font-semibold">Passport No.</th>
+                <th className="px-6 py-4 font-semibold hidden xl:table-cell">Selected Date</th>
+                <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold">Medical</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <TableSkeleton rows={8} cols={8} />
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 size={32} className="text-primary animate-spin" />
+                      <p className="text-sm font-medium text-text-tertiary">Loading candidates...</p>
+                    </div>
+                  </td>
+                </tr>
               ) : filtered.length > 0 ? (
                 paginated.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
+                  <tr key={c.id} className="hover:bg-gray-50/30 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2 xl:gap-3">
-                        <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0">
-                          <span className="text-green-600 font-bold text-xs xl:text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0 border border-green-100">
+                          <span className="text-green-600 font-bold text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="font-semibold text-text-primary text-xs xl:text-sm flex items-center gap-1.5">
+                          <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
                             {c.passportData.givenNames} {c.passportData.surname}
                             {c.isFlagged && <Flag size={13} className="text-red-500 fill-red-500" />}
                           </p>
-                          <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">{c.personalInfo.email}</p>
+                          <p className="text-xs text-text-tertiary">{c.personalInfo.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <p className="text-xs xl:text-sm font-medium text-text-primary">{c.passportData.passportNumber}</p>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
+                      {c.passportData.passportNumber}
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden xl:table-cell">
-                      <p className="text-xs xl:text-sm text-text-primary font-semibold">
+                    <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
+                      <p className="text-sm text-text-primary font-semibold">
                         {c.visaDate 
                           ? new Date(c.visaDate).toLocaleDateString()
                           : c.registeredAt 
@@ -404,51 +411,67 @@ export default function RequestedPage() {
                             : 'Pending'}
                       </p>
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <Badge variant="success" className="text-[10px] xl:text-xs px-2 py-0.5 xl:py-1">✓ Visa Selected</Badge>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Visa Selected
+                      </span>
                       {c.visaOrContractNumber && (
-                        <p className="text-[9px] xl:text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={c.visaOrContractNumber}>No: {c.visaOrContractNumber}</p>
+                        <p className="text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={c.visaOrContractNumber}>No: {c.visaOrContractNumber}</p>
                       )}
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 xl:py-1 rounded-full text-[9px] xl:text-[10px] font-bold uppercase tracking-wider ${
-                         c.personalInfo.medicalStatus === 'Fit' ? "bg-emerald-100 text-emerald-700" :
-                         c.personalInfo.medicalStatus === 'Unfit' ? "bg-red-100 text-red-700" :
-                         c.personalInfo.medicalStatus === 'New' ? "bg-blue-100 text-blue-700" :
-                         "bg-amber-100 text-amber-700"
-                      }`}>
-                        {c.personalInfo.medicalStatus || 'Pending'}
-                      </span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {c.personalInfo.medicalStatus === 'Fit' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Fit
+                        </span>
+                      ) : c.personalInfo.medicalStatus === 'Unfit' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700 border border-red-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          Unfit
+                        </span>
+                      ) : c.personalInfo.medicalStatus === 'New' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          New
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Pending
+                        </span>
+                      )}
                     </td>
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-right text-xs xl:text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="relative inline-block" data-action-menu>
-                        <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-primary-50">
+                        <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100">
                           <MoreVertical size={16} />
                         </button>
                         {openMenuId === c.id && (
-                          <div className="absolute right-0 top-full mt-1 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                          <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
                             {c.hasInvoice ? (
-                              <button disabled className="w-full flex items-center gap-3 px-4 py-2.5 text-sm bg-gray-50 text-left text-green-600 font-medium cursor-not-allowed">
+                              <button disabled className="w-full flex items-center gap-3 px-4 py-2.5 text-sm bg-gray-50 text-left text-green-600 font-semibold cursor-not-allowed">
                                 <CheckCircle size={16} />
                                 <span>Invoice Generated</span>
                               </button>
                             ) : (
-                              <button onClick={() => router.push(`/invoice/new?candidateId=${c.id}`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary">
+                              <button onClick={() => router.push(`/invoice/new?candidateId=${c.id}`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary font-semibold">
                                 <CheckCircle size={16} />
                                 <span>Proceed (Generate Invoice)</span>
                               </button>
                             )}
-                            <div className="border-t border-border my-1" />
-                            <button onClick={() => handleCancelVisaClick(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                            <div className="border-t border-border/60 my-1" />
+                            <button onClick={() => handleCancelVisaClick(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
                               <CheckCircle size={16} className="text-amber-500" />
-                              <span>Cancelled</span>
+                              <span>Cancel Visa Selected</span>
                             </button>
-                            <div className="border-t border-border my-1" />
-                            <button onClick={() => deleteCandidate(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
+                            <div className="border-t border-border/60 my-1" />
+                            <button onClick={() => deleteCandidate(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
                               <Trash2 size={16} /><span>Delete</span>
                             </button>
-                            <div className="border-t border-border my-1" />
-                            <button onClick={() => openDeployDateModal(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600">
+                            <div className="border-t border-border/60 my-1" />
+                            <button onClick={() => openDeployDateModal(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600 font-semibold">
                               <CalendarDays size={16} /><span>{c.deployedDate ? 'Edit' : 'Set'} Deployment Date</span>
                             </button>
                           </div>
@@ -458,7 +481,7 @@ export default function RequestedPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={8} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No Visa Selected candidates. Mark candidates as &quot;Visa Selected&quot; from the Candidates page.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">No Visa Selected candidates. Mark candidates as &quot;Visa Selected&quot; from the Candidates page.</td></tr>
               )}
             </tbody>
           </table>

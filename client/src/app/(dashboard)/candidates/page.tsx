@@ -281,44 +281,44 @@ export default function CandidatesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-visible">
-        <div className="overflow-visible">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#fafaff] border-b border-border/50 text-[11px] uppercase tracking-[0.15em] font-bold text-text-tertiary">
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Shelf ID</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Candidate</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Passport No.</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Job / Skills</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Visa Status</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold hidden xl:table-cell">{isSuperAdmin ? 'Registrar' : 'COC'}</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold">Medical</th>
-                <th className="px-3 xl:px-6 py-3.5 font-semibold text-right">Actions</th>
+              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold">Shelf ID</th>
+                <th className="px-6 py-4 font-semibold">Candidate</th>
+                <th className="px-6 py-4 font-semibold">Passport No.</th>
+                <th className="px-6 py-4 font-semibold">Job / Skills</th>
+                <th className="px-6 py-4 font-semibold">Visa Status</th>
+                <th className="px-6 py-4 font-semibold hidden xl:table-cell">{isSuperAdmin ? 'Registrar' : 'COC'}</th>
+                <th className="px-6 py-4 font-semibold">Medical</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <TableSkeleton rows={8} cols={8} />
               ) : error ? (
                 <tr><td colSpan={8} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
               ) : filtered.length > 0 ? (
                 paginatedCandidates.map((candidate) => (
-                  <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
+                  <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
                     {/* Shelf ID */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">
                         {candidate.shelfId || 'UNASSIGNED'}
                       </div>
                     </td>
 
                     {/* Candidate */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2 xl:gap-3">
-                        <div className="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-                          <span className="text-primary font-bold text-xs xl:text-sm">{candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}</span>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0 border border-primary-100">
+                          <span className="text-primary font-bold text-sm">{candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}</span>
                         </div>
                         <div>
-                          <p className="font-semibold text-text-primary text-xs xl:text-sm flex items-center gap-1.5">
+                          <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
                             {candidate.passportData.givenNames} {candidate.passportData.surname}
                             {candidate.isFlagged && <Flag size={13} className="text-red-500 fill-red-500" />}
                             {candidate.broker?.isLocked && (
@@ -327,49 +327,57 @@ export default function CandidatesPage() {
                               </span>
                             )}
                           </p>
-                          <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">{candidate.personalInfo.email}</p>
+                          <p className="text-xs text-text-tertiary">{candidate.personalInfo.email}</p>
                         </div>
                       </div>
                     </td>
 
                     {/* Passport */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <p className="text-xs xl:text-sm font-medium text-text-primary">{candidate.passportData.passportNumber}</p>
-                      <p className="text-[10px] xl:text-xs text-text-tertiary hidden xl:block">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-sm font-medium text-text-primary">{candidate.passportData.passportNumber}</p>
+                      <p className="text-xs text-text-tertiary">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
                     </td>
 
                     {/* Job/Skills */}
-                    <td className="px-3 xl:px-6 py-3.5">
-                      <p className="text-xs xl:text-sm text-text-primary font-medium truncate max-w-[150px]">
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-text-primary font-medium truncate max-w-[150px]">
                         {Array.isArray(candidate.personalInfo.workExperience) && 
                          candidate.personalInfo.workExperience.some((e: any) => e.experienceStatus === 'Have experience') 
                          ? 'Experienced' : 'Not Experienced'}
                       </p>
-                      <p className="text-[10px] xl:text-xs text-text-tertiary truncate max-w-[150px] hidden xl:block">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
+                      <p className="text-xs text-text-tertiary truncate max-w-[150px] hidden xl:block">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
                     </td>
 
                     {/* Visa Selected */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <Badge variant={candidate.isRequested ? 'success' : 'default'} className="text-[10px] xl:text-xs px-2 py-0.5 xl:py-1">
-                        {candidate.isRequested ? '✓ Visa Selected' : 'Pending Visa'}
-                      </Badge>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {candidate.isRequested ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Visa Selected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Pending Visa
+                        </span>
+                      )}
                       {candidate.isRequested && candidate.visaOrContractNumber && (
-                        <p className="text-[9px] xl:text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={candidate.visaOrContractNumber}>No: {candidate.visaOrContractNumber}</p>
+                        <p className="text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={candidate.visaOrContractNumber}>No: {candidate.visaOrContractNumber}</p>
                       )}
                     </td>
 
                     {/* COC / Registrar */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap hidden xl:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
                       {isSuperAdmin ? (
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
                             {candidate.registeredBy ? candidate.registeredBy.charAt(0).toUpperCase() : 'A'}
                           </div>
-                          <span className="text-xs xl:text-sm font-medium text-text-primary">{candidate.registeredBy || 'Admin'}</span>
+                          <span className="text-sm font-medium text-text-primary">{candidate.registeredBy || 'Admin'}</span>
                         </div>
                       ) : (
                         candidate.cocDocumentUrl ? (
-                          <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-xs xl:text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={13} /> View</button>
+                          <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={13} /> View</button>
                         ) : (
                           <span className="text-xs text-text-tertiary">—</span>
                         )
@@ -377,15 +385,15 @@ export default function CandidatesPage() {
                     </td>
 
                     {/* Medical */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 xl:gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
                         <select
                           value={candidate.personalInfo.medicalStatus || 'Pending'}
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => updateMedicalStatus(candidate.id, e.target.value)}
                           className={cn(
-                            "text-[11px] xl:text-xs font-semibold px-2 xl:px-3 py-1 xl:py-1.5 rounded-full border appearance-none outline-none cursor-pointer shadow-sm transition-all text-center min-w-[70px] xl:min-w-[80px]",
-                            "bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23999%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:8px] xl:bg-[length:10px] bg-[right_6px_center] xl:bg-[right_8px_center] bg-no-repeat pr-5 xl:pr-7 bg-white",
+                            "text-xs font-semibold px-3 py-1.5 rounded-full border appearance-none outline-none cursor-pointer shadow-sm transition-all text-center min-w-[80px]",
+                            "bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23999%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:10px] bg-[right_8px_center] bg-no-repeat pr-7 bg-white",
                             candidate.personalInfo.medicalStatus === 'Fit' ? "text-[#34C759] border-[#34C759]/30 bg-emerald-50/30" :
                             candidate.personalInfo.medicalStatus === 'Unfit' ? "text-[#FF3B30] border-[#FF3B30]/30 bg-red-50/30" :
                             candidate.personalInfo.medicalStatus === 'New' ? "text-blue-600 border-blue-200 bg-blue-50/30" :
@@ -398,7 +406,7 @@ export default function CandidatesPage() {
                           <option value="New">New</option>
                         </select>
                         {candidate.medicalDocumentUrl && (
-                          <button onClick={(e) => { e.stopPropagation(); setViewDoc(candidate.medicalDocumentUrl!); }} className="text-primary hover:bg-primary-50 p-1 xl:p-1.5 rounded-lg transition-colors" title="View Medical Doc">
+                          <button onClick={(e) => { e.stopPropagation(); setViewDoc(candidate.medicalDocumentUrl!); }} className="text-primary hover:bg-primary-50 p-1.5 rounded-lg transition-colors" title="View Medical Doc">
                             <Eye size={15} />
                           </button>
                         )}
@@ -406,13 +414,13 @@ export default function CandidatesPage() {
                     </td>
 
                     {/* Actions */}
-                    <td className="px-3 xl:px-6 py-3.5 whitespace-nowrap text-right text-xs xl:text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="relative inline-block" data-action-menu>
-                        <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-primary-50">
+                        <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100">
                           <MoreVertical size={16} />
                         </button>
                         {openMenuId === candidate.id && (
-                          <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                          <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
                             {candidate.isRequested ? (
                               <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                                 <CheckCircle size={16} className="text-amber-500" />
