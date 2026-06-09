@@ -54,7 +54,7 @@ export default function FitCandidatesPage() {
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
   const [religionFilter, setReligionFilter] = useState('');
-  const [flaggedFilter, setFlaggedFilter] = useState('');
+  const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -157,7 +157,7 @@ export default function FitCandidatesPage() {
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(paginatedCandidates.map(c => c.id));
+      setSelectedIds(filtered.map(c => c.id));
     } else {
       setSelectedIds([]);
     }
@@ -616,7 +616,7 @@ export default function FitCandidatesPage() {
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
-                    checked={paginatedCandidates.length > 0 && selectedIds.length === paginatedCandidates.length}
+                    checked={filtered.length > 0 && filtered.every(c => selectedIds.includes(c.id))}
                     onChange={handleSelectAll}
                   />
                 </th>
@@ -626,6 +626,7 @@ export default function FitCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Religion</th>
                 <th className="px-6 py-4 font-semibold">Medical Status</th>
                 <th className="px-6 py-4 font-semibold hidden xl:table-cell">Active Template</th>
+                <th className="px-6 py-4 font-semibold text-center w-24">Preview</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -698,6 +699,15 @@ export default function FitCandidatesPage() {
                           <span className="text-xs text-text-tertiary">No Template</span>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <button
+                          onClick={() => handleOpenCV(c)}
+                          className="p-1.5 text-text-tertiary hover:text-primary hover:bg-gray-50 rounded-lg transition-colors border border-border/30 inline-flex items-center justify-center cursor-pointer"
+                          title="Preview CV"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="relative inline-block" data-action-menu>
                           <button
@@ -708,14 +718,6 @@ export default function FitCandidatesPage() {
                           </button>
                           {openMenuId === c.id && (
                             <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-2xl z-50 py-1 animate-fade-in">
-                              <button
-                                onClick={() => handleOpenCV(c)}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
-                              >
-                                <Eye size={16} className="text-text-secondary" />
-                                <span>Open CV Preview</span>
-                              </button>
-                              
                               <button
                                 onClick={() => { setOpenMenuId(null); setChangeTarget(c); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
@@ -730,31 +732,6 @@ export default function FitCandidatesPage() {
                               >
                                 <Flag size={16} className={cn("text-text-secondary", c.isFlagged && "text-red-500 fill-red-500")} />
                                 <span>{c.isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}</span>
-                              </button>
-
-                              <div className="border-t border-border/60 my-1" />
-
-                              <div className="px-4 py-1.5 text-[10px] font-bold text-text-tertiary uppercase tracking-wider">Download:</div>
-                              <button
-                                onClick={() => { setOpenMenuId(null); startDownload({ id: c.id, templateId: activeTmpl || 'alm', candidate: c }, 'pdf'); }}
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-medium"
-                              >
-                                <FileDown size={14} className="text-red-500" />
-                                <span>As PDF</span>
-                              </button>
-                              <button
-                                onClick={() => { setOpenMenuId(null); startDownload({ id: c.id, templateId: activeTmpl || 'alm', candidate: c }, 'jpg'); }}
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-medium"
-                              >
-                                <ImageIcon size={14} className="text-emerald-500" />
-                                <span>As JPG</span>
-                              </button>
-                              <button
-                                onClick={() => { setOpenMenuId(null); startDownload({ id: c.id, templateId: activeTmpl || 'alm', candidate: c }, 'doc'); }}
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-medium"
-                              >
-                                <FileText size={14} className="text-blue-500" />
-                                <span>As DOCX</span>
                               </button>
 
                               <div className="border-t border-border/60 my-1" />
@@ -913,7 +890,7 @@ export default function FitCandidatesPage() {
       {previewCv && (() => {
         const PrevTemplate = TEMPLATES.find(t => t.id === previewCv.templateId)?.component || ALMTemplate;
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto" onClick={() => setPreviewCv(null)}>
+          <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto" onClick={() => setPreviewCv(null)}>
             <div className="relative my-8 bg-white rounded-xl shadow-2xl flex flex-col items-center max-w-full" onClick={e => e.stopPropagation()}>
               <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
                 <div className="flex items-center gap-1 bg-black/50 p-1.5 rounded-xl backdrop-blur-md">
