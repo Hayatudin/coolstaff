@@ -53,7 +53,7 @@ export default function FitCandidatesPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
-  const [religionFilter, setReligionFilter] = useState('');
+  const [languageFilter, setLanguageFilter] = useState('');
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
 
@@ -116,10 +116,12 @@ export default function FitCandidatesPage() {
       const query = searchQuery.toLowerCase();
       const matchesSearch = name.includes(query) || passport.includes(query) || shelfId.includes(query);
 
-      // 2. Religion Filter
-      const matchesReligion = religionFilter
-        ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase()
-        : true;
+      // 2. Language Filter
+      const matchesLanguage = !languageFilter
+        ? true
+        : languageFilter === 'muslim'
+          ? (c.personalInfo.religion?.toLowerCase() === 'muslim' || c.personalInfo.religion?.toLowerCase() === 'islam')
+          : (c.personalInfo.religion?.toLowerCase() !== 'muslim' && c.personalInfo.religion?.toLowerCase() !== 'islam');
 
       // 3. Flagged Filter
       const matchesFlagged = flaggedFilter
@@ -131,15 +133,15 @@ export default function FitCandidatesPage() {
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      return matchesSearch && matchesReligion && matchesFlagged && matchesAgency;
+      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency;
     });
-  }, [fitCandidates, searchQuery, religionFilter, flaggedFilter, agencyFilter]);
+  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter]);
 
   // Reset to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, religionFilter, flaggedFilter, agencyFilter]);
+  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter]);
 
   const deleteCandidate = async (id: string) => {
     setOpenMenuId(null);
@@ -555,14 +557,13 @@ export default function FitCandidatesPage() {
           <div className="flex w-full md:w-auto items-center gap-3">
             <div className="w-full md:w-44">
               <Select
-                placeholder="All Religions"
-                value={religionFilter}
-                onChange={setReligionFilter}
+                placeholder="All Languages"
+                value={languageFilter}
+                onChange={setLanguageFilter}
                 options={[
-                  { value: '', label: 'All Religions' },
+                  { value: '', label: 'All Languages' },
                   { value: 'muslim', label: 'Muslim' },
-                  { value: 'christian', label: 'Christian' },
-                  { value: 'other', label: 'Other' }
+                  { value: 'non-muslim', label: 'Non-Muslim' }
                 ]}
               />
             </div>
@@ -623,7 +624,6 @@ export default function FitCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Shelf ID</th>
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
-                <th className="px-6 py-4 font-semibold">Religion</th>
                 <th className="px-6 py-4 font-semibold">Medical Status</th>
                 <th className="px-6 py-4 font-semibold hidden xl:table-cell">Active Template</th>
                 <th className="px-6 py-4 font-semibold text-center w-24">Preview</th>
@@ -633,7 +633,7 @@ export default function FitCandidatesPage() {
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading candidates...</p>
@@ -680,9 +680,6 @@ export default function FitCandidatesPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
                         {c.passportData.passportNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary capitalize">
-                        {c.personalInfo.religion || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
@@ -752,7 +749,7 @@ export default function FitCandidatesPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                  <td colSpan={7} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     No fit candidates found matching the filters.
                   </td>
                 </tr>

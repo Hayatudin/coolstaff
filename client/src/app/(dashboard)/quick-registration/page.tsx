@@ -10,6 +10,7 @@ import { PassportData, WorkExperienceEntry, Broker } from '@/types';
 import { Save, Loader2, Trash2, Plus, Phone, Video } from 'lucide-react';
 import { allCountries } from '@/data/countries';
 import Select from '@/components/ui/Select';
+import BrokerSelect from '@/components/ui/BrokerSelect';
 import Input from '@/components/ui/Input';
 import FileUpload from '@/components/ui/FileUpload';
 import MultiSelect from '@/components/ui/MultiSelect';
@@ -460,14 +461,13 @@ export default function QuickRegistrationPage() {
 
             {/* Broker */}
             <div className="flex flex-col relative z-10">
-              <Select
+              <BrokerSelect
                 label="Broker"
-                options={brokers.map(b => ({ value: b.id, label: b.name }))}
+                brokers={brokers}
                 value={selectedBrokerId}
                 onChange={setSelectedBrokerId}
                 disabled={brokersLoading}
                 placeholder="Select or add broker..."
-                searchable
                 onCreate={handleCreateBroker}
               />
             </div>

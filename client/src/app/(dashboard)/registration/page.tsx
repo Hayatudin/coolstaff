@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { PassportData, CandidatePersonalInfo, RegistrationStep } from '@/types';
+import { PassportData, CandidatePersonalInfo, RegistrationStep, Broker } from '@/types';
 import { cn, compressImage } from '@/lib/utils';
 import { api } from '@/lib/api';
 import StepIndicator from '@/components/registration/StepIndicator';
@@ -84,7 +84,7 @@ function RegistrationContent() {
   const [personalInfo, setPersonalInfo] = useState<CandidatePersonalInfo>(emptyPersonalInfo);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [brokers, setBrokers] = useState<{ id: string, name: string }[]>([]);
+  const [brokers, setBrokers] = useState<Broker[]>([]);
   const [importMethod, setImportMethod] = useState<'musaned' | 'passport'>('musaned');
   const [registeredCandidateId, setRegisteredCandidateId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');

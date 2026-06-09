@@ -84,7 +84,7 @@ export default function BrokerCandidatesPage() {
 
   // Advanced Filters
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
-  const [religionFilter, setReligionFilter] = useState('');
+  const [languageFilter, setLanguageFilter] = useState('');
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
 
@@ -637,10 +637,12 @@ export default function BrokerCandidatesPage() {
         ? c.visaSelected === true
         : c.visaSelected !== true;
 
-      // 3. Religion Filter
-      const matchesReligion = religionFilter
-        ? c.religion?.toLowerCase() === religionFilter.toLowerCase()
-        : true;
+      // 3. Language Filter (mapped to religion under the hood)
+      const matchesLanguage = !languageFilter
+        ? true
+        : languageFilter === 'muslim'
+          ? (c.religion?.toLowerCase() === 'muslim' || c.religion?.toLowerCase() === 'islam')
+          : (c.religion?.toLowerCase() !== 'muslim' && c.religion?.toLowerCase() !== 'islam');
 
       // 4. Flagged Filter
       const matchesFlagged = flaggedFilter
@@ -652,15 +654,15 @@ export default function BrokerCandidatesPage() {
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency;
+      return matchesSearch && matchesVisa && matchesLanguage && matchesFlagged && matchesAgency;
     });
-  }, [candidates, searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
+  }, [candidates, searchQuery, visaFilter, languageFilter, flaggedFilter, agencyFilter]);
 
   // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
+  }, [searchQuery, visaFilter, languageFilter, flaggedFilter, agencyFilter]);
 
   // Pagination Slice
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -670,7 +672,7 @@ export default function BrokerCandidatesPage() {
   }, [filteredCandidates, currentPage]);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12 max-w-7xl mx-auto px-4">
+    <div className="space-y-8 animate-fade-in pb-12 w-full px-4 md:px-8">
       {/* Dynamic Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-6">
@@ -754,17 +756,16 @@ export default function BrokerCandidatesPage() {
         {/* Filters and Actions Bar */}
         <div className="flex flex-wrap items-center gap-4 justify-between pt-4 border-t border-border/50">
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Religion dropdown */}
+            {/* Language dropdown */}
             <div className="w-full sm:w-44">
               <Select
-                placeholder="All Religions"
-                value={religionFilter}
-                onChange={setReligionFilter}
+                placeholder="All Languages"
+                value={languageFilter}
+                onChange={setLanguageFilter}
                 options={[
-                  { value: '', label: 'All Religions' },
+                  { value: '', label: 'All Languages' },
                   { value: 'muslim', label: 'Muslim' },
-                  { value: 'christian', label: 'Christian' },
-                  { value: 'other', label: 'Other' }
+                  { value: 'non-muslim', label: 'Non-Muslim' }
                 ]}
               />
             </div>
@@ -783,9 +784,9 @@ export default function BrokerCandidatesPage() {
             </div>
           </div>
 
-          {(searchQuery || religionFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
+          {(searchQuery || languageFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
             <button 
-              onClick={() => { setSearchQuery(''); setReligionFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
+              onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
               className="px-4 py-2.5 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-2 border border-red-200"
             >
               <Trash2 size={12} /> Clear All Filters
@@ -917,7 +918,6 @@ export default function BrokerCandidatesPage() {
                 </th>
                 <th className="px-6 py-4 font-semibold">Candidate Details</th>
                 <th className="px-6 py-4 font-semibold">Passport Number</th>
-                <th className="px-6 py-4 font-semibold">Religion</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
                 <th className="px-6 py-4 font-semibold">Medical Status</th>
                 <th className="px-6 py-4 font-semibold">CV</th>
@@ -929,7 +929,7 @@ export default function BrokerCandidatesPage() {
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Syncing portfolio...</p>
@@ -986,9 +986,6 @@ export default function BrokerCandidatesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="font-mono font-bold text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary capitalize">
-                        {candidate.religion || 'Unknown'}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {candidate.visaSelected ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
@@ -996,8 +993,8 @@ export default function BrokerCandidatesPage() {
                             Visa Selected
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-50 text-slate-700 border border-slate-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                             Pending Visa
                           </span>
                         )}
@@ -1011,7 +1008,7 @@ export default function BrokerCandidatesPage() {
                             "px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer outline-none transition-all",
                             candidate.medicalStatus === 'Fit' && "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
                             candidate.medicalStatus === 'Unfit' && "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
-                            candidate.medicalStatus === 'Pending' && "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+                            candidate.medicalStatus === 'Pending' && "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
                             candidate.medicalStatus === 'New' && "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                           )}
                         >
@@ -1129,14 +1126,14 @@ export default function BrokerCandidatesPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                  <td colSpan={9} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     <div className="max-w-xs mx-auto py-8">
                       <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-gray-200">
                         <Search size={24} className="text-text-tertiary opacity-40" />
                       </div>
                       <h3 className="text-base font-bold text-text-primary mb-1">No Candidates Found</h3>
                       <p className="text-text-tertiary text-xs font-semibold mb-6">No candidates in this portfolio match your current filters.</p>
-                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px] cursor-pointer" onClick={() => { setSearchQuery(''); setReligionFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}>
+                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px] cursor-pointer" onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}>
                         Reset All Filters
                       </Button>
                     </div>

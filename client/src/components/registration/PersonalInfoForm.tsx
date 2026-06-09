@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
-import { CandidatePersonalInfo, PassportData, WorkExperienceEntry } from '@/types';
+import BrokerSelect from '@/components/ui/BrokerSelect';
+import { CandidatePersonalInfo, PassportData, WorkExperienceEntry, Broker } from '@/types';
 import {
   educationLevels, languageOptions, skillOptions, religionOptions
 } from '@/data/mockData';
@@ -25,7 +26,7 @@ interface PersonalInfoFormProps {
   onPassportImageChange?: (url: string) => void;
   facePhoto?: string | null;
   onFacePhotoChange?: (url: string) => void;
-  brokers: { id: string, name: string }[];
+  brokers: Broker[];
   onBrokerCreate?: (name: string) => void;
   fullBodyPhoto?: string | null;
   onFullBodyPhotoChange?: (url: string) => void;
@@ -236,14 +237,13 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <Input label="E-Mail" type="email" value={data.email} onChange={e => onChange('email', e.target.value.toLowerCase())} placeholder="email@example.com" required />
 
           {/* Broker Dropdown */}
-          <Select
+          <BrokerSelect
             label="Broker / Source"
             required
-            options={brokers.map(b => ({ value: b.id, label: b.name }))}
+            brokers={brokers}
             value={data.brokerId || ''}
             onChange={v => onChange('brokerId', v)}
             placeholder="Select broker"
-            searchable
             onCreate={onBrokerCreate}
           />
 
