@@ -178,7 +178,43 @@ app.get('/api/debug-db', async (req: Request, res: Response) => {
       const rawResult = await prisma.$queryRaw`SELECT 1 + 1 AS result`;
       const userCount = await prisma.user.count();
       const candidateCount = await prisma.candidate.count();
-      return { rawResult, userCount, candidateCount };
+      
+      // Diagnose tables and columns
+      let tables: any[] = [];
+      try {
+        tables = await prisma.$queryRawUnsafe<any[]>('SHOW TABLES');
+      } catch (e: any) {
+        tables = [{ error: e.message }];
+      }
+
+      let leaderColumns: any[] = [];
+      try {
+        leaderColumns = await prisma.$queryRawUnsafe<any[]>('SHOW COLUMNS FROM Leader');
+      } catch (e: any) {
+        leaderColumns = [{ error: e.message }];
+      }
+
+      let brokerColumns: any[] = [];
+      try {
+        brokerColumns = await prisma.$queryRawUnsafe<any[]>('SHOW COLUMNS FROM Broker');
+      } catch (e: any) {
+        brokerColumns = [{ error: e.message }];
+      }
+
+      // Check client models
+      const clientModels = Object.keys(prisma).filter(k => !k.startsWith('$') && !k.startsWith('_'));
+
+      return { 
+        rawResult, 
+        userCount, 
+        candidateCount,
+        clientModels,
+        hasLeaderModel: 'leader' in prisma,
+        hasBrokerModel: 'broker' in prisma,
+        tables,
+        leaderColumns,
+        brokerColumns
+      };
     })();
 
     const timeoutPromise = new Promise((_, reject) => 

@@ -50,7 +50,6 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const brokers = await prisma.broker.findMany({
       include: {
-        leader: true,
         candidates: {
           select: {
             id: true,
@@ -66,12 +65,34 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { name: 'asc' }
     });
 
+    // Fetch leaders via raw SQL to bypass stale Prisma Client
+    const leaders = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
+      'SELECT id, name FROM Leader'
+    );
+    const leaderMap = new Map<string, { id: string; name: string }>();
+    leaders.forEach(l => leaderMap.set(l.id, l));
+
+    // Fetch leaderId values via raw SQL
+    const brokerLeaders = await prisma.$queryRawUnsafe<{ id: string; leaderId: string | null }[]>(
+      'SELECT id, leaderId FROM Broker'
+    );
+    const brokerLeaderIdMap: Record<string, string | null> = {};
+    brokerLeaders.forEach(row => {
+      brokerLeaderIdMap[row.id] = row.leaderId;
+    });
+
     // Augment each broker with isLocked from raw SQL
     const lockMap = await getBrokerLockMap();
-    const augmented = brokers.map((b: any) => ({
-      ...b,
-      isLocked: lockMap[b.id] ?? false,
-    }));
+    const augmented = brokers.map((b: any) => {
+      const leaderId = brokerLeaderIdMap[b.id] || null;
+      const leader = leaderId ? leaderMap.get(leaderId) : null;
+      return {
+        ...b,
+        leaderId,
+        leader,
+        isLocked: lockMap[b.id] ?? false,
+      };
+    });
 
     res.json(augmented);
   } catch (error: any) {
@@ -397,37 +418,72 @@ router.patch('/:id/leader', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { leaderId } = req.body; // Can be string or null
 
-    // Find the broker
-    const broker = await prisma.broker.findUnique({ where: { id } });
-    if (!broker) {
+    // Find the broker using raw SQL to be safe
+    const brokerRows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
+      'SELECT id, name FROM Broker WHERE id = ?',
+      id
+    );
+    if (brokerRows.length === 0) {
       return res.status(404).json({ error: 'Broker not found' });
     }
 
+    const brokerName = brokerRows[0].name;
+
     // If leaderId is provided, make sure the leader exists
     if (leaderId !== null && leaderId !== undefined && leaderId !== '') {
-      const leader = await prisma.leader.findUnique({ where: { id: leaderId } });
-      if (!leader) {
+      const leaderRows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
+        'SELECT id, name FROM Leader WHERE id = ?',
+        leaderId
+      );
+      if (leaderRows.length === 0) {
         return res.status(404).json({ error: 'Target leader not found' });
       }
     }
 
-    // Update the broker's leaderId
-    const updated = await prisma.broker.update({
+    // Update the broker's leaderId via raw SQL
+    await prisma.$executeRawUnsafe(
+      'UPDATE Broker SET leaderId = ? WHERE id = ?',
+      leaderId || null,
+      id
+    );
+
+    // Fetch broker count and info cleanly from Prisma (relation-free models)
+    const updated = await prisma.broker.findUnique({
       where: { id },
-      data: { leaderId: leaderId || null },
       include: {
-        leader: true,
         _count: {
           select: { candidates: true }
         }
       }
     });
 
-    console.log(`[BROKER-LEADER] Moved broker "${updated.name}" to leader: ${updated.leader?.name || 'None'}`);
+    if (!updated) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
 
-    res.json(updated);
+    // Fetch leader details using raw SQL
+    let leaderObj = null;
+    if (leaderId) {
+      const leaderRows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
+        'SELECT id, name FROM Leader WHERE id = ?',
+        leaderId
+      );
+      if (leaderRows.length > 0) {
+        leaderObj = leaderRows[0];
+      }
+    }
+
+    const responseObj = {
+      ...updated,
+      leaderId: leaderId || null,
+      leader: leaderObj
+    };
+
+    console.log(`[BROKER-LEADER] Moved broker "${brokerName}" to leader: ${leaderObj?.name || 'None'}`);
+
+    res.json(responseObj);
   } catch (error: any) {
-    console.error('Failed to update broker leader:', error);
+    console.error('Failed to update broker leader via raw SQL:', error);
     res.status(500).json({ error: error.message || 'Failed to update broker leader' });
   }
 });
