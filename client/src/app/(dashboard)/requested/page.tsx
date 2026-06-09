@@ -20,6 +20,8 @@ export default function RequestedPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [deployDateModal, setDeployDateModal] = useState<{ candidateId: string; name: string; currentDate: string } | null>(null);
   const [deployDateValue, setDeployDateValue] = useState('');
+  const [cancelVisaModalId, setCancelVisaModalId] = useState<string | null>(null);
+  const [cancelVisaNumberInput, setCancelVisaNumberInput] = useState('');
 
   const handleGenerateReport = async () => {
     if (candidates.length === 0) {
@@ -227,19 +229,23 @@ export default function RequestedPage() {
       return dateB - dateA;
     });
 
-  const cancelVisa = async (c: any) => {
+  const handleCancelVisaClick = (c: any) => {
     setOpenMenuId(null);
     if (c.isInvoiceDelivered) {
-      alert('This candidate\'s invoice is already delivered. You cannot cancel the visa.');
+      alert("This candidate's invoice is already delivered. You cannot cancel the visa.");
       return;
     }
     if (c.hasInvoice) {
-      alert('An invoice has already been generated for this candidate. You cannot cancel the visa.');
+      alert("An invoice has already been generated for this candidate. You cannot cancel the visa.");
       return;
     }
-    
+    setCancelVisaModalId(c.id);
+    setCancelVisaNumberInput('');
+  };
+
+  const cancelVisa = async (id: string) => {
     try {
-      const res = await api(`/api/candidates/${c.id}`, {
+      const res = await api(`/api/candidates/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -250,13 +256,15 @@ export default function RequestedPage() {
         }),
       });
       if (!res.ok) throw new Error();
-      mutate(prev => prev.map(cand => cand.id === c.id ? { 
+      mutate(prev => prev.map(cand => cand.id === id ? { 
         ...cand, 
         isRequested: false, 
         visaSelected: false, 
         visaOrContractNumber: null,
         status: 'pending'
       } : cand));
+      setCancelVisaModalId(null);
+      setCancelVisaNumberInput('');
     } catch { alert('Failed to update status'); }
   };
 
@@ -430,7 +438,7 @@ export default function RequestedPage() {
                               </button>
                             )}
                             <div className="border-t border-border my-1" />
-                            <button onClick={() => cancelVisa(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                            <button onClick={() => handleCancelVisaClick(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                               <CheckCircle size={16} className="text-amber-500" />
                               <span>Cancelled</span>
                             </button>
@@ -586,6 +594,53 @@ export default function RequestedPage() {
           </div>
         </div>
       )}
+
+      {/* Cancel Visa Modal */}
+      {cancelVisaModalId && (() => {
+        const candidate = allCandidates.find(c => c.id === cancelVisaModalId);
+        const expectedVisa = candidate?.visaOrContractNumber || '';
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setCancelVisaModalId(null)}>
+            <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+                <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                  <Flag className="text-red-500" size={20} /> Cancel Visa Selection
+                </h3>
+                <button onClick={() => setCancelVisaModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-text-secondary">
+                  Are you sure you want to cancel the visa selection for <strong className="text-text-primary">{candidate ? `${candidate.passportData.givenNames} ${candidate.passportData.surname}` : 'this candidate'}</strong>?
+                </p>
+                <div>
+                  <label className="block text-sm font-semibold text-text-primary mb-2">
+                    Enter the Visa/Contract Number ({expectedVisa}) to confirm:
+                  </label>
+                  <Input 
+                    autoFocus
+                    placeholder="Enter Visa / Contract Number" 
+                    value={cancelVisaNumberInput} 
+                    onChange={(e) => setCancelVisaNumberInput(e.target.value)} 
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+                <button onClick={() => setCancelVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  disabled={cancelVisaNumberInput.trim().toLowerCase() !== expectedVisa.toLowerCase()}
+                  onClick={() => cancelVisa(cancelVisaModalId)}
+                  className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"
+                >
+                  Confirm Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

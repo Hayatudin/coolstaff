@@ -24,6 +24,8 @@ export default function DashboardPage() {
   const [viewDoc, setViewDoc] = React.useState<string | null>(null);
   const [visaModalId, setVisaModalId] = React.useState<string | null>(null);
   const [visaNumberInput, setVisaNumberInput] = React.useState('');
+  const [cancelVisaModalId, setCancelVisaModalId] = React.useState<string | null>(null);
+  const [cancelVisaNumberInput, setCancelVisaNumberInput] = React.useState('');
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
 
@@ -63,6 +65,8 @@ export default function DashboardPage() {
     setOpenMenuId(null);
     setVisaModalId(null);
     setVisaNumberInput('');
+    setCancelVisaModalId(null);
+    setCancelVisaNumberInput('');
 
     if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
       alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
@@ -275,7 +279,7 @@ export default function DashboardPage() {
                           {openMenuId === candidate.id && (
                             <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
                               {candidate.isRequested ? (
-                                <button onClick={(e) => { e.stopPropagation(); toggleRequested(candidate.id, true); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                                   <CheckCircle size={16} className="text-amber-500" />
                                   <span>Cancel Visa Selected</span>
                                 </button>
@@ -385,7 +389,7 @@ export default function DashboardPage() {
                           </button>
                           {openMenuId === candidate.id && (
                             <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
-                              <button onClick={(e) => { e.stopPropagation(); toggleRequested(candidate.id, true); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                                 <CheckCircle size={16} className="text-amber-500" />
                                 <span>Cancel Visa Selected</span>
                               </button>
@@ -627,6 +631,53 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Cancel Visa Modal */}
+      {cancelVisaModalId && (() => {
+        const candidate = allCandidates.find(c => c.id === cancelVisaModalId);
+        const expectedVisa = candidate?.visaOrContractNumber || '';
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setCancelVisaModalId(null)}>
+            <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+                <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                  <Flag className="text-red-500" size={20} /> Cancel Visa Selection
+                </h3>
+                <button onClick={() => setCancelVisaModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-text-secondary">
+                  Are you sure you want to cancel the visa selection for <strong className="text-text-primary">{candidate ? `${candidate.passportData.givenNames} ${candidate.passportData.surname}` : 'this candidate'}</strong>?
+                </p>
+                <div>
+                  <label className="block text-sm font-semibold text-text-primary mb-2">
+                    Enter the Visa/Contract Number ({expectedVisa}) to confirm:
+                  </label>
+                  <Input 
+                    autoFocus
+                    placeholder="Enter Visa / Contract Number" 
+                    value={cancelVisaNumberInput} 
+                    onChange={(e) => setCancelVisaNumberInput(e.target.value)} 
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+                <button onClick={() => setCancelVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  disabled={cancelVisaNumberInput.trim().toLowerCase() !== expectedVisa.toLowerCase()}
+                  onClick={() => toggleRequested(cancelVisaModalId, true)}
+                  className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"
+                >
+                  Confirm Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
