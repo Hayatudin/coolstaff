@@ -59,6 +59,7 @@ export default function BrokersPage() {
 
   // Delete leader modal state
   const [deleteLeaderTarget, setDeleteLeaderTarget] = useState<Leader | null>(null);
+  const [deleteLeaderReason, setDeleteLeaderReason] = useState('');
   const [isDeletingLeader, setIsDeletingLeader] = useState(false);
 
   const [expandedLeaderId, setExpandedLeaderId] = useState<string | null>(null);
@@ -773,37 +774,34 @@ export default function BrokersPage() {
 
       {/* ───── Main View Grid (Grouped by Leaders Folders) ───── */}
       <div className="space-y-12 animate-fade-in">
-        {/* Leaders Folders */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {isLeadersLoading || isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-48 bg-surface rounded-[2rem] border border-border animate-pulse mt-8" />
-            ))
-          ) : (
-            <>
-              {/* Leader Folders */}
-              {filteredLeaders.map(leader => {
-                const isExpanded = expandedLeaderId === leader.id;
-                const leaderBrokers = brokers.filter(b => b.leaderId === leader.id);
+        {/* Leaders Folders Section */}
+        <div>
+          <h2 className="text-xl font-black text-text-primary mb-6 flex items-center gap-2">
+            <Folder className="text-lime-500" size={24} />
+            Recruitment Leaders
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {isLeadersLoading || isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-48 bg-surface rounded-[2rem] border border-border animate-pulse" />
+              ))
+            ) : filteredLeaders.length > 0 ? (
+              filteredLeaders.map(leader => {
                 return (
                   <div key={leader.id} className="relative pt-10 group/folder flex flex-col">
                     {/* Folder Tab shape */}
                     <div 
-                      onClick={() => setExpandedLeaderId(isExpanded ? null : leader.id)}
-                      className={cn(
-                        "absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300",
-                        isExpanded
-                          ? "bg-gradient-to-r from-lime-400 to-emerald-500 scale-105"
-                          : "bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
-                      )}
+                      onClick={() => router.push(`/brokers/leader/${leader.id}`)}
+                      className="absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300 bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
                     >
-                      {isExpanded ? <FolderOpen size={14} className="text-black shrink-0" /> : <Folder size={14} className="text-gray-700 shrink-0" />}
+                      <Folder size={14} className="text-gray-700 shrink-0" />
                       <span className="truncate max-w-[120px]">{leader.name}</span>
                       
                       {isAuthorized && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setDeleteLeaderReason('');
                             setDeleteLeaderTarget(leader);
                           }}
                           className="p-1 rounded-full hover:bg-black/10 text-black/60 hover:text-red-700 transition-colors ml-1 cursor-pointer"
@@ -818,17 +816,8 @@ export default function BrokersPage() {
 
                     {/* Folder Body */}
                     <div
-                      onClick={(e) => {
-                        const target = e.target as HTMLElement;
-                        if (target.closest('button') || target.closest('input') || target.closest('.interactive-broker') || target.closest('.relative-z-menu')) {
-                          return;
-                        }
-                        setExpandedLeaderId(isExpanded ? null : leader.id);
-                      }}
-                      className={cn(
-                        "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-lime-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden w-full",
-                        isExpanded ? "ring-2 ring-lime-400/20 border-lime-400/30 h-auto" : "min-h-[160px] h-full"
-                      )}
+                      onClick={() => router.push(`/brokers/leader/${leader.id}`)}
+                      className="bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-lime-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden w-full min-h-[160px] h-full"
                     >
                       {/* Background element */}
                       <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-xl pointer-events-none" />
@@ -837,9 +826,6 @@ export default function BrokersPage() {
                         <h3 className="text-lg font-bold text-text-primary mt-2">{leader.name}</h3>
                         <p className="text-xs text-text-tertiary">Recruitment Leader Profile Group</p>
                       </div>
-
-                      {/* Nested Brokers List inside Leader folder */}
-                      {isExpanded && renderNestedBrokersList(leaderBrokers, leader.id)}
 
                       <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4 w-full">
                         <div>
@@ -858,81 +844,36 @@ export default function BrokersPage() {
                     </div>
                   </div>
                 );
-              })}
+              })
+            ) : (
+              <div className="col-span-full py-12 text-center bg-surface border border-dashed border-border rounded-[2rem]">
+                <Folder size={32} className="mx-auto text-text-tertiary opacity-30 mb-3" />
+                <h4 className="text-sm font-bold text-text-primary">No Leaders Found</h4>
+              </div>
+            )}
+          </div>
+        </div>
 
-              {/* Independent Brokers Virtual Folder */}
-              {independentBrokers.length > 0 && (() => {
-                const isExpanded = expandedLeaderId === 'independent';
-                return (
-                  <div key="independent-folder" className="relative pt-10 group/folder flex flex-col">
-                    {/* Folder Tab shape */}
-                    <div 
-                      onClick={() => setExpandedLeaderId(isExpanded ? null : 'independent')}
-                      className={cn(
-                        "absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300",
-                        isExpanded
-                          ? "bg-gradient-to-r from-gray-400 to-slate-500 scale-105 text-white"
-                          : "bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
-                      )}
-                    >
-                      {isExpanded ? <FolderOpen size={14} className="text-white shrink-0" /> : <Folder size={14} className="text-gray-700 shrink-0" />}
-                      <span className="truncate max-w-[120px]">Independent</span>
-                    </div>
-                    {/* Folder Top Line */}
-                    <div className="absolute top-0 left-[180px] right-0 h-10 border-b border-border/50" />
-
-                    {/* Folder Body */}
-                    <div
-                      onClick={(e) => {
-                        const target = e.target as HTMLElement;
-                        if (target.closest('button') || target.closest('input') || target.closest('.interactive-broker') || target.closest('.relative-z-menu')) {
-                          return;
-                        }
-                        setExpandedLeaderId(isExpanded ? null : 'independent');
-                      }}
-                      className={cn(
-                        "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-slate-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden w-full",
-                        isExpanded ? "ring-2 ring-slate-400/20 border-slate-400/30 h-auto" : "min-h-[160px] h-full"
-                      )}
-                    >
-                      <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-slate-500/5 rounded-full blur-xl pointer-events-none" />
-
-                      <div className="space-y-3 relative z-10 w-full">
-                        <h3 className="text-lg font-bold text-text-primary mt-2">Independent Brokers</h3>
-                        <p className="text-xs text-text-tertiary">Unassigned recruitment source group</p>
-                      </div>
-
-                      {/* Nested Brokers List inside Independent folder */}
-                      {isExpanded && renderNestedBrokersList(independentBrokers, null)}
-
-                      <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4 w-full">
-                        <div>
-                          <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
-                          <p className="text-2xl font-black text-text-primary leading-none tabular-nums">
-                            {independentBrokers.length}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Candidates</p>
-                          <p className="text-2xl font-black text-slate-500 leading-none tabular-nums">
-                            {independentBrokers.reduce((sum, b) => sum + (b._count?.candidates || 0), 0)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {filteredLeaders.length === 0 && independentBrokers.length === 0 && (
-                <div className="col-span-full py-16 text-center bg-surface border border-dashed border-border rounded-[2rem]">
-                  <Folder size={32} className="mx-auto text-text-tertiary opacity-30 mb-3" />
-                  <h4 className="text-lg font-bold text-text-primary">No Leaders or Brokers Registered</h4>
-                  <p className="text-xs text-text-tertiary max-w-xs mx-auto mt-1">Create a leader or register a broker above to build your network.</p>
-                </div>
-              )}
-            </>
-          )}
+        {/* Independent Brokers Section */}
+        <div className="pt-6">
+          <h2 className="text-xl font-black text-text-primary mb-6 flex items-center gap-2">
+            <Users className="text-primary" size={24} />
+            Independent Brokers
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {isLeadersLoading || isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-48 bg-surface rounded-[2rem] border border-border animate-pulse" />
+              ))
+            ) : independentBrokers.length > 0 ? (
+              independentBrokers.map(broker => renderBrokerCard(broker))
+            ) : (
+              <div className="col-span-full py-12 text-center bg-surface border border-dashed border-border rounded-[2rem]">
+                <Users size={32} className="mx-auto text-text-tertiary opacity-30 mb-3" />
+                <h4 className="text-sm font-bold text-text-primary">No Independent Brokers Found</h4>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1253,7 +1194,7 @@ export default function BrokersPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-surface border border-border/80 rounded-[2rem] w-full max-w-md shadow-2xl p-8 relative animate-scale-in">
             <button
-              onClick={() => setDeleteLeaderTarget(null)}
+              onClick={() => { setDeleteLeaderTarget(null); setDeleteLeaderReason(''); }}
               className="absolute right-6 top-6 text-text-tertiary hover:text-text-primary hover:bg-border/50 p-2 rounded-xl transition-all cursor-pointer"
             >
               <X size={20} />
@@ -1280,10 +1221,23 @@ export default function BrokersPage() {
               </div>
             )}
 
+            <div className="space-y-2 mb-6">
+              <label className="block text-xs uppercase tracking-wider font-bold text-text-tertiary">
+                Reason for deletion:
+              </label>
+              <Input
+                placeholder="Type reason for deleting leader..."
+                value={deleteLeaderReason}
+                onChange={e => setDeleteLeaderReason(e.target.value)}
+                required
+                className="h-10 rounded-xl"
+              />
+            </div>
+
             <div className="flex gap-4">
               <Button
                 variant="outline"
-                onClick={() => setDeleteLeaderTarget(null)}
+                onClick={() => { setDeleteLeaderTarget(null); setDeleteLeaderReason(''); }}
                 className="flex-1 h-12 rounded-xl"
               >
                 Cancel
@@ -1291,7 +1245,8 @@ export default function BrokersPage() {
               <Button
                 onClick={handleDeleteLeader}
                 loading={isDeletingLeader}
-                className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/15"
+                disabled={!deleteLeaderReason.trim()}
+                className="flex-1 h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/15 disabled:opacity-50 disabled:cursor-not-allowed border-red-600"
               >
                 Delete Leader
               </Button>

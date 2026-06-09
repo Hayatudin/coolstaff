@@ -1,19 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
-  Users, Loader2, Search, ArrowLeft, Calendar, FileText, User, 
-  ChevronRight, Filter, Download, Trash2, Edit3, Briefcase, 
-  MapPin, Phone, Mail, Clock, CheckCircle2, AlertCircle,
-  MoreVertical, CheckCircle, Eye, CalendarDays, X, Lock, 
-  FileDown, ImageIcon, LayoutTemplate, Check, AlertTriangle, PackageOpen, ChevronDown,
-  ArrowRightLeft
+  Users, Loader2, Search, ArrowLeft, FileText, 
+  ChevronRight, Filter, Download, Trash2, Briefcase, 
+  Lock, FileDown, ImageIcon, LayoutTemplate, Check, X, AlertCircle,
+  MoreVertical, CheckCircle, Eye, ChevronDown, ArrowRightLeft, Flag
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Broker, Candidate } from '@/types';
-import Badge from '@/components/ui/Badge';
+import Select from '@/components/ui/Select';
+import { Broker } from '@/types';
 import { api } from '@/lib/api';
 import { getFileUrl, cn } from '@/lib/utils';
 
@@ -38,7 +36,17 @@ const TEMPLATES = [
   { id: 'vision', name: 'Vision Layout', category: 'Premium', color: 'bg-[#0a5c4e]', textColor: 'text-[#0a5c4e]', bgLight: 'bg-[#e8f5e9]', component: VisionTemplate },
 ];
 
-type Interval = '1D' | '1W' | '1M' | '3M' | '1Y' | 'ALL';
+const AGENCIES = [
+  { id: 'all', name: 'All' },
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ka7', name: 'KHAAFAAT' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
 
 interface BrokerCandidate {
   id: string;
@@ -59,6 +67,9 @@ interface BrokerCandidate {
   }[];
   isLocked?: boolean;
   visaSelected?: boolean;
+  religion?: string | null;
+  isFlagged?: boolean;
+  medicalStatus?: string;
 }
 
 export default function BrokerCandidatesPage() {
@@ -70,19 +81,28 @@ export default function BrokerCandidatesPage() {
   const [candidates, setCandidates] = useState<BrokerCandidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [interval, setInterval] = useState<Interval>('ALL');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+
+  // Advanced Filters
+  const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
+  const [religionFilter, setReligionFilter] = useState('');
+  const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
+  const [agencyFilter, setAgencyFilter] = useState('all');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [visaFilter, setVisaFilter] = useState<'all' | 'visa-selected' | 'pending'>('all');
   
   // Custom states
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [bulkChangeOpen, setBulkChangeOpen] = useState(false);
+  
+  // Template Changer states
+  const [templateChangeTarget, setTemplateChangeTarget] = useState<BrokerCandidate | 'bulk' | null>(null);
   const [isChangingTemplate, setIsChangingTemplate] = useState(false);
+
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [downloadingCv, setDownloadingCv] = useState<any | null>(null);
@@ -98,11 +118,21 @@ export default function BrokerCandidatesPage() {
   const [isMoving, setIsMoving] = useState(false);
   const [brokerSearchQuery, setBrokerSearchQuery] = useState('');
   const [lockingCandidateId, setLockingCandidateId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-action-menu]')) setOpenMenuId(null);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -120,13 +150,18 @@ export default function BrokerCandidatesPage() {
     }
   };
 
+  // Helper to extract candidate template ID
+  const getNormalizedTemplateId = (c: BrokerCandidate) => {
+    const cvs = c.generatedCVs || [];
+    const firstCV = cvs[0];
+    if (!firstCV) return null;
+    const templateId = firstCV.templateId;
+    return templateId ? templateId.replace('tmpl-', '').toLowerCase() : null;
+  };
+
   // Open single CV preview modal (fetching details dynamically)
   const handleOpenCV = async (candidate: any) => {
-    const cvDetails = candidate.generatedCVs?.[0];
-    if (!cvDetails) {
-      showToast('No CV generated for this candidate', 'error');
-      return;
-    }
+    const activeTemplate = getNormalizedTemplateId(candidate) || 'alm';
     
     try {
       setIsPreviewLoading(true);
@@ -135,10 +170,10 @@ export default function BrokerCandidatesPage() {
       const fullCandidate = await res.json();
       
       setPreviewCv({
-        id: cvDetails.id,
-        templateId: cvDetails.templateId,
-        facePhotoUrl: cvDetails.facePhotoUrl,
-        fullBodyPhotoUrl: cvDetails.fullBodyPhotoUrl,
+        id: candidate.id,
+        templateId: activeTemplate,
+        facePhotoUrl: candidate.facePhotoUrl,
+        fullBodyPhotoUrl: candidate.fullBodyPhotoUrl,
         candidate: fullCandidate
       });
     } catch (err) {
@@ -149,52 +184,131 @@ export default function BrokerCandidatesPage() {
     }
   };
 
-  // Bulk template change (POST if new, PATCH if existing)
-  const handleBulkChangeTemplate = async (newTemplateId: string) => {
-    if (selectedIds.length === 0) return;
+  // Template change handler
+  const handleConfirmChangeTemplate = async (newTemplateId: string) => {
+    if (!templateChangeTarget) return;
     setIsChangingTemplate(true);
-    setBulkChangeOpen(false);
     
-    let successCount = 0;
-    let failCount = 0;
-    
-    for (const candidateId of selectedIds) {
-      const candidate = candidates.find(c => c.id === candidateId);
-      if (!candidate) continue;
-      
-      const existingCv = candidate.generatedCVs?.[0];
-      try {
+    try {
+      const isBulk = templateChangeTarget === 'bulk';
+      if (isBulk) {
+        let successCount = 0;
+        for (const candidateId of selectedIds) {
+          const candidate = candidates.find(c => c.id === candidateId);
+          if (!candidate) continue;
+          const existingCv = candidate.generatedCVs?.[0];
+          if (existingCv) {
+            await api(`/api/generated-cvs/${existingCv.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ templateId: newTemplateId }),
+            });
+          } else {
+            await api('/api/generated-cvs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                candidateId, 
+                templateId: newTemplateId,
+                facePhotoUrl: candidate.facePhotoUrl,
+                fullBodyPhotoUrl: candidate.fullBodyPhotoUrl
+              }),
+            });
+          }
+          successCount++;
+        }
+        showToast(`Template changed to "${newTemplateId.toUpperCase()}" for ${successCount} candidates`);
+        setSelectedIds([]);
+      } else {
+        const candidate = templateChangeTarget;
+        const existingCv = candidate.generatedCVs?.[0];
         if (existingCv) {
-          const res = await api(`/api/generated-cvs/${existingCv.id}`, {
+          await api(`/api/generated-cvs/${existingCv.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ templateId: newTemplateId }),
           });
-          if (res.ok) successCount++; else failCount++;
         } else {
-          const res = await api('/api/generated-cvs', {
+          await api('/api/generated-cvs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              candidateId, 
+              candidateId: candidate.id, 
               templateId: newTemplateId,
               facePhotoUrl: candidate.facePhotoUrl,
               fullBodyPhotoUrl: candidate.fullBodyPhotoUrl
             }),
           });
-          if (res.ok) successCount++; else failCount++;
         }
-      } catch (err) {
-        failCount++;
+        showToast(`Template updated to "${newTemplateId.toUpperCase()}"`);
       }
+      setTemplateChangeTarget(null);
+      fetchBrokerData();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to change template', 'error');
+    } finally {
+      setIsChangingTemplate(false);
     }
-    
-    setIsChangingTemplate(false);
-    const newTemplateName = TEMPLATES.find(t => t.id === newTemplateId)?.name;
-    showToast(`Template changed to "${newTemplateName}" for ${successCount} candidates${failCount > 0 ? ` (${failCount} failed)` : ''}`, 'success');
-    
-    fetchBrokerData();
-    setSelectedIds([]);
+  };
+
+  // Inline Medical Status change handler
+  const handleUpdateMedicalStatus = async (candidateId: string, newStatus: string) => {
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicalStatus: newStatus }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update medical status');
+      }
+      setCandidates(prev => prev.map(c => 
+        c.id === candidateId ? { ...c, medicalStatus: newStatus } : c
+      ));
+      showToast(`Medical status updated to ${newStatus}`);
+      if (newStatus === 'Unfit') {
+        fetchBrokerData();
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Failed to update medical status', 'error');
+    }
+  };
+
+  // Toggle Flag Status
+  const handleToggleFlag = async (candidateId: string, currentFlagged: boolean) => {
+    setOpenMenuId(null);
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFlagged: !currentFlagged }),
+      });
+      if (!res.ok) throw new Error();
+      setCandidates(prev => prev.map(c => 
+        c.id === candidateId ? { ...c, isFlagged: !currentFlagged } : c
+      ));
+      showToast(!currentFlagged ? 'Candidate Flagged' : 'Candidate Unflagged');
+    } catch {
+      showToast('Failed to update flag status', 'error');
+    }
+  };
+
+  // Delete Candidate
+  const handleDeleteCandidate = async (candidateId: string) => {
+    setOpenMenuId(null);
+    if (!confirm('Are you sure you want to delete this candidate?')) return;
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setCandidates(prev => prev.filter(c => c.id !== candidateId));
+      setSelectedIds(prev => prev.filter(id => id !== candidateId));
+      showToast('Candidate deleted successfully');
+    } catch {
+      showToast('Failed to delete candidate', 'error');
+    }
   };
 
   // Single CV download handler
@@ -238,7 +352,7 @@ export default function BrokerCandidatesPage() {
 
         if (downloadFormat === 'doc') {
           const payload = {
-            candidateId: downloadingCv.candidateId,
+            candidateId: downloadingCv.candidateId || downloadingCv.id,
             templateId: `tmpl-${downloadingCv.templateId}`,
             format: 'doc',
             deadline: downloadingCv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
@@ -286,7 +400,19 @@ export default function BrokerCandidatesPage() {
 
   // Bulk ZIP CVs download handler
   const handleBulkDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
-    if (selectedIds.length === 0) return;
+    // Only download candidates matching the active visa option
+    const candidatesToDownload = selectedIds.filter(id => {
+      const c = candidates.find(cand => cand.id === id);
+      if (!c) return false;
+      if (visaFilter === 'visa-selected') return c.visaSelected === true;
+      return c.visaSelected !== true;
+    });
+
+    if (candidatesToDownload.length === 0) {
+      showToast('No candidates selected under the current visa filter option', 'error');
+      return;
+    }
+    
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
     
@@ -302,13 +428,13 @@ export default function BrokerCandidatesPage() {
 
       const { createRoot } = await import('react-dom/client');
 
-      for (let i = 0; i < selectedIds.length; i++) {
-        const candidateId = selectedIds[i];
+      for (let i = 0; i < candidatesToDownload.length; i++) {
+        const candidateId = candidatesToDownload[i];
         const candidateSummary = candidates.find(c => c.id === candidateId);
         if (!candidateSummary) continue;
         
         const safeName = `${candidateSummary.givenNames || ''}_${candidateSummary.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${selectedIds.length}: ${candidateSummary.givenNames}...`);
+        showToast(`Processing ${i + 1}/${candidatesToDownload.length}: ${candidateSummary.givenNames}...`);
 
         try {
           // Fetch full candidate details
@@ -316,7 +442,7 @@ export default function BrokerCandidatesPage() {
           if (!detailRes.ok) throw new Error('Failed to fetch details');
           const fullCandidate = await detailRes.json();
           
-          const templateId = fullCandidate.latestCVTemplate || 'alm';
+          const templateId = getNormalizedTemplateId(candidateSummary) || 'alm';
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
 
           const facePhoto = getFileUrl(fullCandidate.facePhotoUrl || fullCandidate.passportImageUrl);
@@ -439,11 +565,7 @@ export default function BrokerCandidatesPage() {
   const fetchBrokerData = async () => {
     try {
       setIsLoading(true);
-      let url = `/api/brokers/${brokerId}/candidates?search=${searchQuery}&interval=${interval}`;
-      if (startDate) url += `&startDate=${startDate}`;
-      if (endDate) url += `&endDate=${endDate}`;
-      
-      const res = await api(url);
+      const res = await api(`/api/brokers/${brokerId}/candidates?interval=ALL`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setBroker(data);
@@ -498,25 +620,54 @@ export default function BrokerCandidatesPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchBrokerData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, interval, brokerId, startDate, endDate]);
+    fetchBrokerData();
+  }, [brokerId]);
 
-  const intervals: { label: string, value: Interval }[] = [
-    { label: 'All Time', value: 'ALL' },
-    { label: 'Today', value: '1D' },
-    { label: 'Last Week', value: '1W' },
-    { label: 'Last Month', value: '1M' },
-    { label: 'Last Year', value: '1Y' },
-  ];
+  // Client-side filtering
+  const filteredCandidates = useMemo(() => {
+    return candidates.filter(c => {
+      // 1. Search Query
+      const name = `${c.givenNames} ${c.surname}`.toLowerCase();
+      const passport = c.passportNumber.toLowerCase();
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = name.includes(query) || passport.includes(query);
 
-  const filteredCandidates = candidates.filter(candidate => {
-    if (visaFilter === 'visa-selected') return candidate.visaSelected === true;
-    if (visaFilter === 'pending') return candidate.visaSelected !== true;
-    return true;
-  });
+      // 2. Visa Status Filter
+      const matchesVisa = visaFilter === 'visa-selected'
+        ? c.visaSelected === true
+        : c.visaSelected !== true;
+
+      // 3. Religion Filter
+      const matchesReligion = religionFilter
+        ? c.religion?.toLowerCase() === religionFilter.toLowerCase()
+        : true;
+
+      // 4. Flagged Filter
+      const matchesFlagged = flaggedFilter
+        ? flaggedFilter === 'flagged' ? c.isFlagged === true : c.isFlagged === false
+        : true;
+
+      // 5. Agency Filter
+      const matchesAgency = agencyFilter === 'all'
+        ? true
+        : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
+
+      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency;
+    });
+  }, [candidates, searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
+
+  // Reset pagination on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+  }, [searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
+
+  // Pagination Slice
+  const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
+  const paginatedCandidates = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCandidates.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredCandidates, currentPage]);
 
   return (
     <div className="space-y-8 animate-fade-in pb-12 max-w-7xl mx-auto px-4">
@@ -549,7 +700,7 @@ export default function BrokerCandidatesPage() {
 
         <div className="flex items-center gap-4 bg-primary/5 border border-primary/10 rounded-[2rem] px-6 py-4">
           <div className="text-right">
-            <p className="text-[10px] text-primary/60 uppercase font-black tracking-widest leading-none">Total Candidates</p>
+            <p className="text-[10px] text-primary/60 uppercase font-black tracking-widest leading-none font-bold">Total Candidates</p>
             <p className="text-2xl font-black text-primary leading-none mt-1">{candidates.length}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -560,8 +711,9 @@ export default function BrokerCandidatesPage() {
 
       {/* Control Panel */}
       <div className="bg-surface rounded-3xl border border-border/50 p-6 space-y-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 relative group">
+        {/* Visa Selected / Pending Visa toggle and search */}
+        <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+          <div className="flex-1 relative group w-full">
             <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors" />
             <input 
               type="text"
@@ -572,72 +724,100 @@ export default function BrokerCandidatesPage() {
             />
           </div>
           
-          <div className="bg-gray-50/50 border border-border/50 rounded-2xl p-1.5 flex items-center gap-1 overflow-x-auto scrollbar-hide">
-            {intervals.map((item) => (
-              <button
-                key={item.value}
-                onClick={() => {
-                  setInterval(item.value);
-                  setStartDate('');
-                  setEndDate('');
-                }}
-                className={`px-6 py-3 rounded-xl text-xs font-black transition-all whitespace-nowrap uppercase tracking-widest ${
-                  interval === item.value && !startDate && !endDate
-                    ? 'bg-primary text-white ' 
-                    : 'text-text-tertiary hover:bg-white'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+          {/* Visa Status Filter Tabs */}
+          <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shrink-0 w-full lg:w-auto shadow-inner">
+            <button
+              onClick={() => setVisaFilter('pending')}
+              className={cn(
+                "flex-1 lg:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                visaFilter === 'pending'
+                  ? "bg-white text-text-primary shadow-md"
+                  : "text-text-tertiary hover:bg-white/50"
+              )}
+            >
+              Pending Visa
+            </button>
+            <button
+              onClick={() => setVisaFilter('visa-selected')}
+              className={cn(
+                "flex-1 lg:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                visaFilter === 'visa-selected'
+                  ? "bg-white text-text-primary shadow-md"
+                  : "text-text-tertiary hover:bg-white/50"
+              )}
+            >
+              Visa Selected
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-border/50">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={e => { setStartDate(e.target.value); setInterval('ALL'); }}
-                  className="bg-gray-50/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-bold text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer hover:bg-white"
-                />
-              </div>
-              <span className="text-text-tertiary font-black text-[10px] uppercase tracking-widest">to</span>
-              <div className="relative">
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={e => { setEndDate(e.target.value); setInterval('ALL'); }}
-                  className="bg-gray-50/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-bold text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer hover:bg-white"
-                />
-              </div>
+        {/* Filters and Actions Bar */}
+        <div className="flex flex-wrap items-center gap-4 justify-between pt-4 border-t border-border/50">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Religion dropdown */}
+            <div className="w-full sm:w-44">
+              <Select
+                placeholder="All Religions"
+                value={religionFilter}
+                onChange={setReligionFilter}
+                options={[
+                  { value: '', label: 'All Religions' },
+                  { value: 'muslim', label: 'Muslim' },
+                  { value: 'christian', label: 'Christian' },
+                  { value: 'other', label: 'Other' }
+                ]}
+              />
             </div>
-            
-            <div className="relative flex items-center gap-1.5">
-              <Filter size={14} className="text-text-tertiary" />
-              <select
-                value={visaFilter}
-                onChange={e => setVisaFilter(e.target.value as 'all' | 'visa-selected' | 'pending')}
-                className="bg-gray-50/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-bold text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer hover:bg-white appearance-none pr-8 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23999%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:8px] bg-[right_12px_center] bg-no-repeat"
-              >
-                <option value="all">All Visa Statuses</option>
-                <option value="visa-selected">Visa Selected Only</option>
-                <option value="pending">Pending Only</option>
-              </select>
+            {/* Flagged dropdown */}
+            <div className="w-full sm:w-44">
+              <Select
+                placeholder="Unflagged Candidates"
+                value={flaggedFilter}
+                onChange={setFlaggedFilter}
+                options={[
+                  { value: '', label: 'All Candidates' },
+                  { value: 'flagged', label: 'Flagged Only' },
+                  { value: 'unflagged', label: 'Unflagged Only' }
+                ]}
+              />
             </div>
           </div>
-          {(startDate || endDate || searchQuery || visaFilter !== 'all') && (
+
+          {(searchQuery || religionFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
             <button 
-              onClick={() => { setStartDate(''); setEndDate(''); setSearchQuery(''); setInterval('ALL'); setVisaFilter('all'); }}
-              className="px-4 py-2.5 rounded-xl text-[10px] font-black text-danger uppercase tracking-widest hover:bg-danger/5 transition-colors flex items-center gap-2 ml-auto border border-danger/10"
+              onClick={() => { setSearchQuery(''); setReligionFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
+              className="px-4 py-2.5 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-2 border border-red-200"
             >
               <Trash2 size={12} /> Clear All Filters
             </button>
           )}
         </div>
 
+        {/* Agency Tab Filter Tabs Bar */}
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            <span className="text-xs font-bold text-text-tertiary uppercase tracking-wider mr-2 hidden md:inline-block">Agency CV:</span>
+            {AGENCIES.map(agency => {
+              const isActive = agencyFilter === agency.id;
+              return (
+                <button
+                  key={agency.id}
+                  onClick={() => setAgencyFilter(agency.id)}
+                  className={cn(
+                    "px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer border",
+                    isActive
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-surface text-text-secondary border-border hover:bg-gray-50/50 hover:text-text-primary"
+                  )}
+                >
+                  {agency.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected candidates Bulk Action Bar */}
         {selectedIds.length > 0 && (
           <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
             <span className="text-xs font-bold text-primary px-3 py-1.5 bg-primary/10 rounded-lg">
@@ -646,9 +826,9 @@ export default function BrokerCandidatesPage() {
             
             {/* Change Template Button */}
             <button 
-              onClick={() => setBulkChangeOpen(true)}
+              onClick={() => setTemplateChangeTarget('bulk')}
               disabled={isChangingTemplate}
-              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {isChangingTemplate ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -664,7 +844,7 @@ export default function BrokerCandidatesPage() {
                 fetchBrokers();
                 setMoveModalOpen(true);
               }}
-              className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
             >
               <ArrowRightLeft size={14} />
               Move Candidates
@@ -675,7 +855,7 @@ export default function BrokerCandidatesPage() {
               <button 
                 onClick={() => setDownloadAllOpen(prev => !prev)}
                 disabled={isDownloadingAll}
-                className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 {isDownloadingAll ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -690,19 +870,19 @@ export default function BrokerCandidatesPage() {
                 <div className="absolute left-0 mt-2 w-48 bg-white border border-border rounded-xl shadow-xl overflow-hidden z-30 animate-in fade-in slide-in-from-top-2">
                   <button 
                     onClick={() => handleBulkDownload('pdf')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors font-semibold"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors font-semibold cursor-pointer text-left"
                   >
                     <FileDown size={14} className="text-red-500" /> As PDF
                   </button>
                   <button 
                     onClick={() => handleBulkDownload('jpg')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors border-t border-border font-semibold"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors border-t border-border font-semibold cursor-pointer text-left"
                   >
                     <ImageIcon size={14} className="text-emerald-500" /> As JPG
                   </button>
                   <button 
                     onClick={() => handleBulkDownload('doc')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors border-t border-border font-semibold"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-text-primary hover:bg-surface transition-colors border-t border-border font-semibold cursor-pointer text-left"
                   >
                     <FileText size={14} className="text-blue-500" /> As DOCX
                   </button>
@@ -713,7 +893,7 @@ export default function BrokerCandidatesPage() {
             {/* Cancel Selection button */}
             <button 
               onClick={() => setSelectedIds([])}
-              className="px-4 py-2 bg-gray-100 text-text-secondary text-xs font-bold rounded-xl hover:bg-gray-200 transition-all"
+              className="px-4 py-2 bg-gray-100 text-text-secondary text-xs font-bold rounded-xl hover:bg-gray-200 transition-all cursor-pointer"
             >
               Cancel
             </button>
@@ -722,7 +902,7 @@ export default function BrokerCandidatesPage() {
       </div>
 
       {/* Table Feed */}
-      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden animate-fade-in">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -730,14 +910,16 @@ export default function BrokerCandidatesPage() {
                 <th className="px-6 py-4 w-10 text-center">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
                     checked={filteredCandidates.length > 0 && selectedIds.length === filteredCandidates.length}
                     onChange={handleSelectAll}
                   />
                 </th>
                 <th className="px-6 py-4 font-semibold">Candidate Details</th>
                 <th className="px-6 py-4 font-semibold">Passport Number</th>
+                <th className="px-6 py-4 font-semibold">Religion</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
+                <th className="px-6 py-4 font-semibold">Medical Status</th>
                 <th className="px-6 py-4 font-semibold">CV</th>
                 <th className="px-6 py-4 font-semibold">Agency</th>
                 <th className="px-6 py-4 hidden lg:table-cell font-semibold">Registered Date</th>
@@ -747,109 +929,132 @@ export default function BrokerCandidatesPage() {
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Syncing portfolio...</p>
                     </div>
                   </td>
                 </tr>
-              ) : filteredCandidates.length > 0 ? (
-                filteredCandidates.map((candidate: any) => (
-                  <tr 
-                    key={candidate.id} 
-                    className="hover:bg-gray-50/30 transition-colors cursor-pointer group relative"
-                    onClick={(e) => {
-                      if (!(e.target as HTMLElement).closest('button')) {
-                        router.push(`/candidates/${candidate.id}`);
-                      }
-                    }}
-                  >
-                    <td className="px-6 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
-                        checked={selectedIds.includes(candidate.id)}
-                        onChange={(e) => handleSelect(candidate.id, e.target.checked)}
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center text-primary font-bold text-sm border border-primary-100 overflow-hidden shrink-0">
-                          {candidate.facePhotoUrl ? (
-                            <img src={getFileUrl(candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{candidate.givenNames.charAt(0)}{candidate.surname.charAt(0)}</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
-                            {candidate.givenNames} {candidate.surname}
-                            {candidate.isLocked && (
-                              <Lock size={12} className="text-red-500 fill-red-100 shrink-0" />
+              ) : paginatedCandidates.length > 0 ? (
+                paginatedCandidates.map((candidate) => {
+                  const activeTmplId = getNormalizedTemplateId(candidate);
+                  return (
+                    <tr 
+                      key={candidate.id} 
+                      className="hover:bg-gray-50/30 transition-colors cursor-pointer group relative"
+                      onClick={(e) => {
+                        if (!(e.target as HTMLElement).closest('button') && !(e.target as HTMLElement).closest('select') && !(e.target as HTMLElement).closest('input')) {
+                          router.push(`/candidates/${candidate.id}`);
+                        }
+                      }}
+                    >
+                      <td className="px-6 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                          checked={selectedIds.includes(candidate.id)}
+                          onChange={(e) => handleSelect(candidate.id, e.target.checked)}
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center text-primary font-bold text-sm border border-primary-100 overflow-hidden shrink-0">
+                            {candidate.facePhotoUrl ? (
+                              <img src={getFileUrl(candidate.facePhotoUrl)} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{candidate.givenNames.charAt(0)}{candidate.surname.charAt(0)}</span>
                             )}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Briefcase size={10} className="text-primary/60" />
-                            <p className="text-[9px] xl:text-[10px] text-text-tertiary font-bold uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
+                              {candidate.givenNames} {candidate.surname}
+                              {candidate.isLocked && (
+                                <Lock size={12} className="text-red-500 fill-red-100 shrink-0" />
+                              )}
+                              {candidate.isFlagged && (
+                                <Flag size={12} className="text-red-500 fill-red-500 shrink-0" />
+                              )}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Briefcase size={10} className="text-primary/60" />
+                              <p className="text-[9px] xl:text-[10px] text-text-tertiary font-bold uppercase tracking-wider">{candidate.job || 'Unassigned'}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col gap-0.5">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className="font-mono font-bold text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
-                        <span className="text-[8px] xl:text-[9px] font-bold text-text-tertiary uppercase tracking-widest hidden xl:block">Primary Document</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.visaSelected ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Visa Selected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          Pending Visa
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {broker?.isLocked ? (
-                        <div className="text-red-600 bg-red-50 border border-red-100 px-2.5 py-1.5 rounded-xl flex items-center justify-center gap-1 font-bold inline-flex" title="Broker is locked. CV is in backup.">
-                          <Lock size={12} />
-                          <span className="text-[10px] uppercase tracking-wider font-semibold">Backup</span>
-                        </div>
-                      ) : candidate.generatedCVs?.[0] ? (
-                        <button
-                          onClick={() => handleOpenCV(candidate)}
-                          className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-1.5 font-bold shadow-sm"
-                          title="Open CV Preview"
-                        >
-                          <Eye size={14} />
-                          <span className="text-[10px] uppercase tracking-wider">Open</span>
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">No CV</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.generatedCVs?.[0] ? (() => {
-                        const tmpl = TEMPLATES.find(t => t.id === candidate.generatedCVs[0].templateId);
-                        return (
-                          <span 
-                            className={`rounded-lg px-2.5 py-1 text-[8px] xl:text-[9px] font-bold uppercase tracking-widest shadow-sm border ${tmpl?.textColor || 'text-text-secondary'} ${tmpl?.bgLight || 'bg-gray-50'} ${tmpl?.textColor ? 'border-' + tmpl.textColor.split('-')[1] + '-100' : 'border-gray-200'}`}
-                          >
-                            {tmpl?.name || candidate.generatedCVs[0].templateId.toUpperCase()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary capitalize">
+                        {candidate.religion || 'Unknown'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {candidate.visaSelected ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Visa Selected
                           </span>
-                        );
-                      })() : (
-                        <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">None</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
-                      <div className="flex flex-col gap-0.5">
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Pending Visa
+                          </span>
+                        )}
+                      </td>
+                      {/* Inline Medical Status updates */}
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={candidate.medicalStatus || 'Pending'}
+                          onChange={(e) => handleUpdateMedicalStatus(candidate.id, e.target.value)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer outline-none transition-all",
+                            candidate.medicalStatus === 'Fit' && "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
+                            candidate.medicalStatus === 'Unfit' && "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
+                            candidate.medicalStatus === 'Pending' && "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+                            candidate.medicalStatus === 'New' && "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          )}
+                        >
+                          <option value="New">New</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Fit">Fit</option>
+                          <option value="Unfit">Unfit</option>
+                        </select>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {broker?.isLocked ? (
+                          <div className="text-red-600 bg-red-50 border border-red-100 px-2.5 py-1.5 rounded-xl flex items-center justify-center gap-1 font-bold inline-flex" title="Broker is locked. CV is in backup.">
+                            <Lock size={12} />
+                            <span className="text-[10px] uppercase tracking-wider font-semibold">Backup</span>
+                          </div>
+                        ) : candidate.generatedCVs?.[0] ? (
+                          <button
+                            onClick={() => handleOpenCV(candidate)}
+                            className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-1.5 font-bold shadow-sm cursor-pointer"
+                            title="Open CV Preview"
+                          >
+                            <Eye size={14} />
+                            <span className="text-[10px] uppercase tracking-wider">Open</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">No CV</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {activeTmplId ? (() => {
+                          const tmpl = TEMPLATES.find(t => t.id === activeTmplId);
+                          return (
+                            <span 
+                              className={`rounded-lg px-2.5 py-1 text-[8px] xl:text-[9px] font-bold uppercase tracking-widest shadow-sm border ${tmpl?.textColor || 'text-text-secondary'} ${tmpl?.bgLight || 'bg-gray-50'} ${tmpl?.textColor ? 'border-' + tmpl.textColor.split('-')[1] + '-100' : 'border-gray-200'}`}
+                            >
+                              {tmpl?.name || activeTmplId.toUpperCase()}
+                            </span>
+                          );
+                        })() : (
+                          <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">None</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
                         <span className="text-xs xl:text-sm font-bold text-text-secondary">
                           {new Date(candidate.registeredAt).toLocaleDateString(undefined, { 
                             year: 'numeric', 
@@ -857,49 +1062,81 @@ export default function BrokerCandidatesPage() {
                             day: 'numeric' 
                           })}
                         </span>
-                        <span className="text-[9px] font-bold text-text-tertiary uppercase tracking-widest">Entry Date</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right pr-12 whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 md:translate-x-4 md:group-hover:translate-x-0">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleToggleCandidateLock(candidate.id, candidate.isLocked ?? false); }}
-                          disabled={lockingCandidateId === candidate.id}
-                          className={cn(
-                            'p-1.5 xl:p-2 rounded-xl transition-all flex items-center gap-1',
-                            candidate.isLocked 
-                              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                              : 'bg-gray-50 text-text-tertiary border border-border hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
+                      </td>
+                      <td className="px-6 py-4 text-right pr-12 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative inline-block" data-action-menu>
+                          <button 
+                            onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)}
+                            className="p-1.5 rounded-xl hover:bg-gray-100 text-text-tertiary hover:text-primary transition-colors cursor-pointer"
+                            title="Actions"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenuId === candidate.id && (
+                            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-2xl z-50 py-1 text-left">
+                              <button
+                                onClick={() => { setOpenMenuId(null); router.push(`/candidates/${candidate.id}`); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
+                              >
+                                <ChevronRight size={16} className="text-text-secondary" />
+                                <span>View Details</span>
+                              </button>
+                              
+                              <button
+                                onClick={() => { setOpenMenuId(null); setTemplateChangeTarget(candidate); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
+                              >
+                                <LayoutTemplate size={16} className="text-text-secondary" />
+                                <span>Change Template</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleToggleFlag(candidate.id, candidate.isFlagged || false)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
+                              >
+                                <Flag size={16} className={cn("text-text-secondary", candidate.isFlagged && "text-red-500 fill-red-500")} />
+                                <span>{candidate.isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleToggleCandidateLock(candidate.id, candidate.isLocked || false)}
+                                disabled={lockingCandidateId === candidate.id}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
+                              >
+                                {lockingCandidateId === candidate.id ? (
+                                  <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                  <Lock size={16} className="text-text-secondary" />
+                                )}
+                                <span>{candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}</span>
+                              </button>
+
+                              <div className="border-t border-border/60 my-1" />
+                              
+                              <button
+                                onClick={() => handleDeleteCandidate(candidate.id)}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-red-600 font-semibold cursor-pointer"
+                              >
+                                <Trash2 size={16} />
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           )}
-                          title={candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}
-                        >
-                          {lockingCandidateId === candidate.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                             <Lock size={14} />
-                          )}
-                        </button>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); router.push(`/candidates/${candidate.id}`); }}
-                          className="p-1.5 xl:p-2 rounded-xl bg-primary text-white hover:bg-primary-600 transition-all"
-                          title="View Details"
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                  <td colSpan={10} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     <div className="max-w-xs mx-auto py-8">
                       <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-gray-200">
                         <Search size={24} className="text-text-tertiary opacity-40" />
                       </div>
                       <h3 className="text-base font-bold text-text-primary mb-1">No Candidates Found</h3>
-                      <p className="text-text-tertiary text-xs font-semibold mb-6">No candidates in this portfolio match your current search/date filters.</p>
-                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px]" onClick={() => { setSearchQuery(''); setInterval('ALL'); setStartDate(''); setEndDate(''); }}>
+                      <p className="text-text-tertiary text-xs font-semibold mb-6">No candidates in this portfolio match your current filters.</p>
+                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px] cursor-pointer" onClick={() => { setSearchQuery(''); setReligionFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}>
                         Reset All Filters
                       </Button>
                     </div>
@@ -911,64 +1148,80 @@ export default function BrokerCandidatesPage() {
         </div>
       </div>
 
-      {/* Modals & Overlays */}
-      
-      {/* Bulk Change Template Modal */}
-      {bulkChangeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setBulkChangeOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div>
-                <h2 className="text-lg font-bold text-text-primary">Bulk Change Template</h2>
-                <p className="text-sm text-text-secondary mt-0.5">Move/Generate <strong>{selectedIds.length} selected candidate{selectedIds.length !== 1 ? 's' : ''}</strong> CVs to a new template</p>
-              </div>
-              <button onClick={() => setBulkChangeOpen(false)} className="p-2 rounded-lg hover:bg-surface transition-colors text-text-tertiary hover:text-text-primary"><X size={20} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {TEMPLATES.map(template => {
-                  return (
-                    <button
-                      key={template.id}
-                      onClick={() => handleBulkChangeTemplate(template.id)}
-                      disabled={isChangingTemplate}
-                      className="relative rounded-xl border border-border overflow-hidden hover:border-primary hover:shadow-md transition-all text-left group cursor-pointer disabled:opacity-50"
-                    >
-                      <div className="h-36 bg-gray-50 flex items-center justify-center relative">
-                        <div className={`p-4 rounded-xl ${template.bgLight}`}>
-                          <LayoutTemplate size={32} className={template.textColor} />
-                        </div>
-                      </div>
-                      <div className="px-3 py-2 flex items-center gap-2 bg-white">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${template.color}`} />
-                        <span className="text-sm font-semibold text-text-primary truncate">{template.name}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-gray-50/50">
-              <button onClick={() => setBulkChangeOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface transition-colors border border-border">Cancel</button>
-              <p className="text-xs text-text-tertiary">Click a template above to apply changes</p>
-            </div>
-          </div>
+      {/* Pagination Component */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ‹
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${
+                    page === currentPage
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            }
+            if (page === currentPage - 2 || page === currentPage + 2) {
+              return <span key={page} className="text-text-tertiary px-1 font-bold">…</span>;
+            }
+            return null;
+          })}
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ›
+          </button>
         </div>
       )}
+
+      {/* Modals & Overlays */}
+      
+      {/* Change Template Modal */}
+      {templateChangeTarget && (() => {
+        const isBulk = templateChangeTarget === 'bulk';
+        const currentTmpl = isBulk ? 'alm' : (getNormalizedTemplateId(templateChangeTarget) || 'alm');
+        
+        return (
+          <ChangeTemplateModal
+            candidate={isBulk ? { givenNames: 'Selected', surname: 'Candidates' } : templateChangeTarget}
+            currentTemplateId={currentTmpl}
+            onChange={handleConfirmChangeTemplate}
+            onClose={() => setTemplateChangeTarget(null)}
+            isLoading={isChangingTemplate}
+          />
+        );
+      })()}
 
       {/* Preview CV Modal */}
       {previewCv && (() => {
         const PrevTemplate = TEMPLATES.find(t => t.id === previewCv.templateId)?.component || ALMTemplate;
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto" onClick={() => setPreviewCv(null)}>
-            <div className="relative my-8 bg-white rounded-xl shadow-2xl flex flex-col items-center max-w-full" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto animate-fade-in" onClick={() => setPreviewCv(null)}>
+            <div className="relative my-8 bg-white rounded-xl shadow-2xl flex flex-col items-center max-w-full scale-in" onClick={e => e.stopPropagation()}>
               <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
                 {/* Download option buttons inside preview modal */}
                 <div className="flex items-center gap-1 bg-black/50 p-1.5 rounded-xl backdrop-blur-md">
                   <button
                     onClick={() => startDownload(previewCv, 'pdf')}
                     disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
                   >
                     <FileDown size={14} className="text-red-400" /> PDF
                   </button>
@@ -976,7 +1229,7 @@ export default function BrokerCandidatesPage() {
                   <button
                     onClick={() => startDownload(previewCv, 'jpg')}
                     disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
                   >
                     <ImageIcon size={14} className="text-emerald-400" /> JPG
                   </button>
@@ -984,18 +1237,18 @@ export default function BrokerCandidatesPage() {
                   <button
                     onClick={() => startDownload(previewCv, 'doc')}
                     disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50"
+                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
                   >
                     <FileText size={14} className="text-blue-400" /> DOCX
                   </button>
                 </div>
 
-                <button onClick={() => setPreviewCv(null)} className="w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors backdrop-blur-md">
+                <button onClick={() => setPreviewCv(null)} className="w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors backdrop-blur-md cursor-pointer">
                   <X size={20} />
                 </button>
               </div>
               
-              <div className="w-[800px] max-w-full shrink-0 bg-white shadow-xl relative mt-16 rounded-b-xl overflow-hidden">
+              <div className="w-[800px] max-w-full shrink-0 bg-white shadow-xl relative mt-16 rounded-b-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <PrevTemplate
                   candidate={previewCv.candidate}
                   facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
@@ -1104,13 +1357,6 @@ export default function BrokerCandidatesPage() {
                     </label>
                   ))}
               </div>
-              {brokers.filter(b => b.id !== brokerId).length === 0 && (
-                <p className="text-sm text-text-tertiary text-center py-4">No other brokers available. Create another broker first.</p>
-              )}
-              {brokers.filter(b => b.id !== brokerId).length > 0 &&
-               brokers.filter(b => b.id !== brokerId && b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase())).length === 0 && (
-                <p className="text-sm text-text-tertiary text-center py-4">No matching brokers found.</p>
-              )}
             </div>
 
             <div className="flex gap-4">
@@ -1125,7 +1371,7 @@ export default function BrokerCandidatesPage() {
                 onClick={handleMoveSelectedCandidates}
                 loading={isMoving}
                 disabled={!selectedTargetBrokerId}
-                className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/15"
+                className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/15 cursor-pointer"
               >
                 Move Selected
               </Button>
@@ -1140,13 +1386,136 @@ export default function BrokerCandidatesPage() {
   );
 }
 
+// ── Change-Template Modal ─────────────────────────────────────────────────────
+function ChangeTemplateModal({
+  candidate,
+  currentTemplateId,
+  onChange,
+  onClose,
+  isLoading,
+}: {
+  candidate: any;
+  currentTemplateId: string;
+  onChange: (newTemplateId: string) => void;
+  onClose: () => void;
+  isLoading: boolean;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // Add Enter key trigger
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && selected && !isLoading) {
+        onChange(selected);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selected, isLoading, onChange]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div
+        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col scale-in"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-gray-50">
+          <div>
+            <h2 className="text-lg font-bold text-text-primary">Change CV Template</h2>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Select a new design layout for <strong>{candidate.givenNames} {candidate.surname}</strong>
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-text-tertiary hover:text-text-primary cursor-pointer">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Template Grid */}
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {TEMPLATES.map(template => {
+              const TC = template.component;
+              const isSelected = selected === template.id;
+              const isCurrent = template.id === currentTemplateId;
+              
+              return (
+                <button
+                  key={template.id}
+                  onClick={() => setSelected(template.id)}
+                  disabled={isCurrent}
+                  className={cn(
+                    'relative rounded-2xl border-2 overflow-hidden transition-all text-left flex flex-col cursor-pointer bg-white group',
+                    isCurrent && 'opacity-65 cursor-not-allowed border-gray-200 bg-gray-50',
+                    isSelected
+                      ? 'border-primary shadow-lg shadow-primary/10 scale-[1.02]'
+                      : 'border-border/60 hover:border-primary/40'
+                  )}
+                >
+                  <div className="h-44 bg-gray-100 overflow-hidden relative border-b border-border/40 shrink-0">
+                    <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
+                      <TC
+                        candidate={candidate.id ? candidate : {
+                          passportData: { givenNames: 'FIRSTNAME', surname: 'LASTNAME', passportNumber: 'AB123456', nationality: 'NATIONALITY', gender: 'F', placeOfBirth: 'BIRTHPLACE', dateOfBirth: '1995-01-01', dateOfIssue: '2020-01-01', dateOfExpiry: '2030-01-01', issuingCountry: 'COUNTRY' },
+                          personalInfo: { idNumber: '1234567890', job: 'HOUSEMAID', maritalStatus: 'Single', numberOfChildren: 0, religion: 'Christian', phone: '0501234567', languages: ['English', 'Somali'], workExperience: [], skills: [] }
+                        }}
+                        facePhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        fullBodyPhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                      />
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow z-10">
+                        <Check size={12} className="text-white" strokeWidth={3} />
+                      </div>
+                    )}
+                    {isCurrent && (
+                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+                        <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Active</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-3 py-2 flex items-center gap-2 mt-auto">
+                    <span className={cn('w-2 h-2 rounded-full shrink-0', template.color)} />
+                    <span className="text-xs font-bold text-text-primary truncate">{template.name}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-gray-50">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-100 transition-colors border border-border cursor-pointer">
+            Cancel
+          </button>
+          <button
+            onClick={() => selected && onChange(selected)}
+            disabled={!selected || isLoading}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-colors disabled:opacity-50 rounded-xl cursor-pointer shadow-md hover:shadow-lg"
+          >
+            {isLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <LayoutTemplate size={16} />
+            )}
+            {isLoading ? 'Changing…' : 'Change Template'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Toast Component
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
-    <div className="fixed bottom-6 right-6 z-[60] animate-in fade-in slide-in-from-bottom-3">
-      <div className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white text-sm font-medium ${
+    <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-3">
+      <div className={cn(
+        "flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white text-sm font-medium",
         type === 'success' ? 'bg-gray-900' : 'bg-red-600'
-      }`}>
+      )}>
         {type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
         {msg}
       </div>
