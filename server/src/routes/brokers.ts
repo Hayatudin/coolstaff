@@ -412,6 +412,43 @@ router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/brokers/move-bulk — Move multiple brokers to a leader
+router.post('/move-bulk', async (req: Request, res: Response) => {
+  try {
+    const { brokerIds, leaderId } = req.body; // leaderId can be string or null
+
+    if (!brokerIds || !Array.isArray(brokerIds) || brokerIds.length === 0) {
+      return res.status(400).json({ error: 'Broker IDs array is required' });
+    }
+
+    // If leaderId is provided, verify it exists
+    if (leaderId !== null && leaderId !== undefined && leaderId !== '') {
+      const leaderRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+        'SELECT id FROM Leader WHERE id = ?',
+        leaderId
+      );
+      if (leaderRows.length === 0) {
+        return res.status(404).json({ error: 'Target leader not found' });
+      }
+    }
+
+    // Update the leaderId of all specified brokers via raw SQL
+    const placeholders = brokerIds.map(() => '?').join(',');
+    await prisma.$executeRawUnsafe(
+      `UPDATE Broker SET leaderId = ? WHERE id IN (${placeholders})`,
+      leaderId || null,
+      ...brokerIds
+    );
+
+    console.log(`[BROKER-MOVE-BULK] Moved ${brokerIds.length} brokers to leader: ${leaderId || 'None'}`);
+
+    res.json({ success: true, movedCount: brokerIds.length });
+  } catch (error: any) {
+    console.error('Failed to move brokers in bulk via raw SQL:', error);
+    res.status(500).json({ error: error.message || 'Failed to move brokers in bulk' });
+  }
+});
+
 // PATCH /api/brokers/:id/leader — Assign or change broker's leader
 router.patch('/:id/leader', async (req: Request, res: Response) => {
   try {

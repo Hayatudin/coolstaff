@@ -314,7 +314,9 @@ export const cvTemplates: CVTemplate[] = [
 ];
 
 export const languageOptions = [
-  'Arabic', 'English', 'Afan Oromo', 'Amharic', 'Tigrinya', 'Somali',
+  'Afan Oromo', 'Amharic', 'Arabic', 'English', 'Harari',
+  'Somali', 'Tigrinya', 'Afar', 'Gurage', 'Sidamo',
+  'Wolaytta', 'Hadiyya',
 ];
 
 export const skillOptions = [

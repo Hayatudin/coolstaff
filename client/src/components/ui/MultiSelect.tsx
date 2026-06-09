@@ -19,6 +19,7 @@ interface MultiSelectProps {
   disabled?: boolean;
   searchable?: boolean;
   allowAddCustom?: boolean;
+  customStorageKey?: string;
 }
 
 export default function MultiSelect({
@@ -31,6 +32,7 @@ export default function MultiSelect({
   disabled = false,
   searchable = false,
   allowAddCustom = false,
+  customStorageKey,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -42,6 +44,20 @@ export default function MultiSelect({
   const filteredOptions = searchable
     ? allOptions.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
     : allOptions;
+
+  // Load custom options from localStorage on mount
+  useEffect(() => {
+    if (customStorageKey && typeof window !== 'undefined') {
+      const saved = localStorage.getItem(customStorageKey);
+      if (saved) {
+        try {
+          setCustomOptions(JSON.parse(saved));
+        } catch (e) {
+          console.error('[MultiSelect] Failed to parse custom options:', e);
+        }
+      }
+    }
+  }, [customStorageKey]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -78,7 +94,13 @@ export default function MultiSelect({
 
     if (!allOptions.some(o => o.value === upper)) {
       const newOpt = { value: upper, label: upper };
-      setCustomOptions(prev => [...prev, newOpt]);
+      const updatedCustom = [...customOptions, newOpt];
+      setCustomOptions(updatedCustom);
+      
+      if (customStorageKey && typeof window !== 'undefined') {
+        localStorage.setItem(customStorageKey, JSON.stringify(updatedCustom));
+      }
+      
       onChange([...value, upper]);
     } else {
       if (!value.includes(upper)) {

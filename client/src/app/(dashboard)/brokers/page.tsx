@@ -63,6 +63,11 @@ export default function BrokersPage() {
 
   const [expandedLeaderId, setExpandedLeaderId] = useState<string | null>(null);
 
+  // Bulk Broker selection states
+  const [selectedBrokerIds, setSelectedBrokerIds] = useState<string[]>([]);
+  const [bulkTargetLeaderId, setBulkTargetLeaderId] = useState('');
+  const [isBulkMoving, setIsBulkMoving] = useState(false);
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -212,6 +217,59 @@ export default function BrokersPage() {
       alert(err.message || 'Failed to move broker to leader');
     } finally {
       setIsMovingBroker(false);
+    }
+  };
+
+  // ─── Action: Move Multiple Brokers to Leader ───────────────────────
+  const handleMoveSelectedBrokers = async () => {
+    if (selectedBrokerIds.length === 0 || !bulkTargetLeaderId) return;
+    try {
+      setIsBulkMoving(true);
+      const targetLeaderId = bulkTargetLeaderId === 'independent' ? null : bulkTargetLeaderId;
+      const res = await api('/api/brokers/move-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brokerIds: selectedBrokerIds,
+          leaderId: targetLeaderId,
+        }),
+      });
+      if (res.ok) {
+        setSelectedBrokerIds([]);
+        setBulkTargetLeaderId('');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to move brokers');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to move brokers');
+    } finally {
+      setIsBulkMoving(false);
+    }
+  };
+
+  const toggleSelectBroker = (brokerId: string) => {
+    setSelectedBrokerIds(prev =>
+      prev.includes(brokerId) ? prev.filter(id => id !== brokerId) : [...prev, brokerId]
+    );
+  };
+
+  const toggleSelectAllForLeader = (leaderId: string | null) => {
+    const targetBrokers = brokers.filter(b => b.leaderId === leaderId);
+    const targetIds = targetBrokers.map(b => b.id);
+    const allSelected = targetIds.length > 0 && targetIds.every(id => selectedBrokerIds.includes(id));
+
+    if (allSelected) {
+      setSelectedBrokerIds(prev => prev.filter(id => !targetIds.includes(id)));
+    } else {
+      setSelectedBrokerIds(prev => {
+        const newSelections = [...prev];
+        targetIds.forEach(id => {
+          if (!newSelections.includes(id)) newSelections.push(id);
+        });
+        return newSelections;
+      });
     }
   };
 
@@ -449,6 +507,142 @@ export default function BrokersPage() {
     );
   };
 
+  const renderNestedBrokersList = (leaderBrokers: Broker[], leaderId: string | null) => {
+    return (
+      <div 
+        className="mt-6 border-t border-border/40 pt-4 space-y-4 w-full animate-fade-in relative z-20"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Select All and Info */}
+        <div className="flex items-center justify-between text-xs text-text-tertiary">
+          <label className="flex items-center gap-2 cursor-pointer font-bold hover:text-text-primary transition-colors">
+            <input
+              type="checkbox"
+              checked={leaderBrokers.length > 0 && leaderBrokers.every(b => selectedBrokerIds.includes(b.id))}
+              onChange={() => toggleSelectAllForLeader(leaderId)}
+              className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer accent-primary"
+            />
+            Select All ({leaderBrokers.filter(b => selectedBrokerIds.includes(b.id)).length}/{leaderBrokers.length})
+          </label>
+          <span className="font-semibold">{leaderBrokers.length} broker(s)</span>
+        </div>
+
+        {/* Brokers List */}
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          {leaderBrokers.map(broker => {
+            const isSelected = selectedBrokerIds.includes(broker.id);
+            return (
+              <div
+                key={broker.id}
+                onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
+                className={cn(
+                  "interactive-broker flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-300 hover:bg-primary/5 hover:border-primary/20 cursor-pointer group/broker",
+                  isSelected ? "border-primary/30 bg-primary-50/10" : "border-border/40 bg-surface-hover/10"
+                )}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelectBroker(broker.id)}
+                    className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer accent-primary shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-text-primary group-hover/broker:text-primary transition-colors truncate">{broker.name}</p>
+                      {broker.isLocked && (
+                        <div className="bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full border border-red-100/50 flex items-center gap-0.5 shrink-0">
+                          <Lock size={8} />
+                          <span className="text-[7px] font-black uppercase tracking-wider">Locked</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-text-tertiary mt-0.5">{broker._count?.candidates || 0} candidate(s)</p>
+                  </div>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex items-center gap-1 opacity-0 group-hover/broker:opacity-100 transition-opacity ml-2 shrink-0 relative-z-menu" onClick={(e) => e.stopPropagation()}>
+                  {isAuthorized && (
+                    <div className="relative" ref={openMenuId === broker.id ? menuRef : null}>
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === broker.id ? null : broker.id)}
+                        className="p-1 rounded-lg hover:bg-black/5 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+                        title="Actions"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                      {openMenuId === broker.id && (
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-surface border border-border/80 rounded-xl shadow-lg z-50 py-1.5 animate-fade-in text-left">
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setMoveBrokerTarget(broker);
+                              setSelectedLeaderId(broker.leaderId || '');
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-primary/5 hover:text-primary flex items-center gap-2 cursor-pointer"
+                          >
+                            <Folder size={12} className="text-lime-500" />
+                            Assign Leader
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setMoveTarget(broker);
+                              const firstOther = brokers.find(b => b.id !== broker.id);
+                              setSelectedTargetBrokerId(firstOther?.id || '');
+                            }}
+                            disabled={(broker._count?.candidates || 0) === 0}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-left transition-colors",
+                              (broker._count?.candidates || 0) === 0
+                                ? "text-text-tertiary/50 cursor-not-allowed"
+                                : "text-text-primary hover:bg-primary/5 hover:text-primary cursor-pointer"
+                            )}
+                          >
+                            <ArrowRightLeft size={12} />
+                            Move Candidates
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              handleToggleLock(broker);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-semibold text-text-primary hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2 cursor-pointer"
+                          >
+                            {broker.isLocked ? <Unlock size={12} /> : <Lock size={12} />}
+                            {broker.isLocked ? 'Unlock Broker' : 'Lock Broker'}
+                          </button>
+                          <div className="border-t border-border/40 my-1" />
+                          <button
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setDeleteTarget(broker);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                            Delete Broker
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {leaderBrokers.length === 0 && (
+            <p className="text-xs text-text-tertiary italic text-center py-4">No brokers inside.</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       {/* ───── Hero Section ───── */}
@@ -590,6 +784,7 @@ export default function BrokersPage() {
               {/* Leader Folders */}
               {filteredLeaders.map(leader => {
                 const isExpanded = expandedLeaderId === leader.id;
+                const leaderBrokers = brokers.filter(b => b.leaderId === leader.id);
                 return (
                   <div key={leader.id} className="relative pt-10 group/folder flex flex-col">
                     {/* Folder Tab shape */}
@@ -623,21 +818,30 @@ export default function BrokersPage() {
 
                     {/* Folder Body */}
                     <div
-                      onClick={() => setExpandedLeaderId(isExpanded ? null : leader.id)}
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('button') || target.closest('input') || target.closest('.interactive-broker') || target.closest('.relative-z-menu')) {
+                          return;
+                        }
+                        setExpandedLeaderId(isExpanded ? null : leader.id);
+                      }}
                       className={cn(
-                        "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-lime-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden flex-1 min-h-[160px]",
-                        isExpanded && "ring-2 ring-lime-400/20 border-lime-400/30"
+                        "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-lime-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden w-full",
+                        isExpanded ? "ring-2 ring-lime-400/20 border-lime-400/30 h-auto" : "min-h-[160px] h-full"
                       )}
                     >
                       {/* Background element */}
-                      <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-xl" />
+                      <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-xl pointer-events-none" />
 
-                      <div className="space-y-3 relative z-10">
+                      <div className="space-y-3 relative z-10 w-full">
                         <h3 className="text-lg font-bold text-text-primary mt-2">{leader.name}</h3>
                         <p className="text-xs text-text-tertiary">Recruitment Leader Profile Group</p>
                       </div>
 
-                      <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4">
+                      {/* Nested Brokers List inside Leader folder */}
+                      {isExpanded && renderNestedBrokersList(leaderBrokers, leader.id)}
+
+                      <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4 w-full">
                         <div>
                           <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
                           <p className="text-2xl font-black text-text-primary leading-none tabular-nums">
@@ -657,56 +861,68 @@ export default function BrokersPage() {
               })}
 
               {/* Independent Brokers Virtual Folder */}
-              {independentBrokers.length > 0 && (
-                <div key="independent-folder" className="relative pt-10 group/folder flex flex-col">
-                  {/* Folder Tab shape */}
-                  <div 
-                    onClick={() => setExpandedLeaderId(expandedLeaderId === 'independent' ? null : 'independent')}
-                    className={cn(
-                      "absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300",
-                      expandedLeaderId === 'independent'
-                        ? "bg-gradient-to-r from-gray-400 to-slate-500 scale-105 text-white"
-                        : "bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
-                    )}
-                  >
-                    {expandedLeaderId === 'independent' ? <FolderOpen size={14} className="text-white shrink-0" /> : <Folder size={14} className="text-gray-700 shrink-0" />}
-                    <span className="truncate max-w-[120px]">Independent</span>
-                  </div>
-                  {/* Folder Top Line */}
-                  <div className="absolute top-0 left-[180px] right-0 h-10 border-b border-border/50" />
-
-                  {/* Folder Body */}
-                  <div
-                    onClick={() => setExpandedLeaderId(expandedLeaderId === 'independent' ? null : 'independent')}
-                    className={cn(
-                      "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-slate-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden flex-1 min-h-[160px]",
-                      expandedLeaderId === 'independent' && "ring-2 ring-slate-400/20 border-slate-400/30"
-                    )}
-                  >
-                    <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-slate-500/5 rounded-full blur-xl" />
-
-                    <div className="space-y-3 relative z-10">
-                      <h3 className="text-lg font-bold text-text-primary mt-2">Independent Brokers</h3>
-                      <p className="text-xs text-text-tertiary">Unassigned recruitment source group</p>
+              {independentBrokers.length > 0 && (() => {
+                const isExpanded = expandedLeaderId === 'independent';
+                return (
+                  <div key="independent-folder" className="relative pt-10 group/folder flex flex-col">
+                    {/* Folder Tab shape */}
+                    <div 
+                      onClick={() => setExpandedLeaderId(isExpanded ? null : 'independent')}
+                      className={cn(
+                        "absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300",
+                        isExpanded
+                          ? "bg-gradient-to-r from-gray-400 to-slate-500 scale-105 text-white"
+                          : "bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
+                      )}
+                    >
+                      {isExpanded ? <FolderOpen size={14} className="text-white shrink-0" /> : <Folder size={14} className="text-gray-700 shrink-0" />}
+                      <span className="truncate max-w-[120px]">Independent</span>
                     </div>
+                    {/* Folder Top Line */}
+                    <div className="absolute top-0 left-[180px] right-0 h-10 border-b border-border/50" />
 
-                    <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4">
-                      <div>
-                        <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
-                        <p className="text-2xl font-black text-text-primary leading-none tabular-nums">
-                          {independentBrokers.length}
-                        </p>
+                    {/* Folder Body */}
+                    <div
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('button') || target.closest('input') || target.closest('.interactive-broker') || target.closest('.relative-z-menu')) {
+                          return;
+                        }
+                        setExpandedLeaderId(isExpanded ? null : 'independent');
+                      }}
+                      className={cn(
+                        "bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-slate-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden w-full",
+                        isExpanded ? "ring-2 ring-slate-400/20 border-slate-400/30 h-auto" : "min-h-[160px] h-full"
+                      )}
+                    >
+                      <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-slate-500/5 rounded-full blur-xl pointer-events-none" />
+
+                      <div className="space-y-3 relative z-10 w-full">
+                        <h3 className="text-lg font-bold text-text-primary mt-2">Independent Brokers</h3>
+                        <p className="text-xs text-text-tertiary">Unassigned recruitment source group</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Candidates</p>
-                        <p className="text-2xl font-black text-slate-500 leading-none tabular-nums">
-                          {independentBrokers.reduce((sum, b) => sum + (b._count?.candidates || 0), 0)}
-                        </p>
+
+                      {/* Nested Brokers List inside Independent folder */}
+                      {isExpanded && renderNestedBrokersList(independentBrokers, null)}
+
+                      <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4 w-full">
+                        <div>
+                          <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
+                          <p className="text-2xl font-black text-text-primary leading-none tabular-nums">
+                            {independentBrokers.length}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Candidates</p>
+                          <p className="text-2xl font-black text-slate-500 leading-none tabular-nums">
+                            {independentBrokers.reduce((sum, b) => sum + (b._count?.candidates || 0), 0)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {filteredLeaders.length === 0 && independentBrokers.length === 0 && (
                 <div className="col-span-full py-16 text-center bg-surface border border-dashed border-border rounded-[2rem]">
@@ -718,81 +934,46 @@ export default function BrokersPage() {
             </>
           )}
         </div>
-
-        {/* Expanded Leader/Independent Broker Grid */}
-        {expandedLeaderId && (() => {
-          if (expandedLeaderId === 'independent') {
-            return (
-              <div className="bg-gradient-to-b from-surface-hover/10 to-surface-hover/20 border border-border/80 rounded-[2rem] p-8 space-y-6 animate-fade-in">
-                <div className="flex justify-between items-center border-b border-border/40 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center text-slate-500 font-bold">
-                      <FolderOpen size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-bold text-text-primary">Independent Brokers</h4>
-                      <p className="text-xs text-text-tertiary">{independentBrokers.length} broker(s) without a leader</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setExpandedLeaderId(null)}
-                    className="text-xs font-semibold text-text-tertiary hover:text-text-primary cursor-pointer hover:bg-border/45 px-3 py-1.5 rounded-lg transition-all"
-                  >
-                    Close Folder
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {independentBrokers.length > 0 ? (
-                    independentBrokers.map(broker => renderBrokerCard(broker))
-                  ) : (
-                    <div className="col-span-full py-12 text-center">
-                      <p className="text-sm text-text-tertiary">No independent brokers.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          }
-
-          const selectedLeader = leaders.find(l => l.id === expandedLeaderId);
-          if (!selectedLeader) return null;
-
-          const leaderBrokers = filteredBrokers.filter(b => b.leaderId === expandedLeaderId);
-
-          return (
-            <div className="bg-gradient-to-b from-surface-hover/10 to-surface-hover/20 border border-border/80 rounded-[2rem] p-8 space-y-6 animate-fade-in">
-              <div className="flex justify-between items-center border-b border-border/40 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-lime-500/10 flex items-center justify-center text-lime-500 font-bold">
-                    <FolderOpen size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-text-primary">{selectedLeader.name}'s Brokers</h4>
-                    <p className="text-xs text-text-tertiary">{leaderBrokers.length} broker(s) under this leader</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setExpandedLeaderId(null)}
-                  className="text-xs font-semibold text-text-tertiary hover:text-text-primary cursor-pointer hover:bg-border/45 px-3 py-1.5 rounded-lg transition-all"
-                >
-                  Close Folder
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {leaderBrokers.length > 0 ? (
-                  leaderBrokers.map(broker => renderBrokerCard(broker))
-                ) : (
-                  <div className="col-span-full py-12 text-center">
-                    <p className="text-sm text-text-tertiary">No brokers inside this leader yet.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
       </div>
+
+      {/* ═══════════ Bulk Action Floating Bar ═══════════ */}
+      {selectedBrokerIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur-md border border-primary/20 rounded-[2rem] shadow-2xl p-5 z-40 flex flex-col sm:flex-row items-center gap-4 animate-slide-in-bottom max-w-2xl w-[90%] sm:w-full">
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1 bg-primary/10 text-primary font-black text-xs rounded-full">
+              {selectedBrokerIds.length} Selected
+            </div>
+            <p className="text-sm font-bold text-text-primary">Brokers to Move</p>
+          </div>
+          <div className="flex-1 flex gap-3 w-full sm:w-auto">
+            <select
+              value={bulkTargetLeaderId}
+              onChange={e => setBulkTargetLeaderId(e.target.value)}
+              className="flex-1 h-11 px-4 text-xs font-semibold rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            >
+              <option value="" disabled>Select target leader...</option>
+              <option value="independent">Independent (No Leader)</option>
+              {leaders.map(l => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+            <Button
+              onClick={handleMoveSelectedBrokers}
+              loading={isBulkMoving}
+              disabled={!bulkTargetLeaderId}
+              className="h-11 text-xs px-6 bg-lime-600 hover:bg-lime-700 text-white rounded-xl border-lime-600 shadow-lg shadow-lime-600/15"
+            >
+              Move Bulk
+            </Button>
+          </div>
+          <button
+            onClick={() => setSelectedBrokerIds([])}
+            className="text-xs text-text-tertiary hover:text-text-primary hover:underline font-bold transition-colors cursor-pointer"
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
 
       {/* ═══════════ Move Candidates Modal ═══════════ */}
       {moveTarget && (

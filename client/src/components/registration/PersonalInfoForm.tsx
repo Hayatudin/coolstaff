@@ -189,7 +189,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <MultiSelect label="Skills" options={skillOptions.map(s => ({ value: s.toUpperCase(), label: s.toUpperCase() }))} value={data.skills || []} onChange={v => onChange('skills', v)} placeholder="Select skills" />
 
           {/* Row 4 */}
-          <MultiSelect label="Languages" options={languageOptions.map(l => ({ value: l.toUpperCase(), label: l.toUpperCase() }))} value={data.languages || []} onChange={v => onChange('languages', v)} placeholder="Select languages" searchable allowAddCustom />
+          <MultiSelect label="Languages" options={languageOptions.map(l => ({ value: l.toUpperCase(), label: l.toUpperCase() }))} value={data.languages || []} onChange={v => onChange('languages', v)} placeholder="Select languages" searchable allowAddCustom customStorageKey="custom_languages" />
           <Input label="ID Number" value={data.idNumber || passportData.passportNumber} onChange={e => handleChangeUpper('idNumber', e.target.value)} required />
 
           {/* Main Mobile Number */}
