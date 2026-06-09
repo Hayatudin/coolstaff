@@ -36,7 +36,7 @@ export interface CandidatePersonalInfo {
   languages: string[];
   workExperience: WorkExperienceEntry[];
   skills: string[];
-  medicalStatus: 'Pending' | 'Fit' | 'Unfit';
+  medicalStatus: 'Pending' | 'Fit' | 'Unfit' | 'New';
   biometricStatus?: 'Pending' | 'Completed';
   medicalDate?: string;
   biometricDate?: string;

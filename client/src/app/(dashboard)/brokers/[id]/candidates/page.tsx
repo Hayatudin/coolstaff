@@ -58,6 +58,7 @@ interface BrokerCandidate {
     createdAt?: string;
   }[];
   isLocked?: boolean;
+  visaSelected?: boolean;
 }
 
 export default function BrokerCandidatesPage() {
@@ -75,6 +76,7 @@ export default function BrokerCandidatesPage() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [visaFilter, setVisaFilter] = useState<'all' | 'visa-selected' | 'pending'>('all');
   
   // Custom states
   const [previewCv, setPreviewCv] = useState<any | null>(null);
@@ -104,7 +106,7 @@ export default function BrokerCandidatesPage() {
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(candidates.map(c => c.id));
+      setSelectedIds(filteredCandidates.map(c => c.id));
     } else {
       setSelectedIds([]);
     }
@@ -510,6 +512,12 @@ export default function BrokerCandidatesPage() {
     { label: 'Last Year', value: '1Y' },
   ];
 
+  const filteredCandidates = candidates.filter(candidate => {
+    if (visaFilter === 'visa-selected') return candidate.visaSelected === true;
+    if (visaFilter === 'pending') return candidate.visaSelected !== true;
+    return true;
+  });
+
   return (
     <div className="space-y-8 animate-fade-in pb-12 max-w-7xl mx-auto px-4">
       {/* Dynamic Header */}
@@ -606,10 +614,23 @@ export default function BrokerCandidatesPage() {
                 />
               </div>
             </div>
+            
+            <div className="relative flex items-center gap-1.5">
+              <Filter size={14} className="text-text-tertiary" />
+              <select
+                value={visaFilter}
+                onChange={e => setVisaFilter(e.target.value as 'all' | 'visa-selected' | 'pending')}
+                className="bg-gray-50/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-bold text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer hover:bg-white appearance-none pr-8 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23999%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:8px] bg-[right_12px_center] bg-no-repeat"
+              >
+                <option value="all">All Visa Statuses</option>
+                <option value="visa-selected">Visa Selected Only</option>
+                <option value="pending">Pending Only</option>
+              </select>
+            </div>
           </div>
-          {(startDate || endDate || searchQuery) && (
+          {(startDate || endDate || searchQuery || visaFilter !== 'all') && (
             <button 
-              onClick={() => { setStartDate(''); setEndDate(''); setSearchQuery(''); setInterval('ALL'); }}
+              onClick={() => { setStartDate(''); setEndDate(''); setSearchQuery(''); setInterval('ALL'); setVisaFilter('all'); }}
               className="px-4 py-2.5 rounded-xl text-[10px] font-black text-danger uppercase tracking-widest hover:bg-danger/5 transition-colors flex items-center gap-2 ml-auto border border-danger/10"
             >
               <Trash2 size={12} /> Clear All Filters
@@ -710,12 +731,13 @@ export default function BrokerCandidatesPage() {
                   <input
                     type="checkbox"
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
-                    checked={candidates.length > 0 && selectedIds.length === candidates.length}
+                    checked={filteredCandidates.length > 0 && selectedIds.length === filteredCandidates.length}
                     onChange={handleSelectAll}
                   />
                 </th>
                 <th className="px-3 xl:px-6 py-3.5 xl:py-6">Candidate Details</th>
                 <th className="px-3 xl:px-6 py-3.5 xl:py-6">Passport Number</th>
+                <th className="px-3 xl:px-6 py-3.5 xl:py-6">Visa Status</th>
                 <th className="px-3 xl:px-6 py-3.5 xl:py-6">CV</th>
                 <th className="px-3 xl:px-6 py-3.5 xl:py-6">Agency</th>
                 <th className="px-3 xl:px-6 py-3.5 xl:py-6 hidden lg:table-cell">Registered Date</th>
@@ -725,15 +747,15 @@ export default function BrokerCandidatesPage() {
             <tbody className="divide-y divide-border/40">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-3 xl:px-8 py-20 text-center">
+                  <td colSpan={8} className="px-3 xl:px-8 py-20 text-center">
                     <div className="flex flex-col items-center gap-4">
                       <Loader2 size={40} className="text-primary animate-spin" />
                       <p className="text-text-tertiary font-bold uppercase tracking-widest text-[10px]">Syncing Portfolio...</p>
                     </div>
                   </td>
                 </tr>
-              ) : candidates.length > 0 ? (
-                candidates.map((candidate: any) => (
+              ) : filteredCandidates.length > 0 ? (
+                filteredCandidates.map((candidate: any) => (
                   <tr 
                     key={candidate.id} 
                     className="hover:bg-primary/[0.02] transition-all cursor-pointer group relative"
@@ -779,6 +801,13 @@ export default function BrokerCandidatesPage() {
                         <span className="font-mono font-black text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
                         <span className="text-[8px] xl:text-[9px] font-black text-text-tertiary uppercase tracking-widest hidden xl:block">Primary Document</span>
                       </div>
+                    </td>
+                    <td className="px-3 xl:px-6 py-3.5 xl:py-5">
+                      {candidate.visaSelected ? (
+                        <Badge variant="success" className="text-[10px] xl:text-xs px-2.5 py-1">Visa Selected</Badge>
+                      ) : (
+                        <Badge variant="warning" className="text-[10px] xl:text-xs px-2.5 py-1">Pending</Badge>
+                      )}
                     </td>
                     <td className="px-3 xl:px-6 py-3.5 xl:py-5" onClick={(e) => e.stopPropagation()}>
                       {broker?.isLocked ? (
@@ -857,7 +886,7 @@ export default function BrokerCandidatesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-3 xl:px-8 py-32 text-center">
+                  <td colSpan={8} className="px-3 xl:px-8 py-32 text-center">
                     <div className="max-w-xs mx-auto">
                       <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-dashed border-border">
                         <Search size={32} className="text-text-tertiary opacity-20" />

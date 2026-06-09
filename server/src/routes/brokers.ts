@@ -219,6 +219,7 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
             fullBodyPhotoUrl: true,
             isRequested: true,
             registeredAt: true,
+            visaSelected: true,
             generatedCVs: {
               select: {
                 id: true,

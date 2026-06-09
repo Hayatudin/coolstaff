@@ -388,12 +388,14 @@ export default function CandidatesPage() {
                             "bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23999%22%20stroke-width%3D%223%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:8px] xl:bg-[length:10px] bg-[right_6px_center] xl:bg-[right_8px_center] bg-no-repeat pr-5 xl:pr-7 bg-white",
                             candidate.personalInfo.medicalStatus === 'Fit' ? "text-[#34C759] border-[#34C759]/30 bg-emerald-50/30" :
                             candidate.personalInfo.medicalStatus === 'Unfit' ? "text-[#FF3B30] border-[#FF3B30]/30 bg-red-50/30" :
+                            candidate.personalInfo.medicalStatus === 'New' ? "text-blue-600 border-blue-200 bg-blue-50/30" :
                             "text-[#8E8E93] border-gray-200"
                           )}
                         >
                           <option value="Pending">Pending</option>
                           <option value="Fit">Fit</option>
                           <option value="Unfit">Unfit</option>
+                          <option value="New">New</option>
                         </select>
                         {candidate.medicalDocumentUrl && (
                           <button onClick={(e) => { e.stopPropagation(); setViewDoc(candidate.medicalDocumentUrl!); }} className="text-primary hover:bg-primary-50 p-1 xl:p-1.5 rounded-lg transition-colors" title="View Medical Doc">

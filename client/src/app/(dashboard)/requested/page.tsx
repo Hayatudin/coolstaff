@@ -414,6 +414,7 @@ export default function RequestedPage() {
                       <span className={`px-2 py-0.5 xl:py-1 rounded-full text-[9px] xl:text-[10px] font-bold uppercase tracking-wider ${
                          c.personalInfo.medicalStatus === 'Fit' ? "bg-emerald-100 text-emerald-700" :
                          c.personalInfo.medicalStatus === 'Unfit' ? "bg-red-100 text-red-700" :
+                         c.personalInfo.medicalStatus === 'New' ? "bg-blue-100 text-blue-700" :
                          "bg-amber-100 text-amber-700"
                       }`}>
                         {c.personalInfo.medicalStatus || 'Pending'}
