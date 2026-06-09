@@ -185,7 +185,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
 
   const openEditModal = (reg: QuickRegistration) => {
     setEditTarget(reg);
-    
+
     const formatDate = (dateStr: string | null | undefined): string => {
       if (!dateStr) return '';
       return dateStr.split('T')[0];
@@ -775,7 +775,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             {/* Modal Form */}
             <form onSubmit={handleSaveEdit} className="flex flex-col max-h-[90vh]">
               <div className="flex-1 overflow-y-auto p-6 space-y-6 max-h-[68vh]">
-                
+
                 {/* Section 1: Passport & Personal Details */}
                 <div>
                   <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-1.5 border-b border-border pb-1.5">
@@ -949,33 +949,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                           className="flex-1 h-11 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
                         >
                           <option value="">Choose a language...</option>
-                          {["Arabic", "English", "Amharic", "Tagalog", "Urdu", "Hindi", "Bengali", "Bahasa Indonesia", "Sinhala", "Nepali"]
+                          {["Arabic", "English", "Amharic", "Afaan Oromo", "Sidamu", "Somali", "Tigrinya"]
                             .filter(l => !(editForm.languages || []).includes(l))
                             .map(l => (
                               <option key={l} value={l}>{l}</option>
                             ))}
                         </select>
-                        <div className="flex gap-2 flex-1">
-                          <input
-                            type="text"
-                            placeholder="Or type custom language..."
-                            value={customLanguage}
-                            onChange={e => setCustomLanguage(e.target.value)}
-                            className="flex-1 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (customLanguage.trim()) {
-                                addLanguage(customLanguage);
-                                setCustomLanguage('');
-                              }
-                            }}
-                            className="px-4 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all shadow-sm"
-                          >
-                            + Add
-                          </button>
-                        </div>
                       </div>
                     </div>
                   </div>

@@ -1099,7 +1099,7 @@ export default function QuickRegisteredPage() {
                           className="flex-1 h-11 px-4 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
                         >
                           <option value="">Choose a language...</option>
-                          {["Arabic", "English", "Amharic", "Tagalog", "Urdu", "Hindi", "Bengali", "Bahasa Indonesia", "Sinhala", "Nepali"]
+                          {["Arabic", "English", "Amharic", "Afaan Oromo", "Sidamu", "Somali", "Tigrinya"]
                             .filter(l => !(editForm.languages || []).includes(l))
                             .map(l => (
                               <option key={l} value={l}>{l}</option>
