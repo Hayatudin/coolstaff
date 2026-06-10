@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { 
@@ -35,7 +36,9 @@ export default function LeaderBrokersPage() {
 
   // Action menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Move modal state (moving candidates between brokers)
   const [moveTarget, setMoveTarget] = useState<Broker | null>(null);
@@ -53,15 +56,34 @@ export default function LeaderBrokersPage() {
   const [deleteTarget, setDeleteTarget] = useState<Broker | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside, scrolling, or resizing
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null);
+      const target = e.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
+        return;
       }
+      setOpenMenuId(null);
+      setMenuCoords(null);
     };
+
+    const handleScrollOrResize = () => {
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   const fetchData = async () => {
@@ -239,7 +261,18 @@ export default function LeaderBrokersPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setOpenMenuId(openMenuId === broker.id ? null : broker.id);
+                    const isOpen = openMenuId === broker.id;
+                    if (isOpen) {
+                      setOpenMenuId(null);
+                      setMenuCoords(null);
+                    } else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMenuCoords({
+                        top: rect.bottom + 8,
+                        left: Math.max(16, rect.right - 208)
+                      });
+                      setOpenMenuId(broker.id);
+                    }
                   }}
                   className="p-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-200/50 hover:text-gray-700 transition-colors z-20 shrink-0 cursor-pointer"
                   title="Actions"
@@ -247,16 +280,22 @@ export default function LeaderBrokersPage() {
                   <MoreVertical size={14} />
                 </button>
 
-                {/* Dropdown Menu */}
-                {openMenuId === broker.id && (
+                {/* Dropdown Menu using Portal */}
+                {openMenuId === broker.id && menuCoords && typeof window !== 'undefined' && createPortal(
                   <div
-                    className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border/80 rounded-xl shadow-2xl z-50 py-1.5 animate-fade-in"
+                    ref={dropdownRef}
+                    className="fixed w-52 bg-surface border border-border/80 rounded-xl shadow-2xl z-[9999] py-1.5 animate-fade-in"
+                    style={{
+                      top: menuCoords.top,
+                      left: menuCoords.left,
+                    }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Move Candidates */}
                     <button
                       onClick={() => {
                         setOpenMenuId(null);
+                        setMenuCoords(null);
                         setMoveTarget(broker);
                         const firstOther = brokers.find(b => b.id !== broker.id);
                         setSelectedTargetBrokerId(firstOther?.id || '');
@@ -282,6 +321,7 @@ export default function LeaderBrokersPage() {
                     <button
                       onClick={() => {
                         setOpenMenuId(null);
+                        setMenuCoords(null);
                         setMoveBrokerTarget(broker);
                         setSelectedLeaderId(broker.leaderId || '');
                       }}
@@ -302,6 +342,7 @@ export default function LeaderBrokersPage() {
                     <button
                       onClick={() => {
                         setOpenMenuId(null);
+                        setMenuCoords(null);
                         handleToggleLock(broker);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-amber-50 hover:text-amber-700 transition-colors text-left cursor-pointer"
@@ -321,6 +362,7 @@ export default function LeaderBrokersPage() {
                     <button
                       onClick={() => {
                         setOpenMenuId(null);
+                        setMenuCoords(null);
                         setDeleteTarget(broker);
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
@@ -331,7 +373,8 @@ export default function LeaderBrokersPage() {
                         <p className="text-[10px] font-normal text-red-400">Permanently remove</p>
                       </div>
                     </button>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             )}
