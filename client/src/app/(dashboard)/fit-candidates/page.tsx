@@ -56,6 +56,7 @@ export default function FitCandidatesPage() {
   const [languageFilter, setLanguageFilter] = useState('');
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
+  const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -133,15 +134,20 @@ export default function FitCandidatesPage() {
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency;
+      // 5. Visa Status Filter
+      const matchesVisa = visaFilter === 'visa-selected'
+        ? c.visaSelected === true
+        : c.visaSelected !== true;
+
+      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa;
     });
-  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter]);
+  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
 
   // Reset to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter]);
+  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
 
   const deleteCandidate = async (id: string) => {
     setOpenMenuId(null);
@@ -551,11 +557,40 @@ export default function FitCandidatesPage() {
       {/* Filters Container */}
       <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] p-5 space-y-4">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="w-full md:w-96">
+          <div className="w-full md:flex-1 md:max-w-md">
             <Input placeholder="Search by name, passport, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
-          <div className="flex w-full md:w-auto items-center gap-3">
-            <div className="w-full md:w-44">
+
+          {/* Visa Status Filter Tabs */}
+          <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shrink-0 w-full md:w-auto shadow-inner">
+            <button
+              onClick={() => setVisaFilter('pending')}
+              className={cn(
+                "flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                visaFilter === 'pending'
+                  ? "bg-white text-text-primary shadow-md"
+                  : "text-text-tertiary hover:bg-white/50"
+              )}
+            >
+              Pending Visa
+            </button>
+            <button
+              onClick={() => setVisaFilter('visa-selected')}
+              className={cn(
+                "flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                visaFilter === 'visa-selected'
+                  ? "bg-white text-text-primary shadow-md"
+                  : "text-text-tertiary hover:bg-white/50"
+              )}
+            >
+              Visa Selected
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between border-t border-border pt-4">
+          <div className="flex w-full sm:w-auto items-center gap-3">
+            <div className="w-full sm:w-44">
               <Select
                 placeholder="All Religion"
                 value={languageFilter}
@@ -567,7 +602,7 @@ export default function FitCandidatesPage() {
                 ]}
               />
             </div>
-            <div className="w-full md:w-44">
+            <div className="w-full sm:w-44">
               <Select
                 placeholder="All Candidates"
                 value={flaggedFilter}
@@ -580,6 +615,15 @@ export default function FitCandidatesPage() {
               />
             </div>
           </div>
+
+          {(searchQuery || languageFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
+            <button
+              onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center justify-center gap-2 border border-red-200 cursor-pointer"
+            >
+              <Trash2 size={12} /> Clear All Filters
+            </button>
+          )}
         </div>
 
         {/* Agency Template Filter Tabs Bar */}
