@@ -336,6 +336,7 @@ export default function BackupPage() {
         c.candidate.isRequested || 
         c.candidate.medicalStatus === 'Unfit' || 
         c.candidate.visaSelected ||
+        c.candidate.isLocked === true ||
         c.candidate?.broker?.isLocked === true
       ));
     } catch {
@@ -466,7 +467,7 @@ export default function BackupPage() {
   };
   const matchesStatus = (cv: any) => {
     if (statusFilter === 'all') return true;
-    const isLocked = cv.candidate?.broker?.isLocked === true;
+    const isLocked = cv.candidate.isLocked === true || cv.candidate?.broker?.isLocked === true;
     const isVisaSelected = cv.candidate.isRequested || cv.candidate.visaSelected;
     if (statusFilter === 'locked') return isLocked;
     if (statusFilter === 'visa-selected') return isVisaSelected;
@@ -833,7 +834,7 @@ export default function BackupPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {activeCVs.map(cv => {
-              const isLocked = cv.candidate?.broker?.isLocked === true;
+              const isLocked = cv.candidate.isLocked === true || cv.candidate?.broker?.isLocked === true;
               const isVisaSelected = cv.candidate.isRequested || cv.candidate.visaSelected;
               const isUnfit = cv.candidate.medicalStatus === 'Unfit';
               return (
@@ -897,7 +898,10 @@ export default function BackupPage() {
                     </div>
 
                     {isLocked ? (
-                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={`Broker "${cv.candidate.broker?.name}" is locked. Restore by unlocking the broker.`}>
+                      <div 
+                        className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" 
+                        title={cv.candidate.isLocked ? "Candidate is locked. Restore by unlocking candidate in Broker Candidates." : `Broker "${cv.candidate.broker?.name}" is locked. Restore by unlocking the broker.`}
+                      >
                         <Lock size={14} />
                       </div>
                     ) : (

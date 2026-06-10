@@ -13,6 +13,12 @@ export default function DeploymentsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const fetchDeployments = async () => {
     try {
@@ -52,6 +58,12 @@ export default function DeploymentsPage() {
     const query = searchQuery.toLowerCase();
     return fullName.includes(query) || passport.includes(query) || broker.includes(query);
   });
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = React.useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -126,8 +138,8 @@ export default function DeploymentsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.length > 0 ? (
-                filtered.map(c => {
+              ) : paginated.length > 0 ? (
+                paginated.map(c => {
                   const depDate = c.deployedDate
                     ? new Date(c.deployedDate).toLocaleDateString(undefined, {
                         year: 'numeric',
@@ -203,6 +215,48 @@ export default function DeploymentsPage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination Component */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ‹
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${page === currentPage
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
+                    }`}
+                >
+                  {page}
+                </button>
+              );
+            }
+            if (page === currentPage - 2 || page === currentPage + 2) {
+              return <span key={page} className="text-text-tertiary px-1 font-bold">…</span>;
+            }
+            return null;
+          })}
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,6 +29,12 @@ export default function UploadedVideosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterSource]);
 
   // Edit Video Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -135,6 +141,12 @@ export default function UploadedVideosPage() {
     ? videos
     : videos.filter(v => v.source === filterSource);
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = React.useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
     try {
@@ -233,7 +245,7 @@ export default function UploadedVideosPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : paginated.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -247,7 +259,7 @@ export default function UploadedVideosPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map(v => {
+              ) : paginated.map(v => {
                 const badge = SOURCE_BADGE[v.source] || SOURCE_BADGE.candidate;
                 return (
                   <tr key={`${v.source}-${v.id}`} className="hover:bg-gray-50/30 transition-colors group">
@@ -337,15 +349,57 @@ export default function UploadedVideosPage() {
         {/* Footer count */}
         {!isLoading && (
           <div className="px-6 py-3 border-t border-border/20 text-xs text-text-tertiary flex items-center justify-between">
-            <span>{filtered.length} video{filtered.length !== 1 ? 's' : ''} shown</span>
+            <span>Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} video{filtered.length !== 1 ? 's' : ''}</span>
             {filterSource !== 'all' && (
-              <button onClick={() => setFilterSource('all')} className="text-rose-500 hover:text-rose-700 font-semibold">
+              <button onClick={() => setFilterSource('all')} className="text-rose-500 hover:text-rose-700 font-semibold cursor-pointer">
                 Clear filter
               </button>
             )}
           </div>
         )}
       </div>
+
+      {/* Pagination Component */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ‹
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${page === currentPage
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
+                    }`}
+                >
+                  {page}
+                </button>
+              );
+            }
+            if (page === currentPage - 2 || page === currentPage + 2) {
+              return <span key={page} className="text-text-tertiary px-1 font-bold">…</span>;
+            }
+            return null;
+          })}
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {isEditOpen && editRecord && (

@@ -131,6 +131,42 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/leaders/:id
+router.patch('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Leader name is required' });
+    }
+
+    // Check if leader exists via raw SQL
+    const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+      'SELECT id FROM Leader WHERE id = ?',
+      id
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+
+    // Update name using raw SQL to bypass Prisma client limitations on custom schemas
+    await prisma.$executeRawUnsafe(
+      'UPDATE Leader SET name = ? WHERE id = ?',
+      name.trim(),
+      id
+    );
+
+    res.json({ success: true, message: 'Leader name updated successfully' });
+  } catch (error: any) {
+    console.error('Failed to update leader name via raw SQL:', error);
+    if (error.code === 'P2002' || error.message?.includes('Duplicate entry')) {
+      return res.status(400).json({ error: 'A leader with this name already exists' });
+    }
+    res.status(500).json({ error: 'Failed to update leader' });
+  }
+});
+
 // DELETE /api/leaders/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {

@@ -70,6 +70,7 @@ interface BrokerCandidate {
   religion?: string | null;
   isFlagged?: boolean;
   medicalStatus?: string;
+  visaOrContractNumber?: string | null;
 }
 
 export default function BrokerCandidatesPage() {
@@ -84,9 +85,15 @@ export default function BrokerCandidatesPage() {
 
   // Advanced Filters
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
-  const [languageFilter, setLanguageFilter] = useState('');
+  const [religionFilter, setReligionFilter] = useState('');
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
+
+  // Visa Status Modals State
+  const [visaModalId, setVisaModalId] = useState<string | null>(null);
+  const [visaNumberInput, setVisaNumberInput] = useState('');
+  const [cancelVisaModalId, setCancelVisaModalId] = useState<string | null>(null);
+  const [cancelVisaNumberInput, setCancelVisaNumberInput] = useState('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -249,6 +256,58 @@ export default function BrokerCandidatesPage() {
       showToast('Failed to change template', 'error');
     } finally {
       setIsChangingTemplate(false);
+    }
+  };
+
+  // Toggle Visa Selected
+  const toggleRequested = async (id: string, current: boolean, visaNum?: string) => {
+    setOpenMenuId(null);
+    setVisaModalId(null);
+    setVisaNumberInput('');
+    setCancelVisaModalId(null);
+    setCancelVisaNumberInput('');
+
+    const cand = candidates.find(c => c.id === id);
+    if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
+      alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
+      return;
+    }
+
+    try {
+      const bodyPayload: any = { 
+        isRequested: !current,
+        visaSelected: !current,
+        status: !current ? 'visa selected' : 'pending'
+      };
+      if (!current && visaNum) {
+        bodyPayload.visaOrContractNumber = visaNum;
+      } else if (current) {
+        bodyPayload.visaOrContractNumber = null; // Clear if cancelled
+      }
+
+      console.log('Sending toggleRequested payload:', bodyPayload);
+      const res = await api(`/api/candidates/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      });
+      console.log('toggleRequested response status:', res.status);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+      
+      setCandidates(prev => prev.map(c => c.id === id ? { 
+        ...c, 
+        isRequested: !current, 
+        visaSelected: !current,
+        status: !current ? 'visa selected' : 'pending',
+        visaOrContractNumber: bodyPayload.visaOrContractNumber 
+      } : c));
+      showToast(!current ? 'Visa Selected status updated!' : 'Visa Selection cancelled!');
+    } catch (err: any) { 
+      console.error(err);
+      alert(err.message || 'Failed to update status'); 
     }
   };
 
@@ -637,10 +696,10 @@ export default function BrokerCandidatesPage() {
         ? c.visaSelected === true
         : c.visaSelected !== true;
 
-      // 3. Language Filter (mapped to religion under the hood)
-      const matchesLanguage = !languageFilter
+      // 3. Religion Filter
+      const matchesReligion = !religionFilter
         ? true
-        : languageFilter === 'muslim'
+        : religionFilter === 'muslim'
           ? (c.religion?.toLowerCase() === 'muslim' || c.religion?.toLowerCase() === 'islam')
           : (c.religion?.toLowerCase() !== 'muslim' && c.religion?.toLowerCase() !== 'islam');
 
@@ -654,15 +713,15 @@ export default function BrokerCandidatesPage() {
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      return matchesSearch && matchesVisa && matchesLanguage && matchesFlagged && matchesAgency;
+      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency;
     });
-  }, [candidates, searchQuery, visaFilter, languageFilter, flaggedFilter, agencyFilter]);
+  }, [candidates, searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
 
   // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, visaFilter, languageFilter, flaggedFilter, agencyFilter]);
+  }, [searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
 
   // Pagination Slice
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -756,12 +815,12 @@ export default function BrokerCandidatesPage() {
         {/* Filters and Actions Bar */}
         <div className="flex flex-wrap items-center gap-4 justify-between pt-4 border-t border-border/50">
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Language dropdown */}
+            {/* Religion dropdown */}
             <div className="w-full sm:w-44">
               <Select
                 placeholder="All Religions"
-                value={languageFilter}
-                onChange={setLanguageFilter}
+                value={religionFilter}
+                onChange={setReligionFilter}
                 options={[
                   { value: '', label: 'All Religions' },
                   { value: 'muslim', label: 'Muslim' },
@@ -784,9 +843,9 @@ export default function BrokerCandidatesPage() {
             </div>
           </div>
 
-          {(searchQuery || languageFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
+          {(searchQuery || religionFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
             <button
-              onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
+              onClick={() => { setSearchQuery(''); setReligionFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
               className="px-4 py-2.5 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-2 border border-red-200"
             >
               <Trash2 size={12} /> Clear All Filters
@@ -986,14 +1045,26 @@ export default function BrokerCandidatesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="font-mono font-bold text-text-secondary text-xs xl:text-sm tracking-tight">{candidate.passportNumber}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (candidate.visaSelected) {
+                            setCancelVisaModalId(candidate.id);
+                            setCancelVisaNumberInput('');
+                          } else {
+                            setVisaModalId(candidate.id);
+                            setVisaNumberInput('');
+                          }
+                        }}
+                      >
                         {candidate.visaSelected ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             Visa Selected
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-50 text-slate-700 border border-slate-200">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 transition-colors">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                             Pending Visa
                           </span>
@@ -1133,7 +1204,7 @@ export default function BrokerCandidatesPage() {
                       </div>
                       <h3 className="text-base font-bold text-text-primary mb-1">No Candidates Found</h3>
                       <p className="text-text-tertiary text-xs font-semibold mb-6">No candidates in this portfolio match your current filters.</p>
-                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px] cursor-pointer" onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}>
+                      <Button variant="outline" className="rounded-xl h-10 px-6 font-bold uppercase tracking-widest text-[10px] cursor-pointer" onClick={() => { setSearchQuery(''); setReligionFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}>
                         Reset All Filters
                       </Button>
                     </div>
@@ -1375,6 +1446,89 @@ export default function BrokerCandidatesPage() {
           </div>
         </div>
       )}
+
+      {/* Visa Selected Modal */}
+      {visaModalId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setVisaModalId(null)}>
+          <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+              <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                <CheckCircle className="text-green-600" size={20} /> Insert Visa / Contract Details
+              </h3>
+              <button onClick={() => setVisaModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-semibold text-text-primary mb-2">Insert contract number or visa number</label>
+              <Input 
+                autoFocus
+                placeholder="e.g. VIS-123456 or CON-7890" 
+                value={visaNumberInput} 
+                onChange={(e) => setVisaNumberInput(e.target.value)} 
+                className="w-full"
+              />
+            </div>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                Cancel
+              </button>
+              <button 
+                disabled={!visaNumberInput.trim()}
+                onClick={() => toggleRequested(visaModalId, false, visaNumberInput.trim())}
+                className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Visa Modal */}
+      {cancelVisaModalId && (() => {
+        const candidate = candidates.find(c => c.id === cancelVisaModalId);
+        const expectedVisa = candidate?.visaOrContractNumber || '';
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setCancelVisaModalId(null)}>
+            <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+                <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                  <Flag className="text-red-500" size={20} /> Cancel Visa Selection
+                </h3>
+                <button onClick={() => setCancelVisaModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-text-secondary">
+                  Are you sure you want to cancel the visa selection for <strong className="text-text-primary">{candidate ? `${candidate.givenNames} ${candidate.surname}` : 'this candidate'}</strong>?
+                </p>
+                <div>
+                  <label className="block text-sm font-semibold text-text-primary mb-2">
+                    Enter the Visa/Contract Number ({expectedVisa}) to confirm:
+                  </label>
+                  <Input 
+                    autoFocus
+                    placeholder="Enter Visa / Contract Number" 
+                    value={cancelVisaNumberInput} 
+                    onChange={(e) => setCancelVisaNumberInput(e.target.value)} 
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+                <button onClick={() => setCancelVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  disabled={cancelVisaNumberInput.trim().toLowerCase() !== expectedVisa.toLowerCase()}
+                  onClick={() => toggleRequested(cancelVisaModalId, true)}
+                  className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"
+                >
+                  Confirm Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast Alert */}
       {toast && <Toast msg={toast.msg} type={toast.type} />}

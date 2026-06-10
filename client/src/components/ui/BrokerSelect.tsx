@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronDown, FolderClosed, FolderOpen, User, Plus, Search } from 'lucide-react';
+import { ChevronDown, User, Plus, Search } from 'lucide-react';
 import { Broker } from '@/types';
 
 interface BrokerSelectProps {
@@ -30,46 +30,14 @@ export default function BrokerSelect({
 }: BrokerSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [expandedLeaders, setExpandedLeaders] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
 
-  // Group brokers by leader
-  const { leaders, independentBrokers, leaderBrokersMap } = useMemo(() => {
-    const leadersMap = new Map<string, { id: string; name: string }>();
-    const brokersMap: Record<string, Broker[]> = {};
-    const independents: Broker[] = [];
-
-    brokers.forEach((b) => {
-      if (b.leader) {
-        leadersMap.set(b.leader.id, b.leader);
-        if (!brokersMap[b.leader.id]) {
-          brokersMap[b.leader.id] = [];
-        }
-        brokersMap[b.leader.id].push(b);
-      } else {
-        independents.push(b);
-      }
-    });
-
-    const sortedLeaders = Array.from(leadersMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-
-    // Sort brokers inside each group
-    Object.keys(brokersMap).forEach((leaderId) => {
-      brokersMap[leaderId].sort((a, b) => a.name.localeCompare(b.name));
-    });
-
-    independents.sort((a, b) => a.name.localeCompare(b.name));
-
-    return {
-      leaders: sortedLeaders,
-      independentBrokers: independents,
-      leaderBrokersMap: brokersMap,
-    };
+  // Flat sorted brokers list
+  const sortedBrokers = useMemo(() => {
+    return [...brokers].sort((a, b) => a.name.localeCompare(b.name));
   }, [brokers]);
 
-  // Find currently selected broker label
+  // Find currently selected broker
   const selectedBroker = useMemo(() => {
     return brokers.find((b) => b.id === value);
   }, [brokers, value]);
@@ -86,50 +54,17 @@ export default function BrokerSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter leaders and brokers based on search query
-  const filteredData = useMemo(() => {
+  // Filter brokers based on search query (broker name or leader name)
+  const filteredBrokers = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) {
-      return {
-        leadersToShow: leaders,
-        independentsToShow: independentBrokers,
-        brokersMapToShow: leaderBrokersMap,
-      };
-    }
+    if (!query) return sortedBrokers;
 
-    const brokersMapToShow: Record<string, Broker[]> = {};
-    const leadersToShow = leaders.filter((l) => {
-      // Show leader if leader's name matches or any of its brokers match
-      const leaderMatches = l.name.toLowerCase().includes(query);
-      const matchingBrokers = (leaderBrokersMap[l.id] || []).filter((b) =>
-        b.name.toLowerCase().includes(query)
-      );
-
-      if (leaderMatches || matchingBrokers.length > 0) {
-        brokersMapToShow[l.id] = leaderBrokersMap[l.id] || [];
-        return true;
-      }
-      return false;
+    return sortedBrokers.filter((b) => {
+      const brokerMatches = b.name.toLowerCase().includes(query);
+      const leaderMatches = b.leader?.name?.toLowerCase().includes(query) || false;
+      return brokerMatches || leaderMatches;
     });
-
-    const independentsToShow = independentBrokers.filter((b) =>
-      b.name.toLowerCase().includes(query)
-    );
-
-    return {
-      leadersToShow,
-      independentsToShow,
-      brokersMapToShow,
-    };
-  }, [search, leaders, independentBrokers, leaderBrokersMap]);
-
-  const toggleLeader = (leaderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedLeaders((prev) => ({
-      ...prev,
-      [leaderId]: !prev[leaderId],
-    }));
-  };
+  }, [search, sortedBrokers]);
 
   const handleSelectBroker = (brokerId: string) => {
     onChange(brokerId);
@@ -187,7 +122,7 @@ export default function BrokerSelect({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search leader or broker..."
+                placeholder="Search broker or leader..."
                 className="w-full px-2 py-1 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-text-tertiary/60"
                 autoFocus
               />
@@ -210,109 +145,55 @@ export default function BrokerSelect({
                 </button>
               )}
 
-              {/* Leaders and their brokers */}
-              {filteredData.leadersToShow.map((leader) => {
-                const isExpanded = search.trim() !== '' || !!expandedLeaders[leader.id];
-                const leaderBrokers = filteredData.brokersMapToShow[leader.id] || [];
-
-                return (
-                  <div key={leader.id} className="space-y-0.5">
-                    {/* Leader header */}
-                    <div
-                      onClick={(e) => toggleLeader(leader.id, e)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-text-primary hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        {isExpanded ? (
-                          <FolderOpen size={16} className="text-primary" />
-                        ) : (
-                          <FolderClosed size={16} className="text-text-tertiary" />
-                        )}
-                        <span>{leader.name}</span>
-                      </div>
-                      <ChevronDown
-                        size={14}
-                        className={cn('text-text-tertiary transition-transform', isExpanded && 'rotate-180')}
-                      />
-                    </div>
-
-                    {/* Brokers under this leader */}
-                    {isExpanded && (
-                      <div className="pl-4 space-y-0.5 border-l-2 border-dashed border-gray-100 ml-5">
-                        {leaderBrokers.length === 0 ? (
-                          <div className="pl-4 py-1 text-xs text-text-tertiary">No brokers assigned</div>
-                        ) : (
-                          leaderBrokers.map((b) => (
-                            <button
-                              key={b.id}
-                              type="button"
-                              onClick={() => handleSelectBroker(b.id)}
-                              className={cn(
-                                'w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-primary-50 hover:text-primary rounded-lg transition-colors text-text-secondary',
-                                value === b.id && 'bg-primary-50 text-primary font-bold'
-                              )}
-                            >
-                              <User size={12} className="opacity-70" />
-                              <span>{b.name}</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
+              {/* Flat list of filtered brokers */}
+              {filteredBrokers.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => handleSelectBroker(b.id)}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-primary-50 hover:text-primary rounded-lg transition-colors text-text-primary',
+                    value === b.id && 'bg-primary-50 text-primary font-bold'
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <User size={14} className="opacity-70 shrink-0" />
+                    <span className="truncate">{b.name}</span>
+                    {b.leader && (
+                      <span className="text-[10px] bg-lime-100 text-lime-800 font-bold px-1.5 py-0.5 rounded border border-lime-200 shrink-0 ml-1">
+                        Leader: {b.leader.name}
+                      </span>
                     )}
                   </div>
-                );
-              })}
+                </button>
+              ))}
 
-              {/* Independent Brokers Header */}
-              {filteredData.independentsToShow.length > 0 && (
-                <div>
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-text-tertiary uppercase tracking-wider bg-gray-50/50 rounded-md my-1">
-                    Independent Brokers
-                  </div>
-                  {filteredData.independentsToShow.map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => handleSelectBroker(b.id)}
-                      className={cn(
-                        'w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-primary-50 hover:text-primary rounded-lg transition-colors text-text-primary',
-                        value === b.id && 'bg-primary-50 text-primary font-bold'
-                      )}
-                    >
-                      <User size={14} />
-                      <span>{b.name}</span>
-                    </button>
-                  ))}
+              {/* Empty state & create option */}
+              {filteredBrokers.length === 0 && (
+                <div className="px-3 py-6 text-center text-xs text-text-tertiary">
+                  {search.trim() && onCreate ? (
+                    <div>
+                      <p className="mb-2">No matching brokers found</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onCreate(search);
+                          setIsOpen(false);
+                          setSearch('');
+                        }}
+                        className="px-3 py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors inline-flex items-center gap-1"
+                      >
+                        <Plus size={14} /> Add "{search}"
+                      </button>
+                    </div>
+                  ) : (
+                    'No brokers found'
+                  )}
                 </div>
               )}
 
-              {/* Empty state & create option */}
-              {filteredData.leadersToShow.length === 0 &&
-                filteredData.independentsToShow.length === 0 && (
-                  <div className="px-3 py-6 text-center text-xs text-text-tertiary">
-                    {search.trim() && onCreate ? (
-                      <div>
-                        <p className="mb-2">No matching brokers found</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onCreate(search);
-                            setIsOpen(false);
-                            setSearch('');
-                          }}
-                          className="px-3 py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors inline-flex items-center gap-1"
-                        >
-                          <Plus size={14} /> Add "{search}"
-                        </button>
-                      </div>
-                    ) : (
-                      'No brokers found'
-                    )}
-                  </div>
-                )}
-
               {/* If search active and exact match doesn't exist, show quick add at the bottom */}
-              {search.trim() && onCreate && !exactMatchExists && (
+              {search.trim() && onCreate && !exactMatchExists && filteredBrokers.length > 0 && (
                 <div className="border-t border-border mt-1 pt-1">
                   <button
                     type="button"

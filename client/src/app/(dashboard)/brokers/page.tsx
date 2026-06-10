@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { 
   Users, Plus, Search, Folder, FolderOpen,
   TrendingUp, Award, Clock, ArrowUpRight, 
-  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, Loader2
+  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, Loader2, Edit3
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -61,6 +61,11 @@ export default function BrokersPage() {
   const [deleteLeaderTarget, setDeleteLeaderTarget] = useState<Leader | null>(null);
   const [deleteLeaderReason, setDeleteLeaderReason] = useState('');
   const [isDeletingLeader, setIsDeletingLeader] = useState(false);
+
+  // Edit leader modal state
+  const [editLeaderTarget, setEditLeaderTarget] = useState<Leader | null>(null);
+  const [editLeaderName, setEditLeaderName] = useState('');
+  const [isUpdatingLeader, setIsUpdatingLeader] = useState(false);
 
   const [expandedLeaderId, setExpandedLeaderId] = useState<string | null>(null);
 
@@ -319,6 +324,32 @@ export default function BrokersPage() {
       alert(err.message || 'Failed to delete leader');
     } finally {
       setIsDeletingLeader(false);
+    }
+  };
+
+  // ─── Action: Edit Leader ──────────────────────────────────────────
+  const handleEditLeader = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editLeaderTarget || !editLeaderName.trim()) return;
+    try {
+      setIsUpdatingLeader(true);
+      const res = await api(`/api/leaders/${editLeaderTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editLeaderName.trim() }),
+      });
+      if (res.ok) {
+        setEditLeaderTarget(null);
+        setEditLeaderName('');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update leader');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to update leader');
+    } finally {
+      setIsUpdatingLeader(false);
     }
   };
 
@@ -798,17 +829,30 @@ export default function BrokersPage() {
                       <span className="truncate max-w-[120px]">{leader.name}</span>
                       
                       {isAuthorized && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteLeaderReason('');
-                            setDeleteLeaderTarget(leader);
-                          }}
-                          className="p-1 rounded-full hover:bg-black/10 text-black/60 hover:text-red-700 transition-colors ml-1 cursor-pointer"
-                          title="Delete Leader"
-                        >
-                          <X size={12} />
-                        </button>
+                        <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditLeaderTarget(leader);
+                              setEditLeaderName(leader.name);
+                            }}
+                            className="p-1 rounded-full hover:bg-black/10 text-black/60 hover:text-primary transition-colors cursor-pointer"
+                            title="Edit Leader Name"
+                          >
+                            <Edit3 size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteLeaderReason('');
+                              setDeleteLeaderTarget(leader);
+                            }}
+                            className="p-1 rounded-full hover:bg-black/10 text-black/60 hover:text-red-700 transition-colors cursor-pointer"
+                            title="Delete Leader"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       )}
                     </div>
                     {/* Folder Top Line */}
@@ -1251,6 +1295,65 @@ export default function BrokersPage() {
                 Delete Leader
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ═══════════ Edit Leader Modal ═══════════ */}
+      {editLeaderTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-surface border border-border/80 rounded-[2rem] w-full max-w-md shadow-2xl p-8 relative animate-scale-in">
+            <button
+              onClick={() => { setEditLeaderTarget(null); setEditLeaderName(''); }}
+              className="absolute right-6 top-6 text-text-tertiary hover:text-text-primary hover:bg-border/50 p-2 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-start gap-4 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <Edit3 size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-text-primary">Edit Leader</h3>
+                <p className="text-sm text-text-tertiary mt-1">
+                  Rename leader <span className="font-semibold text-text-primary">"{editLeaderTarget.name}"</span>.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleEditLeader} className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-xs uppercase tracking-wider font-bold text-text-tertiary">
+                  New Leader Name:
+                </label>
+                <Input
+                  placeholder="Type leader name..."
+                  value={editLeaderName}
+                  onChange={e => setEditLeaderName(e.target.value)}
+                  required
+                  className="h-10 rounded-xl"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setEditLeaderTarget(null); setEditLeaderName(''); }}
+                  className="flex-1 h-12 rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  loading={isUpdatingLeader}
+                  disabled={!editLeaderName.trim() || editLeaderName.trim() === editLeaderTarget.name}
+                  className="flex-1 h-12 rounded-xl bg-primary hover:bg-primary-dark text-white shadow-lg border-primary"
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

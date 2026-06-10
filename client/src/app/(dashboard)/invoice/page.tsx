@@ -25,9 +25,15 @@ export default function InvoicePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Template filter state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('all');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTemplateId]);
 
   // Download Invoice Modal states
   const [showDownloadModal, setShowDownloadModal] = useState(false);
@@ -145,6 +151,12 @@ export default function InvoicePage() {
     const query = searchQuery.toLowerCase();
     return name.includes(query) || passport.includes(query);
   });
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = React.useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
 
   const getFileUrl = (pathStr: string) => {
     if (!pathStr) return '';
@@ -330,8 +342,8 @@ export default function InvoicePage() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.length > 0 ? (
-                filtered.map(inv => (
+              ) : paginated.length > 0 ? (
+                paginated.map(inv => (
                   <tr key={inv.id} className="hover:bg-gray-50/30 transition-colors">
                     {/* Delivery Status Selector */}
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -445,6 +457,48 @@ export default function InvoicePage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination Component */}
+      {!isLoading && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ‹
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+            if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1) {
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border cursor-pointer ${page === currentPage
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
+                    }`}
+                >
+                  {page}
+                </button>
+              );
+            }
+            if (page === currentPage - 2 || page === currentPage + 2) {
+              return <span key={page} className="text-text-tertiary px-1 font-bold">…</span>;
+            }
+            return null;
+          })}
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-primary hover:text-white hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold cursor-pointer"
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       {/* Download Invoice Modal */}
       {showDownloadModal && (

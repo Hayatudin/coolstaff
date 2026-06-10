@@ -613,14 +613,14 @@ function GeneratedCVsContent() {
 
   // ── Group by template and filter out locked broker candidates ─────────────
   const processedFolders = TEMPLATES.map(t => {
-    const folderCvs = cvs.filter(c => c.templateId === t.id && c.candidate?.broker?.isLocked !== true);
+    const folderCvs = cvs.filter(c => c.templateId === t.id && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
     return {
       ...t,
       cvs: folderCvs,
     };
   });
 
-  const backupCvs = cvs.filter(c => c.candidate?.broker?.isLocked === true);
+  const backupCvs = cvs.filter(c => c.candidate?.isLocked === true || c.candidate?.broker?.isLocked === true);
   const backupFolder = {
     id: '__backup__',
     name: 'Back-up CVs',
@@ -737,8 +737,8 @@ function GeneratedCVsContent() {
     : TEMPLATES.find(t => t.id === selectedFolder)!;
 
   const allFolderCVs = isBackupFolder
-    ? cvs.filter(c => c.candidate?.broker?.isLocked === true)
-    : cvs.filter(c => c.templateId === selectedFolder && c.candidate?.broker?.isLocked !== true);
+    ? cvs.filter(c => c.candidate?.isLocked === true || c.candidate?.broker?.isLocked === true)
+    : cvs.filter(c => c.templateId === selectedFolder && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
 
   const activeCVs = allFolderCVs.filter(cv => {
     if (religionFilter) {
@@ -1104,7 +1104,7 @@ function GeneratedCVsContent() {
             {activeCVs.map(cv => {
               const isSelected = selectedCVIds.has(cv.id);
               const CardTemplate = TEMPLATES.find(t => t.id === cv.templateId)?.component || ALMTemplate;
-              const isLocked = cv.candidate.broker?.isLocked;
+              const isLocked = cv.candidate.isLocked || cv.candidate.broker?.isLocked;
               return (
               <div 
                 key={cv.id} 
@@ -1162,7 +1162,7 @@ function GeneratedCVsContent() {
                     </div>
 
                     {isLocked ? (
-                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={`Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
+                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={cv.candidate.isLocked ? "Candidate is locked. No actions allowed." : `Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
                         <Lock size={14} />
                       </div>
                     ) : (
