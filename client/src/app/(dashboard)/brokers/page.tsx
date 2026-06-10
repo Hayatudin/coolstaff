@@ -376,14 +376,17 @@ export default function BrokersPage() {
         key={broker.id}
         onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
         className={cn(
-          "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 cursor-pointer relative overflow-hidden flex flex-col min-h-[220px]",
+          "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 cursor-pointer relative flex flex-col min-h-[220px]",
           broker.isLocked
             ? "border-red-300 hover:border-red-400 bg-red-50/5 hover:shadow-red-500/5"
-            : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5"
+            : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5",
+          openMenuId === broker.id && "z-30"
         )}
       >
         {/* Background accent */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full translate-x-10 -translate-y-10 group-hover:translate-x-5 group-hover:-translate-y-5 transition-transform duration-700" />
+        <div className="absolute inset-0 rounded-[2rem] overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full translate-x-10 -translate-y-10 group-hover:translate-x-5 group-hover:-translate-y-5 transition-transform duration-700" />
+        </div>
 
         <div className="flex justify-between items-start mb-6 relative z-10">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center text-primary border border-primary/5 group-hover:scale-110 transition-transform duration-500">
