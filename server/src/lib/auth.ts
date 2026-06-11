@@ -44,6 +44,10 @@ export const auth = betterAuth({
         type: 'string',
         defaultValue: 'user',
       },
+      agency: {
+        type: 'string',
+        required: false,
+      },
     },
   },
 });

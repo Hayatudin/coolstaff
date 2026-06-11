@@ -34,6 +34,7 @@ const allNavItems = [
   { label: 'Generated CVs', href: '/generated-cvs', icon: FolderOpen },
   { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
   { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
+  { label: 'Contracts', href: '/agency/contracts', icon: ClipboardList },
   { label: 'Invoice', href: '/invoice', icon: FileText },
   { label: 'Candidate Deployment', href: '/deployments', icon: ClipboardList },
   { label: 'Brokers', href: '/brokers', icon: Users },

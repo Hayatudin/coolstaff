@@ -8,6 +8,9 @@ export const authClient = createAuthClient({
         type: 'string',
         defaultValue: 'user',
       },
+      agency: {
+        type: 'string',
+      },
     },
   },
 });

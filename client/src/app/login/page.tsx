@@ -41,7 +41,9 @@ function LoginForm() {
         const role = user?.role;
         console.log("Sign in successful. User role:", role);
         
-        if (DASHBOARD_ROLES.includes(role)) {
+        if (role === 'agency') {
+          router.push('/agency/contracts');
+        } else if (DASHBOARD_ROLES.includes(role)) {
           router.push('/dashboard');
         } else {
           router.push('/');

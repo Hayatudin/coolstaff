@@ -53,11 +53,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/video-uploads', request.url));
     }
 
+    // Redirect agency to contracts page if accessing other dashboard pages
+    if (role === 'agency' && !pathname.startsWith('/agency') && !pathname.startsWith('/settings')) {
+      return NextResponse.redirect(new URL('/agency/contracts', request.url));
+    }
+
     // Check route-level access using the ROUTE_ACCESS config
     for (const routePath of PROTECTED_PATHS) {
       if (pathname.startsWith(routePath)) {
         const allowedRoles = ROUTE_ACCESS[routePath];
         if (allowedRoles && !allowedRoles.includes(role as Role)) {
+          if (role === 'agency') {
+            return NextResponse.redirect(new URL('/agency/contracts', request.url));
+          }
           return NextResponse.redirect(new URL('/dashboard', request.url));
         }
         break;
@@ -88,5 +96,6 @@ export const config = {
     '/quick-registered/:path*',
     '/invoice/:path*',
     '/uploaded-videos/:path*',
+    '/agency/:path*',
   ],
 };

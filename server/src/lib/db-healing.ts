@@ -13,6 +13,7 @@ export async function ensureDatabaseSchema() {
         \`emailVerified\` TINYINT(1) NOT NULL DEFAULT 0,
         \`image\` VARCHAR(191) NULL,
         \`role\` VARCHAR(191) NOT NULL DEFAULT 'user',
+        \`agency\` VARCHAR(191) NULL,
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
         PRIMARY KEY (\`id\`),
@@ -24,6 +25,16 @@ export async function ensureDatabaseSchema() {
     console.log(`✅ Verified/Created 'User' table.`);
   } catch (e: any) {
     console.warn('⚠️ User table check warning:', e.message || e);
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE \`User\` ADD COLUMN \`agency\` VARCHAR(191) NULL`);
+    console.log(`✅ Successfully added column 'agency' to User table.`);
+  } catch (e: any) {
+    const msg = e.message || String(e);
+    if (!msg.includes('Duplicate column') && !msg.includes('already exists') && e.code !== 'P2010') {
+      console.warn(`⚠️ User column fallback update warning for 'agency':`, msg);
+    }
   }
 
   try {
@@ -411,7 +422,15 @@ export async function ensureDatabaseSchema() {
     { name: 'candidateIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'deployedDate', type: 'DATETIME(3) NULL' },
-    { name: 'isLocked', type: 'TINYINT(1) NOT NULL DEFAULT 0' }
+    { name: 'isLocked', type: 'TINYINT(1) NOT NULL DEFAULT 0' },
+    { name: 'embassyIssue', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
+    { name: 'cocStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
+    { name: 'tasheerStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
+    { name: 'wakalaStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'Unpaid'" },
+    { name: 'qrCodeStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
+    { name: 'selectedType', type: "VARCHAR(191) NOT NULL DEFAULT 'Private'" },
+    { name: 'travelDate', type: 'DATETIME(3) NULL' },
+    { name: 'agencyStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'Under Process'" }
   ];
 
   for (const col of candidateColumns) {

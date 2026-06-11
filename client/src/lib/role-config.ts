@@ -12,6 +12,7 @@ export const DASHBOARD_ROLES: Role[] = [
   'coordinator',
   'accountant',
   'video_uploader',
+  'agency',
 ];
 
 // Route → which roles can see/access it
@@ -29,10 +30,11 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/deployments':        ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant'],
   '/brokers':            ['super_admin', 'registrar', 'processor'],
   '/backup':             ['super_admin', 'processor', 'coordinator'],
-  '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader'],
+  '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader', 'agency'],
   '/users':              ['super_admin'],
   '/video-uploads':      ['super_admin', 'video_uploader'],
   '/uploaded-videos':    ['super_admin', 'video_uploader', 'processor', 'coordinator', 'registrar', 'accountant'],
+  '/agency/contracts':   ['super_admin', 'agency'],
 };
 
 // Helper: check if a role can access a specific route

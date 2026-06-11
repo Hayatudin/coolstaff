@@ -91,6 +91,14 @@ model Candidate {
   agency                   String?   @default("daera")
   deployedDate             DateTime?
   isLocked                 Boolean   @default(false)
+  embassyIssue             String    @default("No")
+  cocStatus                String    @default("No")
+  tasheerStatus            String    @default("No")
+  wakalaStatus             String    @default("Unpaid")
+  qrCodeStatus             String    @default("No")
+  selectedType             String    @default("Private")
+  travelDate               DateTime?
+  agencyStatus             String    @default("Under Process")
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?
@@ -140,6 +148,7 @@ model User {
   emailVerified Boolean   @default(false)
   image         String?
   role          String    @default("user") // user | super_admin | agency | registrar | processor | coordinator | accountant
+  agency        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
