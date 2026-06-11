@@ -83,14 +83,16 @@ router.get('/', async (req: Request, res: Response) => {
     let youtubeUrlMap: Record<string, string | null> = {};
     let deployedDateMap: Record<string, string | null> = {};
     let candidateLockMap: Record<string, boolean> = {};
+    let candidateCvDownloadedMap: Record<string, boolean> = {};
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, Youtube_URL, deployedDate, isLocked FROM \`Candidate\``
+        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded FROM \`Candidate\``
       );
       for (const row of rawRows) {
         youtubeUrlMap[row.id] = row.Youtube_URL || null;
         deployedDateMap[row.id] = row.deployedDate ? new Date(row.deployedDate).toISOString() : null;
         candidateLockMap[row.id] = row.isLocked === 1 || row.isLocked === true;
+        candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -164,6 +166,7 @@ router.get('/', async (req: Request, res: Response) => {
         visaOrContractNumber: c.visaOrContractNumber || null,
         isFlagged: c.isFlagged || false,
         isLocked: candidateLockMap[c.id] ?? false,
+        cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
         videoUrl: youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null,
         Youtube_URL: youtubeUrlMap[c.id] ?? null,
         deployedDate: deployedDateMap[c.id] ?? null,
@@ -601,14 +604,16 @@ router.get('/:id', async (req: Request, res: Response) => {
     let youtubeUrl: string | null = null;
     let candidateDeployedDate: string | null = null;
     let candidateIsLocked = false;
+    let candidateCvDownloaded = false;
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT Youtube_URL, deployedDate, isLocked FROM \`Candidate\` WHERE id = ?`, id
+        `SELECT Youtube_URL, deployedDate, isLocked, cvDownloaded FROM \`Candidate\` WHERE id = ?`, id
       );
       if (rawRows.length > 0) {
         youtubeUrl = rawRows[0].Youtube_URL || null;
         candidateDeployedDate = rawRows[0].deployedDate ? new Date(rawRows[0].deployedDate).toISOString() : null;
         candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
+        candidateCvDownloaded = rawRows[0].cvDownloaded === 1 || rawRows[0].cvDownloaded === true;
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -686,6 +691,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       visaDate: c.visaDate ? c.visaDate.toISOString() : null,
       salary: c.salary || '1000SR',
       isLocked: candidateIsLocked,
+      cvDownloaded: candidateCvDownloaded,
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
       registeredBy: (c as any).registeredBy?.name || 'Admin',
     };
@@ -890,6 +896,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
     const isLockedVal = body.isLocked;
     delete body.isLocked;
 
+    // Handle cvDownloaded via raw SQL to bypass stale Prisma Client
+    const cvDownloadedVal = body.cvDownloaded;
+    delete body.cvDownloaded;
+
     let visaDateVal: any = undefined;
     if (body.visaSelected) {
       const existing = await prisma.candidate.findUnique({ where: { id } });
@@ -975,6 +985,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       }
     }
 
+    // Save cvDownloaded if passed
+    if (cvDownloadedVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`cvDownloaded\` = ? WHERE \`id\` = ?`,
+          cvDownloadedVal ? 1 : 0,
+          id
+        );
+        (updated as any).cvDownloaded = Boolean(cvDownloadedVal);
+      } catch (e) {
+        console.error('Failed to save cvDownloaded via raw SQL:', e);
+      }
+    }
+
     res.json(updated);
   } catch (error: any) {
     console.error('Failed to update candidate:', error);
@@ -1032,6 +1056,29 @@ router.delete('/:id', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Failed to delete candidate:', error);
     res.status(500).json({ error: error?.message || 'Failed to delete candidate' });
+  }
+});
+
+// PATCH /api/candidates/bulk-cv-downloaded
+router.patch('/bulk-cv-downloaded', async (req: Request, res: Response) => {
+  try {
+    const { candidateIds, cvDownloaded } = req.body;
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ error: 'candidateIds must be a non-empty array' });
+    }
+    
+    // Perform bulk update using raw SQL to be safe
+    const placeholders = candidateIds.map(() => '?').join(', ');
+    await prisma.$executeRawUnsafe(
+      `UPDATE \`Candidate\` SET \`cvDownloaded\` = ? WHERE \`id\` IN (${placeholders})`,
+      cvDownloaded ? 1 : 0,
+      ...candidateIds
+    );
+    
+    res.json({ success: true, updatedCount: candidateIds.length });
+  } catch (error: any) {
+    console.error('Failed to bulk update cvDownloaded:', error);
+    res.status(500).json({ error: error?.message || 'Failed to bulk update cvDownloaded' });
   }
 });
 

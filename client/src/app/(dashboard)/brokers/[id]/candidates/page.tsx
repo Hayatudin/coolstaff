@@ -71,6 +71,7 @@ interface BrokerCandidate {
   isFlagged?: boolean;
   medicalStatus?: string;
   visaOrContractNumber?: string | null;
+  cvDownloaded?: boolean;
 }
 
 export default function BrokerCandidatesPage() {
@@ -85,9 +86,41 @@ export default function BrokerCandidatesPage() {
 
   // Advanced Filters
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
+  const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
   const [religionFilter, setReligionFilter] = useState('');
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
+
+  // Mark CV status helpers
+  const markAsCvDownloaded = async (candidateId: string) => {
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvDownloaded: true }),
+      });
+      if (!res.ok) throw new Error();
+      setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, cvDownloaded: true } : c));
+    } catch (err) {
+      console.error('Failed to mark CV as downloaded:', err);
+    }
+  };
+
+  const markAsCvAvailable = async (candidateId: string) => {
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvDownloaded: false }),
+      });
+      if (!res.ok) throw new Error();
+      setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, cvDownloaded: false } : c));
+      showToast('Candidate marked as CV Available');
+    } catch (err) {
+      console.error('Failed to mark CV as available:', err);
+      showToast('Failed to mark CV as available', 'error');
+    }
+  };
 
   // Visa Status Modals State
   const [visaModalId, setVisaModalId] = useState<string | null>(null);
@@ -447,6 +480,11 @@ export default function BrokerCandidatesPage() {
           downloadBlob(pdf.output('blob'), `${fileName}.pdf`);
           showToast('Downloaded as PDF');
         }
+
+        const candidateId = downloadingCv.candidate?.id || downloadingCv.candidateId || downloadingCv.id;
+        if (candidateId) {
+          await markAsCvDownloaded(candidateId);
+        }
       } catch (e) {
         if (!cancelled) showToast('Download failed', 'error');
       } finally {
@@ -593,6 +631,19 @@ export default function BrokerCandidatesPage() {
       a.click();
       setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
       showToast('Download complete!');
+
+      // Bulk update cvDownloaded status
+      try {
+        await api('/api/candidates/bulk-cv-downloaded', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: candidatesToDownload, cvDownloaded: true }),
+        });
+        setCandidates(prev => prev.map(c => candidatesToDownload.includes(c.id) ? { ...c, cvDownloaded: true } : c));
+        setSelectedIds([]);
+      } catch (bulkErr) {
+        console.error('Failed to bulk mark candidates as downloaded:', bulkErr);
+      }
     } catch (err) {
       console.error(err);
       showToast('Failed to download CVs', 'error');
@@ -713,15 +764,20 @@ export default function BrokerCandidatesPage() {
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency;
+      // 6. CV Status Filter
+      const matchesCvStatus = cvStatusFilter === 'cv-downloaded'
+        ? c.cvDownloaded === true
+        : c.cvDownloaded !== true;
+
+      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency && matchesCvStatus;
     });
-  }, [candidates, searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
+  }, [candidates, searchQuery, visaFilter, cvStatusFilter, religionFilter, flaggedFilter, agencyFilter]);
 
   // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
+  }, [searchQuery, visaFilter, cvStatusFilter, religionFilter, flaggedFilter, agencyFilter]);
 
   // Pagination Slice
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -785,30 +841,62 @@ export default function BrokerCandidatesPage() {
             />
           </div>
 
-          {/* Visa Status Filter Tabs */}
-          <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shrink-0 w-full lg:w-auto shadow-inner">
-            <button
-              onClick={() => setVisaFilter('pending')}
-              className={cn(
-                "flex-1 lg:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                visaFilter === 'pending'
-                  ? "bg-white text-text-primary shadow-md"
-                  : "text-text-tertiary hover:bg-white/50"
-              )}
-            >
-              Pending Visa
-            </button>
-            <button
-              onClick={() => setVisaFilter('visa-selected')}
-              className={cn(
-                "flex-1 lg:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                visaFilter === 'visa-selected'
-                  ? "bg-white text-text-primary shadow-md"
-                  : "text-text-tertiary hover:bg-white/50"
-              )}
-            >
-              Visa Selected
-            </button>
+          <div className="flex flex-wrap items-center gap-3 shrink-0 w-full lg:w-auto">
+            {/* CV Status Filter Tabs */}
+            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setCvStatusFilter('cv-available')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  cvStatusFilter === 'cv-available'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                CV Available
+              </button>
+              <button
+                type="button"
+                onClick={() => setCvStatusFilter('cv-downloaded')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  cvStatusFilter === 'cv-downloaded'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                CV Downloaded
+              </button>
+            </div>
+
+            {/* Visa Status Filter Tabs */}
+            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setVisaFilter('pending')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  visaFilter === 'pending'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                Pending Visa
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisaFilter('visa-selected')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  visaFilter === 'visa-selected'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                Visa Selected
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1178,6 +1266,16 @@ export default function BrokerCandidatesPage() {
                                 )}
                                 <span>{candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}</span>
                               </button>
+
+                              {cvStatusFilter === 'cv-downloaded' && candidate.cvDownloaded && (
+                                <button
+                                  onClick={() => markAsCvAvailable(candidate.id)}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
+                                >
+                                  <FileDown size={16} className="text-emerald-500" />
+                                  <span>Mark as CV Available</span>
+                                </button>
+                              )}
 
                               <div className="border-t border-border/60 my-1" />
 

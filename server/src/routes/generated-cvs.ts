@@ -81,6 +81,7 @@ const formatCandidate = (c: any) => {
     visaSelected: c.visaSelected,
     visaDate: c.visaDate ? (c.visaDate instanceof Date ? c.visaDate.toISOString() : c.visaDate) : null,
     salary: c.salary || '1000SR',
+    cvDownloaded: false as boolean,
   };
 };
 
@@ -117,10 +118,25 @@ router.get('/', async (req: Request, res: Response) => {
     });
     
     const lockMap = await getBrokerLockMap();
+    let cvDownloadedMap: Record<string, boolean> = {};
+    try {
+      const rawRows = await prisma.$queryRawUnsafe<{ id: string; cvDownloaded: number | boolean }[]>(
+        'SELECT id, cvDownloaded FROM `Candidate`'
+      );
+      for (const row of rawRows) {
+        cvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
+      }
+    } catch (e) {
+      console.warn('[GENERATED-CVS] Could not fetch cvDownloaded column via raw SQL:', e);
+    }
+
     const mappedCVs = generatedCVs.map((cv: any) => {
       const formattedCandidateObj = formatCandidate(cv.candidate);
-      if (formattedCandidateObj && formattedCandidateObj.broker) {
-        formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
+      if (formattedCandidateObj) {
+        formattedCandidateObj.cvDownloaded = cvDownloadedMap[formattedCandidateObj.id] ?? false;
+        if (formattedCandidateObj.broker) {
+          formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
+        }
       }
       return {
         ...cv,

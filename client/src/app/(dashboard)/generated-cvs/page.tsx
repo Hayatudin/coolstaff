@@ -40,6 +40,8 @@ function ActionMenu({
   onChangeTemplate,
   isFlagged,
   onToggleFlag,
+  cvDownloaded,
+  onMarkAsCvAvailable,
 }: {
   cvId: string;
   currentTemplateId: string;
@@ -47,6 +49,8 @@ function ActionMenu({
   onChangeTemplate: () => void;
   isFlagged: boolean;
   onToggleFlag: () => void;
+  cvDownloaded?: boolean;
+  onMarkAsCvAvailable?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -85,6 +89,15 @@ function ActionMenu({
         <Flag size={14} className={isFlagged ? "text-red-500 fill-red-500" : "text-text-tertiary"} /> 
         {isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}
       </button>
+
+      {cvDownloaded && onMarkAsCvAvailable && (
+        <button onClick={() => { setOpen(false); onMarkAsCvAvailable(); }}
+          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 transition-colors font-semibold"
+        >
+          <Check size={14} className="text-emerald-600" /> Mark as CV Available
+        </button>
+      )}
+
       <div className="border-t border-border" />
       <button onClick={() => { setOpen(false); onDelete(); }}
         className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -305,6 +318,47 @@ function GeneratedCVsContent() {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
+
+  const markAsCvDownloaded = async (candidateId: string) => {
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvDownloaded: true }),
+      });
+      if (!res.ok) throw new Error();
+      setCvs(prev => prev.map(c =>
+        c.candidateId === candidateId
+          ? { ...c, candidate: { ...c.candidate, cvDownloaded: true } }
+          : c
+      ));
+      clearCandidatesCache();
+    } catch (err) {
+      console.error('Failed to mark CV as downloaded:', err);
+    }
+  };
+
+  const markAsCvAvailable = async (candidateId: string) => {
+    try {
+      const res = await api(`/api/candidates/${candidateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvDownloaded: false }),
+      });
+      if (!res.ok) throw new Error();
+      setCvs(prev => prev.map(c =>
+        c.candidateId === candidateId
+          ? { ...c, candidate: { ...c.candidate, cvDownloaded: false } }
+          : c
+      ));
+      clearCandidatesCache();
+      showToast('Candidate marked as CV Available');
+    } catch (err) {
+      console.error('Failed to mark CV as available:', err);
+      showToast('Failed to mark CV as available', 'error');
+    }
+  };
 
   useEffect(() => {
     const folder = searchParams.get('folder');
@@ -357,7 +411,7 @@ function GeneratedCVsContent() {
 
   useEffect(() => {
     setSelectedCVIds(new Set());
-  }, [selectedFolder]);
+  }, [selectedFolder, cvStatusFilter]);
 
   // ── Delete ─────────────────────────────────────────────────────────────────
   const handleConfirmDelete = async () => {
@@ -585,6 +639,11 @@ function GeneratedCVsContent() {
           downloadBlob(pdf.output('blob'), `${fileName}.pdf`);
           showToast('Downloaded as PDF');
         }
+
+        const candidateId = downloadingCv.candidate?.id || downloadingCv.candidateId;
+        if (candidateId) {
+          await markAsCvDownloaded(candidateId);
+        }
       } catch (e) {
         if (!cancelled) showToast('Download failed', 'error');
       } finally {
@@ -741,6 +800,11 @@ function GeneratedCVsContent() {
     : cvs.filter(c => c.templateId === selectedFolder && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
 
   const activeCVs = allFolderCVs.filter(cv => {
+    const matchesCvStatus = cvStatusFilter === 'cv-downloaded'
+      ? cv.candidate?.cvDownloaded === true
+      : cv.candidate?.cvDownloaded !== true;
+    if (!matchesCvStatus) return false;
+
     if (religionFilter) {
       const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase();
       if (religionFilter === 'muslim' && rel !== 'muslim') return false;
@@ -879,6 +943,27 @@ function GeneratedCVsContent() {
       a.click();
       setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
       showToast(`Downloaded ${cvsToDownload.length} CVs as ZIP!`);
+
+      // Bulk update cvDownloaded status
+      const candidateIds = cvsToDownload.map(c => c.candidateId).filter(Boolean);
+      if (candidateIds.length > 0) {
+        try {
+          await api('/api/candidates/bulk-cv-downloaded', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ candidateIds, cvDownloaded: true }),
+          });
+          setCvs(prev => prev.map(c =>
+            candidateIds.includes(c.candidateId)
+              ? { ...c, candidate: { ...c.candidate, cvDownloaded: true } }
+              : c
+          ));
+          clearCandidatesCache();
+          setSelectedCVIds(new Set());
+        } catch (bulkErr) {
+          console.error('Failed to bulk mark candidates as downloaded:', bulkErr);
+        }
+      }
     } catch (err) {
       console.error('Download all error:', err);
       showToast('Failed to download all CVs', 'error');
@@ -891,8 +976,8 @@ function GeneratedCVsContent() {
     <>
       <div className="space-y-6">
         {/* Breadcrumb + Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setFlagFilter('all'); setSearchQuery(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
               <ArrowLeft size={18} />
             </button>
@@ -908,6 +993,34 @@ function GeneratedCVsContent() {
                   {activeCVs.length} CV{activeCVs.length !== 1 ? 's' : ''}
                 </span>
               </h1>
+            </div>
+
+            {/* CV Status Filter Tabs */}
+            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner ml-2">
+              <button
+                type="button"
+                onClick={() => setCvStatusFilter('cv-available')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  cvStatusFilter === 'cv-available'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                CV Available
+              </button>
+              <button
+                type="button"
+                onClick={() => setCvStatusFilter('cv-downloaded')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  cvStatusFilter === 'cv-downloaded'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                CV Downloaded
+              </button>
             </div>
           </div>
 
@@ -1173,6 +1286,8 @@ function GeneratedCVsContent() {
                         onChangeTemplate={() => setChangeTarget(cv)}
                         isFlagged={cv.candidate.isFlagged || false}
                         onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
+                        cvDownloaded={cv.candidate?.cvDownloaded}
+                        onMarkAsCvAvailable={() => markAsCvAvailable(cv.candidateId)}
                       />
                     )}
                   </div>

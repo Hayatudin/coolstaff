@@ -245,19 +245,21 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
 
     // Fetch per-candidate isLocked via raw SQL
     let candidateIsLockedMap: Record<string, boolean> = {};
+    let candidateCvDownloadedMap: Record<string, boolean> = {};
     try {
       const candidateIds = broker.candidates.map((c: any) => c.id);
       if (candidateIds.length > 0) {
         const placeholders = candidateIds.map(() => '?').join(',');
-        const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
-          `SELECT id, isLocked FROM Candidate WHERE id IN (${placeholders})`,
+        const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean; cvDownloaded: number | boolean }[]>(
+          `SELECT id, isLocked, cvDownloaded FROM Candidate WHERE id IN (${placeholders})`,
           ...candidateIds
         );
         for (const row of rows) {
           candidateIsLockedMap[row.id] = row.isLocked === 1 || row.isLocked === true;
+          candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
         }
       }
-    } catch (_) { /* isLocked column may not exist yet */ }
+    } catch (_) { /* isLocked/cvDownloaded columns may not exist yet */ }
 
     const augmentedBroker = {
       ...broker,
@@ -265,6 +267,7 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
       candidates: broker.candidates.map((c: any) => ({
         ...c,
         isLocked: candidateIsLockedMap[c.id] ?? false,
+        cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
       })),
     };
 

@@ -57,8 +57,40 @@ export default function FitCandidatesPage() {
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
+  const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Mark CV status helpers
+  const markAsCvDownloaded = async (id: string) => {
+    try {
+      const res = await api(`/api/candidates/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvDownloaded: true }),
+      });
+      if (!res.ok) throw new Error();
+      mutate(prev => prev.map(c => c.id === id ? { ...c, cvDownloaded: true } : c));
+    } catch (err) {
+      console.error('Failed to mark CV as downloaded:', err);
+    }
+  };
+
+  const markAsCvAvailable = async (id: string) => {
+    try {
+      const res = await api(`/api/candidates/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvDownloaded: false }),
+      });
+      if (!res.ok) throw new Error();
+      mutate(prev => prev.map(c => c.id === id ? { ...c, cvDownloaded: false } : c));
+      showToast('Candidate marked as CV Available');
+    } catch (err) {
+      console.error('Failed to mark CV as available:', err);
+      showToast('Failed to mark CV as available', 'error');
+    }
+  };
 
   // Selection & Modal states
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -139,15 +171,20 @@ export default function FitCandidatesPage() {
         ? c.visaSelected === true
         : c.visaSelected !== true;
 
-      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa;
+      // 6. CV Status Filter
+      const matchesCvStatus = cvStatusFilter === 'cv-downloaded'
+        ? c.cvDownloaded === true
+        : c.cvDownloaded !== true;
+
+      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa && matchesCvStatus;
     });
-  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
+  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter, cvStatusFilter]);
 
   // Reset to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
+  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter, cvStatusFilter]);
 
   const deleteCandidate = async (id: string) => {
     setOpenMenuId(null);
@@ -376,6 +413,11 @@ export default function FitCandidatesPage() {
           downloadBlob(pdf.output('blob'), `${fileName}.pdf`);
           showToast('Downloaded as PDF');
         }
+
+        const candidateId = downloadingCv.candidate?.id || downloadingCv.candidateId || downloadingCv.id;
+        if (candidateId) {
+          await markAsCvDownloaded(candidateId);
+        }
       } catch (e) {
         if (!cancelled) showToast('Download failed', 'error');
       } finally {
@@ -510,6 +552,19 @@ export default function FitCandidatesPage() {
       a.click();
       setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
       showToast('Download complete!');
+
+      // Bulk update cvDownloaded status
+      try {
+        await api('/api/candidates/bulk-cv-downloaded', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds, cvDownloaded: true }),
+        });
+        mutate(prev => prev.map(c => selectedIds.includes(c.id) ? { ...c, cvDownloaded: true } : c));
+        setSelectedIds([]);
+      } catch (bulkErr) {
+        console.error('Failed to bulk mark candidates as downloaded:', bulkErr);
+      }
     } catch (err) {
       console.error(err);
       showToast('Failed to download CVs', 'error');
@@ -561,30 +616,62 @@ export default function FitCandidatesPage() {
             <Input placeholder="Search by name, passport, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
 
-          {/* Visa Status Filter Tabs */}
-          <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shrink-0 w-full md:w-auto shadow-inner">
-            <button
-              onClick={() => setVisaFilter('pending')}
-              className={cn(
-                "flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                visaFilter === 'pending'
-                  ? "bg-white text-text-primary shadow-md"
-                  : "text-text-tertiary hover:bg-white/50"
-              )}
-            >
-              Pending Visa
-            </button>
-            <button
-              onClick={() => setVisaFilter('visa-selected')}
-              className={cn(
-                "flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                visaFilter === 'visa-selected'
-                  ? "bg-white text-text-primary shadow-md"
-                  : "text-text-tertiary hover:bg-white/50"
-              )}
-            >
-              Visa Selected
-            </button>
+          <div className="flex flex-wrap items-center gap-3 shrink-0 w-full md:w-auto">
+            {/* CV Status Filter Tabs */}
+            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setCvStatusFilter('cv-available')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  cvStatusFilter === 'cv-available'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                CV Available
+              </button>
+              <button
+                type="button"
+                onClick={() => setCvStatusFilter('cv-downloaded')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  cvStatusFilter === 'cv-downloaded'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                CV Downloaded
+              </button>
+            </div>
+
+            {/* Visa Status Filter Tabs */}
+            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setVisaFilter('pending')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  visaFilter === 'pending'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                Pending Visa
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisaFilter('visa-selected')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  visaFilter === 'visa-selected'
+                    ? "bg-white text-text-primary shadow-md"
+                    : "text-text-tertiary hover:bg-white/50"
+                )}
+              >
+                Visa Selected
+              </button>
+            </div>
           </div>
         </div>
 
@@ -774,6 +861,16 @@ export default function FitCandidatesPage() {
                                 <Flag size={16} className={cn("text-text-secondary", c.isFlagged && "text-red-500 fill-red-500")} />
                                 <span>{c.isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}</span>
                               </button>
+
+                              {c.cvDownloaded && (
+                                <button
+                                  onClick={() => { setOpenMenuId(null); markAsCvAvailable(c.id); }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-emerald-600 font-semibold"
+                                >
+                                  <CheckCircle size={16} className="text-emerald-600" />
+                                  <span>Mark as CV Available</span>
+                                </button>
+                              )}
 
                               <div className="border-t border-border/60 my-1" />
 
