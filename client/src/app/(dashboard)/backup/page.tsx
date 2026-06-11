@@ -597,131 +597,56 @@ export default function BackupPage() {
   const TC = activeTemplate.component;
 
   // ── Download All as ZIP ────────────────────────────────────────────────────
+  // ── Download All as ZIP ────────────────────────────────────────────────────
   const handleDownloadAll = async (format: 'pdf' | 'jpg' | 'doc') => {
     if (activeCVs.length === 0) return;
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
     try {
-      const JSZip = (await import('jszip')).default;
-      const htmlToImage = await import('html-to-image');
-      const { createRoot } = await import('react-dom/client');
-      const { jsPDF } = await import('jspdf');
+      const candidateIds = activeCVs.map(c => c.candidateId).filter(Boolean);
+      if (candidateIds.length === 0) return;
 
-      const zip = new JSZip();
+      showToast('Initializing bulk generation on server...');
+      const initRes = await api('/api/cv/bulk-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateIds, format })
+      });
+      
+      if (!initRes.ok) throw new Error('Failed to initialize bulk generation');
+      const { jobId } = await initRes.json();
 
-      // Create a hidden container for rendering
-      const container = document.createElement('div');
-      container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;z-index:-1;';
-      document.body.appendChild(container);
-
-      // Concurrent Worker Queue
-      const CONCURRENCY = 4;
-      let currentIndex = 0;
-      let completedCount = 0;
-
-      const processCV = async (cv: any) => {
-        const passportNo = cv.candidate?.passportData?.passportNumber || cv.candidate?.passportNumber || cv.candidateId.slice(-6);
-        const namePart = `${cv.candidate?.passportData?.givenNames || cv.candidate?.givenNames || ''}_${cv.candidate?.passportData?.surname || cv.candidate?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-        const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
-
-        if (format === 'doc') {
-          // DOCX via server-side API (skip DOM rendering and htmlToImage)
-          const payload = {
-            candidateId: cv.candidateId,
-            templateId: `tmpl-${selectedFolder}`,
-            format: 'doc',
-            deadline: cv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
-            facePhoto: cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl,
-            fullBodyPhoto: cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl
-          };
-          const response = await api('/api/cv/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (!response.ok) throw new Error('DOCX generation failed');
-          const blob = await response.blob();
-          zip.file(`${safeName}.docx`, blob);
-        } else {
-          // PDF / JPG formats need DOM rendering
-          const wrapper = document.createElement('div');
-          container.appendChild(wrapper);
-          const root = createRoot(wrapper);
-
-          await new Promise<void>((resolve) => {
-            root.render(
-              React.createElement(TC, {
-                candidate: cv.candidate,
-                facePhoto: cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl,
-                fullBodyPhoto: cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl,
-              })
-            );
-            setTimeout(resolve, 50);
-          });
-
-          const origH = wrapper.style.height;
-          const origO = wrapper.style.overflow;
-          wrapper.style.height = 'auto';
-          wrapper.style.overflow = 'visible';
-          const dataUrl = await htmlToImage.toJpeg(wrapper, { quality: 0.92, backgroundColor: '#ffffff', pixelRatio: 2 });
-          wrapper.style.height = origH;
-          wrapper.style.overflow = origO;
-
-          if (format === 'jpg') {
-            const res = await fetch(dataUrl);
-            const blob = await res.blob();
-            zip.file(`${safeName}.jpg`, blob);
-          } else {
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfW = pdf.internal.pageSize.getWidth();
-            const props = pdf.getImageProperties(dataUrl);
-            const totalH = props.height / (props.width / pdfW);
-            pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
-            if (totalH > pdf.internal.pageSize.getHeight() + 10) {
-              pdf.addPage();
-              pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
-            }
-            zip.file(`${safeName}.pdf`, pdf.output('blob'));
-          }
-
-          root.unmount();
-          container.removeChild(wrapper);
+      let status = 'processing';
+      while (status === 'processing' || status === 'pending') {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
+        if (!statusRes.ok) throw new Error('Failed to fetch processing status');
+        const progressData = await statusRes.json();
+        
+        status = progressData.status;
+        if (status === 'failed') {
+          throw new Error(progressData.error || 'Server-side bulk generation failed');
         }
-      };
 
-      const worker = async () => {
-        while (currentIndex < activeCVs.length) {
-          const index = currentIndex++;
-          const cv = activeCVs[index];
-          try {
-            await processCV(cv);
-          } catch (err) {
-            console.error(`Error processing candidate ${cv.candidateId}:`, err);
-          } finally {
-            completedCount++;
-            showToast(`Processing CVs: ${completedCount}/${activeCVs.length}...`);
-          }
-        }
-      };
+        showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`);
+      }
 
-      // Run multiple workers concurrently
-      const workers = Array.from({ length: Math.min(CONCURRENCY, activeCVs.length) }, worker);
-      await Promise.all(workers);
+      showToast('Downloading ZIP archive...');
+      const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
+      if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
+      const blob = await downloadRes.blob();
 
-      document.body.removeChild(container);
-
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const url = window.URL.createObjectURL(zipBlob);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${activeTemplate.name.replace(/\s+/g, '_')}_CVs${religionFilter ? '_' + religionFilter : ''}.zip`;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-      showToast(`Downloaded ${activeCVs.length} CVs as ZIP!`);
-    } catch (err) {
-      console.error('Download all error:', err);
-      showToast('Failed to download all CVs', 'error');
+      showToast('Download complete!');
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Failed to download CVs', 'error');
     } finally {
       setIsDownloadingAll(false);
     }

@@ -527,135 +527,37 @@ export default function BrokerCandidatesPage() {
     setDownloadAllOpen(false);
 
     try {
-      const JSZip = (await import('jszip')).default;
-      const htmlToImage = await import('html-to-image');
-      const { createRoot } = await import('react-dom/client');
-      const { jsPDF } = await import('jspdf');
+      showToast('Initializing bulk generation on server...');
+      const initRes = await api('/api/cv/bulk-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateIds: candidatesToDownload, format })
+      });
+      
+      if (!initRes.ok) throw new Error('Failed to initialize bulk generation');
+      const { jobId } = await initRes.json();
 
-      const zip = new JSZip();
-
-      // Create hidden container for rendering
-      const container = document.createElement('div');
-      container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;z-index:-1;';
-      document.body.appendChild(container);
-
-      // Concurrent Worker Queue
-      const CONCURRENCY = 4;
-      let currentIndex = 0;
-      let completedCount = 0;
-
-      const processCandidate = async (candidateId: string) => {
-        const candidateSummary = candidates.find(c => c.id === candidateId);
-        if (!candidateSummary) return;
-
-        const passportNo = candidateSummary.passportNumber || candidateId.slice(-6);
-        const namePart = `${candidateSummary.givenNames || ''}_${candidateSummary.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-        const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
-
-        try {
-          // Fetch full candidate details
-          const detailRes = await api(`/api/candidates/${candidateId}`);
-          if (!detailRes.ok) throw new Error('Failed to fetch details');
-          const fullCandidate = await detailRes.json();
-
-          const templateId = getNormalizedTemplateId(candidateSummary) || 'alm';
-          const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
-
-          const facePhoto = getFileUrl(fullCandidate.facePhotoUrl || fullCandidate.passportImageUrl);
-          const fullBodyPhoto = getFileUrl(fullCandidate.fullBodyPhotoUrl);
-
-          if (format === 'doc') {
-            const payload = {
-              candidateId,
-              templateId: `tmpl-${templateId}`,
-              format: 'doc',
-              deadline: fullCandidate.cvDeadline || new Date().toISOString().split('T')[0],
-              facePhoto,
-              fullBodyPhoto
-            };
-            const response = await api('/api/cv/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error('DOCX generation failed');
-            const blob = await response.blob();
-            zip.file(`${safeName}.docx`, blob);
-          } else {
-            const wrapper = document.createElement('div');
-            container.appendChild(wrapper);
-            const root = createRoot(wrapper);
-
-            await new Promise<void>((resolve) => {
-              root.render(
-                React.createElement(FolderTemplate, {
-                  candidate: fullCandidate,
-                  facePhoto,
-                  fullBodyPhoto,
-                })
-              );
-              setTimeout(resolve, 50);
-            });
-
-            const origH = wrapper.style.height;
-            const origO = wrapper.style.overflow;
-            wrapper.style.height = 'auto';
-            wrapper.style.overflow = 'visible';
-
-            const dataUrl = await htmlToImage.toJpeg(wrapper, {
-              quality: 0.92,
-              backgroundColor: '#ffffff',
-              pixelRatio: 2,
-              imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-            });
-
-            wrapper.style.height = origH;
-            wrapper.style.overflow = origO;
-
-            if (format === 'jpg') {
-              const imgRes = await fetch(dataUrl);
-              const blob = await imgRes.blob();
-              zip.file(`${safeName}.jpg`, blob);
-            } else {
-              const pdf = new jsPDF('p', 'mm', 'a4');
-              const pdfW = pdf.internal.pageSize.getWidth();
-              const props = pdf.getImageProperties(dataUrl);
-              const totalH = props.height / (props.width / pdfW);
-              pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
-              if (totalH > pdf.internal.pageSize.getHeight() + 10) {
-                pdf.addPage();
-                pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
-              }
-              zip.file(`${safeName}.pdf`, pdf.output('blob'));
-            }
-
-            root.unmount();
-            container.removeChild(wrapper);
-          }
-        } catch (err) {
-          console.error(err);
-          showToast(`Error processing ${candidateSummary.givenNames}`, 'error');
+      let status = 'processing';
+      while (status === 'processing' || status === 'pending') {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
+        if (!statusRes.ok) throw new Error('Failed to fetch processing status');
+        const progressData = await statusRes.json();
+        
+        status = progressData.status;
+        if (status === 'failed') {
+          throw new Error(progressData.error || 'Server-side bulk generation failed');
         }
-      };
 
-      const worker = async () => {
-        while (currentIndex < candidatesToDownload.length) {
-          const index = currentIndex++;
-          const candidateId = candidatesToDownload[index];
-          await processCandidate(candidateId);
-          completedCount++;
-          showToast(`Processing CVs: ${completedCount}/${candidatesToDownload.length}...`);
-        }
-      };
+        showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`);
+      }
 
-      // Run multiple workers concurrently
-      const workers = Array.from({ length: Math.min(CONCURRENCY, candidatesToDownload.length) }, worker);
-      await Promise.all(workers);
+      showToast('Downloading ZIP archive...');
+      const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
+      if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
+      const blob = await downloadRes.blob();
 
-      document.body.removeChild(container);
-
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const url = window.URL.createObjectURL(zipBlob);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Broker_Candidates_CVs_${format.toUpperCase()}.zip`;
@@ -664,21 +566,12 @@ export default function BrokerCandidatesPage() {
       setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
       showToast('Download complete!');
 
-      // Bulk update cvDownloaded status
-      try {
-        await api('/api/candidates/bulk-cv-downloaded', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ candidateIds: candidatesToDownload, cvDownloaded: true }),
-        });
-        setCandidates(prev => prev.map(c => candidatesToDownload.includes(c.id) ? { ...c, cvDownloaded: true } : c));
-        setSelectedIds([]);
-      } catch (bulkErr) {
-        console.error('Failed to bulk mark candidates as downloaded:', bulkErr);
-      }
-    } catch (err) {
+      // Local state updates
+      setCandidates(prev => prev.map(c => candidatesToDownload.includes(c.id) ? { ...c, cvDownloaded: true } : c));
+      setSelectedIds([]);
+    } catch (err: any) {
       console.error(err);
-      showToast('Failed to download CVs', 'error');
+      showToast(err.message || 'Failed to download CVs', 'error');
     } finally {
       setIsDownloadingAll(false);
     }
