@@ -613,7 +613,6 @@ export default function CandidatesPage() {
       {/* Cancel Visa Modal */}
       {cancelVisaModalId && (() => {
         const candidate = candidates.find(c => c.id === cancelVisaModalId);
-        const expectedVisa = candidate?.visaOrContractNumber || '';
         return (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setCancelVisaModalId(null)}>
             <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
@@ -629,11 +628,11 @@ export default function CandidatesPage() {
                 </p>
                 <div>
                   <label className="block text-sm font-semibold text-text-primary mb-2">
-                    Enter the Visa/Contract Number ({expectedVisa}) to confirm:
+                    Please provide a reason for cancellation:
                   </label>
                   <Input 
                     autoFocus
-                    placeholder="Enter Visa / Contract Number" 
+                    placeholder="Enter reason for cancellation" 
                     value={cancelVisaNumberInput} 
                     onChange={(e) => setCancelVisaNumberInput(e.target.value)} 
                     className="w-full"
@@ -645,7 +644,7 @@ export default function CandidatesPage() {
                   Cancel
                 </button>
                 <button 
-                  disabled={cancelVisaNumberInput.trim().toLowerCase() !== expectedVisa.toLowerCase()}
+                  disabled={!cancelVisaNumberInput.trim()}
                   onClick={() => toggleRequested(cancelVisaModalId, true)}
                   className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"
                 >
