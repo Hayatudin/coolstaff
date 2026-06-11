@@ -245,10 +245,16 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Candidate already generated in that template' });
     }
 
-    const updatedCV = await prisma.generatedCV.update({
-      where: { id },
-      data: { templateId }
-    });
+    const [updatedCV] = await prisma.$transaction([
+      prisma.generatedCV.update({
+        where: { id },
+        data: { templateId }
+      }),
+      prisma.$executeRawUnsafe(
+        'UPDATE `Candidate` SET `cvDownloaded` = 0 WHERE `id` = ?',
+        existingCV.candidateId
+      )
+    ]);
     
     res.json(updatedCV);
   } catch (error) {

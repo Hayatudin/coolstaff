@@ -497,7 +497,8 @@ function GeneratedCVsContent() {
       
       if (!res.ok) throw new Error('Failed');
       const newTemplateName = TEMPLATES.find(t => t.id === newTemplateId)?.name;
-      setCvs(prev => prev.map(c => c.id === changeTarget.id ? { ...c, templateId: newTemplateId } : c));
+      setCvs(prev => prev.map(c => c.id === changeTarget.id ? { ...c, templateId: newTemplateId, candidate: c.candidate ? { ...c.candidate, cvDownloaded: false } : c.candidate } : c));
+      clearCandidatesCache();
       showToast(`Moved to "${newTemplateName}" folder`);
       setChangeTarget(null);
       setSelectedFolder(newTemplateId); // jump to new folder
@@ -524,10 +525,11 @@ function GeneratedCVsContent() {
         });
         if (res.ok) {
           successCount++;
-          setCvs(prev => prev.map(c => c.id === id ? { ...c, templateId: newTemplateId } : c));
+          setCvs(prev => prev.map(c => c.id === id ? { ...c, templateId: newTemplateId, candidate: c.candidate ? { ...c.candidate, cvDownloaded: false } : c.candidate } : c));
         }
       } catch { /* continue */ }
     }
+    clearCandidatesCache();
     setSelectedCVIds(new Set());
     setActionLoading(false);
     const newTemplateName = TEMPLATES.find(t => t.id === newTemplateId)?.name;
@@ -848,6 +850,9 @@ function GeneratedCVsContent() {
     try {
       const JSZip = (await import('jszip')).default;
       const htmlToImage = await import('html-to-image');
+      const { createRoot } = await import('react-dom/client');
+      const { jsPDF } = await import('jspdf');
+      
       const zip = new JSZip();
 
       // Create a hidden container for rendering
@@ -855,45 +860,16 @@ function GeneratedCVsContent() {
       container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;z-index:-1;';
       document.body.appendChild(container);
 
-      for (let i = 0; i < cvsToDownload.length; i++) {
-        const cv = cvsToDownload[i];
+      // Concurrent Worker Queue
+      const CONCURRENCY = 4;
+      let currentIndex = 0;
+      let completedCount = 0;
+
+      const processCV = async (cv: any) => {
         const safeName = `${cv.candidate.passportData?.givenNames || ''}_${cv.candidate.passportData?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${cvsToDownload.length}: ${cv.candidate.passportData?.givenNames || ''}...`);
-
-        // Render the CV template into the hidden container
-        const { createRoot } = await import('react-dom/client');
-        const wrapper = document.createElement('div');
-        container.appendChild(wrapper);
-        const root = createRoot(wrapper);
-
-        const FolderTemplate = TEMPLATES.find(t => t.id === cv.templateId)?.component || ALMTemplate;
-        await new Promise<void>((resolve) => {
-          root.render(
-            React.createElement(FolderTemplate, {
-              candidate: cv.candidate,
-              facePhoto: getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl),
-              fullBodyPhoto: getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl),
-            })
-          );
-          // Wait briefly for React to render DOM, htmlToImage will wait for images
-          setTimeout(resolve, 50);
-        });
-
-        const origH = wrapper.style.height;
-        const origO = wrapper.style.overflow;
-        wrapper.style.height = 'auto';
-        wrapper.style.overflow = 'visible';
-        const dataUrl = await htmlToImage.toJpeg(wrapper, { 
-          quality: 0.92, 
-          backgroundColor: '#ffffff', 
-          pixelRatio: 2,
-          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-        });
-        wrapper.style.height = origH;
-        wrapper.style.overflow = origO;
 
         if (format === 'doc') {
-          // DOCX via server-side API
+          // DOCX via server-side API (completely skip client-side DOM rendering and html-to-image)
           const payload = {
             candidateId: cv.candidateId,
             templateId: `tmpl-${selectedFolder}`,
@@ -910,27 +886,78 @@ function GeneratedCVsContent() {
           if (!response.ok) throw new Error('DOCX generation failed');
           const blob = await response.blob();
           zip.file(`${safeName}.docx`, blob);
-        } else if (format === 'jpg') {
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          zip.file(`${safeName}.jpg`, blob);
         } else {
-          const { jsPDF } = await import('jspdf');
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          const pdfW = pdf.internal.pageSize.getWidth();
-          const props = pdf.getImageProperties(dataUrl);
-          const totalH = props.height / (props.width / pdfW);
-          pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
-          if (totalH > pdf.internal.pageSize.getHeight() + 10) {
-            pdf.addPage();
-            pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
-          }
-          zip.file(`${safeName}.pdf`, pdf.output('blob'));
-        }
+          // PDF / JPG formats need client-side DOM rendering
+          const wrapper = document.createElement('div');
+          container.appendChild(wrapper);
+          const root = createRoot(wrapper);
 
-        root.unmount();
-        container.removeChild(wrapper);
-      }
+          const FolderTemplate = TEMPLATES.find(t => t.id === cv.templateId)?.component || ALMTemplate;
+          await new Promise<void>((resolve) => {
+            root.render(
+              React.createElement(FolderTemplate, {
+                candidate: cv.candidate,
+                facePhoto: getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl),
+                fullBodyPhoto: getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl),
+              })
+            );
+            // Wait briefly for React to render DOM, htmlToImage will wait for images
+            setTimeout(resolve, 50);
+          });
+
+          const origH = wrapper.style.height;
+          const origO = wrapper.style.overflow;
+          wrapper.style.height = 'auto';
+          wrapper.style.overflow = 'visible';
+          const dataUrl = await htmlToImage.toJpeg(wrapper, { 
+            quality: 0.92, 
+            backgroundColor: '#ffffff', 
+            pixelRatio: 2,
+            imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+          });
+          wrapper.style.height = origH;
+          wrapper.style.overflow = origO;
+
+          if (format === 'jpg') {
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            zip.file(`${safeName}.jpg`, blob);
+          } else {
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfW = pdf.internal.pageSize.getWidth();
+            const props = pdf.getImageProperties(dataUrl);
+            const totalH = props.height / (props.width / pdfW);
+            pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
+            if (totalH > pdf.internal.pageSize.getHeight() + 10) {
+              pdf.addPage();
+              pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
+            }
+            zip.file(`${safeName}.pdf`, pdf.output('blob'));
+          }
+
+          root.unmount();
+          container.removeChild(wrapper);
+        }
+      };
+
+      const worker = async () => {
+        while (currentIndex < cvsToDownload.length) {
+          const index = currentIndex++;
+          const cv = cvsToDownload[index];
+          try {
+            await processCV(cv);
+          } catch (err) {
+            console.error(`Error processing candidate ${cv.candidateId}:`, err);
+          } finally {
+            completedCount++;
+            showToast(`Processing CVs: ${completedCount}/${cvsToDownload.length}...`);
+          }
+        }
+      };
+
+      // Run multiple workers concurrently
+      const workers = Array.from({ length: Math.min(CONCURRENCY, cvsToDownload.length) }, worker);
+      await Promise.all(workers);
 
       document.body.removeChild(container);
 

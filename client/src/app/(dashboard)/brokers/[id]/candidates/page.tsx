@@ -529,6 +529,9 @@ export default function BrokerCandidatesPage() {
     try {
       const JSZip = (await import('jszip')).default;
       const htmlToImage = await import('html-to-image');
+      const { createRoot } = await import('react-dom/client');
+      const { jsPDF } = await import('jspdf');
+
       const zip = new JSZip();
 
       // Create hidden container for rendering
@@ -536,15 +539,16 @@ export default function BrokerCandidatesPage() {
       container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;z-index:-1;';
       document.body.appendChild(container);
 
-      const { createRoot } = await import('react-dom/client');
+      // Concurrent Worker Queue
+      const CONCURRENCY = 4;
+      let currentIndex = 0;
+      let completedCount = 0;
 
-      for (let i = 0; i < candidatesToDownload.length; i++) {
-        const candidateId = candidatesToDownload[i];
+      const processCandidate = async (candidateId: string) => {
         const candidateSummary = candidates.find(c => c.id === candidateId);
-        if (!candidateSummary) continue;
+        if (!candidateSummary) return;
 
         const safeName = `${candidateSummary.givenNames || ''}_${candidateSummary.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${candidatesToDownload.length}: ${candidateSummary.givenNames}...`);
 
         try {
           // Fetch full candidate details
@@ -588,7 +592,7 @@ export default function BrokerCandidatesPage() {
                   fullBodyPhoto,
                 })
               );
-              setTimeout(resolve, 100);
+              setTimeout(resolve, 50);
             });
 
             const origH = wrapper.style.height;
@@ -611,7 +615,6 @@ export default function BrokerCandidatesPage() {
               const blob = await imgRes.blob();
               zip.file(`${safeName}.jpg`, blob);
             } else {
-              const { jsPDF } = await import('jspdf');
               const pdf = new jsPDF('p', 'mm', 'a4');
               const pdfW = pdf.internal.pageSize.getWidth();
               const props = pdf.getImageProperties(dataUrl);
@@ -631,7 +634,21 @@ export default function BrokerCandidatesPage() {
           console.error(err);
           showToast(`Error processing ${candidateSummary.givenNames}`, 'error');
         }
-      }
+      };
+
+      const worker = async () => {
+        while (currentIndex < candidatesToDownload.length) {
+          const index = currentIndex++;
+          const candidateId = candidatesToDownload[index];
+          await processCandidate(candidateId);
+          completedCount++;
+          showToast(`Processing CVs: ${completedCount}/${candidatesToDownload.length}...`);
+        }
+      };
+
+      // Run multiple workers concurrently
+      const workers = Array.from({ length: Math.min(CONCURRENCY, candidatesToDownload.length) }, worker);
+      await Promise.all(workers);
 
       document.body.removeChild(container);
 

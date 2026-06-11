@@ -461,6 +461,9 @@ export default function FitCandidatesPage() {
     try {
       const JSZip = (await import('jszip')).default;
       const htmlToImage = await import('html-to-image');
+      const { createRoot } = await import('react-dom/client');
+      const { jsPDF } = await import('jspdf');
+
       const zip = new JSZip();
 
       // Create hidden container for rendering
@@ -468,15 +471,16 @@ export default function FitCandidatesPage() {
       container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:800px;z-index:-1;';
       document.body.appendChild(container);
 
-      const { createRoot } = await import('react-dom/client');
+      // Concurrent Worker Queue
+      const CONCURRENCY = 4;
+      let currentIndex = 0;
+      let completedCount = 0;
 
-      for (let i = 0; i < selectedIds.length; i++) {
-        const candidateId = selectedIds[i];
+      const processCandidate = async (candidateId: string) => {
         const candidateSummary = allCandidates.find(c => c.id === candidateId);
-        if (!candidateSummary) continue;
+        if (!candidateSummary) return;
 
         const safeName = `${candidateSummary.passportData.givenNames || ''}_${candidateSummary.passportData.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-        showToast(`Processing ${i + 1}/${selectedIds.length}: ${candidateSummary.passportData.givenNames}...`);
 
         try {
           // Fetch full candidate details
@@ -520,7 +524,7 @@ export default function FitCandidatesPage() {
                   fullBodyPhoto,
                 })
               );
-              setTimeout(resolve, 100);
+              setTimeout(resolve, 50);
             });
 
             const origH = wrapper.style.height;
@@ -543,7 +547,6 @@ export default function FitCandidatesPage() {
               const blob = await imgRes.blob();
               zip.file(`${safeName}.jpg`, blob);
             } else {
-              const { jsPDF } = await import('jspdf');
               const pdf = new jsPDF('p', 'mm', 'a4');
               const pdfW = pdf.internal.pageSize.getWidth();
               const props = pdf.getImageProperties(dataUrl);
@@ -563,7 +566,21 @@ export default function FitCandidatesPage() {
           console.error(err);
           showToast(`Error processing ${candidateSummary.passportData.givenNames}`, 'error');
         }
-      }
+      };
+
+      const worker = async () => {
+        while (currentIndex < selectedIds.length) {
+          const index = currentIndex++;
+          const candidateId = selectedIds[index];
+          await processCandidate(candidateId);
+          completedCount++;
+          showToast(`Processing CVs: ${completedCount}/${selectedIds.length}...`);
+        }
+      };
+
+      // Run multiple workers concurrently
+      const workers = Array.from({ length: Math.min(CONCURRENCY, selectedIds.length) }, worker);
+      await Promise.all(workers);
 
       document.body.removeChild(container);
 
