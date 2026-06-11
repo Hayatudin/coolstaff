@@ -805,10 +805,96 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
 
     const candidates = await prisma.candidate.findMany({
       where: { id: { in: candidateIds } },
-      include: { generatedCVs: true }
+      include: { 
+        generatedCVs: true,
+        broker: true,
+        registeredBy: true
+      }
     });
 
-    res.json(candidates);
+    const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
+
+    const formatted = candidates.map((c: any) => ({
+      id: c.id,
+      shelfId: c.shelfId,
+      cvDeadline: formatDate(c.cvDeadline),
+      passportData: {
+        passportNumber: c.passportNumber,
+        surname: c.surname,
+        givenNames: c.givenNames,
+        dateOfBirth: formatDate(c.dateOfBirth),
+        gender: c.gender,
+        nationality: c.nationality,
+        issuingCountry: c.issuingCountry,
+        dateOfIssue: formatDate(c.dateOfIssue),
+        dateOfExpiry: formatDate(c.dateOfExpiry),
+        placeOfBirth: c.placeOfBirth,
+      },
+      personalInfo: {
+        idNumber: c.idNumber || c.passportNumber,
+        job: c.job || '',
+        maritalStatus: c.maritalStatus,
+        numberOfChildren: c.numberOfChildren,
+        religion: c.religion,
+        bloodType: c.bloodType,
+        height: c.height,
+        weight: c.weight,
+        phone: c.phone,
+        email: c.email,
+        address: c.address,
+        city: c.city,
+        state: c.state,
+        country: c.country,
+        educationLevel: c.educationLevel,
+        languages: c.languages,
+        workExperience: c.workExperience || [],
+        skills: c.skills,
+        medicalStatus: c.medicalStatus,
+        biometricStatus: c.biometricStatus,
+        medicalDate: formatDate(c.medicalDate),
+        biometricDate: formatDate(c.biometricDate),
+        knownConditions: c.knownConditions,
+        emergencyContactName: c.emergencyContactName,
+        emergencyContactRelation: c.emergencyContactRelation,
+        emergencyContactPhone: c.emergencyContactPhone,
+        emergencyContactAddress: c.emergencyContactAddress,
+        additionalPhones: c.additionalPhones,
+        brokerId: c.brokerId || '',
+        cocDocumentUrl: c.cocDocumentUrl || '',
+        medicalDocumentUrl: c.medicalDocumentUrl || '',
+        candidateIdImageUrl: c.candidateIdImageUrl || '',
+        relativeIdImageUrl: c.relativeIdImageUrl || '',
+        labourIdUrl: c.labourIdUrl || '',
+        salary: c.salary || '1000SR',
+      },
+      brokerId: c.brokerId,
+      broker: c.broker || null,
+      passportImageUrl: c.passportImageUrl || '',
+      facePhotoUrl: c.facePhotoUrl || '',
+      fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
+      cocDocumentUrl: c.cocDocumentUrl || '',
+      medicalDocumentUrl: c.medicalDocumentUrl || '',
+      candidateIdImageUrl: c.candidateIdImageUrl || '',
+      relativeIdImageUrl: c.relativeIdImageUrl || '',
+      labourIdUrl: c.labourIdUrl || '',
+      isRequested: c.isRequested || false,
+      visaOrContractNumber: c.visaOrContractNumber || null,
+      isFlagged: c.isFlagged || false,
+      isLocked: c.isLocked || false,
+      cvDownloaded: c.cvDownloaded || false,
+      videoUrl: c.videoUrl || null,
+      Youtube_URL: c.videoUrl || null,
+      deployedDate: formatDate(c.deployedDate),
+      registeredAt: c.registeredAt.toISOString(),
+      status: c.status,
+      visaSelected: c.visaSelected,
+      visaDate: c.visaDate ? c.visaDate.toISOString() : null,
+      salary: c.salary || '1000SR',
+      generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
+      registeredBy: c.registeredBy?.name || 'Admin',
+    }));
+
+    res.json(formatted);
   } catch (error: any) {
     console.error('Candidates batch fetch error:', error);
     res.status(500).json({ error: error?.message || 'Failed to fetch candidates details' });
