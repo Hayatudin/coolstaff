@@ -193,7 +193,7 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   data.city = extract(/(?:City)/i);
 
   // Address
-  data.address = extract(/(?:Address)/i);
+  data.address = extract(/(?:Address(?!\s+Information))/i);
 
   // Emergency Contact
   data.emergencyContactName = extract(/(?:Emergency Contact Name|Emergency Contact Name:)/i) || extract(/Emergency Contact\s+Name/i);

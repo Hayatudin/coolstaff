@@ -284,7 +284,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         weight: formatValue(candidate.weight),
         phone: formatValue(candidate.phone),
         email: formatValue(candidate.email),
-        address: formatValue(candidate.address),
+        address: formatValue(candidate.city),
         city: formatValue(candidate.city),
         state: formatValue(candidate.state),
         country: formatValue(candidate.country),

@@ -184,7 +184,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Adress</td>
-                    <td className="border border-black px-2 py-1 text-center uppercase">{candidate.personalInfo?.address || candidate.personalInfo?.city || ''}</td>
+                    <td className="border border-black px-2 py-1 text-center uppercase">{candidate.personalInfo?.city || ''}</td>
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Marital Status</td>

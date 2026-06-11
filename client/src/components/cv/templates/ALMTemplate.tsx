@@ -177,7 +177,7 @@ export default function ALMTemplate({ candidate, facePhoto, fullBodyPhoto }: CVT
                 </tr>
                 <tr>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Complete Address</td>
-                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center uppercase text-[11px]">{candidate.personalInfo?.address}, {candidate.personalInfo?.city}</td>
+                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center uppercase text-[11px]">{candidate.personalInfo?.city ? `${candidate.personalInfo.city}, ${candidate.personalInfo.city}` : ''}</td>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">العنوان الكامل</td>
                 </tr>
                 <tr>
