@@ -871,6 +871,29 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/candidates/bulk-cv-downloaded
+router.patch('/bulk-cv-downloaded', async (req: Request, res: Response) => {
+  try {
+    const { candidateIds, cvDownloaded } = req.body;
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ error: 'candidateIds must be a non-empty array' });
+    }
+    
+    // Perform bulk update using raw SQL to be safe
+    const placeholders = candidateIds.map(() => '?').join(', ');
+    await prisma.$executeRawUnsafe(
+      `UPDATE \`Candidate\` SET \`cvDownloaded\` = ? WHERE \`id\` IN (${placeholders})`,
+      cvDownloaded ? 1 : 0,
+      ...candidateIds
+    );
+    
+    res.json({ success: true, updatedCount: candidateIds.length });
+  } catch (error: any) {
+    console.error('Failed to bulk update cvDownloaded:', error);
+    res.status(500).json({ error: error?.message || 'Failed to bulk update cvDownloaded' });
+  }
+});
+
 // PATCH /api/candidates/:id
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
@@ -1056,29 +1079,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Failed to delete candidate:', error);
     res.status(500).json({ error: error?.message || 'Failed to delete candidate' });
-  }
-});
-
-// PATCH /api/candidates/bulk-cv-downloaded
-router.patch('/bulk-cv-downloaded', async (req: Request, res: Response) => {
-  try {
-    const { candidateIds, cvDownloaded } = req.body;
-    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
-      return res.status(400).json({ error: 'candidateIds must be a non-empty array' });
-    }
-    
-    // Perform bulk update using raw SQL to be safe
-    const placeholders = candidateIds.map(() => '?').join(', ');
-    await prisma.$executeRawUnsafe(
-      `UPDATE \`Candidate\` SET \`cvDownloaded\` = ? WHERE \`id\` IN (${placeholders})`,
-      cvDownloaded ? 1 : 0,
-      ...candidateIds
-    );
-    
-    res.json({ success: true, updatedCount: candidateIds.length });
-  } catch (error: any) {
-    console.error('Failed to bulk update cvDownloaded:', error);
-    res.status(500).json({ error: error?.message || 'Failed to bulk update cvDownloaded' });
   }
 });
 
