@@ -384,9 +384,15 @@ function GeneratedCVsContent() {
   const [renderingCandidates, setRenderingCandidates] = useState<any[]>([]);
   const cvRenderRef = useRef<HTMLDivElement>(null);
 
-  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+  const toastTimeoutRef = useRef<any>(null);
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success', autoClose = true) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    if (autoClose) {
+      toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
+    }
   }, []);
 
   const fetchCVs = async () => {
@@ -505,6 +511,40 @@ function GeneratedCVsContent() {
       setSelectedFolder(newTemplateId); // jump to new folder
     } catch {
       showToast('Failed to change template', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBulkMarkAsCvAvailable = async () => {
+    if (selectedCVIds.size === 0) return;
+    if (!window.confirm(`Are you sure you want to mark ${selectedCVIds.size} selected CVs as CV Available?`)) return;
+
+    setActionLoading(true);
+    try {
+      const selectedCvsList = cvs.filter(c => selectedCVIds.has(c.id));
+      const candidateIds = selectedCvsList.map(c => c.candidateId).filter(Boolean);
+
+      const res = await api('/api/candidates/bulk-cv-downloaded', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateIds, cvDownloaded: false }),
+      });
+      if (!res.ok) throw new Error('Failed to update candidates');
+      
+      showToast(`${candidateIds.length} candidates marked as CV Available`);
+      
+      // Update local state
+      setCvs(prev => prev.map(c =>
+        candidateIds.includes(c.candidateId)
+          ? { ...c, candidate: { ...c.candidate, cvDownloaded: false } }
+          : c
+      ));
+      clearCandidatesCache();
+      setSelectedCVIds(new Set());
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Failed to update candidates', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -848,13 +888,30 @@ function GeneratedCVsContent() {
 
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
+
+    const timerWorker = (() => {
+      const workerCode = `
+        self.onmessage = function(e) {
+          setTimeout(function() {
+            self.postMessage('tick');
+          }, e.data);
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      return new Worker(URL.createObjectURL(blob));
+    })();
+    const bgWait = (ms: number) => new Promise<void>(resolve => {
+      timerWorker.onmessage = () => resolve();
+      timerWorker.postMessage(ms);
+    });
+
     try {
       const candidateIds = cvsToDownload.map(c => c.candidateId).filter(Boolean);
       if (candidateIds.length === 0) return;
 
       if (format === 'doc') {
         // DOCX is fast and functional on the server
-        showToast('Initializing bulk generation on server...');
+        showToast('Initializing bulk generation on server...', 'success', false);
         const initRes = await api('/api/cv/bulk-generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -866,7 +923,7 @@ function GeneratedCVsContent() {
 
         let status = 'processing';
         while (status === 'processing' || status === 'pending') {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await bgWait(1500);
           const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
           if (!statusRes.ok) throw new Error('Failed to fetch processing status');
           const progressData = await statusRes.json();
@@ -876,10 +933,10 @@ function GeneratedCVsContent() {
             throw new Error(progressData.error || 'Server-side bulk generation failed');
           }
 
-          showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`);
+          showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`, 'success', false);
         }
 
-        showToast('Downloading ZIP archive...');
+        showToast('Downloading ZIP archive...', 'success', false);
         const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
         if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
         const blob = await downloadRes.blob();
@@ -891,10 +948,10 @@ function GeneratedCVsContent() {
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-        showToast('Download complete!');
+        showToast('Download complete!', 'success', true);
       } else {
         // PDF and JPG format download via optimized client zipping
-        showToast('Fetching candidate details in batch...');
+        showToast('Fetching candidate details in batch...', 'success', false);
         const batchRes = await api('/api/cv/candidates-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -912,7 +969,7 @@ function GeneratedCVsContent() {
         for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
           setRenderingCandidates(chunk);
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await bgWait(60);
 
           await Promise.all(chunk.map(async (candidate: any) => {
             const element = document.getElementById(`bulk-render-${candidate.id}`);
@@ -947,11 +1004,11 @@ function GeneratedCVsContent() {
             }
           }));
 
-          showToast(`Processing: ${Math.min(i + CHUNK_SIZE, candidatesData.length)}/${candidatesData.length}...`);
+          showToast(`Processing: ${Math.min(i + CHUNK_SIZE, candidatesData.length)}/${candidatesData.length}...`, 'success', false);
         }
 
         setRenderingCandidates([]);
-        showToast('Generating ZIP file...');
+        showToast('Generating ZIP file...', 'success', false);
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = window.URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
@@ -1073,6 +1130,16 @@ function GeneratedCVsContent() {
                 >
                   <LayoutTemplate size={13} /> Change Template
                 </button>
+
+                {cvStatusFilter === 'cv-downloaded' && (
+                  <button
+                    onClick={handleBulkMarkAsCvAvailable}
+                    disabled={actionLoading || isBackupFolder}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 font-semibold"
+                  >
+                    <Check size={13} /> Mark as CV Available
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedCVIds(new Set())}
                   className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors"

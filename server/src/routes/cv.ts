@@ -269,9 +269,11 @@ router.post('/generate', async (req: Request, res: Response) => {
       const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
 
 
-      const facePhotoData = await fetchImageAsBase64(facePhoto || candidate.passportImageUrl || '');
-      const fullBodyPhotoData = await fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || '');
-      const passportPhotoData = await fetchImageAsBase64(candidate.passportImageUrl || '');
+      const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
+        fetchImageAsBase64(facePhoto || candidate.passportImageUrl || ''),
+        fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || ''),
+        fetchImageAsBase64(candidate.passportImageUrl || '')
+      ]);
       let finalVideoUrl = (candidate as any).videoUrl;
       try {
         const rawRows: any[] = await prisma.$queryRawUnsafe(
@@ -478,9 +480,11 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                 const facePhotoUrl = firstCv ? firstCv.facePhotoUrl : candidate.facePhotoUrl;
                 const fullBodyPhotoUrl = firstCv ? firstCv.fullBodyPhotoUrl : candidate.fullBodyPhotoUrl;
 
-                const facePhotoData = await fetchImageAsBase64(facePhotoUrl || candidate.passportImageUrl || '');
-                const fullBodyPhotoData = await fetchImageAsBase64(fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || '');
-                const passportPhotoData = await fetchImageAsBase64(candidate.passportImageUrl || '');
+                const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
+                  fetchImageAsBase64(facePhotoUrl || candidate.passportImageUrl || ''),
+                  fetchImageAsBase64(fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || ''),
+                  fetchImageAsBase64(candidate.passportImageUrl || '')
+                ]);
 
                 let finalVideoUrl = (candidate as any).videoUrl;
                 try {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
@@ -88,11 +88,37 @@ export default function FitCandidatesPage() {
         body: JSON.stringify({ cvDownloaded: false }),
       });
       if (!res.ok) throw new Error();
-      mutate(prev => prev.map(c => c.id === id ? { ...c, cvDownloaded: false } : c));
+      mutate(prev => prev ? prev.map(c => c.id === id ? { ...c, cvDownloaded: false } : c) : prev);
       showToast('Candidate marked as CV Available');
     } catch (err) {
       console.error('Failed to mark CV as available:', err);
       showToast('Failed to mark CV as available', 'error');
+    }
+  };
+
+  const handleBulkMarkAsCvAvailable = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to mark ${selectedIds.length} selected candidates as CV Available?`)) return;
+
+    setActionLoading(true);
+    try {
+      const res = await api('/api/candidates/bulk-cv-downloaded', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateIds: selectedIds, cvDownloaded: false }),
+      });
+      if (!res.ok) throw new Error('Failed to update candidates');
+      
+      showToast(`${selectedIds.length} candidates marked as CV Available`);
+      
+      // Update local state
+      mutate(prev => prev ? prev.map(c => selectedIds.includes(c.id) ? { ...c, cvDownloaded: false } : c) : prev);
+      setSelectedIds([]);
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Failed to update candidates', 'error');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -117,10 +143,16 @@ export default function FitCandidatesPage() {
   const [changeTarget, setChangeTarget] = useState<any | null>(null); // Candidate object or 'bulk'
   const [actionLoading, setActionLoading] = useState(false);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const toastTimeoutRef = useRef<any>(null);
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success', autoClose = true) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+    if (autoClose) {
+      toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
+    }
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -459,10 +491,26 @@ export default function FitCandidatesPage() {
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
 
+    const timerWorker = (() => {
+      const workerCode = `
+        self.onmessage = function(e) {
+          setTimeout(function() {
+            self.postMessage('tick');
+          }, e.data);
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      return new Worker(URL.createObjectURL(blob));
+    })();
+    const bgWait = (ms: number) => new Promise<void>(resolve => {
+      timerWorker.onmessage = () => resolve();
+      timerWorker.postMessage(ms);
+    });
+
     try {
       if (format === 'doc') {
         // DOCX is fast and functional on the server
-        showToast('Initializing bulk generation on server...');
+        showToast('Initializing bulk generation on server...', 'success', false);
         const initRes = await api('/api/cv/bulk-generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -474,7 +522,7 @@ export default function FitCandidatesPage() {
 
         let status = 'processing';
         while (status === 'processing' || status === 'pending') {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await bgWait(1500);
           const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
           if (!statusRes.ok) throw new Error('Failed to fetch processing status');
           const progressData = await statusRes.json();
@@ -484,10 +532,10 @@ export default function FitCandidatesPage() {
             throw new Error(progressData.error || 'Server-side bulk generation failed');
           }
 
-          showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`);
+          showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`, 'success', false);
         }
 
-        showToast('Downloading ZIP archive...');
+        showToast('Downloading ZIP archive...', 'success', false);
         const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
         if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
         const blob = await downloadRes.blob();
@@ -499,10 +547,10 @@ export default function FitCandidatesPage() {
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-        showToast('Download complete!');
+        showToast('Download complete!', 'success', true);
       } else {
         // PDF and JPG format download via optimized client zipping
-        showToast('Fetching candidate details in batch...');
+        showToast('Fetching candidate details in batch...', 'success', false);
         const batchRes = await api('/api/cv/candidates-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -520,7 +568,7 @@ export default function FitCandidatesPage() {
         for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
           setRenderingCandidates(chunk);
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await bgWait(60);
 
           await Promise.all(chunk.map(async (candidate: any) => {
             const element = document.getElementById(`bulk-render-${candidate.id}`);
@@ -555,11 +603,11 @@ export default function FitCandidatesPage() {
             }
           }));
 
-          showToast(`Processing: ${Math.min(i + CHUNK_SIZE, candidatesData.length)}/${candidatesData.length}...`);
+          showToast(`Processing: ${Math.min(i + CHUNK_SIZE, candidatesData.length)}/${candidatesData.length}...`, 'success', false);
         }
 
         setRenderingCandidates([]);
-        showToast('Generating ZIP file...');
+        showToast('Generating ZIP file...', 'success', false);
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = window.URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
@@ -568,7 +616,7 @@ export default function FitCandidatesPage() {
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-        showToast('Download complete!');
+        showToast('Download complete!', 'success', true);
 
         // Update cvDownloaded status on server
         await api('/api/candidates/bulk-cv-downloaded', {
@@ -583,10 +631,11 @@ export default function FitCandidatesPage() {
       setSelectedIds([]);
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Failed to download CVs', 'error');
+      showToast(err.message || 'Failed to download CVs', 'error', true);
     } finally {
       setIsDownloadingAll(false);
       setRenderingCandidates([]);
+      timerWorker.terminate();
     }
   };
 
@@ -1016,6 +1065,17 @@ export default function FitCandidatesPage() {
             <LayoutTemplate size={14} className="text-primary" />
             Change Template
           </button>
+
+          {/* Mark as CV Available bulk */}
+          {cvStatusFilter === 'cv-downloaded' && (
+            <button
+              onClick={handleBulkMarkAsCvAvailable}
+              className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer font-semibold"
+            >
+              <Check size={14} className="text-emerald-600" />
+              Mark as CV Available
+            </button>
+          )}
 
           <div className="relative">
             <button
