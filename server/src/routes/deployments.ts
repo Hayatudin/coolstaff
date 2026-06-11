@@ -7,20 +7,18 @@ import ExcelJS from 'exceljs';
 
 const router = express.Router();
 
-// GET deployments list (visaSelected = true, has ticket, has deployedDate on candidate)
+// GET deployments list (visaSelected = true, has deployedDate on candidate)
 router.get('/', async (req: Request, res: Response) => {
   try {
     // Use raw SQL to read deployedDate from Candidate (not Invoice)
     const rawCandidates: any[] = await prisma.$queryRawUnsafe(`
       SELECT c.id, c.givenNames, c.surname, c.passportNumber, c.deployedDate,
-             b.name AS brokerName
+             b.name AS brokerName,
+             (SELECT COUNT(1) FROM \`Invoice\` i WHERE i.candidateId = c.id) AS invoiceCount
       FROM \`Candidate\` c
       LEFT JOIN \`Broker\` b ON c.brokerId = b.id
       WHERE c.visaSelected = 1
         AND c.deployedDate IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM \`Invoice\` i WHERE i.candidateId = c.id AND i.ticketUrl IS NOT NULL AND i.ticketUrl != ''
-        )
       ORDER BY c.deployedDate DESC
     `);
 
@@ -49,11 +47,8 @@ router.get('/', async (req: Request, res: Response) => {
       broker: c.brokerName ? { name: c.brokerName } : null,
       generatedCVs: cvMap[c.id] ? [{ templateId: cvMap[c.id] }] : [],
       deployedDate: c.deployedDate ? new Date(c.deployedDate).toISOString() : null,
-      // Keep backward-compatible invoice shape for existing frontend
-      invoices: [{
-        ticketUrl: 'exists',
-        deployedDate: c.deployedDate ? new Date(c.deployedDate).toISOString() : null,
-      }],
+      hasInvoice: Number(c.invoiceCount) > 0,
+      invoices: Number(c.invoiceCount) > 0 ? [{ ticketUrl: 'exists' }] : [],
     }));
 
     res.json(result);
@@ -74,9 +69,6 @@ router.post('/export', async (req: Request, res: Response) => {
       LEFT JOIN \`Broker\` b ON c.brokerId = b.id
       WHERE c.visaSelected = 1
         AND c.deployedDate IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM \`Invoice\` i WHERE i.candidateId = c.id AND i.ticketUrl IS NOT NULL AND i.ticketUrl != ''
-        )
       ORDER BY c.deployedDate DESC
     `);
 

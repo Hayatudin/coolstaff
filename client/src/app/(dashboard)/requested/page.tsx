@@ -9,8 +9,20 @@ import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
 import { Candidate } from '@/types';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { cn } from '@/lib/utils';
 
 import { useCandidates } from '@/hooks/useCandidates';
+
+const TEMPLATES = [
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'ka7', name: 'KAAFAAT' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
 
 export default function RequestedPage() {
   const router = useRouter();
@@ -25,7 +37,7 @@ export default function RequestedPage() {
   const [deployDateModal, setDeployDateModal] = useState<{ candidateId: string; name: string; currentDate: string } | null>(null);
   const [deployDateValue, setDeployDateValue] = useState('');
   const [cancelVisaModalId, setCancelVisaModalId] = useState<string | null>(null);
-  const [cancelVisaNumberInput, setCancelVisaNumberInput] = useState('');
+  const [cancelVisaReason, setCancelVisaReason] = useState('');
 
   const handleGenerateReport = async () => {
     if (candidates.length === 0) {
@@ -264,7 +276,7 @@ export default function RequestedPage() {
       return;
     }
     setCancelVisaModalId(c.id);
-    setCancelVisaNumberInput('');
+    setCancelVisaReason('');
   };
 
   const cancelVisa = async (id: string) => {
@@ -288,7 +300,7 @@ export default function RequestedPage() {
         status: 'pending'
       } : cand));
       setCancelVisaModalId(null);
-      setCancelVisaNumberInput('');
+      setCancelVisaReason('');
     } catch { alert('Failed to update status'); }
   };
 
@@ -384,9 +396,11 @@ export default function RequestedPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold">No.</th>
                 <th className="px-6 py-4 font-semibold">Shelf ID</th>
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
+                <th className="px-6 py-4 font-semibold">CV Agency</th>
                 <th className="px-6 py-4 font-semibold hidden xl:table-cell">Selected Date</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
@@ -396,7 +410,7 @@ export default function RequestedPage() {
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading candidates...</p>
@@ -404,133 +418,176 @@ export default function RequestedPage() {
                   </td>
                 </tr>
               ) : filtered.length > 0 ? (
-                paginated.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-50/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0 border border-green-100">
-                          <span className="text-green-600 font-bold text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
+                paginated.map((c, index) => {
+                  const rollNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                  
+                  // Calculate days elapsed since visa selection
+                  const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+                  let daysAgoText = 'Pending';
+                  if (targetDate) {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    const selected = new Date(targetDate);
+                    selected.setHours(0, 0, 0, 0);
+                    const diffTime = now.getTime() - selected.getTime();
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays <= 0) {
+                      daysAgoText = 'Today';
+                    } else if (diffDays === 1) {
+                      daysAgoText = '1 day';
+                    } else {
+                      daysAgoText = `${diffDays} days`;
+                    }
+                  }
+
+                  return (
+                    <tr key={c.id} className="hover:bg-gray-50/30 transition-colors">
+                      {/* No. (Roll number) */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-secondary">
+                        {rollNumber}
+                      </td>
+
+                      {/* Shelf ID */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">{c.shelfId || 'UNASSIGNED'}</div>
+                      </td>
+
+                      {/* Candidate Name */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center shrink-0 border border-green-100">
+                            <span className="text-green-600 font-bold text-sm">{c.passportData.givenNames.charAt(0)}{c.passportData.surname.charAt(0)}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
+                              {c.passportData.givenNames} {c.passportData.surname}
+                              {c.isFlagged && <Flag size={13} className="text-red-500 fill-red-500" />}
+                            </p>
+                            <p className="text-xs text-text-tertiary">{c.personalInfo.email}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-text-primary text-sm flex items-center gap-1.5">
-                            {c.passportData.givenNames} {c.passportData.surname}
-                            {c.isFlagged && <Flag size={13} className="text-red-500 fill-red-500" />}
-                          </p>
-                          <p className="text-xs text-text-tertiary">{c.personalInfo.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
-                      {c.passportData.passportNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
-                      <p className="text-sm text-text-primary font-semibold">
-                        {c.visaDate 
-                          ? new Date(c.visaDate).toLocaleDateString()
-                          : c.registeredAt 
-                            ? new Date(c.registeredAt).toLocaleDateString()
-                            : 'Pending'}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Visa Selected
-                      </span>
-                      {c.visaOrContractNumber && (
-                        <p className="text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={c.visaOrContractNumber}>No: {c.visaOrContractNumber}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {c.personalInfo.medicalStatus === 'Fit' ? (
+                      </td>
+
+                      {/* Passport Number */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
+                        {c.passportData.passportNumber}
+                      </td>
+
+                      {/* CV Agency */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
+                          {(() => {
+                            const templateId = c.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || 'alm';
+                            const templateObj = TEMPLATES.find(t => t.id === templateId);
+                            return templateObj ? templateObj.name : 'ALAALAM';
+                          })()}
+                        </span>
+                      </td>
+
+                      {/* Selected Date (Days Ago) */}
+                      <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
+                        <p className="text-sm text-text-primary font-semibold">
+                          {daysAgoText}
+                        </p>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Fit
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Visa Selected
                         </span>
-                      ) : c.personalInfo.medicalStatus === 'Unfit' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700 border border-red-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                          Unfit
-                        </span>
-                      ) : c.personalInfo.medicalStatus === 'New' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                          New
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                          Pending
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : null}>
-                        <button
-                          onClick={(e) => {
-                            const isOpen = openMenuId === c.id;
-                            if (isOpen) {
-                              setOpenMenuId(null);
-                              setMenuCoords(null);
-                            } else {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setMenuCoords({
-                                top: rect.bottom + 4,
-                                left: Math.max(16, rect.right - 208)
+                        {c.visaOrContractNumber && (
+                          <p className="text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={c.visaOrContractNumber}>No: {c.visaOrContractNumber}</p>
+                        )}
+                      </td>
+
+                      {/* Interactive Medical Status Select */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <select
+                          value={c.personalInfo.medicalStatus || 'Pending'}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value as "Pending" | "Fit" | "Unfit" | "New";
+                            try {
+                              const res = await api(`/api/candidates/${c.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ medicalStatus: newStatus }),
                               });
-                              setOpenMenuId(c.id);
+                              if (!res.ok) throw new Error();
+                              mutate(prev => prev.map(cand => cand.id === c.id ? { 
+                                ...cand, 
+                                personalInfo: { ...cand.personalInfo, medicalStatus: newStatus } 
+                              } : cand));
+                            } catch {
+                              alert('Failed to update medical status');
                             }
                           }}
-                          className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                          className={cn(
+                            "px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2",
+                            c.personalInfo.medicalStatus === 'Fit' && "bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-500",
+                            c.personalInfo.medicalStatus === 'Unfit' && "bg-red-50 text-red-700 border-red-200 focus:ring-red-500",
+                            c.personalInfo.medicalStatus === 'New' && "bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500",
+                            (!c.personalInfo.medicalStatus || c.personalInfo.medicalStatus === 'Pending') && "bg-slate-50 text-slate-700 border-slate-200 focus:ring-slate-400"
+                          )}
                         >
-                          <MoreVertical size={16} />
-                        </button>
-                        {openMenuId === c.id && menuCoords && typeof window !== 'undefined' && createPortal(
-                          <div
-                            ref={dropdownRef}
-                            className="fixed w-52 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
-                            style={{
-                              top: menuCoords.top,
-                              left: menuCoords.left,
+                          <option value="Pending">Pending</option>
+                          <option value="New">New</option>
+                          <option value="Fit">Fit</option>
+                          <option value="Unfit">Unfit</option>
+                        </select>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : null}>
+                          <button
+                            onClick={(e) => {
+                              const isOpen = openMenuId === c.id;
+                              if (isOpen) {
+                                setOpenMenuId(null);
+                                setMenuCoords(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuCoords({
+                                  top: rect.bottom + 4,
+                                  left: Math.max(16, rect.right - 208)
+                                });
+                                setOpenMenuId(c.id);
+                              }
                             }}
-                            onClick={(e) => e.stopPropagation()}
+                            className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100"
                           >
-                            {c.hasInvoice ? (
-                              <button disabled className="w-full flex items-center gap-3 px-4 py-2.5 text-sm bg-gray-50 text-left text-green-600 font-semibold cursor-not-allowed">
-                                <CheckCircle size={16} />
-                                <span>Invoice Generated</span>
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenuId === c.id && menuCoords && typeof window !== 'undefined' && createPortal(
+                            <div
+                              ref={dropdownRef}
+                              className="fixed w-52 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
+                              style={{
+                                top: menuCoords.top,
+                                  left: menuCoords.left,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); handleCancelVisaClick(c); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
+                                <CheckCircle size={16} className="text-amber-500" />
+                                <span>Cancel Visa Selected</span>
                               </button>
-                            ) : (
-                              <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); router.push(`/invoice/new?candidateId=${c.id}`); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary font-semibold">
-                                <CheckCircle size={16} />
-                                <span>Proceed (Generate Invoice)</span>
+                              <div className="border-t border-border/60 my-1" />
+                              <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); openDeployDateModal(c); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600 font-semibold">
+                                <CalendarDays size={16} /><span>{c.deployedDate ? 'Edit' : 'Set'} Deployment Date</span>
                               </button>
-                            )}
-                            <div className="border-t border-border/60 my-1" />
-                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); handleCancelVisaClick(c); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
-                              <CheckCircle size={16} className="text-amber-500" />
-                              <span>Cancel Visa Selected</span>
-                            </button>
-                            <div className="border-t border-border/60 my-1" />
-                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(c.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
-                              <Trash2 size={16} /><span>Delete</span>
-                            </button>
-                            <div className="border-t border-border/60 my-1" />
-                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); openDeployDateModal(c); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600 font-semibold">
-                              <CalendarDays size={16} /><span>{c.deployedDate ? 'Edit' : 'Set'} Deployment Date</span>
-                            </button>
-                          </div>,
-                          document.body
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                            </div>,
+                            document.body
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
-                <tr><td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">No Visa Selected candidates. Mark candidates as &quot;Visa Selected&quot; from the Candidates page.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-12 text-center text-text-tertiary text-sm">No Visa Selected candidates. Mark candidates as &quot;Visa Selected&quot; from the Candidates page.</td></tr>
               )}
             </tbody>
           </table>
@@ -671,7 +728,6 @@ export default function RequestedPage() {
       {/* Cancel Visa Modal */}
       {cancelVisaModalId && (() => {
         const candidate = allCandidates.find(c => c.id === cancelVisaModalId);
-        const expectedVisa = candidate?.visaOrContractNumber || '';
         return (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setCancelVisaModalId(null)}>
             <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
@@ -687,13 +743,13 @@ export default function RequestedPage() {
                 </p>
                 <div>
                   <label className="block text-sm font-semibold text-text-primary mb-2">
-                    Enter the Visa/Contract Number ({expectedVisa}) to confirm:
+                    Please provide a reason for cancellation:
                   </label>
                   <Input 
                     autoFocus
-                    placeholder="Enter Visa / Contract Number" 
-                    value={cancelVisaNumberInput} 
-                    onChange={(e) => setCancelVisaNumberInput(e.target.value)} 
+                    placeholder="Enter reason for cancellation" 
+                    value={cancelVisaReason} 
+                    onChange={(e) => setCancelVisaReason(e.target.value)} 
                     className="w-full"
                   />
                 </div>
@@ -703,7 +759,7 @@ export default function RequestedPage() {
                   Cancel
                 </button>
                 <button 
-                  disabled={cancelVisaNumberInput.trim().toLowerCase() !== expectedVisa.toLowerCase()}
+                  disabled={!cancelVisaReason.trim()}
                   onClick={() => cancelVisa(cancelVisaModalId)}
                   className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"
                 >

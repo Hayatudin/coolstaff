@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ClipboardList, Loader2, Download, Search, AlertCircle, FileText } from 'lucide-react';
+import { ClipboardList, Loader2, Download, Search, AlertCircle, FileText, MoreVertical, Receipt } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { generateDeploymentsPdf } from '@/lib/deploymentsPdfGenerator';
+import { cn } from '@/lib/utils';
 
 export default function DeploymentsPage() {
   const [candidates, setCandidates] = useState<any[]>([]);
@@ -15,6 +18,41 @@ export default function DeploymentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  const router = useRouter();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
+        return;
+      }
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    const handleScrollOrResize = () => {
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -126,12 +164,13 @@ export default function DeploymentsPage() {
                 <th className="px-6 py-4 font-semibold">CV Template</th>
                 <th className="px-6 py-4 font-semibold">Broker</th>
                 <th className="px-6 py-4 font-semibold">Deployment Date</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading deployments...</p>
@@ -201,12 +240,67 @@ export default function DeploymentsPage() {
                           {depDate}
                         </p>
                       </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : null}>
+                          <button
+                            onClick={(e) => {
+                              const isOpen = openMenuId === c.id;
+                              if (isOpen) {
+                                setOpenMenuId(null);
+                                setMenuCoords(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuCoords({
+                                  top: rect.bottom + 4,
+                                  left: Math.max(16, rect.right - 208)
+                                });
+                                setOpenMenuId(c.id);
+                              }
+                            }}
+                            className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100 cursor-pointer"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenuId === c.id && menuCoords && typeof window !== 'undefined' && createPortal(
+                            <div
+                              ref={dropdownRef}
+                              className="fixed w-52 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
+                              style={{
+                                top: menuCoords.top,
+                                left: menuCoords.left,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                disabled={c.hasInvoice}
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  setMenuCoords(null);
+                                  router.push(`/invoice/new?candidateId=${c.id}`);
+                                }}
+                                className={cn(
+                                  "w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left font-semibold cursor-pointer",
+                                  c.hasInvoice 
+                                    ? "text-text-tertiary cursor-not-allowed opacity-60" 
+                                    : "hover:bg-blue-50 text-blue-600"
+                                )}
+                              >
+                                <Receipt size={16} />
+                                <span>{c.hasInvoice ? 'Invoice Generated' : 'Proceed (Generate Invoice)'}</span>
+                              </button>
+                            </div>,
+                            document.body
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                  <td colSpan={7} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     No deployed candidates found. Make sure visa selected candidates have a saved invoice with ticket upload and deployment date.
                   </td>
                 </tr>
