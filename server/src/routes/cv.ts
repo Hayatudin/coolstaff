@@ -792,4 +792,23 @@ router.get('/bulk-generate/download/:jobId', (req: Request, res: Response) => {
   delete bulkJobs[jobId];
 });
 
+router.post('/candidates-batch', async (req: Request, res: Response) => {
+  try {
+    const { candidateIds } = req.body;
+    if (!Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return res.status(400).json({ error: 'candidateIds must be a non-empty array' });
+    }
+
+    const candidates = await prisma.candidate.findMany({
+      where: { id: { in: candidateIds } },
+      include: { generatedCVs: true }
+    });
+
+    res.json(candidates);
+  } catch (error: any) {
+    console.error('Candidates batch fetch error:', error);
+    res.status(500).json({ error: error?.message || 'Failed to fetch candidates details' });
+  }
+});
+
 export default router;

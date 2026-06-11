@@ -107,6 +107,7 @@ export default function FitCandidatesPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const cvRenderRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [renderingCandidates, setRenderingCandidates] = useState<any[]>([]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -453,51 +454,129 @@ export default function FitCandidatesPage() {
   }, [downloadingCv, downloadFormat]);
 
   // Bulk ZIP CV download handler
-  // Bulk ZIP CV download handler
   const handleBulkDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
     if (selectedIds.length === 0) return;
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
 
     try {
-      showToast('Initializing bulk generation on server...');
-      const initRes = await api('/api/cv/bulk-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ candidateIds: selectedIds, format })
-      });
-      
-      if (!initRes.ok) throw new Error('Failed to initialize bulk generation');
-      const { jobId } = await initRes.json();
-
-      let status = 'processing';
-      while (status === 'processing' || status === 'pending') {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
-        if (!statusRes.ok) throw new Error('Failed to fetch processing status');
-        const progressData = await statusRes.json();
+      if (format === 'doc') {
+        // DOCX is fast and functional on the server
+        showToast('Initializing bulk generation on server...');
+        const initRes = await api('/api/cv/bulk-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds, format })
+        });
         
-        status = progressData.status;
-        if (status === 'failed') {
-          throw new Error(progressData.error || 'Server-side bulk generation failed');
+        if (!initRes.ok) throw new Error('Failed to initialize bulk generation');
+        const { jobId } = await initRes.json();
+
+        let status = 'processing';
+        while (status === 'processing' || status === 'pending') {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
+          if (!statusRes.ok) throw new Error('Failed to fetch processing status');
+          const progressData = await statusRes.json();
+          
+          status = progressData.status;
+          if (status === 'failed') {
+            throw new Error(progressData.error || 'Server-side bulk generation failed');
+          }
+
+          showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`);
         }
 
-        showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`);
+        showToast('Downloading ZIP archive...');
+        const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
+        if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
+        const blob = await downloadRes.blob();
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Fit_Candidates_CVs_DOC.zip`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
+        showToast('Download complete!');
+      } else {
+        // PDF and JPG format download via optimized client zipping
+        showToast('Fetching candidate details in batch...');
+        const batchRes = await api('/api/cv/candidates-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds })
+        });
+        if (!batchRes.ok) throw new Error('Failed to fetch candidate details');
+        const candidatesData = await batchRes.json();
+
+        const JSZip = (await import('jszip')).default;
+        const htmlToImage = await import('html-to-image');
+        const { jsPDF } = await import('jspdf');
+        const zip = new JSZip();
+
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
+          const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
+          setRenderingCandidates(chunk);
+          await new Promise(resolve => setTimeout(resolve, 150));
+
+          await Promise.all(chunk.map(async (candidate: any) => {
+            const element = document.getElementById(`bulk-render-${candidate.id}`);
+            if (!element) return;
+
+            const passportNo = candidate.passportNumber || candidate.id.slice(-6);
+            const namePart = `${candidate.givenNames || ''}_${candidate.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+            const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+
+            const dataUrl = await htmlToImage.toJpeg(element, {
+              quality: 0.90,
+              backgroundColor: '#ffffff',
+              pixelRatio: 1.5,
+              imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+            });
+
+            if (format === 'jpg') {
+              const imgRes = await fetch(dataUrl);
+              const blob = await imgRes.blob();
+              zip.file(`${safeName}.jpg`, blob);
+            } else {
+              const pdf = new jsPDF('p', 'mm', 'a4');
+              const pdfW = pdf.internal.pageSize.getWidth();
+              const props = pdf.getImageProperties(dataUrl);
+              const totalH = props.height / (props.width / pdfW);
+              pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
+              if (totalH > pdf.internal.pageSize.getHeight() + 10) {
+                pdf.addPage();
+                pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
+              }
+              zip.file(`${safeName}.pdf`, pdf.output('blob'));
+            }
+          }));
+
+          showToast(`Processing: ${Math.min(i + CHUNK_SIZE, candidatesData.length)}/${candidatesData.length}...`);
+        }
+
+        setRenderingCandidates([]);
+        showToast('Generating ZIP file...');
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = window.URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Fit_Candidates_CVs_${format.toUpperCase()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
+        showToast('Download complete!');
+
+        // Update cvDownloaded status on server
+        await api('/api/candidates/bulk-cv-downloaded', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds, cvDownloaded: true }),
+        });
       }
-
-      showToast('Downloading ZIP archive...');
-      const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
-      if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
-      const blob = await downloadRes.blob();
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Fit_Candidates_CVs_${format.toUpperCase()}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-      showToast('Download complete!');
 
       // Local state updates
       mutate(prev => prev ? prev.map(c => selectedIds.includes(c.id) ? { ...c, cvDownloaded: true } : c) : prev);
@@ -507,6 +586,7 @@ export default function FitCandidatesPage() {
       showToast(err.message || 'Failed to download CVs', 'error');
     } finally {
       setIsDownloadingAll(false);
+      setRenderingCandidates([]);
     }
   };
 
@@ -519,6 +599,25 @@ export default function FitCandidatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
+      {/* Hidden container for optimized bulk rendering */}
+      <div style={{ position: 'fixed', top: -9999, left: -9999, width: '210mm', zIndex: -1 }}>
+        {renderingCandidates.map(c => {
+          const firstCv = c.generatedCVs?.[0];
+          const rawTemplateId = firstCv ? (typeof firstCv === 'string' ? firstCv : firstCv.templateId) : 'alm';
+          const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
+          const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
+
+          return (
+            <div key={c.id} id={`bulk-render-${c.id}`} style={{ width: '210mm', backgroundColor: '#ffffff' }}>
+              <FolderTemplate
+                candidate={c}
+                facePhoto={getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
+                fullBodyPhoto={getFileUrl(c.fullBodyPhotoUrl)}
+              />
+            </div>
+          );
+        })}
+      </div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
