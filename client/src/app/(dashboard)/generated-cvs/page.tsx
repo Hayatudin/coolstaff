@@ -975,9 +975,18 @@ function GeneratedCVsContent() {
             const element = document.getElementById(`bulk-render-${candidate.id}`);
             if (!element) return;
 
-            const passportNo = candidate.passportNumber || candidate.id.slice(-6);
-            const namePart = `${candidate.givenNames || ''}_${candidate.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
-            const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+            const pData = candidate.passportData || {};
+            const pNo = pData.passportNumber || candidate.passportNumber || candidate.id.slice(-6);
+            const givenNames = pData.givenNames || candidate.givenNames || '';
+            const surname = pData.surname || candidate.surname || '';
+            const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
+
+            const rawTemplateId = candidate.latestCVTemplate || 'alm';
+            const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
+            const templateObj = TEMPLATES.find(t => t.id === templateId);
+            const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALAALAM';
+
+            const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
             const dataUrl = await htmlToImage.toJpeg(element, {
               quality: 0.90,

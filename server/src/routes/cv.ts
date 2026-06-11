@@ -891,6 +891,7 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
       visaDate: c.visaDate ? c.visaDate.toISOString() : null,
       salary: c.salary || '1000SR',
       generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
+      latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
       registeredBy: c.registeredBy?.name || 'Admin',
     }));
 
