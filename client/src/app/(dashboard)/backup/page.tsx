@@ -620,7 +620,9 @@ export default function BackupPage() {
       let completedCount = 0;
 
       const processCV = async (cv: any) => {
-        const safeName = `${cv.candidate.passportData?.givenNames || cv.candidate.givenNames || ''}_${cv.candidate.passportData?.surname || cv.candidate.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const passportNo = cv.candidate?.passportData?.passportNumber || cv.candidate?.passportNumber || cv.candidateId.slice(-6);
+        const namePart = `${cv.candidate?.passportData?.givenNames || cv.candidate?.givenNames || ''}_${cv.candidate?.passportData?.surname || cv.candidate?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
         if (format === 'doc') {
           // DOCX via server-side API (skip DOM rendering and htmlToImage)

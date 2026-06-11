@@ -548,7 +548,9 @@ export default function BrokerCandidatesPage() {
         const candidateSummary = candidates.find(c => c.id === candidateId);
         if (!candidateSummary) return;
 
-        const safeName = `${candidateSummary.givenNames || ''}_${candidateSummary.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const passportNo = candidateSummary.passportNumber || candidateId.slice(-6);
+        const namePart = `${candidateSummary.givenNames || ''}_${candidateSummary.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
         try {
           // Fetch full candidate details

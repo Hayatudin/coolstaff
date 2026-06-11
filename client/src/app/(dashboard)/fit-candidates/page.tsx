@@ -480,7 +480,9 @@ export default function FitCandidatesPage() {
         const candidateSummary = allCandidates.find(c => c.id === candidateId);
         if (!candidateSummary) return;
 
-        const safeName = `${candidateSummary.passportData.givenNames || ''}_${candidateSummary.passportData.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const passportNo = candidateSummary.passportData?.passportNumber || candidateId.slice(-6);
+        const namePart = `${candidateSummary.passportData?.givenNames || ''}_${candidateSummary.passportData?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
         try {
           // Fetch full candidate details

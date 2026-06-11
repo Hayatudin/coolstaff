@@ -886,6 +886,34 @@ router.patch('/bulk-cv-downloaded', async (req: Request, res: Response) => {
       cvDownloaded ? 1 : 0,
       ...candidateIds
     );
+
+    // If marked as downloaded, make sure GeneratedCV entries exist so they appear in CV downloaded list
+    if (cvDownloaded) {
+      for (const id of candidateIds) {
+        try {
+          const existing = await prisma.generatedCV.findFirst({
+            where: { candidateId: id }
+          });
+          if (!existing) {
+            const candidate = await prisma.candidate.findUnique({
+              where: { id }
+            });
+            if (candidate) {
+              await prisma.generatedCV.create({
+                data: {
+                  candidateId: id,
+                  templateId: 'alm',
+                  facePhotoUrl: candidate.facePhotoUrl || '',
+                  fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || ''
+                }
+              });
+            }
+          }
+        } catch (cvErr) {
+          console.warn(`[BULK-CV] Failed to auto-create GeneratedCV for candidate ${id}:`, cvErr);
+        }
+      }
+    }
     
     res.json({ success: true, updatedCount: candidateIds.length });
   } catch (error: any) {
@@ -1017,8 +1045,30 @@ router.patch('/:id', async (req: Request, res: Response) => {
           id
         );
         (updated as any).cvDownloaded = Boolean(cvDownloadedVal);
+
+        // If marked as downloaded, make sure GeneratedCV entry exists so they appear in CV downloaded list
+        if (cvDownloadedVal === true || cvDownloadedVal === 1) {
+          const existing = await prisma.generatedCV.findFirst({
+            where: { candidateId: id }
+          });
+          if (!existing) {
+            const candidateObj = await prisma.candidate.findUnique({
+              where: { id }
+            });
+            if (candidateObj) {
+              await prisma.generatedCV.create({
+                data: {
+                  candidateId: id,
+                  templateId: 'alm',
+                  facePhotoUrl: candidateObj.facePhotoUrl || '',
+                  fullBodyPhotoUrl: candidateObj.fullBodyPhotoUrl || ''
+                }
+              });
+            }
+          }
+        }
       } catch (e) {
-        console.error('Failed to save cvDownloaded via raw SQL:', e);
+        console.error('Failed to save cvDownloaded / auto-create GeneratedCV via raw SQL:', e);
       }
     }
 

@@ -866,7 +866,9 @@ function GeneratedCVsContent() {
       let completedCount = 0;
 
       const processCV = async (cv: any) => {
-        const safeName = `${cv.candidate.passportData?.givenNames || ''}_${cv.candidate.passportData?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const passportNo = cv.candidate?.passportData?.passportNumber || cv.candidate?.passportNumber || cv.candidateId.slice(-6);
+        const namePart = `${cv.candidate?.passportData?.givenNames || ''}_${cv.candidate?.passportData?.surname || ''}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeName = `${namePart}_${passportNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
         if (format === 'doc') {
           // DOCX via server-side API (completely skip client-side DOM rendering and html-to-image)
