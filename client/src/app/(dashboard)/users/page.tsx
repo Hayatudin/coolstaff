@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShieldCheck, Trash2, MoreVertical, Search, UserPlus,
   Loader2, AlertCircle, Check, X, RefreshCw,
@@ -128,6 +129,8 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch]     = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -151,12 +154,26 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-    const close = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('[data-menu]')) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
   }, [fetchUsers]);
+
+  // Close menu on outside click, scroll, or resize
+  useEffect(() => {
+    if (!openMenuId) return;
+    function close(e: Event) {
+      const target = e.target as HTMLElement;
+      if (e.type === 'mousedown' && target.closest('[data-menu]')) return;
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    }
+    window.addEventListener('mousedown', close, true);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close, true);
+    return () => {
+      window.removeEventListener('mousedown', close, true);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close, true);
+    };
+  }, [openMenuId]);
 
   const updateRole = async (userId: string, role: Role) => {
     try {
@@ -299,14 +316,31 @@ export default function UsersPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right pr-6">
                     <div className="relative inline-block" data-menu>
                       <button
-                        onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
+                        ref={(el) => { menuBtnRefs.current[user.id] = el; }}
+                        onClick={() => {
+                          if (openMenuId === user.id) {
+                            setOpenMenuId(null);
+                            setMenuCoords(null);
+                          } else {
+                            const btn = menuBtnRefs.current[user.id];
+                            if (btn) {
+                              const rect = btn.getBoundingClientRect();
+                              setMenuCoords({ top: rect.bottom + 4, left: rect.right - 208 });
+                            }
+                            setOpenMenuId(user.id);
+                          }
+                        }}
                         className="p-1.5 rounded-lg text-text-tertiary hover:text-primary hover:bg-gray-100 transition-colors"
                       >
                         <MoreVertical size={16} />
                       </button>
 
-                      {openMenuId === user.id && (
-                        <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+                      {openMenuId === user.id && menuCoords && createPortal(
+                        <div
+                          className="w-52 bg-white border border-border rounded-xl shadow-xl py-1 overflow-hidden"
+                          style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, zIndex: 9999 }}
+                          data-menu
+                        >
                           <p className="px-4 py-2 text-[10px] uppercase tracking-widest font-bold text-text-tertiary">Change Role</p>
                           {ROLE_OPTIONS.map(opt => (
                             <button
@@ -330,7 +364,8 @@ export default function UsersPage() {
                           >
                             <Trash2 size={15} /> Delete User
                           </button>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                     </div>
                   </td>

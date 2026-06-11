@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
   ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, UserCheck,
@@ -60,6 +61,9 @@ export default function FitCandidatesPage() {
   const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
 
   // Mark CV status helpers
   const markAsCvDownloaded = async (id: string) => {
@@ -118,12 +122,32 @@ export default function FitCandidatesPage() {
   };
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('[data-action-menu]')) setOpenMenuId(null);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
+        return;
+      }
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    const handleScrollOrResize = () => {
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   // Filter candidates list
@@ -837,26 +861,47 @@ export default function FitCandidatesPage() {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="relative inline-block" data-action-menu>
+                        <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : null}>
                           <button
-                            onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
+                            onClick={(e) => {
+                              const isOpen = openMenuId === c.id;
+                              if (isOpen) {
+                                setOpenMenuId(null);
+                                setMenuCoords(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuCoords({
+                                  top: rect.bottom + 4,
+                                  left: Math.max(16, rect.right - 208)
+                                });
+                                setOpenMenuId(c.id);
+                              }
+                            }}
                             className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100"
                           >
                             <MoreVertical size={16} />
                           </button>
-                          {openMenuId === c.id && (
-                            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-2xl z-50 py-1 animate-fade-in">
+                          {openMenuId === c.id && menuCoords && typeof window !== 'undefined' && createPortal(
+                            <div
+                              ref={dropdownRef}
+                              className="fixed w-52 bg-white border border-border rounded-xl shadow-2xl z-[9999] py-1 animate-fade-in text-left"
+                              style={{
+                                top: menuCoords.top,
+                                left: menuCoords.left,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <button
-                                onClick={() => { setOpenMenuId(null); setChangeTarget(c); }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
+                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); setChangeTarget(c); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold cursor-pointer"
                               >
                                 <LayoutTemplate size={16} className="text-text-secondary" />
                                 <span>Change Template</span>
                               </button>
 
                               <button
-                                onClick={() => toggleFlag(c.id, c.isFlagged || false)}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold"
+                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); toggleFlag(c.id, c.isFlagged || false); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold cursor-pointer"
                               >
                                 <Flag size={16} className={cn("text-text-secondary", c.isFlagged && "text-red-500 fill-red-500")} />
                                 <span>{c.isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}</span>
@@ -864,8 +909,8 @@ export default function FitCandidatesPage() {
 
                               {c.cvDownloaded && (
                                 <button
-                                  onClick={() => { setOpenMenuId(null); markAsCvAvailable(c.id); }}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-emerald-600 font-semibold"
+                                  onClick={() => { setOpenMenuId(null); setMenuCoords(null); markAsCvAvailable(c.id); }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-emerald-600 font-semibold cursor-pointer"
                                 >
                                   <CheckCircle size={16} className="text-emerald-600" />
                                   <span>Mark as CV Available</span>
@@ -875,13 +920,14 @@ export default function FitCandidatesPage() {
                               <div className="border-t border-border/60 my-1" />
 
                               <button
-                                onClick={() => deleteCandidate(c.id)}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold"
+                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(c.id); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold cursor-pointer"
                               >
                                 <Trash2 size={16} />
                                 <span>Delete</span>
                               </button>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       </td>

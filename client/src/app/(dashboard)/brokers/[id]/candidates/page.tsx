@@ -8,6 +8,7 @@ import {
   Lock, FileDown, ImageIcon, LayoutTemplate, Check, X, AlertCircle,
   MoreVertical, CheckCircle, Eye, ChevronDown, ArrowRightLeft, Flag
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -159,20 +160,32 @@ export default function BrokerCandidatesPage() {
   const [brokerSearchQuery, setBrokerSearchQuery] = useState('');
   const [lockingCandidateId, setLockingCandidateId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Close menu on outside click, scroll, or resize
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    if (!openMenuId) return;
+    function close(e: Event) {
       const target = e.target as HTMLElement;
-      if (!target.closest('[data-action-menu]')) setOpenMenuId(null);
+      if (e.type === 'mousedown' && target.closest('[data-action-menu]')) return;
+      setOpenMenuId(null);
+      setMenuCoords(null);
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    window.addEventListener('mousedown', close, true);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close, true);
+    return () => {
+      window.removeEventListener('mousedown', close, true);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close, true);
+    };
+  }, [openMenuId]);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -1222,16 +1235,33 @@ export default function BrokerCandidatesPage() {
                       <td className="px-6 py-4 text-right pr-12 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="relative inline-block" data-action-menu>
                           <button
-                            onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)}
+                            ref={(el) => { menuBtnRefs.current[candidate.id] = el; }}
+                            onClick={() => {
+                              if (openMenuId === candidate.id) {
+                                setOpenMenuId(null);
+                                setMenuCoords(null);
+                              } else {
+                                const btn = menuBtnRefs.current[candidate.id];
+                                if (btn) {
+                                  const rect = btn.getBoundingClientRect();
+                                  setMenuCoords({ top: rect.bottom + 4, left: rect.right - 208 });
+                                }
+                                setOpenMenuId(candidate.id);
+                              }
+                            }}
                             className="p-1.5 rounded-xl hover:bg-gray-100 text-text-tertiary hover:text-primary transition-colors cursor-pointer"
                             title="Actions"
                           >
                             <MoreVertical size={16} />
                           </button>
-                          {openMenuId === candidate.id && (
-                            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-2xl z-50 py-1 text-left">
+                          {openMenuId === candidate.id && menuCoords && createPortal(
+                            <div
+                              className="w-52 bg-white border border-border rounded-xl shadow-2xl py-1 text-left"
+                              style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, zIndex: 9999 }}
+                              data-action-menu
+                            >
                               <button
-                                onClick={() => { setOpenMenuId(null); router.push(`/candidates/${candidate.id}`); }}
+                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); router.push(`/candidates/${candidate.id}`); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
                               >
                                 <ChevronRight size={16} className="text-text-secondary" />
@@ -1239,7 +1269,7 @@ export default function BrokerCandidatesPage() {
                               </button>
 
                               <button
-                                onClick={() => { setOpenMenuId(null); setTemplateChangeTarget(candidate); }}
+                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); setTemplateChangeTarget(candidate); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
                               >
                                 <LayoutTemplate size={16} className="text-text-secondary" />
@@ -1280,13 +1310,14 @@ export default function BrokerCandidatesPage() {
                               <div className="border-t border-border/60 my-1" />
 
                               <button
-                                onClick={() => handleDeleteCandidate(candidate.id)}
+                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); handleDeleteCandidate(candidate.id); }}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-red-600 font-semibold cursor-pointer"
                               >
                                 <Trash2 size={16} />
                                 <span>Delete</span>
                               </button>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       </td>

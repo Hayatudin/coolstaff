@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag, CalendarDays } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
@@ -16,6 +17,9 @@ export default function RequestedPage() {
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [deployDateModal, setDeployDateModal] = useState<{ candidateId: string; name: string; currentDate: string } | null>(null);
@@ -213,12 +217,32 @@ export default function RequestedPage() {
   };
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('[data-action-menu]')) setOpenMenuId(null);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
+        return;
+      }
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    const handleScrollOrResize = () => {
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   const candidates = allCandidates
@@ -444,37 +468,62 @@ export default function RequestedPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="relative inline-block" data-action-menu>
-                        <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100">
+                      <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : null}>
+                        <button
+                          onClick={(e) => {
+                            const isOpen = openMenuId === c.id;
+                            if (isOpen) {
+                              setOpenMenuId(null);
+                              setMenuCoords(null);
+                            } else {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setMenuCoords({
+                                top: rect.bottom + 4,
+                                left: Math.max(16, rect.right - 208)
+                              });
+                              setOpenMenuId(c.id);
+                            }
+                          }}
+                          className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                        >
                           <MoreVertical size={16} />
                         </button>
-                        {openMenuId === c.id && (
-                          <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                        {openMenuId === c.id && menuCoords && typeof window !== 'undefined' && createPortal(
+                          <div
+                            ref={dropdownRef}
+                            className="fixed w-52 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
+                            style={{
+                              top: menuCoords.top,
+                              left: menuCoords.left,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {c.hasInvoice ? (
                               <button disabled className="w-full flex items-center gap-3 px-4 py-2.5 text-sm bg-gray-50 text-left text-green-600 font-semibold cursor-not-allowed">
                                 <CheckCircle size={16} />
                                 <span>Invoice Generated</span>
                               </button>
                             ) : (
-                              <button onClick={() => router.push(`/invoice/new?candidateId=${c.id}`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary font-semibold">
+                              <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); router.push(`/invoice/new?candidateId=${c.id}`); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary-50 transition-colors text-left text-primary font-semibold">
                                 <CheckCircle size={16} />
                                 <span>Proceed (Generate Invoice)</span>
                               </button>
                             )}
                             <div className="border-t border-border/60 my-1" />
-                            <button onClick={() => handleCancelVisaClick(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
+                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); handleCancelVisaClick(c); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
                               <CheckCircle size={16} className="text-amber-500" />
                               <span>Cancel Visa Selected</span>
                             </button>
                             <div className="border-t border-border/60 my-1" />
-                            <button onClick={() => deleteCandidate(c.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
+                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(c.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
                               <Trash2 size={16} /><span>Delete</span>
                             </button>
                             <div className="border-t border-border/60 my-1" />
-                            <button onClick={() => openDeployDateModal(c)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600 font-semibold">
+                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); openDeployDateModal(c); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-blue-50 transition-colors text-left text-blue-600 font-semibold">
                               <CalendarDays size={16} /><span>{c.deployedDate ? 'Edit' : 'Set'} Deployment Date</span>
                             </button>
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     </td>

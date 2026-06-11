@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate: setAllCandidates } = useCandidates();
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const [viewDoc, setViewDoc] = React.useState<string | null>(null);
   const [visaModalId, setVisaModalId] = React.useState<string | null>(null);
   const [visaNumberInput, setVisaNumberInput] = React.useState('');
@@ -52,12 +56,32 @@ export default function DashboardPage() {
   };
 
   React.useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest('[data-action-menu]')) setOpenMenuId(null);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (dropdownRef.current && dropdownRef.current.contains(target))
+      ) {
+        return;
+      }
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    const handleScrollOrResize = () => {
+      setOpenMenuId(null);
+      setMenuCoords(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   const toggleRequested = async (id: string, current: boolean, visaNum?: string) => {
@@ -282,28 +306,53 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="relative inline-block" data-action-menu>
-                          <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100">
+                        <div className="relative inline-block" ref={openMenuId === candidate.id ? menuRef : null}>
+                          <button
+                            onClick={(e) => {
+                              const isOpen = openMenuId === candidate.id;
+                              if (isOpen) {
+                                setOpenMenuId(null);
+                                setMenuCoords(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuCoords({
+                                  top: rect.bottom + 4,
+                                  left: Math.max(16, rect.right - 192)
+                                });
+                                setOpenMenuId(candidate.id);
+                              }
+                            }}
+                            className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100"
+                          >
                             <MoreVertical size={18} />
                           </button>
-                          {openMenuId === candidate.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                          {openMenuId === candidate.id && menuCoords && typeof window !== 'undefined' && createPortal(
+                            <div
+                              ref={dropdownRef}
+                              className="fixed w-48 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
+                              style={{
+                                top: menuCoords.top,
+                                left: menuCoords.left,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {candidate.isRequested ? (
-                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
+                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold cursor-pointer">
                                   <CheckCircle size={16} className="text-amber-500" />
                                   <span>Cancel Visa Selected</span>
                                 </button>
                               ) : (
-                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
+                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold cursor-pointer">
                                   <CheckCircle size={16} className="text-text-tertiary" />
                                   <span>Visa Selected</span>
                                 </button>
                               )}
                               <div className="border-t border-border/60 my-1" />
-                              <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
+                              <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold cursor-pointer">
                                 <Trash2 size={16} /><span>Delete</span>
                               </button>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       </td>
@@ -396,21 +445,46 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="relative inline-block" data-action-menu>
-                          <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100">
+                        <div className="relative inline-block" ref={openMenuId === candidate.id ? menuRef : null}>
+                          <button
+                            onClick={(e) => {
+                              const isOpen = openMenuId === candidate.id;
+                              if (isOpen) {
+                                setOpenMenuId(null);
+                                setMenuCoords(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setMenuCoords({
+                                  top: rect.bottom + 4,
+                                  left: Math.max(16, rect.right - 192)
+                                });
+                                setOpenMenuId(candidate.id);
+                              }
+                            }}
+                            className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100"
+                          >
                             <MoreVertical size={18} />
                           </button>
-                          {openMenuId === candidate.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
-                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold">
+                          {openMenuId === candidate.id && menuCoords && typeof window !== 'undefined' && createPortal(
+                            <div
+                              ref={dropdownRef}
+                              className="fixed w-48 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
+                              style={{
+                                top: menuCoords.top,
+                                left: menuCoords.left,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold cursor-pointer">
                                 <CheckCircle size={16} className="text-amber-500" />
                                 <span>Cancel Visa Selected</span>
                               </button>
                               <div className="border-t border-border/60 my-1" />
-                              <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold">
+                              <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold cursor-pointer">
                                 <Trash2 size={16} /><span>Delete</span>
                               </button>
-                            </div>
+                            </div>,
+                            document.body
                           )}
                         </div>
                       </td>

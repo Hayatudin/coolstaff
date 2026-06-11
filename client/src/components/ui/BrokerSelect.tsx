@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { ChevronDown, User, Plus, Search } from 'lucide-react';
 import { Broker } from '@/types';
@@ -31,6 +32,8 @@ export default function BrokerSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Flat sorted brokers list
   const sortedBrokers = useMemo(() => {
@@ -42,16 +45,47 @@ export default function BrokerSelect({
     return brokers.find((b) => b.id === value);
   }, [brokers, value]);
 
-  // Handle click outside to close dropdown
+  // Measure coordinates when opening the dropdown
+  useEffect(() => {
+    if (isOpen && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    } else {
+      setCoords(null);
+    }
+  }, [isOpen]);
+
+  // Handle click outside to close dropdown, and close on scroll/resize
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearch('');
+      if (
+        (ref.current && ref.current.contains(event.target as Node)) ||
+        (dropdownRef.current && dropdownRef.current.contains(event.target as Node))
+      ) {
+        return;
       }
+      setIsOpen(false);
+      setSearch('');
     }
+
+    const handleScrollOrResize = () => {
+      setIsOpen(false);
+      setSearch('');
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   // Filter brokers based on search query (broker name or leader name)
@@ -113,8 +147,17 @@ export default function BrokerSelect({
           />
         </button>
 
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border/80 rounded-xl shadow-2xl z-50 animate-dropdown overflow-hidden flex flex-col max-h-[350px]">
+        {isOpen && coords && typeof window !== 'undefined' && createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed bg-white border border-border/80 rounded-xl shadow-2xl z-[9999] animate-dropdown overflow-hidden flex flex-col max-h-[350px]"
+            style={{
+              top: coords.top,
+              left: coords.left,
+              width: coords.width,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Search Input */}
             <div className="p-2 border-b border-border bg-gray-50/50 flex items-center gap-2">
               <Search size={14} className="text-text-tertiary flex-shrink-0" />
@@ -209,7 +252,8 @@ export default function BrokerSelect({
                 </div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
       {error && <p className="text-xs text-danger mt-0.5">{error}</p>}

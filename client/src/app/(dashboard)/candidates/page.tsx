@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
@@ -28,6 +29,8 @@ export default function CandidatesPage() {
   const [religionFilter, setReligionFilter] = useState('');
   const [missingFileFilter, setMissingFileFilter] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
+  const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [visaModalId, setVisaModalId] = useState<string | null>(null);
   const [visaNumberInput, setVisaNumberInput] = useState('');
@@ -36,15 +39,24 @@ export default function CandidatesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Close menu on outside click
+  // Close menu on outside click, scroll, or resize
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    if (!openMenuId) return;
+    function close(e: Event) {
       const target = e.target as HTMLElement;
-      if (!target.closest('[data-action-menu]')) setOpenMenuId(null);
+      if (e.type === 'mousedown' && target.closest('[data-action-menu]')) return;
+      setOpenMenuId(null);
+      setMenuCoords(null);
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    window.addEventListener('mousedown', close, true);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close, true);
+    return () => {
+      window.removeEventListener('mousedown', close, true);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close, true);
+    };
+  }, [openMenuId]);
 
   // Toggle Visa Selected
   const toggleRequested = async (id: string, current: boolean, visaNum?: string) => {
@@ -416,23 +428,43 @@ export default function CandidatesPage() {
                     {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="relative inline-block" data-action-menu>
-                        <button onClick={() => setOpenMenuId(openMenuId === candidate.id ? null : candidate.id)} className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100">
+                        <button
+                          ref={(el) => { menuBtnRefs.current[candidate.id] = el; }}
+                          onClick={() => {
+                            if (openMenuId === candidate.id) {
+                              setOpenMenuId(null);
+                              setMenuCoords(null);
+                            } else {
+                              const btn = menuBtnRefs.current[candidate.id];
+                              if (btn) {
+                                const rect = btn.getBoundingClientRect();
+                                setMenuCoords({ top: rect.bottom + 4, left: rect.right - 192 });
+                              }
+                              setOpenMenuId(candidate.id);
+                            }
+                          }}
+                          className="text-text-tertiary hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                        >
                           <MoreVertical size={16} />
                         </button>
-                        {openMenuId === candidate.id && (
-                          <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-xl z-50 py-1 animate-fade-in">
+                        {openMenuId === candidate.id && menuCoords && createPortal(
+                          <div
+                            className="w-48 bg-white border border-border rounded-xl shadow-xl py-1 animate-fade-in"
+                            style={{ position: 'fixed', top: menuCoords.top, left: menuCoords.left, zIndex: 9999 }}
+                            data-action-menu
+                          >
                             {candidate.isRequested ? (
-                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                                 <CheckCircle size={16} className="text-amber-500" />
                                 <span>Cancel Visa Selected</span>
                               </button>
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                              <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                                 <CheckCircle size={16} className="text-text-tertiary" />
                                 <span>Visa Selected</span>
                               </button>
                             )}
-                            <button onClick={() => { setOpenMenuId(null); router.push(`/registration?edit=${candidate.id}`); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); router.push(`/registration?edit=${candidate.id}`); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
                               <Edit3 size={16} className="text-text-tertiary" />
                               <span>Edit</span>
                             </button>
@@ -443,11 +475,12 @@ export default function CandidatesPage() {
                               </span>
                             </button>
                             <div className="border-t border-border my-1" />
-                            <button onClick={() => deleteCandidate(candidate.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
+                            <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600">
                               <Trash2 size={16} />
                               <span>Delete</span>
                             </button>
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     </td>
