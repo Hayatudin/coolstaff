@@ -455,6 +455,10 @@ export default function BrokerCandidatesPage() {
 
   // Single CV download handler
   const startDownload = (cv: any, format: 'pdf' | 'jpg' | 'doc') => {
+    if (cv.candidate?.personalInfo?.medicalStatus?.toLowerCase() === 'fit') {
+      showToast('Fit candidates can only be downloaded from the Fit Candidates page', 'error');
+      return;
+    }
     setDownloadingCv(cv);
     setDownloadFormat(format);
   };
@@ -551,12 +555,14 @@ export default function BrokerCandidatesPage() {
     const candidatesToDownload = selectedIds.filter(id => {
       const c = candidates.find(cand => cand.id === id);
       if (!c) return false;
+      // Do not download candidates whose medical status is fit
+      if (c.medicalStatus?.toLowerCase() === 'fit') return false;
       if (visaFilter === 'visa-selected') return c.visaSelected === true;
       return c.visaSelected !== true;
     });
 
     if (candidatesToDownload.length === 0) {
-      showToast('No candidates selected under the current visa filter option', 'error', true);
+      showToast('No downloadable candidates selected (Fit candidates can only be downloaded from the Fit Candidates page)', 'error', true);
       return;
     }
 
@@ -1499,31 +1505,37 @@ export default function BrokerCandidatesPage() {
             <div className="relative my-8 bg-white rounded-xl shadow-2xl flex flex-col items-center max-w-full scale-in" onClick={e => e.stopPropagation()}>
               <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
                 {/* Download option buttons inside preview modal */}
-                <div className="flex items-center gap-1 bg-black/50 p-1.5 rounded-xl backdrop-blur-md">
-                  <button
-                    onClick={() => startDownload(previewCv, 'pdf')}
-                    disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
-                  >
-                    <FileDown size={14} className="text-red-400" /> PDF
-                  </button>
-                  <span className="text-white/30 font-light">|</span>
-                  <button
-                    onClick={() => startDownload(previewCv, 'jpg')}
-                    disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
-                  >
-                    <ImageIcon size={14} className="text-emerald-400" /> JPG
-                  </button>
-                  <span className="text-white/30 font-light">|</span>
-                  <button
-                    onClick={() => startDownload(previewCv, 'doc')}
-                    disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
-                  >
-                    <FileText size={14} className="text-blue-400" /> DOCX
-                  </button>
-                </div>
+                {previewCv.candidate?.personalInfo?.medicalStatus?.toLowerCase() === 'fit' ? (
+                  <div className="flex items-center bg-[#059669] text-white text-xs font-bold px-4 py-2.5 rounded-xl backdrop-blur-md border border-[#a7f3d0]">
+                    Medical Status: Fit (Download in Fit Candidates page)
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 bg-black/50 p-1.5 rounded-xl backdrop-blur-md">
+                    <button
+                      onClick={() => startDownload(previewCv, 'pdf')}
+                      disabled={isDownloading}
+                      className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
+                    >
+                      <FileDown size={14} className="text-red-400" /> PDF
+                    </button>
+                    <span className="text-white/30 font-light">|</span>
+                    <button
+                      onClick={() => startDownload(previewCv, 'jpg')}
+                      disabled={isDownloading}
+                      className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
+                    >
+                      <ImageIcon size={14} className="text-emerald-400" /> JPG
+                    </button>
+                    <span className="text-white/30 font-light">|</span>
+                    <button
+                      onClick={() => startDownload(previewCv, 'doc')}
+                      disabled={isDownloading}
+                      className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
+                    >
+                      <FileText size={14} className="text-blue-400" /> DOCX
+                    </button>
+                  </div>
+                )}
 
                 <button onClick={() => setPreviewCv(null)} className="w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors backdrop-blur-md cursor-pointer">
                   <X size={20} />

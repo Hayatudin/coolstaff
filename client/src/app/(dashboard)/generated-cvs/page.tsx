@@ -698,6 +698,10 @@ function GeneratedCVsContent() {
   }, [downloadingCv, downloadFormat]);
 
   const startDownload = (cv: any, format: 'pdf' | 'jpg' | 'doc') => {
+    if (cv.candidate?.personalInfo?.medicalStatus?.toLowerCase() === 'fit') {
+      showToast('Fit candidates can only be downloaded from the Fit Candidates page', 'error');
+      return;
+    }
     setDownloadingCv(cv);
     setDownloadFormat(format);
   };
@@ -874,11 +878,17 @@ function GeneratedCVsContent() {
 
   // ── Download All as ZIP ────────────────────────────────────────────────────
   const handleDownloadAll = async (format: 'pdf' | 'jpg' | 'doc') => {
-    const cvsToDownload = selectedCVIds.size > 0 
+    let cvsToDownload = selectedCVIds.size > 0 
       ? activeCVs.filter(c => selectedCVIds.has(c.id)) 
       : activeCVs;
 
-    if (cvsToDownload.length === 0) return;
+    // Filter out candidates whose medical status is Fit
+    cvsToDownload = cvsToDownload.filter(c => c.candidate?.personalInfo?.medicalStatus?.toLowerCase() !== 'fit');
+
+    if (cvsToDownload.length === 0) {
+      showToast('No downloadable candidates found (Fit candidates can only be downloaded from the Fit Candidates page)', 'error');
+      return;
+    }
     
     if (cvsToDownload.length === 1) {
       setDownloadAllOpen(false);
@@ -1409,37 +1419,43 @@ function GeneratedCVsContent() {
                       {new Date(cv.createdAt).toLocaleDateString()}
                     </span>
                     {/* Format Picker */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startDownload(cv, 'pdf'); }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        disabled={isDownloading}
-                        className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
-                        title="Download as PDF"
-                      >
-                        <FileDown size={12} /> PDF
-                      </button>
-                      <span className="text-border">|</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startDownload(cv, 'jpg'); }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        disabled={isDownloading}
-                        className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
-                        title="Download as JPG"
-                      >
-                        <ImageIcon size={12} /> JPG
-                      </button>
-                      <span className="text-border">|</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startDownload(cv, 'doc'); }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        disabled={isDownloading}
-                        className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
-                        title="Download as DOCX"
-                      >
-                        <FileText size={12} /> DOCX
-                      </button>
-                    </div>
+                    {cv.candidate?.personalInfo?.medicalStatus?.toLowerCase() === 'fit' ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 uppercase tracking-wider">
+                        Medical: Fit
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startDownload(cv, 'pdf'); }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          disabled={isDownloading}
+                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
+                          title="Download as PDF"
+                        >
+                          <FileDown size={12} /> PDF
+                        </button>
+                        <span className="text-border">|</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startDownload(cv, 'jpg'); }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          disabled={isDownloading}
+                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
+                          title="Download as JPG"
+                        >
+                          <ImageIcon size={12} /> JPG
+                        </button>
+                        <span className="text-border">|</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startDownload(cv, 'doc'); }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          disabled={isDownloading}
+                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
+                          title="Download as DOCX"
+                        >
+                          <FileText size={12} /> DOCX
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
