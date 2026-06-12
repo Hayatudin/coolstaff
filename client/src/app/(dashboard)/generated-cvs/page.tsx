@@ -629,7 +629,8 @@ function GeneratedCVsContent() {
         const dataUrl = await htmlToImage.toJpeg(el, { 
           quality: 0.95, 
           backgroundColor: '#ffffff', 
-          pixelRatio: 2,
+          pixelRatio: 1.5,
+          fontEmbedCSS: '',
           imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
         });
         el.style.height = origH; el.style.overflow = origO;
@@ -1002,6 +1003,7 @@ function GeneratedCVsContent() {
               quality: 0.90,
               backgroundColor: '#ffffff',
               pixelRatio: 1.5,
+              fontEmbedCSS: '',
               imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
             });
 
