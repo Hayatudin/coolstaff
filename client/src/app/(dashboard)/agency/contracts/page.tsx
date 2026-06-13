@@ -95,6 +95,22 @@ export default function AgencyContractsPage() {
   const isSuperAdmin = userRole === 'super_admin';
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
+  // Diagnostic states
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const fetchDebugInfo = async () => {
+    try {
+      const res = await api('/api/agency/debug-info');
+      if (res.ok) {
+        const data = await res.json();
+        setDebugInfo(data);
+      }
+    } catch (err) {
+      console.warn('Failed to load debug info:', err);
+    }
+  };
+
   // Detail Modal States
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [candidateDetails, setCandidateDetails] = useState<Candidate | null>(null);
@@ -370,6 +386,50 @@ export default function AgencyContractsPage() {
           </div>
         )}
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 text-red-700 rounded-3xl text-sm font-semibold animate-fade-in shadow-sm">
+          <svg className="w-5 h-5 shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p className="font-extrabold text-red-800">Error Loading Candidates</p>
+            <p className="text-xs text-red-600/90 mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics Panel */}
+      {(isSuperAdmin || userRole === 'agency') && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-xs shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-amber-800 flex items-center gap-1.5">
+              <Info className="w-4 h-4 text-amber-600" />
+              Diagnostics & Diagnostic Information
+            </span>
+            <button 
+              onClick={() => {
+                setShowDebug(!showDebug);
+                if (!debugInfo) fetchDebugInfo();
+              }}
+              className="text-[10px] font-black uppercase text-amber-900 bg-amber-200/50 hover:bg-amber-200 px-3.5 py-1.5 rounded-xl transition-all"
+            >
+              {showDebug ? 'Hide Diagnostics' : 'Load & Show Diagnostics'}
+            </button>
+          </div>
+          {showDebug && debugInfo && (
+            <div className="mt-3 space-y-2 text-amber-950 font-medium">
+              <p><strong>Logged in User:</strong> {debugInfo.sessionUser?.email} ({debugInfo.sessionUser?.role})</p>
+              <p><strong>User Agency Template ID:</strong> {debugInfo.sessionUser?.agency || 'NONE (If you are logged in as an agency user, this MUST be set e.g. "ussus" in the database user table)'}</p>
+              <p><strong>Database Stats:</strong> Total candidates in system: {debugInfo.databaseStats?.totalCandidates ?? 0} | Total CVs: {debugInfo.databaseStats?.totalCVs ?? 0}</p>
+              <p><strong>Generated CV Templates in DB:</strong> {JSON.stringify(debugInfo.databaseStats?.uniqueTemplates || [])}</p>
+              <p><strong>Sample Candidates:</strong> {JSON.stringify(debugInfo.databaseStats?.sampleCandidates || [])}</p>
+              {debugInfo.error && <p className="text-red-600 font-bold"><strong>Server Error:</strong> {debugInfo.error}</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search and Toolbars */}
       <div className="flex flex-col xl:flex-row xl:items-center gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm">

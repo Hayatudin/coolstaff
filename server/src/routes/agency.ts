@@ -35,6 +35,57 @@ async function ensureCandidateColumns() {
 // Kick off checking asynchronously
 ensureCandidateColumns();
 
+// GET /api/agency/debug-info
+router.get('/debug-info', async (req: Request, res: Response) => {
+  try {
+    const session = await getSession(req);
+    if (!session || !session.user) {
+      return res.json({ error: 'No session found on server headers' });
+    }
+
+    const role = session.user.role;
+    const agencyName = (session.user as any).agency;
+
+    // Get stats from database
+    const totalCandidates = await prisma.candidate.count();
+    const totalCVs = await prisma.generatedCV.count();
+    
+    // Get unique template IDs in GeneratedCV
+    const uniqueTemplates = await prisma.generatedCV.groupBy({
+      by: ['templateId'],
+      _count: { id: true }
+    });
+
+    const sampleCandidates = await prisma.candidate.findMany({
+      take: 5,
+      select: {
+        id: true,
+        givenNames: true,
+        surname: true,
+        agency: true
+      }
+    });
+
+    res.json({
+      sessionUser: {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        role: role,
+        agency: agencyName
+      },
+      databaseStats: {
+        totalCandidates,
+        totalCVs,
+        uniqueTemplates: uniqueTemplates.map(t => ({ templateId: t.templateId, count: t._count.id })),
+        sampleCandidates
+      }
+    });
+  } catch (err: any) {
+    res.json({ error: err.message || String(err) });
+  }
+});
+
 // GET /api/agency/candidates
 router.get('/candidates', async (req: Request, res: Response) => {
   try {
