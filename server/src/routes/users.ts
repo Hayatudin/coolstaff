@@ -103,20 +103,39 @@ router.get('/analytics', requireSuperAdmin, async (req: Request, res: Response) 
 // GET /api/users
 router.get('/', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        agency: true,
-        emailVerified: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json(users);
+    try {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          agency: true,
+          emailVerified: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json(users);
+    } catch (prismaErr: any) {
+      console.warn('[USERS] prisma.user.findMany failed, trying raw SQL fallback:', prismaErr.message || prismaErr);
+      
+      const rawUsers: any[] = await prisma.$queryRawUnsafe(
+        'SELECT `id`, `name`, `email`, `role`, `agency`, `emailVerified`, `createdAt` FROM `User` ORDER BY `createdAt` DESC'
+      );
+      
+      const mappedUsers = rawUsers.map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        agency: u.agency,
+        emailVerified: u.emailVerified === 1 || u.emailVerified === true,
+        createdAt: u.createdAt,
+      }));
+      
+      res.json(mappedUsers);
+    }
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
@@ -143,13 +162,24 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to create user' });
     }
 
-    await prisma.user.update({
-      where: { id: authRes.user.id },
-      data: { 
-        role: assignedRole,
-        agency: assignedRole === 'agency' ? agency : null
-      },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: authRes.user.id },
+        data: { 
+          role: assignedRole,
+          agency: assignedRole === 'agency' ? agency : null
+        },
+      });
+    } catch (updateErr: any) {
+      console.warn('[USERS] prisma.user.update failed (likely stale Prisma Client), trying raw SQL fallback:', updateErr.message || updateErr);
+      const targetAgency = assignedRole === 'agency' ? agency : null;
+      await prisma.$executeRawUnsafe(
+        'UPDATE `User` SET `role` = ?, `agency` = ? WHERE `id` = ?',
+        assignedRole,
+        targetAgency,
+        authRes.user.id
+      );
+    }
 
     res.status(201).json({ success: true, userId: authRes.user.id });
   } catch (err: any) {
@@ -179,10 +209,47 @@ router.patch('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
       updateData.agency = agency;
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-    });
+    let updated;
+    try {
+      updated = await prisma.user.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch (patchErr: any) {
+      console.warn('[USERS] prisma.user.update failed (likely stale Prisma Client), trying raw SQL fallback:', patchErr.message || patchErr);
+      
+      const fieldsToUpdate: string[] = [];
+      const values: any[] = [];
+      
+      if (role) {
+        fieldsToUpdate.push('`role` = ?');
+        values.push(role);
+        if (role !== 'agency') {
+          fieldsToUpdate.push('`agency` = ?');
+          values.push(null);
+        }
+      }
+      if (agency !== undefined) {
+        fieldsToUpdate.push('`agency` = ?');
+        values.push(agency);
+      }
+      
+      if (fieldsToUpdate.length > 0) {
+        values.push(id);
+        const query = `UPDATE \`User\` SET ${fieldsToUpdate.join(', ')} WHERE \`id\` = ?`;
+        await prisma.$executeRawUnsafe(query, ...values);
+      }
+      
+      // Fetch the updated user
+      const rawUsers: any[] = await prisma.$queryRawUnsafe(
+        'SELECT `id`, `name`, `email`, `role`, `agency`, `emailVerified`, `createdAt` FROM `User` WHERE `id` = ? LIMIT 1',
+        id
+      );
+      updated = rawUsers[0] ? {
+        ...rawUsers[0],
+        emailVerified: rawUsers[0].emailVerified === 1 || rawUsers[0].emailVerified === true
+      } : null;
+    }
 
     res.json(updated);
   } catch (error) {
