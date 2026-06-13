@@ -22,21 +22,21 @@ router.get('/candidates', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'User is not assigned to any agency' });
     }
 
-    // Filter by visaSelected = true (Contracts are candidate selections)
-    const queryConditions: any = {
-      visaSelected: true,
-    };
-
-    // If role is agency, only fetch candidates with generated CV for this agency template
-    if (role === 'agency') {
-      queryConditions.generatedCVs = {
-        some: {
-          templateId: {
-            contains: agencyName.toLowerCase()
-          }
-        }
-      };
-    }
+    const queryConditions: any = {};
+ 
+     // If role is agency, only fetch candidates with generated CV for this agency template
+     if (role === 'agency') {
+       queryConditions.generatedCVs = {
+         some: {
+           templateId: {
+             contains: agencyName.toLowerCase()
+           }
+         }
+       };
+     } else {
+       // Filter by visaSelected = true (Contracts are candidate selections) for super_admin
+       queryConditions.visaSelected = true;
+     }
 
     const dbCandidates = await prisma.candidate.findMany({
       where: queryConditions,

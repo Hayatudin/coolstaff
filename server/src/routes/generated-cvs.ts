@@ -191,6 +191,7 @@ router.post('/', async (req: Request, res: Response) => {
     const deadline = new Date();
     deadline.setDate(deadline.getDate() + 30);
 
+    const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
     const [generatedCV] = await prisma.$transaction([
       prisma.generatedCV.create({
         data: {
@@ -202,7 +203,10 @@ router.post('/', async (req: Request, res: Response) => {
       }),
       prisma.candidate.update({
         where: { id: candidateId },
-        data: { cvDeadline: deadline }
+        data: { 
+          cvDeadline: deadline,
+          agency: cleanTemplateId
+        }
       })
     ]);
     
@@ -245,13 +249,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Candidate already generated in that template' });
     }
 
+    const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
     const [updatedCV] = await prisma.$transaction([
       prisma.generatedCV.update({
         where: { id },
         data: { templateId }
       }),
       prisma.$executeRawUnsafe(
-        'UPDATE `Candidate` SET `cvDownloaded` = 0 WHERE `id` = ?',
+        'UPDATE `Candidate` SET `cvDownloaded` = 0, `agency` = ? WHERE `id` = ?',
+        cleanTemplateId,
         existingCV.candidateId
       )
     ]);

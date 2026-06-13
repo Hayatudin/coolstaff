@@ -75,7 +75,11 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       onCreated();
       onClose();
     } catch (err: any) {
-      setError(err.message);
+      let msg = err.message || 'Failed to create user';
+      if (msg.includes('already exists') || msg.includes('already_exists') || msg.includes('UNPROCESSABLE_ENTITY')) {
+        msg = 'A user with this email address already exists. Please choose a different email.';
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
