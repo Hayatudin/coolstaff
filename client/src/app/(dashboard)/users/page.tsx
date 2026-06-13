@@ -69,7 +69,9 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
         body: JSON.stringify({ name, email, password, role, agency: role === 'agency' ? agency : null }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create user');
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Error ${res.status}: ${res.statusText}`);
+      }
       onCreated();
       onClose();
     } catch (err: any) {

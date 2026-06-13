@@ -158,13 +158,37 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
       body: { name, email, password },
     });
 
-    if (!authRes?.user?.id) {
-      return res.status(500).json({ error: 'Failed to create user' });
+    let userId = authRes?.user?.id;
+    if (!userId) {
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true }
+        });
+        userId = dbUser?.id;
+      } catch (e) {
+        console.warn('[USERS] prisma.user.findUnique failed to resolve userId:', e);
+      }
+    }
+    if (!userId) {
+      try {
+        const rawUsers: any[] = await prisma.$queryRawUnsafe(
+          'SELECT `id` FROM `User` WHERE `email` = ? LIMIT 1',
+          email
+        );
+        userId = rawUsers[0]?.id;
+      } catch (e) {
+        console.error('[USERS] Raw SQL failed to resolve userId:', e);
+      }
+    }
+
+    if (!userId) {
+      return res.status(500).json({ error: 'Failed to resolve user ID after signup' });
     }
 
     try {
       await prisma.user.update({
-        where: { id: authRes.user.id },
+        where: { id: userId },
         data: { 
           role: assignedRole,
           agency: assignedRole === 'agency' ? agency : null
@@ -177,13 +201,14 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
         'UPDATE `User` SET `role` = ?, `agency` = ? WHERE `id` = ?',
         assignedRole,
         targetAgency,
-        authRes.user.id
+        userId
       );
     }
 
-    res.status(201).json({ success: true, userId: authRes.user.id });
+    res.status(201).json({ success: true, userId });
   } catch (err: any) {
-    res.status(400).json({ error: err.message ?? 'Failed to create user' });
+    console.error('[USERS] Failed to create user:', err);
+    res.status(400).json({ error: err.message || err.error || String(err) });
   }
 });
 
