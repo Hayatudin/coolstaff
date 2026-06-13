@@ -109,6 +109,7 @@ router.get('/', requireSuperAdmin, async (req: Request, res: Response) => {
         name: true,
         email: true,
         role: true,
+        agency: true,
         emailVerified: true,
         createdAt: true,
       },
@@ -124,7 +125,7 @@ router.get('/', requireSuperAdmin, async (req: Request, res: Response) => {
 // POST /api/users
 router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, agency } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'name, email and password are required' });
@@ -144,7 +145,10 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
 
     await prisma.user.update({
       where: { id: authRes.user.id },
-      data: { role: assignedRole },
+      data: { 
+        role: assignedRole,
+        agency: assignedRole === 'agency' ? agency : null
+      },
     });
 
     res.status(201).json({ success: true, userId: authRes.user.id });
@@ -157,16 +161,27 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
 router.patch('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
+    const { role, agency } = req.body;
 
     const VALID_ROLES = ['user', 'super_admin', 'agency', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader'];
-    if (!VALID_ROLES.includes(role)) {
+    if (role && !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const updateData: any = {};
+    if (role) {
+      updateData.role = role;
+      if (role !== 'agency') {
+        updateData.agency = null;
+      }
+    }
+    if (agency !== undefined) {
+      updateData.agency = agency;
     }
 
     const updated = await prisma.user.update({
       where: { id },
-      data: { role },
+      data: updateData,
     });
 
     res.json(updated);

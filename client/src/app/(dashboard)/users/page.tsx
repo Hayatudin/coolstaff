@@ -15,9 +15,21 @@ interface UserRow {
   name: string;
   email: string;
   role: Role;
+  agency?: string | null;
   emailVerified: boolean;
   createdAt: string;
 }
+
+const AGENCIES = [
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'ka7', name: 'KAAFAAT' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'user',           label: 'User'           },
@@ -42,6 +54,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole]       = useState<Role>('processor');
+  const [agency, setAgency]   = useState('ussus');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
@@ -53,7 +66,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       const res = await api('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify({ name, email, password, role, agency: role === 'agency' ? agency : null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to create user');
@@ -107,6 +120,16 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </select>
           </div>
 
+          {role === 'agency' && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Agency Template</label>
+              <select value={agency} onChange={e => setAgency(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all bg-white cursor-pointer">
+                {AGENCIES.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
@@ -123,6 +146,60 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
   );
 }
 
+// ── Agency Select Modal ──────────────────────────────────────────────────────
+function AgencySelectModal({
+  currentAgency,
+  onClose,
+  onSave
+}: {
+  currentAgency?: string | null;
+  onClose: () => void;
+  onSave: (agency: string) => void;
+}) {
+  const [selected, setSelected] = useState(currentAgency || 'ussus');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-bold text-gray-900">Select Agency</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Agency Template</label>
+            <select
+              value={selected}
+              onChange={e => setSelected(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all bg-white cursor-pointer"
+            >
+              {AGENCIES.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(selected)}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              Save Agency
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function UsersPage() {
   const [users, setUsers]       = useState<UserRow[]>([]);
@@ -132,6 +209,7 @@ export default function UsersPage() {
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [showCreate, setShowCreate] = useState(false);
+  const [agencyModalTarget, setAgencyModalTarget] = useState<{ userId: string; role: Role; currentAgency?: string | null } | null>(null);
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showMsg = (msg: string, type: 'success' | 'error' = 'success') => {
@@ -175,20 +253,28 @@ export default function UsersPage() {
     };
   }, [openMenuId]);
 
-  const updateRole = async (userId: string, role: Role) => {
+  const updateRole = async (userId: string, role: Role, agency?: string) => {
+    if (role === 'agency' && !agency) {
+      const existingUser = users.find(u => u.id === userId);
+      setAgencyModalTarget({ userId, role, currentAgency: existingUser?.agency });
+      setOpenMenuId(null);
+      return;
+    }
+
     try {
       const res = await api(`/api/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ role, agency: role === 'agency' ? agency : null }),
       });
       if (!res.ok) throw new Error();
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role, agency: role === 'agency' ? (agency || null) : null } : u));
       showMsg('Role updated successfully');
     } catch {
       showMsg('Failed to update role', 'error');
     }
     setOpenMenuId(null);
+    setAgencyModalTarget(null);
   };
 
   const deleteUser = async (userId: string) => {
@@ -291,6 +377,7 @@ export default function UsersPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border', roleBadge(user.role))}>
                       {ROLE_OPTIONS.find(r => r.value === user.role)?.label ?? user.role}
+                      {user.role === 'agency' && user.agency && ` (${AGENCIES.find(a => a.id === user.agency)?.name ?? user.agency.toUpperCase()})`}
                     </span>
                   </td>
 
@@ -345,7 +432,14 @@ export default function UsersPage() {
                           {ROLE_OPTIONS.map(opt => (
                             <button
                               key={opt.value}
-                              onClick={() => updateRole(user.id, opt.value)}
+                              onClick={() => {
+                                if (opt.value === 'agency') {
+                                  setAgencyModalTarget({ userId: user.id, role: 'agency', currentAgency: user.agency });
+                                  setOpenMenuId(null);
+                                } else {
+                                  updateRole(user.id, opt.value);
+                                }
+                              }}
                               className={cn(
                                 'w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors text-left font-semibold',
                                 user.role === opt.value
@@ -386,6 +480,15 @@ export default function UsersPage() {
         <CreateUserModal
           onClose={() => setShowCreate(false)}
           onCreated={fetchUsers}
+        />
+      )}
+
+      {/* Agency Select Modal */}
+      {agencyModalTarget && (
+        <AgencySelectModal
+          currentAgency={agencyModalTarget.currentAgency}
+          onClose={() => setAgencyModalTarget(null)}
+          onSave={(agency) => updateRole(agencyModalTarget.userId, agencyModalTarget.role, agency)}
         />
       )}
 

@@ -153,6 +153,19 @@ export default function BrokerCandidatesPage() {
   const cvRenderRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
+  // Download task progress control
+  const [downloadTask, setDownloadTask] = useState<{
+    type: 'single' | 'bulk';
+    format: 'pdf' | 'jpg' | 'doc';
+    progress: number;
+    total: number;
+    status: 'pending' | 'processing' | 'generating_zip' | 'complete' | 'failed' | 'cancelled';
+    message: string;
+    candidateIds?: string[];
+    singleCv?: any;
+  } | null>(null);
+  const isCancelledRef = useRef(false);
+
   // Move candidates state
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
@@ -459,6 +472,16 @@ export default function BrokerCandidatesPage() {
       showToast('Fit candidates can only be downloaded from the Fit Candidates page', 'error');
       return;
     }
+    isCancelledRef.current = false;
+    setDownloadTask({
+      type: 'single',
+      format,
+      progress: 0,
+      total: 1,
+      status: 'processing',
+      message: 'Generating file...',
+      singleCv: cv
+    });
     setDownloadingCv(cv);
     setDownloadFormat(format);
   };
@@ -472,12 +495,15 @@ export default function BrokerCandidatesPage() {
     (async () => {
       setIsDownloading(true);
       try {
+        if (isCancelledRef.current) throw new Error('Cancelled');
         const htmlToImage = await import('html-to-image');
         const safeName = (downloadingCv.candidate.surname || 'CV').replace(/[^a-zA-Z0-9]/g, '');
         const fileName = `CV_${safeName}_${downloadingCv.templateId.toUpperCase()}`;
 
         const origH = el.style.height; const origO = el.style.overflow;
         el.style.height = 'auto'; el.style.overflow = 'visible';
+
+        if (isCancelledRef.current) throw new Error('Cancelled');
         const dataUrl = await htmlToImage.toJpeg(el, {
           quality: 0.95,
           backgroundColor: '#ffffff',
@@ -487,7 +513,7 @@ export default function BrokerCandidatesPage() {
         });
         el.style.height = origH; el.style.overflow = origO;
 
-        if (cancelled) return;
+        if (cancelled || isCancelledRef.current) throw new Error('Cancelled');
 
         const downloadBlob = (blob: Blob, name: string) => {
           const url = window.URL.createObjectURL(blob);
@@ -513,6 +539,7 @@ export default function BrokerCandidatesPage() {
             body: JSON.stringify(payload)
           });
 
+          if (isCancelledRef.current) throw new Error('Cancelled');
           if (!response.ok) throw new Error('Failed to generate DOCX');
 
           const blob = await response.blob();
@@ -520,10 +547,12 @@ export default function BrokerCandidatesPage() {
           showToast('Editable DOCX Downloaded!');
         } else if (downloadFormat === 'jpg') {
           const res = await fetch(dataUrl);
+          if (isCancelledRef.current) throw new Error('Cancelled');
           downloadBlob(await res.blob(), `${fileName}.jpg`);
           showToast('Downloaded as JPG');
         } else {
           const { jsPDF } = await import('jspdf');
+          if (isCancelledRef.current) throw new Error('Cancelled');
           const pdf = new jsPDF('p', 'mm', 'a4');
           const pdfW = pdf.internal.pageSize.getWidth();
           const props = pdf.getImageProperties(dataUrl);
@@ -532,6 +561,7 @@ export default function BrokerCandidatesPage() {
           if (totalH > pdf.internal.pageSize.getHeight() + 10) {
             pdf.addPage(); pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
           }
+          if (isCancelledRef.current) throw new Error('Cancelled');
           downloadBlob(pdf.output('blob'), `${fileName}.pdf`);
           showToast('Downloaded as PDF');
         }
@@ -540,8 +570,14 @@ export default function BrokerCandidatesPage() {
         if (candidateId) {
           await markAsCvDownloaded(candidateId);
         }
-      } catch (e) {
-        if (!cancelled) showToast('Download failed', 'error');
+        setDownloadTask(prev => prev ? { ...prev, progress: 1, status: 'complete', message: 'Download complete!' } : null);
+      } catch (e: any) {
+        if (cancelled || isCancelledRef.current || e.message === 'Cancelled') {
+          setDownloadTask(prev => prev ? { ...prev, status: 'cancelled', message: 'Download cancelled.' } : null);
+        } else {
+          showToast('Download failed', 'error');
+          setDownloadTask(prev => prev ? { ...prev, status: 'failed', message: e.message || 'Download failed.' } : null);
+        }
       } finally {
         if (!cancelled) { setIsDownloading(false); setDownloadingCv(null); setDownloadFormat(null); }
       }
@@ -569,6 +605,17 @@ export default function BrokerCandidatesPage() {
 
     setIsDownloadingAll(true);
     setDownloadAllOpen(false);
+    isCancelledRef.current = false;
+
+    setDownloadTask({
+      type: 'bulk',
+      format,
+      progress: 0,
+      total: candidatesToDownload.length,
+      status: 'pending',
+      message: 'Initializing bulk export...',
+      candidateIds: candidatesToDownload
+    });
 
     const timerWorker = (() => {
       const workerCode = `
@@ -587,21 +634,25 @@ export default function BrokerCandidatesPage() {
     });
 
     try {
+      if (isCancelledRef.current) throw new Error('Cancelled');
+
       if (format === 'doc') {
         // DOCX is fast and functional on the server
-        showToast('Initializing bulk generation on server...', 'success', false);
         const initRes = await api('/api/cv/bulk-generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ candidateIds: candidatesToDownload, format })
         });
         
+        if (isCancelledRef.current) throw new Error('Cancelled');
         if (!initRes.ok) throw new Error('Failed to initialize bulk generation');
         const { jobId } = await initRes.json();
 
         let status = 'processing';
         while (status === 'processing' || status === 'pending') {
+          if (isCancelledRef.current) throw new Error('Cancelled');
           await bgWait(1500);
+          if (isCancelledRef.current) throw new Error('Cancelled');
           const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
           if (!statusRes.ok) throw new Error('Failed to fetch processing status');
           const progressData = await statusRes.json();
@@ -611,11 +662,19 @@ export default function BrokerCandidatesPage() {
             throw new Error(progressData.error || 'Server-side bulk generation failed');
           }
 
-          showToast(`Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`, 'success', false);
+          setDownloadTask(prev => prev ? {
+            ...prev,
+            progress: progressData.progress,
+            total: progressData.total,
+            status: 'processing',
+            message: `Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`
+          } : null);
         }
 
-        showToast('Downloading ZIP archive...', 'success', false);
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        setDownloadTask(prev => prev ? { ...prev, status: 'generating_zip', message: 'Downloading ZIP archive...' } : null);
         const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
+        if (isCancelledRef.current) throw new Error('Cancelled');
         if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
         const blob = await downloadRes.blob();
 
@@ -626,15 +685,16 @@ export default function BrokerCandidatesPage() {
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-        showToast('Download complete!', 'success', true);
+        setDownloadTask(prev => prev ? { ...prev, progress: candidatesToDownload.length, status: 'complete', message: 'Download complete!' } : null);
       } else {
         // PDF and JPG format download via optimized client zipping
-        showToast('Fetching candidate details in batch...', 'success', false);
+        setDownloadTask(prev => prev ? { ...prev, status: 'processing', message: 'Fetching candidate details in batch...' } : null);
         const batchRes = await api('/api/cv/candidates-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ candidateIds: candidatesToDownload })
         });
+        if (isCancelledRef.current) throw new Error('Cancelled');
         if (!batchRes.ok) throw new Error('Failed to fetch candidate details');
         const candidatesData = await batchRes.json();
 
@@ -645,11 +705,13 @@ export default function BrokerCandidatesPage() {
 
         const CHUNK_SIZE = 5;
         for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
+          if (isCancelledRef.current) throw new Error('Cancelled');
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
           setRenderingCandidates(chunk);
           await bgWait(60);
 
           await Promise.all(chunk.map(async (candidate: any) => {
+            if (isCancelledRef.current) return;
             const element = document.getElementById(`bulk-render-${candidate.id}`);
             if (!element) return;
 
@@ -666,6 +728,7 @@ export default function BrokerCandidatesPage() {
 
             const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
+            if (isCancelledRef.current) return;
             const dataUrl = await htmlToImage.toJpeg(element, {
               quality: 0.90,
               backgroundColor: '#ffffff',
@@ -674,6 +737,7 @@ export default function BrokerCandidatesPage() {
               imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
             });
 
+            if (isCancelledRef.current) return;
             if (format === 'jpg') {
               const imgRes = await fetch(dataUrl);
               const blob = await imgRes.blob();
@@ -690,14 +754,26 @@ export default function BrokerCandidatesPage() {
               }
               zip.file(`${safeName}.pdf`, pdf.output('blob'));
             }
-          }));
 
-          showToast(`Processing: ${Math.min(i + CHUNK_SIZE, candidatesData.length)}/${candidatesData.length}...`, 'success', false);
+            setDownloadTask(prev => {
+              if (!prev) return null;
+              const nextProgress = Math.min(prev.progress + 1, prev.total);
+              return {
+                ...prev,
+                progress: nextProgress,
+                status: 'processing',
+                message: `Rendering CVs: ${nextProgress}/${prev.total}`
+              };
+            });
+          }));
         }
 
+        if (isCancelledRef.current) throw new Error('Cancelled');
         setRenderingCandidates([]);
-        showToast('Generating ZIP file...', 'success', false);
+        setDownloadTask(prev => prev ? { ...prev, status: 'generating_zip', message: 'Generating ZIP file...' } : null);
         const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        if (isCancelledRef.current) throw new Error('Cancelled');
         const url = window.URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = url;
@@ -705,7 +781,7 @@ export default function BrokerCandidatesPage() {
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
-        showToast('Download complete!', 'success', true);
+        setDownloadTask(prev => prev ? { ...prev, status: 'complete', message: 'Download complete!' } : null);
 
         // Update cvDownloaded status on server
         await api('/api/candidates/bulk-cv-downloaded', {
@@ -720,7 +796,12 @@ export default function BrokerCandidatesPage() {
       setSelectedIds([]);
     } catch (err: any) {
       console.error(err);
-      showToast(err.message || 'Failed to download CVs', 'error', true);
+      if (isCancelledRef.current || err.message === 'Cancelled') {
+        setDownloadTask(prev => prev ? { ...prev, status: 'cancelled', message: 'Download cancelled.' } : null);
+      } else {
+        showToast(err.message || 'Failed to download CVs', 'error', true);
+        setDownloadTask(prev => prev ? { ...prev, status: 'failed', message: err.message || 'Download failed.' } : null);
+      }
     } finally {
       setIsDownloadingAll(false);
       setRenderingCandidates([]);
@@ -1761,6 +1842,72 @@ export default function BrokerCandidatesPage() {
 
       {/* Toast Alert */}
       {toast && <Toast msg={toast.msg} type={toast.type} />}
+
+      {/* CV Download Progress Panel */}
+      {downloadTask && (
+        <div className="fixed bottom-6 right-6 z-[120] w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-100 p-4.5 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-black uppercase tracking-wider text-[#464479] flex items-center gap-1.5">
+              {downloadTask.status === 'processing' || downloadTask.status === 'pending' || downloadTask.status === 'generating_zip' ? (
+                <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+              ) : downloadTask.status === 'complete' ? (
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+              ) : downloadTask.status === 'cancelled' ? (
+                <X className="w-3.5 h-3.5 text-slate-505" />
+              ) : (
+                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+              )}
+              {downloadTask.type === 'bulk' ? 'Bulk Export' : 'Single Export'}
+            </span>
+            <button 
+              onClick={() => setDownloadTask(null)}
+              className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <p className="text-xs font-semibold text-text-primary mb-2.5 leading-normal">
+            {downloadTask.message}
+          </p>
+
+          {(downloadTask.status === 'processing' || downloadTask.status === 'pending' || downloadTask.status === 'generating_zip') && (
+            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
+              <div 
+                className="h-full bg-[#464479] transition-all duration-300 rounded-full" 
+                style={{ width: `${downloadTask.total > 0 ? (downloadTask.progress / downloadTask.total) * 100 : 0}%` }}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {(downloadTask.status === 'processing' || downloadTask.status === 'pending' || downloadTask.status === 'generating_zip') ? (
+              <button
+                onClick={() => {
+                  isCancelledRef.current = true;
+                  setDownloadTask(prev => prev ? { ...prev, status: 'cancelled', message: 'Cancelling export task...' } : null);
+                }}
+                className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl border border-red-100 transition-colors cursor-pointer"
+              >
+                Cancel Download
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (downloadTask.type === 'bulk' && downloadTask.candidateIds) {
+                    handleBulkDownload(downloadTask.format);
+                  } else if (downloadTask.type === 'single' && downloadTask.singleCv) {
+                    startDownload(downloadTask.singleCv, downloadTask.format);
+                  }
+                }}
+                className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-colors cursor-pointer"
+              >
+                Restart Download
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
