@@ -63,10 +63,16 @@ export default function HomePage() {
   const canAccessDashboard = DASHBOARD_ROLES.includes(role);
 
   useEffect(() => {
-    if (!isPending && session && canAccessDashboard) {
-      router.push('/dashboard');
+    if (!isPending && session) {
+      if (role === 'agency') {
+        router.push('/agency/contracts');
+      } else if (role === 'video_uploader') {
+        router.push('/video-uploads');
+      } else if (canAccessDashboard) {
+        router.push('/dashboard');
+      }
     }
-  }, [session, isPending, canAccessDashboard, router]);
+  }, [session, isPending, canAccessDashboard, role, router]);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 30);

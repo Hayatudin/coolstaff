@@ -29,6 +29,30 @@ import {
 import { api } from '@/lib/api';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
+import { useSession } from '@/lib/auth-client';
+
+const AGENCIES = [
+  { id: 'all', name: 'All Agencies' },
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'ka7', name: 'KAAFAAT' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
+
+const AGENCY_MAP: Record<string, string> = {
+  'ussus': 'USSUS',
+  'al-shablan': 'AL-Shablan',
+  'alm': 'ALAALAM',
+  'ka7': 'KAAFAAT',
+  'ku2': 'KHUZAM',
+  'ma': 'MA Standard',
+  'ra': 'RAYAAT',
+  'vision': 'Vision Layout',
+};
 
 // Simplified candidate data structure from agency endpoint
 interface AgencyCandidate {
@@ -47,7 +71,13 @@ interface AgencyCandidate {
   agencyStatus: string;
   latestCVTemplate: string | null;
   broker: { name: string } | null;
+  agency?: string | null;
 }
+
+const getCandidateAgencyName = (c: AgencyCandidate) => {
+  const rawAgency = c.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || c.agency?.toLowerCase() || '';
+  return AGENCY_MAP[rawAgency] || rawAgency.toUpperCase() || '—';
+};
 
 export default function AgencyContractsPage() {
   const [candidates, setCandidates] = useState<AgencyCandidate[]>([]);
@@ -59,6 +89,11 @@ export default function AgencyContractsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [activeTab, setActiveTab] = useState<string>('All');
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
+  const { data: session } = useSession();
+  const userRole = ((session?.user as any)?.role ?? 'user') as string;
+  const isSuperAdmin = userRole === 'super_admin';
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
   // Detail Modal States
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
@@ -74,10 +109,14 @@ export default function AgencyContractsPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch candidates from /api/agency/candidates
-  const fetchCandidates = async () => {
+  const fetchCandidates = async (agencyFilter?: string) => {
     setIsLoading(true);
     try {
-      const res = await api('/api/agency/candidates');
+      let url = '/api/agency/candidates';
+      if (agencyFilter && agencyFilter !== 'all') {
+        url += `?agency=${encodeURIComponent(agencyFilter)}`;
+      }
+      const res = await api(url);
       if (!res.ok) throw new Error('Failed to load agency candidates');
       const data = await res.json();
       setCandidates(Array.isArray(data) ? data : []);
@@ -91,8 +130,8 @@ export default function AgencyContractsPage() {
   };
 
   useEffect(() => {
-    fetchCandidates();
-  }, []);
+    fetchCandidates(selectedAgency);
+  }, [selectedAgency]);
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -308,11 +347,28 @@ export default function AgencyContractsPage() {
     <div className="space-y-6 pb-12 animate-fade-in">
       
       {/* Title & Control Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-text-primary tracking-tight">Contracts</h1>
           <p className="text-text-secondary text-sm font-medium mt-1">Manage and track candidate workflows, status metrics and travel dates.</p>
         </div>
+        {isSuperAdmin && (
+          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/20 shadow-sm shrink-0">
+            <Building className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold text-text-secondary">Agency:</span>
+            <select
+              value={selectedAgency}
+              onChange={(e) => setSelectedAgency(e.target.value)}
+              className="bg-transparent text-xs font-black text-text-primary focus:outline-none cursor-pointer border-0 p-0 pr-8"
+            >
+              {AGENCIES.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Search and Toolbars */}
@@ -397,6 +453,7 @@ export default function AgencyContractsPage() {
               <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
                 <th className="px-5 py-4 font-semibold text-center w-12">#</th>
                 <th className="px-5 py-4 font-semibold">Candidate</th>
+                {isSuperAdmin && <th className="px-5 py-4 font-semibold">Agency</th>}
                 <th className="px-5 py-4 font-semibold text-center">Embassy Issue</th>
                 <th className="px-5 py-4 font-semibold text-center">COC</th>
                 <th className="px-5 py-4 font-semibold text-center">Medical</th>
@@ -412,7 +469,7 @@ export default function AgencyContractsPage() {
             <tbody className="divide-y divide-border/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-24 text-center">
+                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={36} className="text-[#464479] animate-spin" />
                       <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading contracts database...</p>
@@ -447,6 +504,15 @@ export default function AgencyContractsPage() {
                           </div>
                         </div>
                       </td>
+
+                      {/* Agency Column */}
+                      {isSuperAdmin && (
+                        <td className="px-5 py-4.5">
+                          <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-xl bg-cyan-50 text-cyan-700 border border-cyan-100">
+                            {getCandidateAgencyName(c)}
+                          </span>
+                        </td>
+                      )}
 
                       {/* Embassy Issue */}
                       <td className="px-5 py-4.5 text-center">
@@ -654,7 +720,7 @@ export default function AgencyContractsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={12} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
+                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
                     No candidates found matching the selected filters.
                   </td>
                 </tr>

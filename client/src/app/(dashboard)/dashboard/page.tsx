@@ -33,6 +33,14 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
 
+  React.useEffect(() => {
+    if (userRole === 'agency') {
+      router.replace('/agency/contracts');
+    } else if (userRole === 'video_uploader') {
+      router.replace('/video-uploads');
+    }
+  }, [userRole, router]);
+
   const [quickRegistrations, setQuickRegistrations] = React.useState<any[]>([]);
   const [quickLoading, setQuickLoading] = React.useState(false);
 
