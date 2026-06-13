@@ -35,6 +35,43 @@ async function ensureCandidateColumns() {
 // Kick off checking asynchronously
 ensureCandidateColumns();
 
+// Email-to-agency template ID resolver fallback mapping
+function inferAgencyFromEmail(email: string): string | null {
+  const e = email.toLowerCase();
+  if (e.includes('ussus')) return 'ussus';
+  if (e.includes('khuzam') || e.includes('ku2')) return 'ku2';
+  if (e.includes('kafaat') || e.includes('ka7')) return 'ka7';
+  if (e.includes('alaalam') || e.includes('alm')) return 'alm';
+  if (e.includes('rayaat') || e.includes('ra')) return 'ra';
+  if (e.includes('shablan')) return 'al-shablan';
+  if (e.includes('vision')) return 'vision';
+  if (e.includes('ma')) return 'ma';
+  return null;
+}
+
+// Check and auto-heal agency value in database
+async function resolveAndHealAgency(user: any): Promise<string | null> {
+  if (user.agency) return user.agency;
+  
+  if (user.email) {
+    const inferred = inferAgencyFromEmail(user.email);
+    if (inferred) {
+      console.log(`[AUTH-HEAL] Inferred agency '${inferred}' for user '${user.email}'. Auto-healing user record in DB...`);
+      try {
+        await prisma.$executeRawUnsafe(
+          'UPDATE `User` SET `agency` = ? WHERE `id` = ?',
+          inferred,
+          user.id
+        );
+      } catch (err) {
+        console.error('[AUTH-HEAL] Failed to update user agency in DB:', err);
+      }
+      return inferred;
+    }
+  }
+  return null;
+}
+
 // GET /api/agency/debug-info
 router.get('/debug-info', async (req: Request, res: Response) => {
   try {
@@ -44,7 +81,7 @@ router.get('/debug-info', async (req: Request, res: Response) => {
     }
 
     const role = session.user.role;
-    const agencyName = (session.user as any).agency;
+    const agencyName = await resolveAndHealAgency(session.user);
 
     // Get stats from database
     const totalCandidates = await prisma.candidate.count();
@@ -99,7 +136,7 @@ router.get('/candidates', async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const agencyName = (session.user as any).agency; // e.g. 'ussus'
+    const agencyName = await resolveAndHealAgency(session.user); // e.g. 'ussus'
     if (role === 'agency' && !agencyName) {
       return res.status(400).json({ error: 'User is not assigned to any agency' });
     }
@@ -108,7 +145,7 @@ router.get('/candidates', async (req: Request, res: Response) => {
     const queryConditions: any = {};
  
     if (role === 'agency') {
-      const agencyStr = agencyName.toLowerCase();
+      const agencyStr = agencyName!.toLowerCase();
       queryConditions.OR = [
         { agency: agencyStr },
         {
@@ -160,7 +197,7 @@ router.get('/candidates', async (req: Request, res: Response) => {
       const whereClauses: string[] = [];
       
       if (role === 'agency') {
-        const agencyStr = agencyName.toLowerCase();
+        const agencyStr = agencyName!.toLowerCase();
         whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
         sqlParams.push(agencyStr, `%${agencyStr}%`);
       } else {
@@ -248,9 +285,13 @@ router.patch('/candidates/:id', async (req: Request, res: Response) => {
       agencyStatus 
     } = req.body;
 
+    const agencyName = await resolveAndHealAgency(session.user);
+
     // Verify candidate belongs to agency if updating as agency
     if (role === 'agency') {
-      const agencyName = (session.user as any).agency;
+      if (!agencyName) {
+        return res.status(400).json({ error: 'User is not assigned to any agency' });
+      }
       const candidate = await prisma.candidate.findFirst({
         where: {
           id,
