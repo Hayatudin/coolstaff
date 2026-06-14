@@ -12,7 +12,7 @@ async function main() {
     const signInResponse = await auth.api.signInEmail({
       body: {
         email: 'admin_test@example.com',
-        password: 'Password123!',
+        password: 'admin123',
       },
       headers: signInHeaders,
     });

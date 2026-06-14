@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
-import { signIn, signUp, getSession } from '@/lib/auth-client';
+import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { signIn, signUp } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
@@ -37,22 +36,17 @@ function LoginForm() {
       });
 
       if (!signInError) {
-        // Sign in success! Fetch session to get complete user data (including role)
-        const { data: sessionData } = await getSession();
-        const user = sessionData?.user as any;
+        // Sign in success! Check role for redirection
+        const user = signInData.user as any;
         const role = user?.role;
-        console.log("Sign in successful. User role from session:", role);
-        
-        if (role) {
-          localStorage.setItem('lastRole', role);
-        }
+        console.log("Sign in successful. User role:", role);
         
         if (role === 'agency') {
-          window.location.href = '/agency/contracts';
+          router.push('/agency/contracts');
         } else if (DASHBOARD_ROLES.includes(role)) {
-          window.location.href = '/dashboard';
+          router.push('/dashboard');
         } else {
-          window.location.href = '/';
+          router.push('/');
         }
         return;
       }
@@ -74,8 +68,7 @@ function LoginForm() {
       if (!signUpError) {
         // Sign up success! New users are always "user" role, so go to home
         console.log("Auto-registration successful for new user.");
-        localStorage.setItem('lastRole', 'user');
-        window.location.href = '/';
+        router.push('/');
         return;
       }
 
@@ -104,15 +97,6 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0f]">
-      {/* Floating Back to Home button */}
-      <Link
-        href="/?bypass=true"
-        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium backdrop-blur-md"
-      >
-        <ArrowLeft size={14} />
-        Back to Home
-      </Link>
-
       {/* Animated background orbs */}
       {mounted && (
         <>

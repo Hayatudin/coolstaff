@@ -63,27 +63,13 @@ export default function HomePage() {
   const canAccessDashboard = DASHBOARD_ROLES.includes(role);
 
   useEffect(() => {
-    if (!isPending) {
-      if (session) {
-        if (role) {
-          localStorage.setItem('lastRole', role);
-        }
-        if (role === 'agency') {
-          router.push('/agency/contracts');
-        } else if (role === 'video_uploader') {
-          router.push('/video-uploads');
-        } else if (canAccessDashboard) {
-          router.push('/dashboard');
-        }
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        const bypass = params.get('bypass') === 'true';
-        if (!bypass) {
-          const lastRole = localStorage.getItem('lastRole');
-          if (lastRole && lastRole !== 'user' && DASHBOARD_ROLES.includes(lastRole as any)) {
-            router.push('/login');
-          }
-        }
+    if (!isPending && session) {
+      if (role === 'agency') {
+        router.push('/agency/contracts');
+      } else if (role === 'video_uploader') {
+        router.push('/video-uploads');
+      } else if (canAccessDashboard) {
+        router.push('/dashboard');
       }
     }
   }, [session, isPending, canAccessDashboard, role, router]);
