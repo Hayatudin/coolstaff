@@ -180,6 +180,7 @@ router.get('/', async (req: Request, res: Response) => {
         registeredBy: c.registeredBy?.name || 'Admin',
         hasInvoice: c.invoices && c.invoices.length > 0,
         isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
+        agency: c.agency || 'daera',
       };
     });
 
@@ -695,6 +696,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       cvDownloaded: candidateCvDownloaded,
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
       registeredBy: (c as any).registeredBy?.name || 'Admin',
+      agency: c.agency || 'daera',
     };
     res.json(candidate);
   } catch (error) {

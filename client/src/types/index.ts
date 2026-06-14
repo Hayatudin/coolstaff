@@ -84,6 +84,7 @@ export interface Candidate {
   brokerId?: string;
   broker?: Broker;
    latestCVTemplate?: string | null;
+   agency?: string | null;
   generatedCVs?: ({ id: string; templateId: string; facePhotoUrl?: string; fullBodyPhotoUrl?: string; createdAt?: string } | string)[];
   registeredBy?: string;
   hasInvoice?: boolean;

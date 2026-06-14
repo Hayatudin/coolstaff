@@ -82,10 +82,20 @@ const getCandidateAgencyName = (c: AgencyCandidate) => {
   return AGENCY_MAP[rawAgency] || rawAgency.toUpperCase() || '—';
 };
 
+const getVisiblePages = (current: number, total: number) => {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 3) return [1, 2, 3, 4, '...', total];
+  if (current >= total - 2) return [1, '...', total - 3, total - 2, total - 1, total];
+  return [1, '...', current - 1, current, current + 1, '...', total];
+};
+
 export default function AgencyContractsPage() {
   const [candidates, setCandidates] = useState<AgencyCandidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Search and Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -172,6 +182,10 @@ export default function AgencyContractsPage() {
   useEffect(() => {
     fetchCandidates(selectedAgency);
   }, [selectedAgency]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency]);
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -363,6 +377,11 @@ export default function AgencyContractsPage() {
 
     return list;
   }, [candidates, searchQuery, activeTab, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin]);
+
+  const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE) || 1;
+  const paginatedCandidates = useMemo(() => {
+    return filteredCandidates.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  }, [filteredCandidates, currentPage]);
 
   // Fetch full details of the candidate for modal view
   const handleViewDetails = async (id: string) => {
@@ -630,9 +649,9 @@ export default function AgencyContractsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredCandidates.length > 0 ? (
-                filteredCandidates.map((c, index) => {
-                  const rollNo = index + 1;
+              ) : paginatedCandidates.length > 0 ? (
+                paginatedCandidates.map((c, index) => {
+                  const rollNo = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
                   const isUpdating = (fieldName: string) => 
                     updatingField?.candidateId === c.id && updatingField.fieldName === fieldName;
 
@@ -841,6 +860,46 @@ export default function AgencyContractsPage() {
             </tbody>
           </table>
         </div>
+        
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 py-4 border-t border-border/10 bg-gray-50/30">
+            {/* Prev arrow */}
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-[#00A4EF] hover:text-white hover:border-[#00A4EF] disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold"
+            >
+              ‹
+            </button>
+
+            {/* Page numbers */}
+            {getVisiblePages(currentPage, totalPages).map((page, i) => (
+              <button
+                key={i}
+                onClick={() => typeof page === 'number' && setCurrentPage(page)}
+                disabled={page === '...'}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border ${
+                  page === '...'
+                    ? 'bg-transparent text-text-tertiary border-transparent cursor-default'
+                    : page === currentPage
+                    ? 'bg-[#00A4EF] text-white border-[#00A4EF] shadow-md'
+                    : 'border-border text-text-secondary hover:bg-[#00A4EF]/10 hover:border-[#00A4EF]/30'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {/* Next arrow */}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-text-secondary hover:bg-[#00A4EF] hover:text-white hover:border-[#00A4EF] disabled:opacity-30 disabled:cursor-not-allowed transition-all font-bold"
+            >
+              ›
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Candidate Profile Details Overlay Modal */}

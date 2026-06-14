@@ -15,6 +15,17 @@ import { authClient } from '@/lib/auth-client';
 
 import { useCandidates } from '@/hooks/useCandidates';
 
+const TEMPLATES = [
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'ka7', name: 'KAAFAAT' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
+
 export default function CandidatesPage() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
@@ -28,6 +39,7 @@ export default function CandidatesPage() {
   const [genderFilter, setGenderFilter] = useState('');
   const [religionFilter, setReligionFilter] = useState('');
   const [missingFileFilter, setMissingFileFilter] = useState('');
+  const [agencyFilter, setAgencyFilter] = useState('all');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -181,6 +193,7 @@ export default function CandidatesPage() {
       const matchesJob = jobFilter ? c.personalInfo.job === jobFilter : true;
       const matchesGender = genderFilter ? c.passportData.gender?.toLowerCase() === genderFilter.toLowerCase() : true;
       const matchesReligion = religionFilter ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase() : true;
+      const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
 
       let matchesMissingFile = true;
       if (missingFileFilter === 'COC') matchesMissingFile = !c.cocDocumentUrl;
@@ -189,17 +202,17 @@ export default function CandidatesPage() {
       else if (missingFileFilter === 'FacePhoto') matchesMissingFile = !c.facePhotoUrl;
       else if (missingFileFilter === 'FullBody') matchesMissingFile = !c.fullBodyPhotoUrl;
 
-      return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile;
+      return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile && matchesAgency;
     });
     result.sort((a, b) => {
       const dA = new Date(a.registeredAt).getTime(), dB = new Date(b.registeredAt).getTime();
       return sortOrder === 'new_to_old' ? dB - dA : dA - dB;
     });
     return result;
-  }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter]);
+  }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter]);
 
   // Reset to page 1 whenever filters change
-  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter]);
+  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedCandidates = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -232,6 +245,35 @@ export default function CandidatesPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Agency filter capsules */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { key: 'all', label: 'All Agencies', color: 'border-gray-200 text-gray-700 hover:bg-gray-50', activeColor: 'bg-gray-900 border-gray-900 text-white' },
+          { key: 'daera', label: 'Daera', color: 'border-blue-200 text-blue-700 hover:bg-blue-50/55', activeColor: 'bg-blue-600 border-blue-600 text-white' },
+          { key: 'coolstaff', label: 'Coolstaff', color: 'border-teal-200 text-teal-700 hover:bg-teal-50/55', activeColor: 'bg-teal-600 border-teal-600 text-white' },
+          { key: 'boss', label: 'Boss', color: 'border-purple-200 text-purple-700 hover:bg-purple-50/55', activeColor: 'bg-purple-600 border-purple-600 text-white' },
+        ].map((btn) => {
+          const isActive = agencyFilter === btn.key;
+          const count = candidates.filter(c => btn.key === 'all' ? true : c.agency?.toLowerCase() === btn.key).length;
+          return (
+            <button
+              key={btn.key}
+              onClick={() => setAgencyFilter(btn.key)}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                isActive ? btn.activeColor : btn.color
+              }`}
+            >
+              <span>{btn.label}</span>
+              <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full ${
+                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -284,8 +326,8 @@ export default function CandidatesPage() {
               ]} 
             />
           </div>
-          {(jobFilter || genderFilter || religionFilter || statusFilter || customDate || searchQuery || missingFileFilter) && (
-            <button onClick={() => { setJobFilter(''); setGenderFilter(''); setReligionFilter(''); setStatusFilter(''); setCustomDate(''); setSearchQuery(''); setMissingFileFilter(''); }} className="text-sm text-text-tertiary hover:text-danger font-medium px-3 transition-colors">
+          {(jobFilter || genderFilter || religionFilter || statusFilter || customDate || searchQuery || missingFileFilter || agencyFilter !== 'all') && (
+            <button onClick={() => { setJobFilter(''); setGenderFilter(''); setReligionFilter(''); setStatusFilter(''); setCustomDate(''); setSearchQuery(''); setMissingFileFilter(''); setAgencyFilter('all'); }} className="text-sm text-text-tertiary hover:text-danger font-medium px-3 transition-colors">
               Clear Filters
             </button>
           )}
@@ -301,7 +343,8 @@ export default function CandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Shelf ID</th>
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
-                <th className="px-6 py-4 font-semibold">Job / Skills</th>
+                <th className="px-6 py-4 font-semibold">CV Agency</th>
+                <th className="px-6 py-4 font-semibold">Broker</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
                 <th className="px-6 py-4 font-semibold hidden xl:table-cell">{isSuperAdmin ? 'Registrar' : 'COC'}</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
@@ -310,9 +353,9 @@ export default function CandidatesPage() {
             </thead>
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <TableSkeleton rows={8} cols={8} />
+                <TableSkeleton rows={8} cols={9} />
               ) : error ? (
-                <tr><td colSpan={8} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
+                <tr><td colSpan={9} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
               ) : filtered.length > 0 ? (
                 paginatedCandidates.map((candidate) => (
                   <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
@@ -350,14 +393,20 @@ export default function CandidatesPage() {
                       <p className="text-xs text-text-tertiary">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
                     </td>
 
-                    {/* Job/Skills */}
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-text-primary font-medium truncate max-w-[150px]">
-                        {Array.isArray(candidate.personalInfo.workExperience) && 
-                         candidate.personalInfo.workExperience.some((e: any) => e.experienceStatus === 'Have experience') 
-                         ? 'Experienced' : 'Not Experienced'}
-                      </p>
-                      <p className="text-xs text-text-tertiary truncate max-w-[150px] hidden xl:block">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
+                    {/* CV Agency */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
+                        {(() => {
+                          const templateId = candidate.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || 'alm';
+                          const templateObj = TEMPLATES.find(t => t.id === templateId);
+                          return templateObj ? templateObj.name : 'ALAALAM';
+                        })()}
+                      </span>
+                    </td>
+
+                    {/* Broker */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-secondary">
+                      {candidate.broker?.name || '—'}
                     </td>
 
                     {/* Visa Selected */}
@@ -487,7 +536,7 @@ export default function CandidatesPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={8} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No candidates found matching your search or filters.</td></tr>
+                <tr><td colSpan={9} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No candidates found matching your search or filters.</td></tr>
               )}
             </tbody>
           </table>

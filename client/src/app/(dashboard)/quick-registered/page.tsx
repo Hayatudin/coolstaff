@@ -491,7 +491,7 @@ export default function QuickRegisteredPage() {
                 <th className="px-6 py-4 font-semibold hidden sm:table-cell">Passport No.</th>
                 <th className="px-6 py-4 font-semibold hidden md:table-cell">Registrar ID</th>
                 <th className="px-6 py-4 font-semibold hidden md:table-cell">Agency</th>
-                <th className="px-6 py-4 font-semibold hidden lg:table-cell">Experience</th>
+                <th className="px-6 py-4 font-semibold hidden lg:table-cell">Broker</th>
                 <th className="px-6 py-4 font-semibold hidden sm:table-cell">Status</th>
                 <th className="px-6 py-4 font-semibold hidden sm:table-cell">Date</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th>
@@ -553,16 +553,8 @@ export default function QuickRegisteredPage() {
                           {r.agency || 'daera'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                          experienceLabel === 'Experienced'
-                            ? 'bg-green-50 text-green-700 border-green-100'
-                            : experienceLabel === 'New'
-                            ? 'bg-blue-50 text-blue-700 border-blue-100'
-                            : 'bg-gray-50 text-text-tertiary border-gray-100'
-                        }`}>
-                          {experienceLabel}
-                        </span>
+                      <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap text-xs text-text-secondary font-semibold">
+                        {r.broker?.name || '—'}
                       </td>
                       <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                         {getStatusBadge(r.verificationStatus || 'pending')}

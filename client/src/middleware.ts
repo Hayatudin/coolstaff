@@ -6,9 +6,6 @@ import { ROUTE_ACCESS, DASHBOARD_ROLES, type Role } from '@/lib/role-config';
 const PROTECTED_PATHS = Object.keys(ROUTE_ACCESS);
 
 export async function middleware(request: NextRequest) {
-  // Temporary bypass for all authentication
-  return NextResponse.next();
-
   const { pathname } = request.nextUrl;
 
   // Check if the request is for a protected path
