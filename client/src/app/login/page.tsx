@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
-import { signIn, signUp } from '@/lib/auth-client';
+import { signIn, signUp, getSession } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
@@ -37,10 +37,11 @@ function LoginForm() {
       });
 
       if (!signInError) {
-        // Sign in success! Check role for redirection
-        const user = signInData.user as any;
+        // Sign in success! Fetch session to get complete user data (including role)
+        const { data: sessionData } = await getSession();
+        const user = sessionData?.user as any;
         const role = user?.role;
-        console.log("Sign in successful. User role:", role);
+        console.log("Sign in successful. User role from session:", role);
         
         if (role) {
           localStorage.setItem('lastRole', role);
