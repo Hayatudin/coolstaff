@@ -5,19 +5,11 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/lib/auth-client';
-import { useRouter } from 'next/navigation';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = useSession();
-  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isPending && !session) {
-      router.replace('/login');
-    }
-  }, [session, isPending, router]);
 
   // Close mobile sidebar on route change or resize to desktop
   useEffect(() => {
