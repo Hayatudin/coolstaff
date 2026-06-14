@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { signIn, signUp } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
@@ -41,12 +42,16 @@ function LoginForm() {
         const role = user?.role;
         console.log("Sign in successful. User role:", role);
         
+        if (role) {
+          localStorage.setItem('lastRole', role);
+        }
+        
         if (role === 'agency') {
-          router.push('/agency/contracts');
+          window.location.href = '/agency/contracts';
         } else if (DASHBOARD_ROLES.includes(role)) {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         } else {
-          router.push('/');
+          window.location.href = '/';
         }
         return;
       }
@@ -68,7 +73,8 @@ function LoginForm() {
       if (!signUpError) {
         // Sign up success! New users are always "user" role, so go to home
         console.log("Auto-registration successful for new user.");
-        router.push('/');
+        localStorage.setItem('lastRole', 'user');
+        window.location.href = '/';
         return;
       }
 
@@ -97,6 +103,15 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0f]">
+      {/* Floating Back to Home button */}
+      <Link
+        href="/?bypass=true"
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 text-white/80 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-xs font-medium backdrop-blur-md"
+      >
+        <ArrowLeft size={14} />
+        Back to Home
+      </Link>
+
       {/* Animated background orbs */}
       {mounted && (
         <>
