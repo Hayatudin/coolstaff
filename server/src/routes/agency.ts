@@ -186,7 +186,8 @@ router.get('/candidates', async (req: Request, res: Response) => {
         orderBy: { registeredAt: 'desc' },
         include: {
           generatedCVs: { select: { id: true, templateId: true } },
-          broker: { select: { name: true } }
+          broker: { select: { name: true } },
+          invoices: { select: { id: true, lmisQrCodeUrl: true } }
         }
       });
     } catch (findErr: any) {
@@ -225,32 +226,45 @@ router.get('/candidates', async (req: Request, res: Response) => {
           select: { id: true, templateId: true, candidateId: true }
         });
         
+        const allInvoices = await prisma.invoice.findMany({
+          where: { candidateId: { in: candidateIds } },
+          select: { candidateId: true, lmisQrCodeUrl: true }
+        });
+        
         dbCandidates = rawCands.map(c => ({
           ...c,
           generatedCVs: allCVs.filter(cv => cv.candidateId === c.id),
+          invoices: allInvoices.filter(i => i.candidateId === c.id),
           broker: c.brokerName ? { name: c.brokerName } : null
         }));
       }
     }
 
-    res.json(dbCandidates.map((c: any) => ({
-      id: c.id,
-      givenNames: c.givenNames,
-      surname: c.surname,
-      passportNumber: c.passportNumber,
-      embassyIssue: c.embassyIssue,
-      cocStatus: c.cocStatus,
-      medicalStatus: c.medicalStatus,
-      tasheerStatus: c.tasheerStatus,
-      wakalaStatus: c.wakalaStatus,
-      qrCodeStatus: c.qrCodeStatus,
-      selectedType: c.selectedType,
-      travelDate: c.travelDate ? new Date(c.travelDate).toISOString() : null,
-      agencyStatus: c.agencyStatus,
-      latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
-      broker: c.broker,
-      agency: c.agency
-    })));
+    res.json(dbCandidates.map((c: any) => {
+      const invoicesList = c.invoices || [];
+      const hasQrCode = invoicesList.some((inv: any) => inv.lmisQrCodeUrl && inv.lmisQrCodeUrl.trim() !== '');
+      return {
+        id: c.id,
+        givenNames: c.givenNames,
+        surname: c.surname,
+        passportNumber: c.passportNumber,
+        embassyIssue: c.embassyIssue || 'No',
+        cocStatus: c.cocStatus || 'No',
+        medicalStatus: c.medicalStatus || 'Pending',
+        tasheerStatus: c.tasheerStatus || 'No',
+        wakalaStatus: c.wakalaStatus || 'Unpaid',
+        qrCodeStatus: hasQrCode ? 'Yes' : 'No',
+        selectedType: c.selectedType || 'Private',
+        travelDate: c.deployedDate ? new Date(c.deployedDate).toISOString() : null,
+        agencyStatus: c.agencyStatus || 'Under Process',
+        latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
+        broker: c.broker,
+        agency: c.agency,
+        religion: c.religion,
+        job: c.job,
+        dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null
+      };
+    }));
 
   } catch (err) {
     console.error('[AGENCY] Failed to fetch candidates', err);

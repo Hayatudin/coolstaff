@@ -72,6 +72,9 @@ interface AgencyCandidate {
   latestCVTemplate: string | null;
   broker: { name: string } | null;
   agency?: string | null;
+  religion?: string | null;
+  job?: string | null;
+  dateOfBirth?: string | null;
 }
 
 const getCandidateAgencyName = (c: AgencyCandidate) => {
@@ -95,20 +98,41 @@ export default function AgencyContractsPage() {
   const isSuperAdmin = userRole === 'super_admin';
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
-  // Diagnostic states
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [showDebug, setShowDebug] = useState(false);
+  // Agency Filter States
+  const [filterReligion, setFilterReligion] = useState<string>('all');
+  const [filterJob, setFilterJob] = useState<string>('all');
+  const [filterMinAge, setFilterMinAge] = useState<string>('');
+  const [filterMaxAge, setFilterMaxAge] = useState<string>('');
 
-  const fetchDebugInfo = async () => {
-    try {
-      const res = await api('/api/agency/debug-info');
-      if (res.ok) {
-        const data = await res.json();
-        setDebugInfo(data);
-      }
-    } catch (err) {
-      console.warn('Failed to load debug info:', err);
+  // Dynamically compute unique jobs and religions from candidates list
+  const uniqueJobs = useMemo(() => {
+    const jobs = new Set<string>();
+    candidates.forEach(c => {
+      if (c.job) jobs.add(c.job.trim());
+    });
+    return Array.from(jobs).sort();
+  }, [candidates]);
+
+  const uniqueReligions = useMemo(() => {
+    const religions = new Set<string>();
+    candidates.forEach(c => {
+      if (c.religion) religions.add(c.religion.trim());
+    });
+    return Array.from(religions).sort();
+  }, [candidates]);
+
+  // Helper to calculate candidate age
+  const getAge = (dateOfBirthStr: string | null | undefined): number | null => {
+    if (!dateOfBirthStr) return null;
+    const dob = new Date(dateOfBirthStr);
+    if (isNaN(dob.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
     }
+    return age;
   };
 
   // Detail Modal States
@@ -259,9 +283,13 @@ export default function AgencyContractsPage() {
     setSearchInput('');
     setSearchQuery('');
     setActiveTab('All');
+    setFilterReligion('all');
+    setFilterJob('all');
+    setFilterMinAge('');
+    setFilterMaxAge('');
   };
 
-  // Filter candidates based on Search + Active Tab
+  // Filter candidates based on Search + Active Tab + Agency Filters
   const filteredCandidates = useMemo(() => {
     let list = candidates;
 
@@ -278,25 +306,63 @@ export default function AgencyContractsPage() {
     // Apply active KPI tab filter
     switch (activeTab) {
       case 'In Process':
-        return list.filter(c => c.agencyStatus === 'Under Process');
+        list = list.filter(c => c.agencyStatus === 'Under Process');
+        break;
       case 'Arrived':
-        return list.filter(c => c.agencyStatus === 'Arrived');
+        list = list.filter(c => c.agencyStatus === 'Arrived');
+        break;
       case 'Returned':
-        return list.filter(c => c.agencyStatus === 'Returned');
+        list = list.filter(c => c.agencyStatus === 'Returned');
+        break;
       case 'Wakala Unpaid':
-        return list.filter(c => c.wakalaStatus === 'Unpaid');
+        list = list.filter(c => c.wakalaStatus === 'Unpaid');
+        break;
       case 'Company':
-        return list.filter(c => c.selectedType === 'Company');
+        list = list.filter(c => c.selectedType === 'Company');
+        break;
       case 'Private':
-        return list.filter(c => c.selectedType === 'Private');
+        list = list.filter(c => c.selectedType === 'Private');
+        break;
       case 'Travel Next 7 Days':
-        return list.filter(c => isTravelNext7Days(c.travelDate));
+        list = list.filter(c => isTravelNext7Days(c.travelDate));
+        break;
       case 'Unfit':
-        return list.filter(c => c.medicalStatus?.toLowerCase() === 'unfit');
+        list = list.filter(c => c.medicalStatus?.toLowerCase() === 'unfit');
+        break;
       default:
-        return list;
+        break;
     }
-  }, [candidates, searchQuery, activeTab]);
+
+    // Apply Agency-specific filters if user is NOT a super_admin
+    if (!isSuperAdmin) {
+      if (filterReligion && filterReligion !== 'all') {
+        list = list.filter(c => c.religion?.toLowerCase() === filterReligion.toLowerCase());
+      }
+      if (filterJob && filterJob !== 'all') {
+        list = list.filter(c => c.job?.toLowerCase() === filterJob.toLowerCase());
+      }
+      if (filterMinAge.trim() !== '') {
+        const minAgeVal = parseInt(filterMinAge, 10);
+        if (!isNaN(minAgeVal)) {
+          list = list.filter(c => {
+            const age = getAge(c.dateOfBirth);
+            return age !== null && age >= minAgeVal;
+          });
+        }
+      }
+      if (filterMaxAge.trim() !== '') {
+        const maxAgeVal = parseInt(filterMaxAge, 10);
+        if (!isNaN(maxAgeVal)) {
+          list = list.filter(c => {
+            const age = getAge(c.dateOfBirth);
+            return age !== null && age <= maxAgeVal;
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [candidates, searchQuery, activeTab, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin]);
 
   // Fetch full details of the candidate for modal view
   const handleViewDetails = async (id: string) => {
@@ -400,34 +466,62 @@ export default function AgencyContractsPage() {
         </div>
       )}
 
-      {/* Diagnostics Panel */}
-      {(isSuperAdmin || userRole === 'agency') && (
-        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-xs shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-amber-800 flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-amber-600" />
-              Diagnostics & Diagnostic Information
-            </span>
-            <button 
-              onClick={() => {
-                setShowDebug(!showDebug);
-                if (!debugInfo) fetchDebugInfo();
-              }}
-              className="text-[10px] font-black uppercase text-amber-900 bg-amber-200/50 hover:bg-amber-200 px-3.5 py-1.5 rounded-xl transition-all"
+      {/* Agency-Only Filters */}
+      {!isSuperAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm animate-fade-in">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-text-secondary">Religion</label>
+            <select
+              value={filterReligion}
+              onChange={(e) => setFilterReligion(e.target.value)}
+              className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
             >
-              {showDebug ? 'Hide Diagnostics' : 'Load & Show Diagnostics'}
-            </button>
+              <option value="all">All Religions</option>
+              {uniqueReligions.map((r) => (
+                <option key={r} value={r.toLowerCase()}>
+                  {r}
+                </option>
+              ))}
+            </select>
           </div>
-          {showDebug && debugInfo && (
-            <div className="mt-3 space-y-2 text-amber-950 font-medium">
-              <p><strong>Logged in User:</strong> {debugInfo.sessionUser?.email} ({debugInfo.sessionUser?.role})</p>
-              <p><strong>User Agency Template ID:</strong> {debugInfo.sessionUser?.agency || 'NONE (If you are logged in as an agency user, this MUST be set e.g. "ussus" in the database user table)'}</p>
-              <p><strong>Database Stats:</strong> Total candidates in system: {debugInfo.databaseStats?.totalCandidates ?? 0} | Total CVs: {debugInfo.databaseStats?.totalCVs ?? 0}</p>
-              <p><strong>Generated CV Templates in DB:</strong> {JSON.stringify(debugInfo.databaseStats?.uniqueTemplates || [])}</p>
-              <p><strong>Sample Candidates:</strong> {JSON.stringify(debugInfo.databaseStats?.sampleCandidates || [])}</p>
-              {debugInfo.error && <p className="text-red-600 font-bold"><strong>Server Error:</strong> {debugInfo.error}</p>}
-            </div>
-          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-text-secondary">Job Title</label>
+            <select
+              value={filterJob}
+              onChange={(e) => setFilterJob(e.target.value)}
+              className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            >
+              <option value="all">All Jobs</option>
+              {uniqueJobs.map((j) => (
+                <option key={j} value={j.toLowerCase()}>
+                  {j}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-text-secondary">Min Age</label>
+            <input
+              type="number"
+              placeholder="e.g. 21"
+              value={filterMinAge}
+              onChange={(e) => setFilterMinAge(e.target.value)}
+              className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-text-secondary">Max Age</label>
+            <input
+              type="number"
+              placeholder="e.g. 45"
+              value={filterMaxAge}
+              onChange={(e) => setFilterMaxAge(e.target.value)}
+              className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
         </div>
       )}
 
@@ -604,47 +698,18 @@ export default function AgencyContractsPage() {
                         </button>
                       </td>
 
-                      {/* Medical Status Dropdown Selector */}
+                      {/* Medical Status (Read-only Badge) */}
                       <td className="px-5 py-4.5 text-center">
-                        <div className="relative inline-block" ref={openDropdownId === `medical-${c.id}` ? dropdownRef : null}>
-                          <button
-                            disabled={updatingField !== null}
-                            onClick={() => setOpenDropdownId(openDropdownId === `medical-${c.id}` ? null : `medical-${c.id}`)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                              c.medicalStatus === 'Fit' && 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]'
-                            } ${
-                              c.medicalStatus === 'Unfit' && 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
-                            } ${
-                              c.medicalStatus === 'New' && 'bg-blue-50 text-blue-700 border-blue-200'
-                            } ${
-                              (!c.medicalStatus || c.medicalStatus === 'Pending') && 'bg-slate-50 text-slate-700 border-slate-200'
-                            }`}
-                          >
-                            {isUpdating('medicalStatus') ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <>
-                                <span>{c.medicalStatus || 'Pending'}</span>
-                                <ChevronDown size={10} className="opacity-60" />
-                              </>
-                            )}
-                          </button>
-
-                          {openDropdownId === `medical-${c.id}` && (
-                            <div className="absolute left-1/2 -translate-x-1/2 mt-1 w-28 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden font-bold">
-                              {['Pending', 'New', 'Fit', 'Unfit'].map((status) => (
-                                <button
-                                  key={status}
-                                  onClick={() => handleUpdateCandidate(c.id, { medicalStatus: status as any })}
-                                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                                >
-                                  <span>{status}</span>
-                                  {c.medicalStatus === status && <Check size={12} className="text-primary" />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <span
+                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
+                            c.medicalStatus === 'Fit' ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' :
+                            c.medicalStatus === 'Unfit' ? 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]' :
+                            c.medicalStatus === 'New' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {c.medicalStatus || 'Pending'}
+                        </span>
                       </td>
 
                       {/* Tasheer Status */}
@@ -677,19 +742,17 @@ export default function AgencyContractsPage() {
                         </button>
                       </td>
 
-                      {/* QR Code Status */}
+                      {/* QR Code Status (Read-only Badge) */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={updatingField !== null}
-                          onClick={() => handleUpdateCandidate(c.id, { qrCodeStatus: c.qrCodeStatus === 'Yes' ? 'No' : 'Yes' })}
-                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                        <span
+                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
                             c.qrCodeStatus === 'Yes' 
-                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
-                              : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
+                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
+                              : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
                           }`}
                         >
-                          {isUpdating('qrCodeStatus') ? <Loader2 size={12} className="animate-spin" /> : c.qrCodeStatus}
-                        </button>
+                          {c.qrCodeStatus || 'No'}
+                        </span>
                       </td>
 
                       {/* Selected Type */}
@@ -707,21 +770,11 @@ export default function AgencyContractsPage() {
                         </button>
                       </td>
 
-                      {/* Travel Date Picker (Interactive Date Input) */}
+                      {/* Travel Date (Read-only Text) */}
                       <td className="px-5 py-4.5">
-                        {isUpdating('travelDate') ? (
-                          <div className="flex items-center gap-1.5 text-text-tertiary">
-                            <Loader2 size={12} className="animate-spin" />
-                            <span className="text-xs">Saving...</span>
-                          </div>
-                        ) : (
-                          <input 
-                            type="date"
-                            value={c.travelDate ? c.travelDate.substring(0, 10) : ''}
-                            onChange={(e) => handleUpdateCandidate(c.id, { travelDate: e.target.value || null })}
-                            className="bg-transparent border-0 font-bold text-gray-700 text-xs focus:ring-0 focus:outline-none cursor-pointer hover:underline p-0 w-28"
-                          />
-                        )}
+                        <span className="font-bold text-gray-700 text-xs">
+                          {c.travelDate ? c.travelDate.substring(0, 10) : '—'}
+                        </span>
                       </td>
 
                       {/* Agency Status Dropdown */}
