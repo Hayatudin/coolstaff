@@ -79,6 +79,7 @@ interface AvailableCandidate {
   latestCVTemplate: string | null;
   broker: { name: string } | null;
   agency?: string | null;
+  registeredAt?: string | null;
 }
 
 const getCandidateAgencyName = (c: AvailableCandidate) => {
@@ -126,6 +127,7 @@ export default function AvailableCandidatesPage() {
   const [filterJob, setFilterJob] = useState<string>('all');
   const [filterMinAge, setFilterMinAge] = useState<string>('');
   const [filterMaxAge, setFilterMaxAge] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   // Selection state
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
@@ -320,12 +322,13 @@ export default function AvailableCandidatesPage() {
     setFilterJob('all');
     setFilterMinAge('');
     setFilterMaxAge('');
+    setSortOrder('newest');
     setCurrentPage(1);
   };
 
   // Memoized filtered candidates list
   const filteredCandidates = useMemo(() => {
-    return candidates.filter(c => {
+    const filtered = candidates.filter(c => {
       // 1. Text Search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -355,12 +358,23 @@ export default function AvailableCandidatesPage() {
 
       return true;
     });
-  }, [candidates, searchQuery, filterReligion, filterJob, filterMinAge, filterMaxAge]);
 
-  // Reset page when filters change
+    // Sort by registration date
+    return filtered.sort((a, b) => {
+      const dateA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+      const dateB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+      if (sortOrder === 'newest') {
+        return dateB - dateA;
+      } else {
+        return dateA - dateB;
+      }
+    });
+  }, [candidates, searchQuery, filterReligion, filterJob, filterMinAge, filterMaxAge, sortOrder]);
+
+  // Reset page when filters or sorting change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterReligion, filterJob, filterMinAge, filterMaxAge]);
+  }, [searchQuery, filterReligion, filterJob, filterMinAge, filterMaxAge, sortOrder]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -491,7 +505,19 @@ export default function AvailableCandidatesPage() {
           </button>
         </form>
         
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl border border-gray-200">
+            <span className="text-xs font-black text-text-secondary">Sort:</span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+              className="bg-transparent text-xs font-bold text-text-primary focus:outline-none cursor-pointer border-0 p-0 pr-6"
+            >
+              <option value="newest">New to Old</option>
+              <option value="oldest">Old to New</option>
+            </select>
+          </div>
+
           <button 
             onClick={handleResetFilters}
             className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors active:scale-95 cursor-pointer"
@@ -514,7 +540,6 @@ export default function AvailableCandidatesPage() {
                 <th className="px-5 py-4 font-semibold text-center">Age</th>
                 <th className="px-5 py-4 font-semibold text-center">Religion</th>
                 <th className="px-5 py-4 font-semibold">Job/Role</th>
-                <th className="px-5 py-4 font-semibold">Broker</th>
                 <th className="px-5 py-4 font-semibold text-center">Video</th>
                 <th className="px-5 py-4 font-semibold text-center">CV</th>
                 <th className="px-5 py-4 font-semibold text-center">Action</th>
@@ -523,7 +548,7 @@ export default function AvailableCandidatesPage() {
             <tbody className="divide-y divide-border/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 10 : 9} className="px-6 py-24 text-center">
+                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={36} className="text-[#464479] animate-spin" />
                       <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading available candidates...</p>
@@ -582,13 +607,6 @@ export default function AvailableCandidatesPage() {
                         </span>
                       </td>
 
-                      {/* Broker */}
-                      <td className="px-5 py-4.5">
-                        <span className="font-semibold text-slate-700">
-                          {c.broker?.name || '—'}
-                        </span>
-                      </td>
-
                       {/* Video */}
                       <td className="px-5 py-4.5 text-center">
                         {c.videoUrl ? (
@@ -641,7 +659,7 @@ export default function AvailableCandidatesPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 10 : 9} className="px-6 py-32 text-center">
+                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-6 py-32 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
                         <User size={24} className="text-gray-300" />

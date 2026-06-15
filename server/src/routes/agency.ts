@@ -265,7 +265,8 @@ router.get('/candidates', async (req: Request, res: Response) => {
         religion: c.religion,
         job: c.job,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: c.Youtube_URL || c.quickVideoUrl || null
+        videoUrl: c.Youtube_URL || c.quickVideoUrl || null,
+        registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null
       };
     }));
 
@@ -407,7 +408,8 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         religion: c.religion,
         job: c.job,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: c.Youtube_URL || c.quickVideoUrl || null
+        videoUrl: c.Youtube_URL || c.quickVideoUrl || null,
+        registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null
       };
     }));
 
