@@ -409,7 +409,15 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         job: c.job,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
         videoUrl: c.Youtube_URL || c.quickVideoUrl || null,
-        registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null
+        registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null,
+        facePhotoUrl: c.facePhotoUrl,
+        fullBodyPhotoUrl: c.fullBodyPhotoUrl,
+        passportImageUrl: c.passportImageUrl,
+        nationality: c.nationality,
+        educationLevel: c.educationLevel,
+        maritalStatus: c.maritalStatus,
+        workExperience: c.workExperience,
+        skills: c.skills
       };
     }));
 

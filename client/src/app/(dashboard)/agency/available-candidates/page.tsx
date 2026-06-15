@@ -12,12 +12,7 @@ import {
   User, 
   Video, 
   FileText, 
-  ChevronDown,
-  Briefcase,
-  Heart,
-  Globe,
-  Calendar,
-  GraduationCap
+  Image as ImageIcon
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFileUrl } from '@/lib/utils';
@@ -80,7 +75,17 @@ interface AvailableCandidate {
   broker: { name: string } | null;
   agency?: string | null;
   registeredAt?: string | null;
+  facePhotoUrl?: string | null;
+  fullBodyPhotoUrl?: string | null;
+  passportImageUrl?: string | null;
+  nationality?: string | null;
+  educationLevel?: string | null;
+  maritalStatus?: string | null;
+  workExperience?: any;
+  skills?: any;
 }
+
+const SKILL_TAGS = ['WASH & IRON', 'BABY SITTING', 'COOKING', 'CLEANING', 'DRIVING'];
 
 const getCandidateAgencyName = (c: AvailableCandidate) => {
   const rawAgency = c.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || c.agency?.toLowerCase() || '';
@@ -105,35 +110,113 @@ const getYouTubeEmbedUrl = (url: string) => {
   return url;
 };
 
+// Safe skills array parser
+const getSkillsArray = (skills: any): string[] => {
+  if (!skills) return [];
+  if (Array.isArray(skills)) return skills.map(String);
+  if (typeof skills === 'string') {
+    try {
+      const parsed = JSON.parse(skills);
+      if (Array.isArray(parsed)) return parsed.map(String);
+      return [skills];
+    } catch {
+      return skills.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
+// Skills matcher helper
+const matchesSkill = (candidateSkills: string[], skillName: string): boolean => {
+  const normalized = skillName.toLowerCase();
+  if (normalized === 'wash & iron') {
+    return candidateSkills.some(s => {
+      const l = s.toLowerCase();
+      return l.includes('wash') || l.includes('iron') || l.includes('laundry');
+    });
+  }
+  if (normalized === 'baby sitting') {
+    return candidateSkills.some(s => {
+      const l = s.toLowerCase();
+      return l.includes('baby') || l.includes('sitting') || l.includes('child') || l.includes('kid');
+    });
+  }
+  if (normalized === 'cooking') {
+    return candidateSkills.some(s => {
+      const l = s.toLowerCase();
+      return l.includes('cook');
+    });
+  }
+  if (normalized === 'cleaning') {
+    return candidateSkills.some(s => {
+      const l = s.toLowerCase();
+      return l.includes('clean');
+    });
+  }
+  if (normalized === 'driving') {
+    return candidateSkills.some(s => {
+      const l = s.toLowerCase();
+      return l.includes('driv');
+    });
+  }
+  return candidateSkills.some(s => s.toLowerCase().includes(normalized));
+};
+
+const getExperienceDisplay = (workExperience: any): string => {
+  const exps = Array.isArray(workExperience) ? workExperience : [];
+  if (exps.length === 0) {
+    return 'First-Timer (جديد)';
+  }
+  return 'Experienced';
+};
+
 export default function AvailableCandidatesPage() {
   const [candidates, setCandidates] = useState<AvailableCandidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 9;
 
   // Search and Filter States
-  const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
   const isSuperAdmin = userRole === 'super_admin';
 
-  // Filters
-  const [filterReligion, setFilterReligion] = useState<string>('all');
-  const [filterJob, setFilterJob] = useState<string>('all');
-  const [filterMinAge, setFilterMinAge] = useState<string>('');
-  const [filterMaxAge, setFilterMaxAge] = useState<string>('');
+  // Input states for filters
+  const [inputMinAge, setInputMinAge] = useState('');
+  const [inputMaxAge, setInputMaxAge] = useState('');
+  const [inputReligion, setInputReligion] = useState('all');
+  const [inputExperience, setInputExperience] = useState('all');
+  const [inputEducation, setInputEducation] = useState('all');
+  const [inputMaritalStatus, setInputMaritalStatus] = useState('all');
+  const [inputSkills, setInputSkills] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+  // Applied filter states
+  const [appliedFilters, setAppliedFilters] = useState({
+    minAge: '',
+    maxAge: '',
+    religion: 'all',
+    experience: 'all',
+    education: 'all',
+    maritalStatus: 'all',
+    skills: [] as string[],
+  });
 
   // Selection state
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
+  const [selectedCheckboxes, setSelectedCheckboxes] = useState<Set<string>>(new Set());
 
   // Video modal state
   const [playVideoUrl, setPlayVideoUrl] = useState<string | null>(null);
+
+  // Full Image Modal State
+  const [previewFullImageUrl, setPreviewFullImageUrl] = useState<string | null>(null);
 
   // CV Preview States
   const [previewCv, setPreviewCv] = useState<{ candidate: Candidate; templateId: string } | null>(null);
@@ -141,21 +224,29 @@ export default function AvailableCandidatesPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const cvRenderRef = useRef<HTMLDivElement>(null);
 
-  // Dynamically compute unique jobs and religions from candidates list
-  const uniqueJobs = useMemo(() => {
-    const jobs = new Set<string>();
-    candidates.forEach(c => {
-      if (c.job) jobs.add(c.job.trim());
-    });
-    return Array.from(jobs).sort();
-  }, [candidates]);
-
+  // Dynamically compute unique filters from candidates list
   const uniqueReligions = useMemo(() => {
     const religions = new Set<string>();
     candidates.forEach(c => {
       if (c.religion) religions.add(c.religion.trim());
     });
     return Array.from(religions).sort();
+  }, [candidates]);
+
+  const uniqueEducationLevels = useMemo(() => {
+    const edu = new Set<string>();
+    candidates.forEach(c => {
+      if (c.educationLevel) edu.add(c.educationLevel.trim());
+    });
+    return Array.from(edu).sort();
+  }, [candidates]);
+
+  const uniqueMaritalStatuses = useMemo(() => {
+    const status = new Set<string>();
+    candidates.forEach(c => {
+      if (c.maritalStatus) status.add(c.maritalStatus.trim());
+    });
+    return Array.from(status).sort();
   }, [candidates]);
 
   // Helper to calculate candidate age
@@ -301,6 +392,11 @@ export default function AvailableCandidatesPage() {
       
       // Remove candidate from available list
       setCandidates(prev => prev.filter(c => c.id !== id));
+      setSelectedCheckboxes(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       alert('Candidate successfully selected! The candidate has been moved to the Contracts page.');
     } catch (err: any) {
       alert(err.message || 'Failed to select candidate.');
@@ -315,20 +411,78 @@ export default function AvailableCandidatesPage() {
     setCurrentPage(1);
   };
 
-  const handleResetFilters = () => {
+  const toggleSkillTag = (skill: string) => {
+    setInputSkills(prev => {
+      if (prev.includes(skill)) {
+        return prev.filter(s => s !== skill);
+      } else {
+        return [...prev, skill];
+      }
+    });
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      minAge: inputMinAge,
+      maxAge: inputMaxAge,
+      religion: inputReligion,
+      experience: inputExperience,
+      education: inputEducation,
+      maritalStatus: inputMaritalStatus,
+      skills: inputSkills,
+    });
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setInputMinAge('');
+    setInputMaxAge('');
+    setInputReligion('all');
+    setInputExperience('all');
+    setInputEducation('all');
+    setInputMaritalStatus('all');
+    setInputSkills([]);
+    setAppliedFilters({
+      minAge: '',
+      maxAge: '',
+      religion: 'all',
+      experience: 'all',
+      education: 'all',
+      maritalStatus: 'all',
+      skills: [],
+    });
     setSearchInput('');
     setSearchQuery('');
-    setFilterReligion('all');
-    setFilterJob('all');
-    setFilterMinAge('');
-    setFilterMaxAge('');
-    setSortOrder('newest');
     setCurrentPage(1);
+  };
+
+  // Toggle single checkbox
+  const handleToggleCheckbox = (id: string) => {
+    setSelectedCheckboxes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Select all visible candidates
+  const handleSelectAll = () => {
+    const allIds = filteredCandidates.map(c => c.id);
+    setSelectedCheckboxes(new Set(allIds));
+  };
+
+  // Unselect all
+  const handleUnselectAll = () => {
+    setSelectedCheckboxes(new Set());
   };
 
   // Memoized filtered candidates list
   const filteredCandidates = useMemo(() => {
-    const filtered = candidates.filter(c => {
+    return candidates.filter(c => {
       // 1. Text Search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -338,29 +492,55 @@ export default function AvailableCandidatesPage() {
         if (!matchesName && !matchesPassport) return false;
       }
 
-      // 2. Religion Filter
-      if (filterReligion !== 'all' && c.religion?.toLowerCase() !== filterReligion) {
-        return false;
-      }
-
-      // 3. Job Filter
-      if (filterJob !== 'all' && c.job?.toLowerCase() !== filterJob) {
-        return false;
-      }
-
-      // 4. Age Range Filters
-      if (filterMinAge || filterMaxAge) {
+      // 2. Age Range Filters
+      if (appliedFilters.minAge || appliedFilters.maxAge) {
         const age = getAge(c.dateOfBirth);
         if (age === null) return false;
-        if (filterMinAge && age < parseInt(filterMinAge)) return false;
-        if (filterMaxAge && age > parseInt(filterMaxAge)) return false;
+        if (appliedFilters.minAge && age < parseInt(appliedFilters.minAge)) return false;
+        if (appliedFilters.maxAge && age > parseInt(appliedFilters.maxAge)) return false;
+      }
+
+      // 3. Religion Filter
+      if (appliedFilters.religion !== 'all') {
+        if (!c.religion || c.religion.toLowerCase() !== appliedFilters.religion.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 4. Experience Filter
+      if (appliedFilters.experience !== 'all') {
+        const exps = Array.isArray(c.workExperience) ? c.workExperience : [];
+        if (appliedFilters.experience === 'first-timer' && exps.length > 0) {
+          return false;
+        }
+        if (appliedFilters.experience === 'experienced' && exps.length === 0) {
+          return false;
+        }
+      }
+
+      // 5. Education Filter
+      if (appliedFilters.education !== 'all') {
+        if (!c.educationLevel || c.educationLevel.toLowerCase() !== appliedFilters.education.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 6. Marital Status Filter
+      if (appliedFilters.maritalStatus !== 'all') {
+        if (!c.maritalStatus || c.maritalStatus.toLowerCase() !== appliedFilters.maritalStatus.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 7. Skills Tag Filter
+      if (appliedFilters.skills.length > 0) {
+        const candidateSkills = getSkillsArray(c.skills);
+        const matchesAllSkills = appliedFilters.skills.every(skill => matchesSkill(candidateSkills, skill));
+        if (!matchesAllSkills) return false;
       }
 
       return true;
-    });
-
-    // Sort by registration date
-    return filtered.sort((a, b) => {
+    }).sort((a, b) => {
       const dateA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
       const dateB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
       if (sortOrder === 'newest') {
@@ -369,12 +549,7 @@ export default function AvailableCandidatesPage() {
         return dateA - dateB;
       }
     });
-  }, [candidates, searchQuery, filterReligion, filterJob, filterMinAge, filterMaxAge, sortOrder]);
-
-  // Reset page when filters or sorting change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filterReligion, filterJob, filterMinAge, filterMaxAge, sortOrder]);
+  }, [candidates, searchQuery, appliedFilters, sortOrder]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -427,64 +602,7 @@ export default function AvailableCandidatesPage() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm animate-fade-in">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-black text-text-secondary">Religion</label>
-          <select
-            value={filterReligion}
-            onChange={(e) => setFilterReligion(e.target.value)}
-            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          >
-            <option value="all">All Religions</option>
-            {uniqueReligions.map((r) => (
-              <option key={r} value={r.toLowerCase()}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-black text-text-secondary">Job Title</label>
-          <select
-            value={filterJob}
-            onChange={(e) => setFilterJob(e.target.value)}
-            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          >
-            <option value="all">All Jobs</option>
-            {uniqueJobs.map((j) => (
-              <option key={j} value={j.toLowerCase()}>
-                {j}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-black text-text-secondary">Min Age</label>
-          <input
-            type="number"
-            placeholder="e.g. 21"
-            value={filterMinAge}
-            onChange={(e) => setFilterMinAge(e.target.value)}
-            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-black text-text-secondary">Max Age</label>
-          <input
-            type="number"
-            placeholder="e.g. 45"
-            value={filterMaxAge}
-            onChange={(e) => setFilterMaxAge(e.target.value)}
-            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-      </div>
-
-      {/* Search and Toolbars */}
+      {/* Search Input and Sort Control */}
       <div className="flex flex-col xl:flex-row xl:items-center gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm">
         <form onSubmit={handleSearch} className="flex-1 flex gap-2">
           <div className="relative flex-1">
@@ -517,174 +635,335 @@ export default function AvailableCandidatesPage() {
               <option value="oldest">Old to New</option>
             </select>
           </div>
+        </div>
+      </div>
 
-          <button 
-            onClick={handleResetFilters}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors active:scale-95 cursor-pointer"
+      {/* Filters Panel */}
+      <div className="flex flex-col gap-3 bg-white/80 backdrop-blur-md p-5 rounded-3xl border border-white/20 shadow-sm">
+        {/* Line 1: Age interval and Dropdowns */}
+        <div className="flex flex-wrap items-center gap-3.5">
+          {/* Age Bounds */}
+          <div className="flex items-center gap-2 text-xs font-black text-slate-650">
+            <span>Age:</span>
+            <input
+              type="number"
+              placeholder="Min"
+              value={inputMinAge}
+              onChange={(e) => setInputMinAge(e.target.value)}
+              className="w-16 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 text-center"
+            />
+            <span className="text-slate-400 font-medium">to</span>
+            <input
+              type="number"
+              placeholder="Max"
+              value={inputMaxAge}
+              onChange={(e) => setInputMaxAge(e.target.value)}
+              className="w-16 px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 text-center"
+            />
+          </div>
+
+          {/* Religion Select */}
+          <select
+            value={inputReligion}
+            onChange={(e) => setInputReligion(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset Filters
+            <option value="all">All religions</option>
+            {uniqueReligions.map((r) => (
+              <option key={r} value={r.toLowerCase()}>
+                {r}
+              </option>
+            ))}
+          </select>
+
+          {/* Experience Select */}
+          <select
+            value={inputExperience}
+            onChange={(e) => setInputExperience(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
+          >
+            <option value="all">All experience</option>
+            <option value="first-timer">First-Timer</option>
+            <option value="experienced">Experienced</option>
+          </select>
+
+          {/* Education Select */}
+          <select
+            value={inputEducation}
+            onChange={(e) => setInputEducation(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
+          >
+            <option value="all">All education</option>
+            {uniqueEducationLevels.map((e) => (
+              <option key={e} value={e.toLowerCase()}>
+                {e}
+              </option>
+            ))}
+          </select>
+
+          {/* Marital Status Select */}
+          <select
+            value={inputMaritalStatus}
+            onChange={(e) => setInputMaritalStatus(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
+          >
+            <option value="all">All marital status</option>
+            {uniqueMaritalStatuses.map((s) => (
+              <option key={s} value={s.toLowerCase()}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Line 2: Skills and Action buttons */}
+        <div className="flex flex-wrap items-center gap-3.5 mt-2 pt-3 border-t border-dashed border-gray-150/80">
+          <span className="text-xs font-black text-slate-650">Skills:</span>
+          <div className="flex flex-wrap gap-2">
+            {SKILL_TAGS.map((skill) => {
+              const active = inputSkills.includes(skill);
+              return (
+                <button
+                  key={skill}
+                  type="button"
+                  onClick={() => toggleSkillTag(skill)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                    active
+                      ? 'bg-[#e2315a] text-white border border-[#e2315a] shadow-sm shadow-pink-100'
+                      : 'bg-[#e2315a]/10 text-[#e2315a] border border-transparent hover:bg-[#e2315a]/20'
+                  }`}
+                >
+                  {skill}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              className="bg-[#00A4EF] hover:bg-[#008bcb] text-white px-5 py-1.5 rounded-full text-xs font-black transition-all shadow-sm cursor-pointer"
+            >
+              Filter
+            </button>
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="bg-[#e2315a] hover:bg-[#c9244c] text-white px-5 py-1.5 rounded-full text-xs font-black transition-all shadow-sm cursor-pointer"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats and Selection Counter Status Bar */}
+      <div className="bg-white p-5 rounded-[20px] border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-6">
+          {/* Available Count */}
+          <div className="flex items-center gap-2">
+            <div className="bg-[#e2315a] text-white rounded-full w-8 h-8 flex items-center justify-center font-extrabold text-sm shadow-sm shadow-pink-200">
+              {filteredCandidates.length}
+            </div>
+            <span className="text-sm font-black text-slate-700">Available</span>
+          </div>
+
+          {/* Selected Count */}
+          <div className="flex items-center gap-2">
+            <div className="bg-[#00A4EF] text-white rounded-full w-8 h-8 flex items-center justify-center font-extrabold text-sm shadow-sm shadow-blue-200">
+              {selectedCheckboxes.size}
+            </div>
+            <span className="text-sm font-black text-slate-700">Selected</span>
+          </div>
+        </div>
+
+        {/* Links */}
+        <div className="flex items-center gap-4 text-xs font-black text-[#00A4EF]">
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className="hover:underline cursor-pointer transition-all active:scale-95"
+          >
+            Select All
+          </button>
+          <span className="text-slate-300 font-normal">|</span>
+          <button
+            type="button"
+            onClick={handleUnselectAll}
+            className="hover:underline cursor-pointer transition-all active:scale-95"
+          >
+            Unselect All
           </button>
         </div>
       </div>
 
-      {/* Main Table Container */}
-      <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
-                <th className="px-5 py-4 font-semibold text-center w-12">#</th>
-                <th className="px-5 py-4 font-semibold">Candidate</th>
-                {isSuperAdmin && <th className="px-5 py-4 font-semibold">Agency</th>}
-                <th className="px-5 py-4 font-semibold text-center">Age</th>
-                <th className="px-5 py-4 font-semibold text-center">Religion</th>
-                <th className="px-5 py-4 font-semibold">Job/Role</th>
-                <th className="px-5 py-4 font-semibold text-center">Video</th>
-                <th className="px-5 py-4 font-semibold text-center">CV</th>
-                <th className="px-5 py-4 font-semibold text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/20 text-sm">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-6 py-24 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <Loader2 size={36} className="text-[#464479] animate-spin" />
-                      <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading available candidates...</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : paginatedCandidates.length > 0 ? (
-                paginatedCandidates.map((c, index) => {
-                  const rollNo = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
-                  return (
-                    <tr key={c.id} className="hover:bg-gray-50/30 transition-colors group">
-                      
-                      {/* Roll Number */}
-                      <td className="px-5 py-4.5 text-center font-bold text-text-tertiary">
-                        {rollNo}
-                      </td>
-
-                      {/* Candidate Identity */}
-                      <td className="px-5 py-4.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-600 shrink-0">
-                            {c.givenNames.charAt(0)}{c.surname.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="font-extrabold text-[#1E293B] text-sm uppercase leading-tight">
-                              {c.givenNames} {c.surname}
-                            </p>
-                            <p className="text-[11px] text-text-tertiary font-medium mt-0.5 font-mono">{c.passportNumber}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Agency Column */}
-                      {isSuperAdmin && (
-                        <td className="px-5 py-4.5">
-                          <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-xl bg-cyan-50 text-cyan-700 border border-cyan-100">
-                            {getCandidateAgencyName(c)}
-                          </span>
-                        </td>
-                      )}
-
-                      {/* Age */}
-                      <td className="px-5 py-4.5 text-center font-bold text-gray-700">
-                        {getAge(c.dateOfBirth) || '—'}
-                      </td>
-
-                      {/* Religion */}
-                      <td className="px-5 py-4.5 text-center font-semibold text-gray-750">
-                        {c.religion || '—'}
-                      </td>
-
-                      {/* Job */}
-                      <td className="px-5 py-4.5">
-                        <span className="font-semibold text-slate-700">
-                          {c.job || '—'}
-                        </span>
-                      </td>
-
-                      {/* Video */}
-                      <td className="px-5 py-4.5 text-center">
-                        {c.videoUrl ? (
-                          <button
-                            onClick={() => setPlayVideoUrl(c.videoUrl)}
-                            className="px-3.5 py-1.5 rounded-xl border border-rose-500/35 hover:border-rose-500 text-rose-500 hover:bg-rose-500/5 text-xs font-extrabold shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Video size={12} />
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-xs font-semibold text-text-tertiary italic">No Video</span>
-                        )}
-                      </td>
-
-                      {/* CV */}
-                      <td className="px-5 py-4.5 text-center">
-                        {c.latestCVTemplate ? (
-                          <button
-                            disabled={loadingCvId === c.id}
-                            onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
-                            className="px-3.5 py-1.5 rounded-xl border border-[#00A4EF]/35 hover:border-[#00A4EF] text-[#00A4EF] hover:bg-[#00A4EF]/5 text-xs font-extrabold shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            {loadingCvId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-xs font-semibold text-text-tertiary italic">No CV</span>
-                        )}
-                      </td>
-
-                      {/* Action (Select) */}
-                      <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={isSelectingId !== null}
-                          onClick={() => handleSelectCandidate(c.id)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/50 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5 cursor-pointer"
-                        >
-                          {isSelectingId === c.id ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Check size={12} />
-                          )}
-                          Select
-                        </button>
-                      </td>
-
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-6 py-32 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
-                        <User size={24} className="text-gray-300" />
-                      </div>
-                      <p className="text-sm font-bold text-gray-900">No candidates found</p>
-                      <p className="text-xs text-gray-400">
-                        {searchQuery || filterReligion !== 'all' || filterJob !== 'all' || filterMinAge || filterMaxAge
-                          ? 'Try resetting the filters'
-                          : 'There are no available candidates matching your agency at the moment.'}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer info counts */}
-        {!isLoading && filteredCandidates.length > 0 && (
-          <div className="px-6 py-4 border-t border-border/20 text-xs text-text-tertiary flex items-center justify-between">
-            <span>Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredCandidates.length)} of {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''}</span>
+      {/* Main Grid of Candidate Cards */}
+      {isLoading ? (
+        <div className="bg-white rounded-[2rem] border border-gray-100 p-24 text-center shadow-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 size={36} className="text-primary animate-spin" />
+            <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading available candidates...</p>
           </div>
-        )}
-      </div>
+        </div>
+      ) : paginatedCandidates.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {paginatedCandidates.map((c) => {
+            const hasVideo = !!c.videoUrl;
+            return (
+              <div 
+                key={c.id} 
+                className="bg-white border-2 border-[#e2315a] rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col"
+              >
+                {/* Selection Checkbox */}
+                <div className="absolute top-4 left-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedCheckboxes.has(c.id)}
+                    onChange={() => handleToggleCheckbox(c.id)}
+                    className="w-5 h-5 border-2 border-slate-350 rounded accent-[#e2315a] cursor-pointer"
+                  />
+                </div>
+
+                {/* Age Badge */}
+                <div className="absolute top-4 right-4 bg-white border border-[#e2315a] text-[#e2315a] text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm">
+                  {getAge(c.dateOfBirth) ? `${getAge(c.dateOfBirth)} Years` : '—'}
+                </div>
+
+                {/* Avatar and Full Image Button */}
+                <div className="flex items-center gap-4 mt-6">
+                  <div className="w-20 h-20 rounded-full border-4 border-[#e2315a] overflow-hidden shrink-0 shadow-sm">
+                    <img
+                      src={getFileUrl(c.facePhotoUrl || c.passportImageUrl || '')}
+                      alt={c.givenNames}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/150x150/f472b6/ffffff?text=' + c.givenNames.charAt(0);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFullImageUrl(getFileUrl(c.fullBodyPhotoUrl || c.facePhotoUrl || c.passportImageUrl || ''))}
+                      className="flex items-center gap-1.5 bg-[#e2315a] hover:bg-[#c9244c] text-white text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all active:scale-95 shadow-sm shadow-pink-200 cursor-pointer"
+                    >
+                      <ImageIcon size={12} className="shrink-0" />
+                      Full image
+                    </button>
+                  </div>
+                </div>
+
+                {/* Candidate Name */}
+                <h3 className="font-black text-[#1e293b] text-[15px] uppercase leading-snug mt-4 font-sans tracking-wide">
+                  {c.givenNames} {c.surname}
+                </h3>
+
+                {/* Details list (two columns grid) */}
+                <div className="mt-4 pt-4 border-t border-dashed border-pink-100 flex flex-col gap-2.5 text-[12px] text-slate-700">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Passport No : </span>
+                      <span className="font-extrabold text-slate-800">{c.passportNumber}</span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Job : </span>
+                      <span className="font-extrabold text-slate-800">{c.job || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Nationality : </span>
+                      <span className="font-extrabold text-slate-800">{c.nationality || '—'}</span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Experience : </span>
+                      <span className="font-extrabold text-slate-800">
+                        {getExperienceDisplay(c.workExperience)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="truncate">
+                    <span className="text-slate-400 font-medium">Religion : </span>
+                    <span className="font-extrabold text-slate-800">{c.religion || '—'}</span>
+                  </div>
+                </div>
+
+                {/* Conditional View CV and Watch Video Buttons */}
+                {hasVideo ? (
+                  <div className="flex items-center gap-2 mt-5">
+                    <button
+                      type="button"
+                      disabled={loadingCvId === c.id}
+                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
+                      className="flex-1 bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {loadingCvId === c.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <FileText size={14} />
+                      )}
+                      View CV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPlayVideoUrl(c.videoUrl)}
+                      className="flex-1 bg-[#e2315a] hover:bg-[#c9244c] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Video size={14} />
+                      Watch Video
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-5">
+                    <button
+                      type="button"
+                      disabled={loadingCvId === c.id}
+                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
+                      className="w-full bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {loadingCvId === c.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <FileText size={14} />
+                      )}
+                      View CV
+                    </button>
+                  </div>
+                )}
+
+                {/* Green Select Button at the bottom of the card */}
+                <button
+                  type="button"
+                  disabled={isSelectingId !== null}
+                  onClick={() => handleSelectCandidate(c.id)}
+                  className="w-full mt-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                >
+                  {isSelectingId === c.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                  Select
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-white rounded-[2rem] border border-gray-100 p-32 text-center shadow-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
+              <User size={24} className="text-gray-300" />
+            </div>
+            <p className="text-sm font-bold text-gray-900">No candidates found</p>
+            <p className="text-xs text-gray-400">
+              {searchQuery || appliedFilters.minAge || appliedFilters.maxAge || appliedFilters.religion !== 'all' || appliedFilters.experience !== 'all' || appliedFilters.skills.length > 0
+                ? 'Try resetting the filters'
+                : 'There are no available candidates matching your agency at the moment.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Pagination component */}
       {!isLoading && totalPages > 1 && (
@@ -857,6 +1136,52 @@ export default function AvailableCandidatesPage() {
             <div className="p-4 border-t border-border bg-gray-50/50 flex justify-end">
               <button 
                 onClick={() => setPlayVideoUrl(null)}
+                className="px-5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-750 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Body Image Overlay Modal */}
+      {previewFullImageUrl && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewFullImageUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col animate-scale-in"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4.5 border-b border-border bg-gray-50/50">
+              <h3 className="font-extrabold text-text-primary text-sm flex items-center gap-2">
+                <ImageIcon size={18} className="text-[#e2315a]" />
+                Candidate Full Image
+              </h3>
+              <button 
+                onClick={() => setPreviewFullImageUrl(null)}
+                className="text-text-tertiary hover:text-text-primary p-2 rounded-lg hover:bg-gray-100 font-bold transition-all text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 bg-slate-50 flex items-center justify-center max-h-[70vh] overflow-y-auto relative">
+              <img
+                src={previewFullImageUrl}
+                alt="Full Candidate"
+                className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-md"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://placehold.co/300x450/f472b6/ffffff?text=Full+Photo+Unavailable';
+                }}
+              />
+            </div>
+            
+            <div className="p-4 border-t border-border bg-gray-50/50 flex justify-end">
+              <button 
+                onClick={() => setPreviewFullImageUrl(null)}
                 className="px-5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-750 transition-colors cursor-pointer"
               >
                 Close
