@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, ChevronDown, User, FileText, X, Loader2, CheckCheck, Menu, RotateCw } from 'lucide-react';
+import { Search, Bell, ChevronDown, User, FileText, X, Loader2, CheckCheck, Menu, RotateCw, LogOut } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
-import { useSession } from '@/lib/auth-client';
+import { useSession, signOut } from '@/lib/auth-client';
 import { api } from '@/lib/api';
 
 interface TopbarProps {
@@ -20,9 +20,11 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -37,10 +39,18 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogout = async () => {
+    await signOut();
+    window.location.href = '/';
+  };
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -292,14 +302,36 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
 
         {/* User menu — show name on md+ (only render after mount to avoid hydration mismatch) */}
         {mounted && session?.user && (
-          <div className="flex items-center gap-2 sm:gap-3 sm:pl-2 md:pl-4 md:border-l md:border-border/50 cursor-pointer hover:bg-gray-50 rounded-xl sm:rounded-2xl px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all duration-200 group">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform shrink-0">
-              <User size={14} className="text-white sm:w-4 sm:h-4" />
+          <div className="relative" ref={profileRef}>
+            <div 
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex items-center gap-2 sm:gap-3 sm:pl-2 md:pl-4 md:border-l md:border-border/50 cursor-pointer hover:bg-gray-50 rounded-xl sm:rounded-2xl px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all duration-200 group"
+            >
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform shrink-0">
+                <User size={14} className="text-white sm:w-4 sm:h-4" />
+              </div>
+              <div className="hidden md:block">
+                <p className="text-[10px] font-black uppercase tracking-tighter text-text-tertiary leading-none mb-1">{role.replace('_', ' ')}</p>
+                <p className="text-sm font-bold text-text-primary leading-none truncate max-w-[120px]">{session.user.name}</p>
+              </div>
+              <ChevronDown size={14} className={cn("text-text-tertiary transition-transform duration-200 hidden md:block", profileOpen && "rotate-180")} />
             </div>
-            <div className="hidden md:block">
-              <p className="text-[10px] font-black uppercase tracking-tighter text-text-tertiary leading-none mb-1">{role.replace('_', ' ')}</p>
-              <p className="text-sm font-bold text-text-primary leading-none truncate max-w-[120px]">{session.user.name}</p>
-            </div>
+
+            {profileOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-border py-2 z-50 animate-slide-in-top">
+                <div className="px-4 py-2 border-b border-border mb-1">
+                  <p className="text-[10px] font-black uppercase tracking-tighter text-text-tertiary leading-none mb-1.5">{role.replace('_', ' ')}</p>
+                  <p className="text-sm font-bold text-text-primary truncate">{session.user.name}</p>
+                  <p className="text-[10px] text-text-tertiary truncate">{session.user.email}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-bold text-danger hover:bg-danger/5 transition-colors cursor-pointer"
+                >
+                  <LogOut size={14} /> Sign Out
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

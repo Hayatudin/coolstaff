@@ -89,7 +89,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
   return (
     <aside
       className={cn(
-        'relative shrink-0 h-screen bg-gradient-to-b from-sidebar-from to-sidebar-to flex flex-col z-40 transition-all duration-300',
+        'relative shrink-0 h-full lg:h-screen bg-gradient-to-b from-sidebar-from to-sidebar-to flex flex-col z-40 transition-all duration-300 overflow-hidden',
         isMobile ? 'w-72' : (isCollapsed ? 'w-20' : 'w-64')
       )}
     >
@@ -157,7 +157,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       </nav>
 
       {/* Bottom section — user info + logout */}
-      <div className="px-3 pb-6 space-y-1 border-t border-white/10 pt-3 mt-2">
+      <div className="px-3 pb-6 space-y-1 border-t border-white/10 pt-3 mt-2 shrink-0">
         {/* User info */}
         {(!isCollapsed || isMobile) && session?.user && (
           <div className="px-4 py-3 mb-2 bg-white/5 rounded-xl border border-white/5 mx-1">
