@@ -24,12 +24,34 @@ import {
   Info,
   Clock,
   Video,
-  FileCheck
+  FileCheck,
+  Image as ImageIcon
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
+
+import ALMTemplate from '@/components/cv/templates/ALMTemplate';
+import KA7Template from '@/components/cv/templates/KA7Template';
+import KU2Template from '@/components/cv/templates/KU2Template';
+import MATemplate from '@/components/cv/templates/MATemplate';
+import RATemplate from '@/components/cv/templates/RATemplate';
+import AlShablanTemplate from '@/components/cv/templates/AlShablanTemplate';
+import UssusTemplate from '@/components/cv/templates/UssusTemplate';
+import VisionTemplate from '@/components/cv/templates/VisionTemplate';
+
+const TEMPLATES = [
+  { id: 'ussus', name: 'USSUS', component: UssusTemplate },
+  { id: 'al-shablan', name: 'AL-Shablan', component: AlShablanTemplate },
+  { id: 'alm', name: 'ALAALAM', component: ALMTemplate },
+  { id: 'ka7', name: 'KAAFAAT', component: KA7Template },
+  { id: 'ku2', name: 'KHUZAM', component: KU2Template },
+  { id: 'ma', name: 'MA Standard', component: MATemplate },
+  { id: 'ra', name: 'RAYAAT', component: RATemplate },
+  { id: 'vision', name: 'Vision Layout', component: VisionTemplate },
+];
+
 
 const AGENCIES = [
   { id: 'all', name: 'All Agencies' },
@@ -157,6 +179,130 @@ export default function AgencyContractsPage() {
 
   // References for dropdowns and click-outside tracking
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // CV Preview States
+  const [previewCv, setPreviewCv] = useState<{ candidate: Candidate; templateId: string } | null>(null);
+  const [loadingCvId, setLoadingCvId] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const cvRenderRef = useRef<HTMLDivElement>(null);
+
+  const handlePreviewCV = async (id: string, templateId: string) => {
+    setLoadingCvId(id);
+    try {
+      const res = await api(`/api/candidates/${id}`);
+      if (!res.ok) throw new Error('Failed to fetch candidate details');
+      const details = await res.json();
+      setPreviewCv({
+        candidate: details,
+        templateId: templateId.replace('tmpl-', '').toLowerCase()
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to retrieve candidate details for CV preview.');
+    } finally {
+      setLoadingCvId(null);
+    }
+  };
+
+  const handleDownloadCV = async (format: 'pdf' | 'jpg' | 'doc') => {
+    if (!previewCv || !cvRenderRef.current) return;
+    const el = cvRenderRef.current;
+    setIsDownloading(true);
+    try {
+      const htmlToImage = await import('html-to-image');
+      const pNo = previewCv.candidate.passportData?.passportNumber || 'CV';
+      const givenNames = previewCv.candidate.passportData?.givenNames || '';
+      const surname = previewCv.candidate.passportData?.surname || '';
+      const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
+      const safeName = `${namePart}_${previewCv.templateId.toUpperCase()}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+
+      const downloadBlob = (blob: Blob, name: string) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 2000);
+      };
+
+      if (format === 'doc') {
+        const payload = {
+          candidateId: previewCv.candidate.id,
+          templateId: `tmpl-${previewCv.templateId}`,
+          format: 'doc',
+          deadline: previewCv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
+          facePhoto: getFileUrl(previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl),
+          fullBodyPhoto: getFileUrl(previewCv.candidate.fullBodyPhotoUrl)
+        };
+
+        const response = await api('/api/cv/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error('Failed to generate DOCX');
+        const blob = await response.blob();
+        downloadBlob(blob, `${safeName}.docx`);
+      } else if (format === 'jpg') {
+        const origH = el.style.height;
+        const origO = el.style.overflow;
+        el.style.height = 'auto';
+        el.style.overflow = 'visible';
+        
+        const dataUrl = await htmlToImage.toJpeg(el, { 
+          quality: 0.95, 
+          backgroundColor: '#ffffff', 
+          pixelRatio: 1.5,
+          fontEmbedCSS: '',
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+        });
+        el.style.height = origH;
+        el.style.overflow = origO;
+
+        const res = await fetch(dataUrl);
+        downloadBlob(await res.blob(), `${safeName}.jpg`);
+      } else {
+        const { jsPDF } = await import('jspdf');
+        const origH = el.style.height;
+        const origO = el.style.overflow;
+        el.style.height = 'auto';
+        el.style.overflow = 'visible';
+
+        const dataUrl = await htmlToImage.toJpeg(el, { 
+          quality: 0.95, 
+          backgroundColor: '#ffffff', 
+          pixelRatio: 1.5,
+          fontEmbedCSS: '',
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+        });
+        el.style.height = origH;
+        el.style.overflow = origO;
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfW = pdf.internal.pageSize.getWidth();
+        const props = pdf.getImageProperties(dataUrl);
+        const totalH = props.height / (props.width / pdfW);
+        pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
+        if (totalH > pdf.internal.pageSize.getHeight() + 10) {
+          pdf.addPage();
+          pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
+        }
+        downloadBlob(pdf.output('blob'), `${safeName}.pdf`);
+      }
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Failed to download CV file.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
 
   // Fetch candidates from /api/agency/candidates
   const fetchCandidates = async (agencyFilter?: string) => {
@@ -636,7 +782,7 @@ export default function AgencyContractsPage() {
                 <th className="px-5 py-4 font-semibold text-center">Selected</th>
                 <th className="px-5 py-4 font-semibold">Travel Date</th>
                 <th className="px-5 py-4 font-semibold">Status</th>
-                <th className="px-5 py-4 font-semibold text-center">Actions</th>
+                <th className="px-5 py-4 font-semibold text-center">CV</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20 text-sm">
@@ -837,14 +983,20 @@ export default function AgencyContractsPage() {
                         </div>
                       </td>
 
-                      {/* Actions */}
+                      {/* CV */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          onClick={() => handleViewDetails(c.id)}
-                          className="px-3.5 py-1.5 rounded-xl border border-[#00A4EF]/35 hover:border-[#00A4EF] text-[#00A4EF] hover:bg-[#00A4EF]/5 text-xs font-extrabold shadow-sm transition-all"
-                        >
-                          View
-                        </button>
+                        {c.latestCVTemplate ? (
+                          <button
+                            disabled={loadingCvId === c.id}
+                            onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
+                            className="px-3.5 py-1.5 rounded-xl border border-[#00A4EF]/35 hover:border-[#00A4EF] text-[#00A4EF] hover:bg-[#00A4EF]/5 text-xs font-extrabold shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            {loadingCvId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
+                            View
+                          </button>
+                        ) : (
+                          <span className="text-xs font-semibold text-text-tertiary italic">No CV</span>
+                        )}
                       </td>
 
                     </tr>
@@ -1172,6 +1324,90 @@ export default function AgencyContractsPage() {
           </div>
         </div>
       )}
+
+      {/* CV Preview Modal */}
+      {previewCv && (() => {
+        const PrevTemplate = TEMPLATES.find(t => t.id === previewCv.templateId)?.component || ALMTemplate;
+        return (
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-fade-in"
+            onClick={() => setPreviewCv(null)}
+          >
+            <div 
+              className="bg-white rounded-[2rem] shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-scale-in"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4.5 border-b border-border bg-gray-50/50 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-text-primary text-sm">CV Preview</h3>
+                    <p className="text-xs text-text-tertiary">{previewCv.candidate.passportData?.givenNames} {previewCv.candidate.passportData?.surname}</p>
+                  </div>
+                </div>
+                
+                {/* Download and Close Actions */}
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={isDownloading}
+                    onClick={() => handleDownloadCV('pdf')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isDownloading ? <Loader2 size={12} className="animate-spin" /> : <FileCheck size={12} />}
+                    PDF
+                  </button>
+                  <button
+                    disabled={isDownloading}
+                    onClick={() => handleDownloadCV('jpg')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-100 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isDownloading ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />}
+                    JPG
+                  </button>
+                  <button
+                    disabled={isDownloading}
+                    onClick={() => handleDownloadCV('doc')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isDownloading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                    DOCX
+                  </button>
+                  <button 
+                    onClick={() => setPreviewCv(null)}
+                    className="text-text-tertiary hover:text-text-primary p-2 rounded-lg hover:bg-gray-100 font-bold transition-all text-sm cursor-pointer ml-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview Content */}
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-100/30 flex justify-center items-start">
+                <div className="w-[800px] shrink-0 bg-white shadow-lg relative border border-border" ref={cvRenderRef}>
+                  <PrevTemplate
+                    candidate={previewCv.candidate}
+                    facePhoto={getFileUrl(previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
+                    fullBodyPhoto={getFileUrl(previewCv.candidate.fullBodyPhotoUrl)}
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-border bg-gray-50/50 flex justify-end">
+                <button 
+                  onClick={() => setPreviewCv(null)}
+                  className="px-5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-750 transition-colors cursor-pointer"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
