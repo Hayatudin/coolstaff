@@ -430,7 +430,8 @@ export async function ensureDatabaseSchema() {
     { name: 'qrCodeStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
     { name: 'selectedType', type: "VARCHAR(191) NOT NULL DEFAULT 'Private'" },
     { name: 'travelDate', type: 'DATETIME(3) NULL' },
-    { name: 'agencyStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'Under Process'" }
+    { name: 'agencyStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'Under Process'" },
+    { name: 'agencySelected', type: 'TINYINT(1) NOT NULL DEFAULT 0' }
   ];
 
   for (const col of candidateColumns) {

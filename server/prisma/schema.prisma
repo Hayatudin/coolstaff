@@ -99,6 +99,7 @@ model Candidate {
   selectedType             String    @default("Private")
   travelDate               DateTime?
   agencyStatus             String    @default("Under Process")
+  agencySelected           Boolean   @default(false)
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?

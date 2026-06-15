@@ -142,7 +142,9 @@ router.get('/candidates', async (req: Request, res: Response) => {
     }
 
     const { agency } = req.query;
-    const queryConditions: any = {};
+    const queryConditions: any = {
+      agencySelected: true
+    };
  
     if (role === 'agency') {
       const agencyStr = agencyName!.toLowerCase();
@@ -174,8 +176,6 @@ router.get('/candidates', async (req: Request, res: Response) => {
             }
           }
         ];
-      } else {
-        queryConditions.visaSelected = true;
       }
     }
 
@@ -199,15 +199,17 @@ router.get('/candidates', async (req: Request, res: Response) => {
       
       if (role === 'agency') {
         const agencyStr = agencyName!.toLowerCase();
+        whereClauses.push('c.`agencySelected` = 1');
         whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
         sqlParams.push(agencyStr, `%${agencyStr}%`);
       } else {
         if (agency && agency !== 'all') {
           const agencyStr = String(agency).toLowerCase();
+          whereClauses.push('c.`agencySelected` = 1');
           whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
           sqlParams.push(agencyStr, `%${agencyStr}%`);
         } else {
-          whereClauses.push('c.`visaSelected` = 1');
+          whereClauses.push('c.`agencySelected` = 1');
         }
       }
       
@@ -262,12 +264,251 @@ router.get('/candidates', async (req: Request, res: Response) => {
         agency: c.agency,
         religion: c.religion,
         job: c.job,
-        dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null
+        dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
+        videoUrl: c.Youtube_URL || c.quickVideoUrl || null
       };
     }));
 
   } catch (err) {
     console.error('[AGENCY] Failed to fetch candidates', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/agency/available-candidates
+router.get('/available-candidates', async (req: Request, res: Response) => {
+  try {
+    const session = await getSession(req);
+    if (!session || !session.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const role = session.user.role;
+    if (role !== 'agency' && role !== 'super_admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const agencyName = await resolveAndHealAgency(session.user);
+    if (role === 'agency' && !agencyName) {
+      return res.status(400).json({ error: 'User is not assigned to any agency' });
+    }
+
+    const { agency } = req.query;
+    const queryConditions: any = {
+      agencySelected: false,
+      generatedCVs: {
+        some: {}
+      }
+    };
+ 
+    if (role === 'agency') {
+      const agencyStr = agencyName!.toLowerCase();
+      queryConditions.OR = [
+        { agency: agencyStr },
+        {
+          generatedCVs: {
+            some: {
+              templateId: {
+                contains: agencyStr
+              }
+            }
+          }
+        }
+      ];
+    } else {
+      // super_admin
+      if (agency && agency !== 'all') {
+        const agencyStr = String(agency).toLowerCase();
+        queryConditions.OR = [
+          { agency: agencyStr },
+          {
+            generatedCVs: {
+              some: {
+                templateId: {
+                  contains: agencyStr
+                }
+              }
+            }
+          }
+        ];
+      }
+    }
+
+    let dbCandidates: any[] = [];
+    try {
+      dbCandidates = await prisma.candidate.findMany({
+        where: queryConditions,
+        orderBy: { registeredAt: 'desc' },
+        include: {
+          generatedCVs: { select: { id: true, templateId: true } },
+          broker: { select: { name: true } }
+        }
+      });
+    } catch (findErr: any) {
+      console.warn('[AGENCY] prisma.candidate.findMany failed for available candidates, trying raw SQL fallback:', findErr.message || findErr);
+      
+      let sqlQuery = 'SELECT c.*, b.name as brokerName FROM `Candidate` c LEFT JOIN `Broker` b ON c.brokerId = b.id WHERE c.`agencySelected` = 0 AND c.`id` IN (SELECT DISTINCT `candidateId` FROM `GeneratedCV`)';
+      const sqlParams: any[] = [];
+      const whereClauses: string[] = [];
+      
+      if (role === 'agency') {
+        const agencyStr = agencyName!.toLowerCase();
+        whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
+        sqlParams.push(agencyStr, `%${agencyStr}%`);
+      } else {
+        if (agency && agency !== 'all') {
+          const agencyStr = String(agency).toLowerCase();
+          whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
+          sqlParams.push(agencyStr, `%${agencyStr}%`);
+        }
+      }
+      
+      if (whereClauses.length > 0) {
+        sqlQuery += ' AND ' + whereClauses.join(' AND ');
+      }
+      
+      sqlQuery += ' ORDER BY c.`registeredAt` DESC';
+      
+      const rawCands: any[] = await prisma.$queryRawUnsafe(sqlQuery, ...sqlParams);
+      
+      if (rawCands.length > 0) {
+        const candidateIds = rawCands.map(c => c.id);
+        const allCVs = await prisma.generatedCV.findMany({
+          where: { candidateId: { in: candidateIds } },
+          select: { id: true, templateId: true, candidateId: true }
+        });
+        
+        dbCandidates = rawCands.map(c => ({
+          ...c,
+          generatedCVs: allCVs.filter(cv => cv.candidateId === c.id),
+          broker: c.brokerName ? { name: c.brokerName } : null
+        }));
+      }
+    }
+
+    res.json(dbCandidates.map((c: any) => {
+      return {
+        id: c.id,
+        givenNames: c.givenNames,
+        surname: c.surname,
+        passportNumber: c.passportNumber,
+        embassyIssue: c.embassyIssue || 'No',
+        cocStatus: c.cocStatus || 'No',
+        medicalStatus: c.medicalStatus || 'Pending',
+        tasheerStatus: c.tasheerStatus || 'No',
+        wakalaStatus: c.wakalaStatus || 'Unpaid',
+        qrCodeStatus: 'No',
+        selectedType: c.selectedType || 'Private',
+        travelDate: c.deployedDate ? new Date(c.deployedDate).toISOString() : null,
+        agencyStatus: c.agencyStatus || 'Under Process',
+        latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
+        broker: c.broker,
+        agency: c.agency,
+        religion: c.religion,
+        job: c.job,
+        dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
+        videoUrl: c.Youtube_URL || c.quickVideoUrl || null
+      };
+    }));
+
+  } catch (err) {
+    console.error('[AGENCY] Failed to fetch available candidates', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/agency/candidates/:id/select
+router.post('/candidates/:id/select', async (req: Request, res: Response) => {
+  try {
+    const session = await getSession(req);
+    if (!session || !session.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const role = session.user.role;
+    if (role !== 'agency' && role !== 'super_admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { id } = req.params;
+    const agencyName = await resolveAndHealAgency(session.user);
+    if (role === 'agency' && !agencyName) {
+      return res.status(400).json({ error: 'User is not assigned to any agency' });
+    }
+
+    // Verify candidate belongs to agency if updating as agency
+    if (role === 'agency') {
+      const candidate = await prisma.candidate.findFirst({
+        where: {
+          id,
+          generatedCVs: {
+            some: {
+              templateId: {
+                contains: agencyName!.toLowerCase()
+              }
+            }
+          }
+        }
+      });
+      if (!candidate) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this candidate' });
+      }
+    }
+
+    const candidate = await prisma.candidate.findUnique({
+      where: { id }
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    const agencyLabel = agencyName ? agencyName.toUpperCase() : 'AGENCY';
+
+    try {
+      const updated = await prisma.candidate.update({
+        where: { id },
+        data: {
+          agencySelected: true
+        }
+      });
+      
+      await prisma.notification.create({
+        data: {
+          title: 'Candidate Selected',
+          message: `Candidate ${candidate.givenNames} ${candidate.surname} (${candidate.passportNumber}) has been selected by agency ${agencyLabel}.`,
+          candidateId: candidate.id
+        }
+      });
+      
+      res.json(updated);
+    } catch (updateErr: any) {
+      console.warn('[AGENCY] Select candidate update failed, trying raw SQL fallback:', updateErr.message || updateErr);
+      
+      await prisma.$executeRawUnsafe(
+        'UPDATE `Candidate` SET `agencySelected` = 1 WHERE `id` = ?',
+        id
+      );
+
+      // Create notification
+      await prisma.notification.create({
+        data: {
+          title: 'Candidate Selected',
+          message: `Candidate ${candidate.givenNames} ${candidate.surname} (${candidate.passportNumber}) has been selected by agency ${agencyLabel}.`,
+          candidateId: candidate.id
+        }
+      });
+
+      // Fetch the updated candidate to return
+      const rawCands: any[] = await prisma.$queryRawUnsafe(
+        'SELECT * FROM `Candidate` WHERE `id` = ? LIMIT 1',
+        id
+      );
+      res.json(rawCands[0]);
+    }
+
+  } catch (err) {
+    console.error('[AGENCY] Failed to select candidate', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
