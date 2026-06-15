@@ -123,6 +123,10 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
+    if (candidate.isLocked) {
+      return res.status(403).json({ error: 'This candidate is locked. CV downloading is restricted.' });
+    }
+
     const templateRef = TEMPLATE_MAP[templateId];
     if (!templateRef) {
       return res.status(400).json({ error: `Invalid template ID: ${templateId}` });
@@ -425,7 +429,10 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
       try {
         const candidates = await prisma.candidate.findMany({
-          where: { id: { in: candidateIds } },
+          where: { 
+            id: { in: candidateIds },
+            isLocked: false
+          },
           include: { generatedCVs: true }
         });
 
@@ -804,7 +811,10 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
     }
 
     const candidates = await prisma.candidate.findMany({
-      where: { id: { in: candidateIds } },
+      where: { 
+        id: { in: candidateIds },
+        isLocked: false
+      },
       include: { 
         generatedCVs: true,
         broker: true,

@@ -588,10 +588,18 @@ export default function BrokerCandidatesPage() {
 
   // Bulk ZIP CVs download handler
   const handleBulkDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
+    // Check if any selected candidates are locked
+    const lockedSelected = selectedIds.some(id => candidates.find(cand => cand.id === id)?.isLocked);
+    if (lockedSelected) {
+      showToast('Locked candidates were excluded from download', 'error');
+    }
+
     // Only download candidates matching the active visa option
     const candidatesToDownload = selectedIds.filter(id => {
       const c = candidates.find(cand => cand.id === id);
       if (!c) return false;
+      // Block locked candidates
+      if (c.isLocked) return false;
       // Do not download candidates whose medical status is fit
       if (c.medicalStatus?.toLowerCase() === 'fit') return false;
       if (visaFilter === 'visa-selected') return c.visaSelected === true;
@@ -1370,6 +1378,11 @@ export default function BrokerCandidatesPage() {
                           <div className="text-red-600 bg-red-50 border border-red-100 px-2.5 py-1.5 rounded-xl flex items-center justify-center gap-1 font-bold inline-flex" title="Broker is locked. CV is in backup.">
                             <Lock size={12} />
                             <span className="text-[10px] uppercase tracking-wider font-semibold">Backup</span>
+                          </div>
+                        ) : candidate.isLocked ? (
+                          <div className="text-red-605 bg-red-50/70 border border-red-200/60 px-2.5 py-1.5 rounded-xl flex items-center justify-center gap-1.5 font-extrabold inline-flex text-xs cursor-not-allowed select-none" title="Candidate is locked. CV is unavailable.">
+                            <Lock size={12} className="text-red-500" />
+                            <span className="text-[10px] uppercase tracking-wider">Locked</span>
                           </div>
                         ) : candidate.generatedCVs?.[0] ? (
                           <button

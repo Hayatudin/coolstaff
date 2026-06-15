@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
-  Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink
+  Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink,
+  Lock
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
@@ -206,12 +207,18 @@ export default function CandidateDetailPage() {
           </div>
 
           <div className="mt-6 sm:mt-0 w-full sm:w-auto">
-            <button
-              onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm shadow-md transition-all transform bg-[#00A4EF] text-white hover:bg-[#0093D6] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
-            >
-              <FileText size={16} /> Generate CV
-            </button>
+            {c.isLocked ? (
+              <div className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm bg-gray-100 text-gray-400 border border-gray-200/50 cursor-not-allowed select-none" title="Candidate is locked. CV generation is unavailable.">
+                <Lock size={16} /> CV Locked
+              </div>
+            ) : (
+              <button
+                onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm shadow-md transition-all transform bg-[#00A4EF] text-white hover:bg-[#0093D6] hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+              >
+                <FileText size={16} /> Generate CV
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -419,12 +426,19 @@ export default function CandidateDetailPage() {
                     <p className="text-[10px] text-emerald-700/70 uppercase tracking-[0.1em] font-bold">Template Layout</p>
                     <span className="text-[15px] font-bold text-emerald-800 uppercase block truncate">{c.latestCVTemplate}</span>
                   </div>
-                  <button
-                    onClick={() => router.push(`/generated-cvs?folder=${c.latestCVTemplate}&search=${c.passportData.passportNumber}`)}
-                    className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
-                  >
-                    View
-                  </button>
+                  {c.isLocked ? (
+                    <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-650 border border-red-200/60 rounded-xl text-xs font-black select-none" title="Candidate is locked. CV is unavailable.">
+                      <Lock size={12} className="text-red-500" />
+                      Locked
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => router.push(`/generated-cvs?folder=${c.latestCVTemplate}&search=${c.passportData.passportNumber}`)}
+                      className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                    >
+                      View
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
