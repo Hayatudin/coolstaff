@@ -187,7 +187,7 @@ export default function AvailableCandidatesPage() {
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
   const isSuperAdmin = userRole === 'super_admin';
 
-  // Input states for filters
+  // Input states for filters (applied immediately)
   const [inputMinAge, setInputMinAge] = useState('');
   const [inputMaxAge, setInputMaxAge] = useState('');
   const [inputReligion, setInputReligion] = useState('all');
@@ -196,17 +196,6 @@ export default function AvailableCandidatesPage() {
   const [inputMaritalStatus, setInputMaritalStatus] = useState('all');
   const [inputSkills, setInputSkills] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-
-  // Applied filter states
-  const [appliedFilters, setAppliedFilters] = useState({
-    minAge: '',
-    maxAge: '',
-    religion: 'all',
-    experience: 'all',
-    education: 'all',
-    maritalStatus: 'all',
-    skills: [] as string[],
-  });
 
   // Selection state
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
@@ -228,7 +217,15 @@ export default function AvailableCandidatesPage() {
   const uniqueReligions = useMemo(() => {
     const religions = new Set<string>();
     candidates.forEach(c => {
-      if (c.religion) religions.add(c.religion.trim());
+      if (c.religion) {
+        const rel = c.religion.trim().toLowerCase();
+        if (rel === 'non muslim' || rel === 'non-muslim') {
+          religions.add('Non Muslim');
+        } else {
+          const clean = c.religion.trim();
+          religions.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+        }
+      }
     });
     return Array.from(religions).sort();
   }, [candidates]);
@@ -236,7 +233,10 @@ export default function AvailableCandidatesPage() {
   const uniqueEducationLevels = useMemo(() => {
     const edu = new Set<string>();
     candidates.forEach(c => {
-      if (c.educationLevel) edu.add(c.educationLevel.trim());
+      if (c.educationLevel) {
+        const clean = c.educationLevel.trim();
+        edu.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+      }
     });
     return Array.from(edu).sort();
   }, [candidates]);
@@ -244,7 +244,10 @@ export default function AvailableCandidatesPage() {
   const uniqueMaritalStatuses = useMemo(() => {
     const status = new Set<string>();
     candidates.forEach(c => {
-      if (c.maritalStatus) status.add(c.maritalStatus.trim());
+      if (c.maritalStatus) {
+        const clean = c.maritalStatus.trim();
+        status.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+      }
     });
     return Array.from(status).sort();
   }, [candidates]);
@@ -411,6 +414,11 @@ export default function AvailableCandidatesPage() {
     setCurrentPage(1);
   };
 
+  // Reset page number when any filter updates
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputSkills, sortOrder]);
+
   const toggleSkillTag = (skill: string) => {
     setInputSkills(prev => {
       if (prev.includes(skill)) {
@@ -421,19 +429,6 @@ export default function AvailableCandidatesPage() {
     });
   };
 
-  const handleApplyFilters = () => {
-    setAppliedFilters({
-      minAge: inputMinAge,
-      maxAge: inputMaxAge,
-      religion: inputReligion,
-      experience: inputExperience,
-      education: inputEducation,
-      maritalStatus: inputMaritalStatus,
-      skills: inputSkills,
-    });
-    setCurrentPage(1);
-  };
-
   const handleClearFilters = () => {
     setInputMinAge('');
     setInputMaxAge('');
@@ -442,15 +437,6 @@ export default function AvailableCandidatesPage() {
     setInputEducation('all');
     setInputMaritalStatus('all');
     setInputSkills([]);
-    setAppliedFilters({
-      minAge: '',
-      maxAge: '',
-      religion: 'all',
-      experience: 'all',
-      education: 'all',
-      maritalStatus: 'all',
-      skills: [],
-    });
     setSearchInput('');
     setSearchQuery('');
     setCurrentPage(1);
@@ -480,7 +466,7 @@ export default function AvailableCandidatesPage() {
     setSelectedCheckboxes(new Set());
   };
 
-  // Memoized filtered candidates list
+  // Memoized filtered candidates list (Applied immediately)
   const filteredCandidates = useMemo(() => {
     return candidates.filter(c => {
       // 1. Text Search
@@ -493,49 +479,58 @@ export default function AvailableCandidatesPage() {
       }
 
       // 2. Age Range Filters
-      if (appliedFilters.minAge || appliedFilters.maxAge) {
+      if (inputMinAge || inputMaxAge) {
         const age = getAge(c.dateOfBirth);
         if (age === null) return false;
-        if (appliedFilters.minAge && age < parseInt(appliedFilters.minAge)) return false;
-        if (appliedFilters.maxAge && age > parseInt(appliedFilters.maxAge)) return false;
+        if (inputMinAge && age < parseInt(inputMinAge)) return false;
+        if (inputMaxAge && age > parseInt(inputMaxAge)) return false;
       }
 
-      // 3. Religion Filter
-      if (appliedFilters.religion !== 'all') {
-        if (!c.religion || c.religion.toLowerCase() !== appliedFilters.religion.toLowerCase()) {
-          return false;
+      // 3. Religion Filter (merges non-muslim variants)
+      if (inputReligion !== 'all') {
+        const candRel = c.religion ? c.religion.trim().toLowerCase() : '';
+        const filterRel = inputReligion.toLowerCase();
+        
+        if (filterRel === 'non muslim') {
+          if (candRel !== 'non muslim' && candRel !== 'non-muslim') {
+            return false;
+          }
+        } else {
+          if (candRel !== filterRel) {
+            return false;
+          }
         }
       }
 
       // 4. Experience Filter
-      if (appliedFilters.experience !== 'all') {
+      if (inputExperience !== 'all') {
         const exps = Array.isArray(c.workExperience) ? c.workExperience : [];
-        if (appliedFilters.experience === 'first-timer' && exps.length > 0) {
+        if (inputExperience === 'first-timer' && exps.length > 0) {
           return false;
         }
-        if (appliedFilters.experience === 'experienced' && exps.length === 0) {
+        if (inputExperience === 'experienced' && exps.length === 0) {
           return false;
         }
       }
 
       // 5. Education Filter
-      if (appliedFilters.education !== 'all') {
-        if (!c.educationLevel || c.educationLevel.toLowerCase() !== appliedFilters.education.toLowerCase()) {
+      if (inputEducation !== 'all') {
+        if (!c.educationLevel || c.educationLevel.toLowerCase() !== inputEducation.toLowerCase()) {
           return false;
         }
       }
 
       // 6. Marital Status Filter
-      if (appliedFilters.maritalStatus !== 'all') {
-        if (!c.maritalStatus || c.maritalStatus.toLowerCase() !== appliedFilters.maritalStatus.toLowerCase()) {
+      if (inputMaritalStatus !== 'all') {
+        if (!c.maritalStatus || c.maritalStatus.toLowerCase() !== inputMaritalStatus.toLowerCase()) {
           return false;
         }
       }
 
       // 7. Skills Tag Filter
-      if (appliedFilters.skills.length > 0) {
+      if (inputSkills.length > 0) {
         const candidateSkills = getSkillsArray(c.skills);
-        const matchesAllSkills = appliedFilters.skills.every(skill => matchesSkill(candidateSkills, skill));
+        const matchesAllSkills = inputSkills.every(skill => matchesSkill(candidateSkills, skill));
         if (!matchesAllSkills) return false;
       }
 
@@ -549,7 +544,7 @@ export default function AvailableCandidatesPage() {
         return dateA - dateB;
       }
     });
-  }, [candidates, searchQuery, appliedFilters, sortOrder]);
+  }, [candidates, searchQuery, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputSkills, sortOrder]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -716,7 +711,7 @@ export default function AvailableCandidatesPage() {
           </select>
         </div>
 
-        {/* Line 2: Skills and Action buttons */}
+        {/* Line 2: Skills and Clear button */}
         <div className="flex flex-wrap items-center gap-3.5 mt-2 pt-3 border-t border-dashed border-gray-150/80">
           <span className="text-xs font-black text-slate-650">Skills:</span>
           <div className="flex flex-wrap gap-2">
@@ -739,13 +734,6 @@ export default function AvailableCandidatesPage() {
             })}
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={handleApplyFilters}
-              className="bg-[#00A4EF] hover:bg-[#008bcb] text-white px-5 py-1.5 rounded-full text-xs font-black transition-all shadow-sm cursor-pointer"
-            >
-              Filter
-            </button>
             <button
               type="button"
               onClick={handleClearFilters}
@@ -957,7 +945,7 @@ export default function AvailableCandidatesPage() {
             </div>
             <p className="text-sm font-bold text-gray-900">No candidates found</p>
             <p className="text-xs text-gray-400">
-              {searchQuery || appliedFilters.minAge || appliedFilters.maxAge || appliedFilters.religion !== 'all' || appliedFilters.experience !== 'all' || appliedFilters.skills.length > 0
+              {searchQuery || inputMinAge || inputMaxAge || inputReligion !== 'all' || inputExperience !== 'all' || inputSkills.length > 0
                 ? 'Try resetting the filters'
                 : 'There are no available candidates matching your agency at the moment.'}
             </p>
@@ -1172,7 +1160,7 @@ export default function AvailableCandidatesPage() {
               <img
                 src={previewFullImageUrl}
                 alt="Full Candidate"
-                className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-md"
+                className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = 'https://placehold.co/300x450/f472b6/ffffff?text=Full+Photo+Unavailable';
                 }}

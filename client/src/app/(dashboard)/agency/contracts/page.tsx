@@ -554,7 +554,7 @@ export default function AgencyContractsPage() {
     const headers = [
       'Roll No', 'Given Names', 'Surname', 'Passport Number', 'Embassy Issue', 
       'COC Status', 'Medical Status', 'Tasheer Status', 'Wakala Status', 
-      'QR Code Status', 'Selected Type', 'Travel Date', 'Status', 'Broker', 'Latest CV Template'
+      'Selected Type', 'Travel Date', 'Status', 'Broker', 'Latest CV Template'
     ];
 
     const rows = filteredCandidates.map((c, i) => [
@@ -567,7 +567,6 @@ export default function AgencyContractsPage() {
       c.medicalStatus,
       c.tasheerStatus,
       c.wakalaStatus,
-      c.qrCodeStatus,
       c.selectedType,
       c.travelDate ? c.travelDate.substring(0, 10) : '—',
       c.agencyStatus,
@@ -778,7 +777,6 @@ export default function AgencyContractsPage() {
                 <th className="px-5 py-4 font-semibold text-center">Medical</th>
                 <th className="px-5 py-4 font-semibold text-center">Tasheer</th>
                 <th className="px-5 py-4 font-semibold text-center">Wakala</th>
-                <th className="px-5 py-4 font-semibold text-center">QR Code</th>
                 <th className="px-5 py-4 font-semibold text-center">Selected</th>
                 <th className="px-5 py-4 font-semibold">Travel Date</th>
                 <th className="px-5 py-4 font-semibold">Status</th>
@@ -788,7 +786,7 @@ export default function AgencyContractsPage() {
             <tbody className="divide-y divide-border/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-24 text-center">
+                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={36} className="text-[#464479] animate-spin" />
                       <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading contracts database...</p>
@@ -835,32 +833,56 @@ export default function AgencyContractsPage() {
 
                       {/* Embassy Issue */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={updatingField !== null}
-                          onClick={() => handleUpdateCandidate(c.id, { embassyIssue: c.embassyIssue === 'Yes' ? 'No' : 'Yes' })}
-                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                            c.embassyIssue === 'Yes' 
-                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
-                              : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
-                          }`}
-                        >
-                          {isUpdating('embassyIssue') ? <Loader2 size={12} className="animate-spin" /> : c.embassyIssue}
-                        </button>
+                        {isSuperAdmin ? (
+                          <button
+                            disabled={updatingField !== null}
+                            onClick={() => handleUpdateCandidate(c.id, { embassyIssue: c.embassyIssue === 'Yes' ? 'No' : 'Yes' })}
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                              c.embassyIssue === 'Yes' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
+                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
+                            }`}
+                          >
+                            {isUpdating('embassyIssue') ? <Loader2 size={12} className="animate-spin" /> : c.embassyIssue}
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
+                              c.embassyIssue === 'Yes' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
+                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
+                            }`}
+                          >
+                            {c.embassyIssue}
+                          </span>
+                        )}
                       </td>
 
                       {/* COC Status */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={updatingField !== null}
-                          onClick={() => handleUpdateCandidate(c.id, { cocStatus: c.cocStatus === 'Completed' ? 'No' : 'Completed' })}
-                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                            c.cocStatus === 'Completed' 
-                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
-                              : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
-                          }`}
-                        >
-                          {isUpdating('cocStatus') ? <Loader2 size={12} className="animate-spin" /> : c.cocStatus}
-                        </button>
+                        {isSuperAdmin ? (
+                          <button
+                            disabled={updatingField !== null}
+                            onClick={() => handleUpdateCandidate(c.id, { cocStatus: c.cocStatus === 'Completed' ? 'No' : 'Completed' })}
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                              c.cocStatus === 'Completed' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
+                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
+                            }`}
+                          >
+                            {isUpdating('cocStatus') ? <Loader2 size={12} className="animate-spin" /> : c.cocStatus}
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
+                              c.cocStatus === 'Completed' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
+                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
+                            }`}
+                          >
+                            {c.cocStatus}
+                          </span>
+                        )}
                       </td>
 
                       {/* Medical Status (Read-only Badge) */}
@@ -879,60 +901,83 @@ export default function AgencyContractsPage() {
 
                       {/* Tasheer Status */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={updatingField !== null}
-                          onClick={() => handleUpdateCandidate(c.id, { tasheerStatus: c.tasheerStatus === 'Yes' ? 'No' : 'Yes' })}
-                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                            c.tasheerStatus === 'Yes' 
-                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
-                              : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
-                          }`}
-                        >
-                          {isUpdating('tasheerStatus') ? <Loader2 size={12} className="animate-spin" /> : c.tasheerStatus}
-                        </button>
+                        {isSuperAdmin ? (
+                          <button
+                            disabled={updatingField !== null}
+                            onClick={() => handleUpdateCandidate(c.id, { tasheerStatus: c.tasheerStatus === 'Yes' ? 'No' : 'Yes' })}
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                              c.tasheerStatus === 'Yes' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
+                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
+                            }`}
+                          >
+                            {isUpdating('tasheerStatus') ? <Loader2 size={12} className="animate-spin" /> : c.tasheerStatus}
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
+                              c.tasheerStatus === 'Yes' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
+                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
+                            }`}
+                          >
+                            {c.tasheerStatus}
+                          </span>
+                        )}
                       </td>
 
                       {/* Wakala Status */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={updatingField !== null}
-                          onClick={() => handleUpdateCandidate(c.id, { wakalaStatus: c.wakalaStatus === 'Paid' ? 'Unpaid' : 'Paid' })}
-                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                            c.wakalaStatus === 'Paid' 
-                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
-                              : 'bg-[#fff7ed] text-[#ea580c] border-[#ffedd5] hover:bg-orange-100/50'
-                          }`}
-                        >
-                          {isUpdating('wakalaStatus') ? <Loader2 size={12} className="animate-spin" /> : c.wakalaStatus}
-                        </button>
-                      </td>
-
-                      {/* QR Code Status (Read-only Badge) */}
-                      <td className="px-5 py-4.5 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
-                            c.qrCodeStatus === 'Yes' 
-                              ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
-                              : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
-                          }`}
-                        >
-                          {c.qrCodeStatus || 'No'}
-                        </span>
+                        {!isSuperAdmin ? (
+                          <button
+                            disabled={updatingField !== null}
+                            onClick={() => handleUpdateCandidate(c.id, { wakalaStatus: c.wakalaStatus === 'Paid' ? 'Unpaid' : 'Paid' })}
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                              c.wakalaStatus === 'Paid' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
+                                : 'bg-[#fff7ed] text-[#ea580c] border-[#ffedd5] hover:bg-orange-100/50'
+                            }`}
+                          >
+                            {isUpdating('wakalaStatus') ? <Loader2 size={12} className="animate-spin" /> : c.wakalaStatus}
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
+                              c.wakalaStatus === 'Paid' 
+                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
+                                : 'bg-[#fff7ed] text-[#ea580c] border-[#ffedd5]'
+                            }`}
+                          >
+                            {c.wakalaStatus}
+                          </span>
+                        )}
                       </td>
 
                       {/* Selected Type */}
                       <td className="px-5 py-4.5 text-center">
-                        <button
-                          disabled={updatingField !== null}
-                          onClick={() => handleUpdateCandidate(c.id, { selectedType: c.selectedType === 'Company' ? 'Private' : 'Company' })}
-                          className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                            c.selectedType === 'Company' 
-                              ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/60' 
-                              : 'bg-[#f8fafc] text-[#475569] border-[#e2e8f0] hover:bg-slate-100/60'
-                          }`}
-                        >
-                          {isUpdating('selectedType') ? <Loader2 size={12} className="animate-spin" /> : c.selectedType}
-                        </button>
+                        {isSuperAdmin ? (
+                          <button
+                            disabled={updatingField !== null}
+                            onClick={() => handleUpdateCandidate(c.id, { selectedType: c.selectedType === 'Company' ? 'Private' : 'Company' })}
+                            className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                              c.selectedType === 'Company' 
+                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100/60' 
+                                : 'bg-[#f8fafc] text-[#475569] border-[#e2e8f0] hover:bg-slate-100/60'
+                            }`}
+                          >
+                            {isUpdating('selectedType') ? <Loader2 size={12} className="animate-spin" /> : c.selectedType}
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-black border select-none ${
+                              c.selectedType === 'Company' 
+                                ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                : 'bg-[#f8fafc] text-[#475569] border-[#e2e8f0]'
+                            }`}
+                          >
+                            {c.selectedType}
+                          </span>
+                        )}
                       </td>
 
                       {/* Travel Date (Read-only Text) */}
@@ -942,45 +987,57 @@ export default function AgencyContractsPage() {
                         </span>
                       </td>
 
-                      {/* Agency Status Dropdown */}
+                      {/* Agency Status Dropdown / Badge */}
                       <td className="px-5 py-4.5">
-                        <div className="relative inline-block" ref={openDropdownId === `status-${c.id}` ? dropdownRef : null}>
-                          <button
-                            disabled={updatingField !== null}
-                            onClick={() => setOpenDropdownId(openDropdownId === `status-${c.id}` ? null : `status-${c.id}`)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                              c.agencyStatus === 'Arrived' && 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            } ${
-                              c.agencyStatus === 'Returned' && 'bg-[#fdf4e7] text-[#854d0e] border-[#fef08a]'
-                            } ${
-                              (!c.agencyStatus || c.agencyStatus === 'Under Process') && 'bg-amber-50 text-amber-700 border-amber-200'
+                        {isSuperAdmin ? (
+                          <div className="relative inline-block" ref={openDropdownId === `status-${c.id}` ? dropdownRef : null}>
+                            <button
+                              disabled={updatingField !== null}
+                              onClick={() => setOpenDropdownId(openDropdownId === `status-${c.id}` ? null : `status-${c.id}`)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
+                                c.agencyStatus === 'Arrived' && 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              } ${
+                                c.agencyStatus === 'Returned' && 'bg-[#fdf4e7] text-[#854d0e] border-[#fef08a]'
+                              } ${
+                                (!c.agencyStatus || c.agencyStatus === 'Under Process') && 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                            >
+                              {isUpdating('agencyStatus') ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <>
+                                  <span>{c.agencyStatus || 'Under Process'}</span>
+                                  <ChevronDown size={10} className="opacity-60" />
+                                </>
+                              )}
+                            </button>
+
+                            {openDropdownId === `status-${c.id}` && (
+                              <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden font-bold">
+                                {['Under Process', 'Arrived', 'Returned'].map((status) => (
+                                  <button
+                                    key={status}
+                                    onClick={() => handleUpdateCandidate(c.id, { agencyStatus: status })}
+                                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                                  >
+                                    <span>{status}</span>
+                                    {c.agencyStatus === status && <Check size={12} className="text-primary" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border select-none ${
+                              c.agencyStatus === 'Arrived' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              c.agencyStatus === 'Returned' ? 'bg-[#fdf4e7] text-[#854d0e] border-[#fef08a]' :
+                              'bg-amber-50 text-amber-700 border-amber-200'
                             }`}
                           >
-                            {isUpdating('agencyStatus') ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <>
-                                <span>{c.agencyStatus || 'Under Process'}</span>
-                                <ChevronDown size={10} className="opacity-60" />
-                              </>
-                            )}
-                          </button>
-
-                          {openDropdownId === `status-${c.id}` && (
-                            <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden font-bold">
-                              {['Under Process', 'Arrived', 'Returned'].map((status) => (
-                                <button
-                                  key={status}
-                                  onClick={() => handleUpdateCandidate(c.id, { agencyStatus: status })}
-                                  className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                                >
-                                  <span>{status}</span>
-                                  {c.agencyStatus === status && <Check size={12} className="text-primary" />}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                            {c.agencyStatus || 'Under Process'}
+                          </span>
+                        )}
                       </td>
 
                       {/* CV */}
@@ -1004,7 +1061,7 @@ export default function AgencyContractsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
+                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
                     No candidates found matching the selected filters.
                   </td>
                 </tr>
