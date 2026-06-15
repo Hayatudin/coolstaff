@@ -91,6 +91,7 @@ export interface Candidate {
   isInvoiceDelivered?: boolean;
   visaDate?: string | null;
   cvDownloaded?: boolean;
+  isLocked?: boolean;
 }
 
 export interface Leader {
