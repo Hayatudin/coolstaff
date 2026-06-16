@@ -12,7 +12,10 @@ import {
   User, 
   Video, 
   FileText, 
-  Image as ImageIcon
+  Image as ImageIcon,
+  Download,
+  ChevronDown,
+  FileDown
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFileUrl } from '@/lib/utils';
@@ -201,6 +204,22 @@ export default function AvailableCandidatesPage() {
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
   const [selectedCheckboxes, setSelectedCheckboxes] = useState<Set<string>>(new Set());
 
+  // Bulk Download States
+  const [downloadAllOpen, setDownloadAllOpen] = useState(false);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [renderingCandidates, setRenderingCandidates] = useState<any[]>([]);
+  const [downloadTask, setDownloadTask] = useState<{
+    type: 'single' | 'bulk';
+    format: 'pdf' | 'jpg' | 'doc';
+    progress: number;
+    total: number;
+    status: 'pending' | 'processing' | 'generating_zip' | 'complete' | 'failed' | 'cancelled';
+    message: string;
+    candidateIds?: string[];
+    singleCv?: any;
+  } | null>(null);
+  const isCancelledRef = useRef(false);
+
   // Video modal state
   const [playVideoUrl, setPlayVideoUrl] = useState<string | null>(null);
 
@@ -356,6 +375,216 @@ export default function AvailableCandidatesPage() {
       alert('Failed to download CV file.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  // Bulk ZIP CV download handler
+  const handleBulkDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
+    const selectedIds = Array.from(selectedCheckboxes);
+    if (selectedIds.length === 0) return;
+    setIsDownloadingAll(true);
+    setDownloadAllOpen(false);
+    isCancelledRef.current = false;
+
+    setDownloadTask({
+      type: 'bulk',
+      format,
+      progress: 0,
+      total: selectedIds.length,
+      status: 'pending',
+      message: 'Initializing bulk export...',
+      candidateIds: selectedIds
+    });
+
+    const timerWorker = (() => {
+      const workerCode = `
+        self.onmessage = function(e) {
+          setTimeout(function() {
+            self.postMessage('tick');
+          }, e.data);
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      return new Worker(URL.createObjectURL(blob));
+    })();
+    const bgWait = (ms: number) => new Promise<void>(resolve => {
+      timerWorker.onmessage = () => resolve();
+      timerWorker.postMessage(ms);
+    });
+
+    try {
+      if (isCancelledRef.current) throw new Error('Cancelled');
+
+      if (format === 'doc') {
+        // DOCX is fast and functional on the server
+        const initRes = await api('/api/cv/bulk-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds, format })
+        });
+        
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        if (!initRes.ok) throw new Error('Failed to initialize bulk generation');
+        const { jobId } = await initRes.json();
+
+        let status = 'processing';
+        while (status === 'processing' || status === 'pending') {
+          if (isCancelledRef.current) throw new Error('Cancelled');
+          await bgWait(1500);
+          if (isCancelledRef.current) throw new Error('Cancelled');
+          const statusRes = await api(`/api/cv/bulk-generate/status/${jobId}`);
+          if (!statusRes.ok) throw new Error('Failed to fetch processing status');
+          const progressData = await statusRes.json();
+          
+          status = progressData.status;
+          if (status === 'failed') {
+            throw new Error(progressData.error || 'Server-side bulk generation failed');
+          }
+
+          setDownloadTask(prev => prev ? {
+            ...prev,
+            progress: progressData.progress,
+            total: progressData.total,
+            status: 'processing',
+            message: `Generating CVs: ${progressData.progress}/${progressData.total} (${Math.round((progressData.progress / progressData.total) * 100)}%)`
+          } : null);
+        }
+
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        setDownloadTask(prev => prev ? { ...prev, status: 'generating_zip', message: 'Downloading ZIP archive...' } : null);
+        const downloadRes = await api(`/api/cv/bulk-generate/download/${jobId}`);
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        if (!downloadRes.ok) throw new Error('Failed to download ZIP file');
+        const blob = await downloadRes.blob();
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Available_Candidates_CVs_DOC.zip`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
+        setDownloadTask(prev => prev ? { ...prev, progress: selectedIds.length, status: 'complete', message: 'Download complete!' } : null);
+      } else {
+        // PDF and JPG format download via optimized client zipping
+        setDownloadTask(prev => prev ? { ...prev, status: 'processing', message: 'Fetching candidate details in batch...' } : null);
+        const batchRes = await api('/api/cv/candidates-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds })
+        });
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        if (!batchRes.ok) throw new Error('Failed to fetch candidate details');
+        const candidatesData = await batchRes.json();
+
+        const JSZip = (await import('jszip')).default;
+        const htmlToImage = await import('html-to-image');
+        const { jsPDF } = await import('jspdf');
+        const zip = new JSZip();
+
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
+          if (isCancelledRef.current) throw new Error('Cancelled');
+          const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
+          setRenderingCandidates(chunk);
+          await bgWait(60);
+
+          await Promise.all(chunk.map(async (candidate: any) => {
+            if (isCancelledRef.current) return;
+            const element = document.getElementById(`bulk-render-${candidate.id}`);
+            if (!element) return;
+
+            const pData = candidate.passportData || {};
+            const pNo = pData.passportNumber || candidate.passportNumber || candidate.id.slice(-6);
+            const givenNames = pData.givenNames || candidate.givenNames || '';
+            const surname = pData.surname || candidate.surname || '';
+            const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
+
+            const rawTemplateId = candidate.latestCVTemplate || 'alm';
+            const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
+            const templateObj = TEMPLATES.find(t => t.id === templateId);
+            const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALAALAM';
+
+            const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+
+            if (isCancelledRef.current) return;
+            const dataUrl = await htmlToImage.toJpeg(element, {
+              quality: 0.90,
+              backgroundColor: '#ffffff',
+              pixelRatio: 1.5,
+              fontEmbedCSS: '',
+              imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+            });
+
+            if (isCancelledRef.current) return;
+            if (format === 'jpg') {
+              const imgRes = await fetch(dataUrl);
+              const blob = await imgRes.blob();
+              zip.file(`${safeName}.jpg`, blob);
+            } else {
+              const pdf = new jsPDF('p', 'mm', 'a4');
+              const pdfW = pdf.internal.pageSize.getWidth();
+              const props = pdf.getImageProperties(dataUrl);
+              const totalH = props.height / (props.width / pdfW);
+              pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
+              if (totalH > pdf.internal.pageSize.getHeight() + 10) {
+                pdf.addPage();
+                pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
+              }
+              zip.file(`${safeName}.pdf`, pdf.output('blob'));
+            }
+
+            setDownloadTask(prev => {
+              if (!prev) return null;
+              const nextProgress = Math.min(prev.progress + 1, prev.total);
+              return {
+                ...prev,
+                progress: nextProgress,
+                status: 'processing',
+                message: `Rendering CVs: ${nextProgress}/${prev.total}`
+              };
+            });
+          }));
+        }
+
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        setRenderingCandidates([]);
+        setDownloadTask(prev => prev ? { ...prev, status: 'generating_zip', message: 'Generating ZIP file...' } : null);
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        if (isCancelledRef.current) throw new Error('Cancelled');
+        const url = window.URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Available_Candidates_CVs_${format.toUpperCase()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 2000);
+        setDownloadTask(prev => prev ? { ...prev, status: 'complete', message: 'Download complete!' } : null);
+
+        // Update cvDownloaded status on server
+        await api('/api/candidates/bulk-cv-downloaded', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidateIds: selectedIds, cvDownloaded: true }),
+        });
+      }
+
+      // Local state updates
+      setCandidates(prev => prev.map(c => selectedIds.includes(c.id) ? { ...c, cvDownloaded: true } : c));
+      setSelectedCheckboxes(new Set());
+    } catch (err: any) {
+      console.error(err);
+      if (isCancelledRef.current || err.message === 'Cancelled') {
+        setDownloadTask(prev => prev ? { ...prev, status: 'cancelled', message: 'Download cancelled.' } : null);
+      } else {
+        alert(err.message || 'Failed to download CVs');
+        setDownloadTask(prev => prev ? { ...prev, status: 'failed', message: err.message || 'Download failed.' } : null);
+      }
+    } finally {
+      setIsDownloadingAll(false);
+      setRenderingCandidates([]);
+      timerWorker.terminate();
     }
   };
 
@@ -555,6 +784,25 @@ export default function AvailableCandidatesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-16">
+      {/* Hidden container for optimized bulk rendering */}
+      <div style={{ position: 'fixed', top: -9999, left: -9999, width: '210mm', zIndex: -1 }}>
+        {renderingCandidates.map(c => {
+          const firstCv = c.generatedCVs?.[0];
+          const rawTemplateId = firstCv ? (typeof firstCv === 'string' ? firstCv : firstCv.templateId) : (c.latestCVTemplate || 'alm');
+          const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
+          const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
+
+          return (
+            <div key={c.id} id={`bulk-render-${c.id}`} style={{ width: '210mm', backgroundColor: '#ffffff' }}>
+              <FolderTemplate
+                candidate={c}
+                facePhoto={getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
+                fullBodyPhoto={getFileUrl(c.fullBodyPhotoUrl)}
+              />
+            </div>
+          );
+        })}
+      </div>
       
       {/* Upper header segment */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1175,6 +1423,127 @@ export default function AvailableCandidatesPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {selectedCheckboxes.size > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md border border-gray-250 rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-4 animate-in slide-in-from-bottom-6 duration-300">
+          <span className="text-sm font-bold text-gray-900">
+            {selectedCheckboxes.size} Selected
+          </span>
+          <div className="h-6 w-px bg-gray-200" />
+
+          {/* Download Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setDownloadAllOpen(prev => !prev)}
+              disabled={isDownloadingAll}
+              className="px-5 py-2.5 bg-[#00A4EF] text-white text-xs font-bold rounded-xl hover:bg-[#008bcb] transition-all flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+            >
+              {isDownloadingAll ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Download size={14} />
+              )}
+              Download CVs
+              <ChevronDown size={12} className={`transition-transform duration-200 ${downloadAllOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {downloadAllOpen && (
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                <button
+                  onClick={() => handleBulkDownload('pdf')}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-xs text-gray-750 hover:bg-gray-50 transition-colors font-semibold cursor-pointer text-left"
+                >
+                  <FileDown size={14} className="text-red-500" /> As PDF
+                </button>
+                <button
+                  onClick={() => handleBulkDownload('jpg')}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-xs text-gray-750 hover:bg-gray-50 transition-colors border-t border-gray-150 font-semibold cursor-pointer text-left"
+                >
+                  <ImageIcon size={14} className="text-emerald-500" /> As JPG
+                </button>
+                <button
+                  onClick={() => handleBulkDownload('doc')}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-xs text-gray-750 hover:bg-gray-50 transition-colors border-t border-gray-150 font-semibold cursor-pointer text-left"
+                >
+                  <FileText size={14} className="text-blue-500" /> As DOCX
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleUnselectAll}
+            className="px-4 py-2.5 bg-gray-100 text-gray-650 text-xs font-bold rounded-xl hover:bg-gray-200 transition-all cursor-pointer"
+          >
+            Deselect
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Download Progress Modal */}
+      {downloadTask && (
+        <div className="fixed bottom-6 right-6 z-50 w-80 bg-white border border-gray-200 rounded-2xl shadow-2xl p-5 animate-in slide-in-from-bottom-5">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+              Exporting CVs ({downloadTask.format.toUpperCase()})
+            </h4>
+            <button 
+              onClick={() => {
+                if (downloadTask.status === 'processing' || downloadTask.status === 'pending' || downloadTask.status === 'generating_zip') {
+                  if (confirm('Cancel current export task?')) {
+                    isCancelledRef.current = true;
+                    setDownloadTask(null);
+                  }
+                } else {
+                  setDownloadTask(null);
+                }
+              }}
+              className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <p className="text-xs font-semibold text-gray-900 mb-2.5 leading-normal">
+            {downloadTask.message}
+          </p>
+
+          {(downloadTask.status === 'processing' || downloadTask.status === 'pending' || downloadTask.status === 'generating_zip') && (
+            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
+              <div 
+                className="h-full bg-[#464479] transition-all duration-300 rounded-full" 
+                style={{ width: `${downloadTask.total > 0 ? (downloadTask.progress / downloadTask.total) * 100 : 0}%` }}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {(downloadTask.status === 'processing' || downloadTask.status === 'pending' || downloadTask.status === 'generating_zip') ? (
+              <button
+                onClick={() => {
+                  isCancelledRef.current = true;
+                  setDownloadTask(prev => prev ? { ...prev, status: 'cancelled', message: 'Cancelling export task...' } : null);
+                }}
+                className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl border border-red-100 transition-colors cursor-pointer"
+              >
+                Cancel Download
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (downloadTask.type === 'bulk' && downloadTask.candidateIds) {
+                    handleBulkDownload(downloadTask.format);
+                  }
+                }}
+                className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-colors cursor-pointer"
+              >
+                Restart Download
+              </button>
+            )}
           </div>
         </div>
       )}
