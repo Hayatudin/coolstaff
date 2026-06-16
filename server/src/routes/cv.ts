@@ -123,7 +123,20 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    if (candidate.isLocked) {
+    let candidateIsLocked = false;
+    try {
+      const rawRows: any[] = await prisma.$queryRawUnsafe(
+        'SELECT isLocked FROM `Candidate` WHERE id = ? LIMIT 1',
+        candidateId
+      );
+      if (rawRows.length > 0) {
+        candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
+      }
+    } catch (e) {
+      console.warn('[CV] Could not query candidate isLocked:', e);
+    }
+
+    if (candidateIsLocked) {
       return res.status(403).json({ error: 'This candidate is locked. CV downloading is restricted.' });
     }
 
@@ -428,13 +441,29 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
       const zip = new JSZip();
 
       try {
-        const candidates = await prisma.candidate.findMany({
+        const dbCandidates = await prisma.candidate.findMany({
           where: { 
-            id: { in: candidateIds },
-            isLocked: false
+            id: { in: candidateIds }
           },
           include: { generatedCVs: true }
         });
+
+        // Query candidate lock states via raw SQL to bypass stale Prisma Client
+        let lockedIds = new Set<string>();
+        try {
+          const rawLocks: any[] = await prisma.$queryRawUnsafe(
+            `SELECT id, isLocked FROM \`Candidate\` WHERE id IN (${candidateIds.map(id => `'${id}'`).join(',')})`
+          );
+          for (const row of rawLocks) {
+            if (row.isLocked === 1 || row.isLocked === true) {
+              lockedIds.add(row.id);
+            }
+          }
+        } catch (e) {
+          console.warn('[CV] Failed to fetch bulk isLocked map:', e);
+        }
+
+        const candidates = dbCandidates.filter(c => !lockedIds.has(c.id));
 
         if (format === 'doc' || format === 'docx') {
           const BATCH_SIZE = 20;
@@ -810,10 +839,9 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'candidateIds must be a non-empty array' });
     }
 
-    const candidates = await prisma.candidate.findMany({
+    const dbCandidates = await prisma.candidate.findMany({
       where: { 
-        id: { in: candidateIds },
-        isLocked: false
+        id: { in: candidateIds }
       },
       include: { 
         generatedCVs: true,
@@ -821,6 +849,23 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
         registeredBy: true
       }
     });
+
+    // Query candidate lock states via raw SQL to bypass stale Prisma Client
+    let lockedIds = new Set<string>();
+    try {
+      const rawLocks: any[] = await prisma.$queryRawUnsafe(
+        `SELECT id, isLocked FROM \`Candidate\` WHERE id IN (${candidateIds.map(id => `'${id}'`).join(',')})`
+      );
+      for (const row of rawLocks) {
+        if (row.isLocked === 1 || row.isLocked === true) {
+          lockedIds.add(row.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[CV] Failed to fetch candidates-batch isLocked map:', e);
+    }
+
+    const candidates = dbCandidates.filter(c => !lockedIds.has(c.id));
 
     const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
 

@@ -87,7 +87,6 @@ export default function BrokerCandidatesPage() {
 
   // Advanced Filters
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
-  const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
   const [religionFilter, setReligionFilter] = useState('');
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
@@ -929,20 +928,15 @@ export default function BrokerCandidatesPage() {
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      // 6. CV Status Filter
-      const matchesCvStatus = cvStatusFilter === 'cv-downloaded'
-        ? c.cvDownloaded === true
-        : c.cvDownloaded !== true;
-
-      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency && matchesCvStatus;
+      return matchesSearch && matchesVisa && matchesReligion && matchesFlagged && matchesAgency;
     });
-  }, [candidates, searchQuery, visaFilter, cvStatusFilter, religionFilter, flaggedFilter, agencyFilter]);
+  }, [candidates, searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
 
   // Reset pagination on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, visaFilter, cvStatusFilter, religionFilter, flaggedFilter, agencyFilter]);
+  }, [searchQuery, visaFilter, religionFilter, flaggedFilter, agencyFilter]);
 
   // Pagination Slice
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -976,14 +970,31 @@ export default function BrokerCandidatesPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-6">
           <button
-            onClick={() => router.push('/brokers')}
+            onClick={() => {
+              if (broker?.leaderId) {
+                router.push(`/brokers/leader/${broker.leaderId}`);
+              } else {
+                router.push('/brokers');
+              }
+            }}
             className="w-12 h-12 bg-surface border border-border/50 rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 group"
           >
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           </button>
           <div>
             <nav className="flex items-center gap-2 text-text-tertiary text-xs font-bold uppercase tracking-widest mb-1">
-              <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => router.push('/brokers')}>Brokers</span>
+              <span 
+                className="hover:text-primary cursor-pointer transition-colors" 
+                onClick={() => {
+                  if (broker?.leaderId) {
+                    router.push(`/brokers/leader/${broker.leaderId}`);
+                  } else {
+                    router.push('/brokers');
+                  }
+                }}
+              >
+                Brokers
+              </span>
               <ChevronRight size={12} />
               <span className="text-primary/60">Portfolio</span>
             </nav>
@@ -1026,34 +1037,6 @@ export default function BrokerCandidatesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0 w-full lg:w-auto">
-            {/* CV Status Filter Tabs */}
-            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
-              <button
-                type="button"
-                onClick={() => setCvStatusFilter('cv-available')}
-                className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                  cvStatusFilter === 'cv-available'
-                    ? "bg-white text-text-primary shadow-md"
-                    : "text-text-tertiary hover:bg-white/50"
-                )}
-              >
-                CV Available
-              </button>
-              <button
-                type="button"
-                onClick={() => setCvStatusFilter('cv-downloaded')}
-                className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                  cvStatusFilter === 'cv-downloaded'
-                    ? "bg-white text-text-primary shadow-md"
-                    : "text-text-tertiary hover:bg-white/50"
-                )}
-              >
-                CV Downloaded
-              </button>
-            </div>
-
             {/* Visa Status Filter Tabs */}
             <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
               <button
@@ -1181,18 +1164,6 @@ export default function BrokerCandidatesPage() {
               <ArrowRightLeft size={14} />
               Move Candidates
             </button>
-
-            {/* Mark as CV Available bulk */}
-            {cvStatusFilter === 'cv-downloaded' && (
-              <button
-                onClick={handleBulkMarkAsCvAvailable}
-                disabled={actionLoading}
-                className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer font-semibold disabled:opacity-50"
-              >
-                <Check size={14} className="text-emerald-600" />
-                Mark as CV Available
-              </button>
-            )}
 
             {/* Download Dropdown */}
             <div className="relative">
@@ -1485,15 +1456,6 @@ export default function BrokerCandidatesPage() {
                                 <span>{candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}</span>
                               </button>
 
-                              {cvStatusFilter === 'cv-downloaded' && candidate.cvDownloaded && (
-                                <button
-                                  onClick={() => markAsCvAvailable(candidate.id)}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
-                                >
-                                  <FileDown size={16} className="text-emerald-500" />
-                                  <span>Mark as CV Available</span>
-                                </button>
-                              )}
 
                               <div className="border-t border-border/60 my-1" />
 
