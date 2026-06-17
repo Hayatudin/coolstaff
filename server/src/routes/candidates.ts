@@ -541,7 +541,9 @@ router.post('/', async (req: Request, res: Response) => {
         emergencyContactPhone: body.personalInfo.emergencyContactPhone,
         emergencyContactAddress: body.personalInfo.emergencyContactAddress,
         additionalPhones: body.personalInfo.additionalPhones || [],
-        brokerId: body.personalInfo.brokerId || null,
+        ...(body.personalInfo.brokerId ? {
+          broker: { connect: { id: body.personalInfo.brokerId } }
+        } : {}),
 
         passportImageUrl,
         facePhotoUrl,
@@ -883,7 +885,11 @@ router.put('/:id', async (req: Request, res: Response) => {
         emergencyContactPhone: body.personalInfo.emergencyContactPhone,
         emergencyContactAddress: body.personalInfo.emergencyContactAddress,
         additionalPhones: body.personalInfo.additionalPhones || [],
-        brokerId: body.personalInfo.brokerId || null,
+        ...(body.personalInfo.brokerId ? {
+          broker: { connect: { id: body.personalInfo.brokerId } }
+        } : {
+          broker: { disconnect: true }
+        }),
 
         ...(passportImageUrl && { passportImageUrl }),
         ...(facePhotoUrl && { facePhotoUrl }),
