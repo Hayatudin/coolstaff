@@ -423,6 +423,7 @@ export async function ensureDatabaseSchema() {
     { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'deployedDate', type: 'DATETIME(3) NULL' },
     { name: 'isLocked', type: 'TINYINT(1) NOT NULL DEFAULT 0' },
+    { name: 'allowVideo', type: 'TINYINT(1) NOT NULL DEFAULT 0' },
     { name: 'embassyIssue', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
     { name: 'cocStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
     { name: 'tasheerStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'No'" },
@@ -462,7 +463,8 @@ export async function ensureDatabaseSchema() {
     { name: 'relativeIdImageUrl', type: 'LONGTEXT NULL' },
     { name: 'videoUrl', type: 'VARCHAR(500) NULL' },
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
-    { name: 'languages', type: 'JSON NULL' }
+    { name: 'languages', type: 'JSON NULL' },
+    { name: 'allowVideo', type: 'TINYINT(1) NOT NULL DEFAULT 0' }
   ];
 
   for (const col of quickRegColumns) {
