@@ -3,6 +3,49 @@ import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
 import { getSession } from '../lib/auth-helper';
 
+function formatPrismaError(error: any): string {
+  if (!error) return 'Unknown error';
+  
+  let msg = error.message || String(error);
+  let codeStr = error.code ? `[Prisma Error ${error.code}]: ` : '';
+  
+  // Clean up any Prisma validation/invocation errors by extracting the reason after the query block
+  if (msg.includes('invocation:')) {
+    const lastBraceIdx = msg.lastIndexOf('}');
+    if (lastBraceIdx !== -1) {
+      const reason = msg.substring(lastBraceIdx + 1).trim();
+      if (reason) {
+        return codeStr + reason.split('\n').map((l: string) => l.trim()).filter(Boolean).join(' | ');
+      }
+    }
+  }
+  
+  // Fallback: If there are newlines, try to get the last lines that aren't query structure
+  if (msg.includes('\n')) {
+    const lines = msg.split('\n').map((l: string) => l.trim()).filter(Boolean);
+    const actualReasonLines = [];
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (
+        line.includes('prisma.') || 
+        line.includes('invocation:') || 
+        line.startsWith('{') || 
+        line.startsWith('}') || 
+        line.startsWith('where:') || 
+        line.startsWith('data:')
+      ) {
+        break;
+      }
+      actualReasonLines.unshift(line);
+    }
+    if (actualReasonLines.length > 0) {
+      return codeStr + actualReasonLines.join(' | ');
+    }
+  }
+  
+  return codeStr + msg;
+}
+
 const router = Router();
 
 
@@ -339,6 +382,14 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const body = req.body;
 
+    // Ensure allowVideo columns exist in database (self-healing fallback)
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`allowVideo\` TINYINT(1) NOT NULL DEFAULT 0`);
+    } catch (_) {}
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE \`QuickRegistration\` ADD COLUMN \`allowVideo\` TINYINT(1) NOT NULL DEFAULT 0`);
+    } catch (_) {}
+
 
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
@@ -595,7 +646,7 @@ router.post('/', async (req: Request, res: Response) => {
     if (error?.code === 'P2002') {
       return res.status(400).json({ error: 'A candidate with this Passport Number already exists in the system.' });
     }
-    res.status(500).json({ error: error?.message || 'Failed to create candidate' });
+    res.status(500).json({ error: formatPrismaError(error) });
   }
 });
 
@@ -734,6 +785,14 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const body = req.body;
+
+    // Ensure allowVideo columns exist in database (self-healing fallback)
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`allowVideo\` TINYINT(1) NOT NULL DEFAULT 0`);
+    } catch (_) {}
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE \`QuickRegistration\` ADD COLUMN \`allowVideo\` TINYINT(1) NOT NULL DEFAULT 0`);
+    } catch (_) {}
 
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
@@ -895,7 +954,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (error?.code === 'P2002') {
       return res.status(400).json({ error: 'A candidate with this Passport Number already exists.' });
     }
-    res.status(500).json({ error: error?.message || 'Failed to update candidate' });
+    res.status(500).json({ error: formatPrismaError(error) });
   }
 });
 
@@ -1103,7 +1162,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error: any) {
     console.error('Failed to update candidate:', error);
-    res.status(500).json({ error: error?.message || 'Failed to update candidate' });
+    res.status(500).json({ error: formatPrismaError(error) });
   }
 });
 
