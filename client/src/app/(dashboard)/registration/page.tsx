@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { PassportData, CandidatePersonalInfo, RegistrationStep, Broker } from '@/types';
 import { cn, compressImage } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -68,6 +68,7 @@ const emptyPersonalInfo: CandidatePersonalInfo = {
 
 function RegistrationContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const editId = searchParams.get('edit');
   const isEditMode = !!editId;
 
@@ -90,12 +91,12 @@ function RegistrationContent() {
   const [videoUrl, setVideoUrl] = useState('');
   const [allowVideo, setAllowVideo] = useState(false);
   const [quickRegistrationId, setQuickRegistrationId] = useState<string | null>(null);
-  const [checkedPassportNum, setCheckedPassportNum] = useState<string | null>(null);
 
   // Musaned drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
   const [musanedError, setMusanedError] = useState<string | null>(null);
   const [musanedSuccess, setMusanedSuccess] = useState(false);
+  const [candidateExists, setCandidateExists] = useState(false);
   const musanedFileRef = React.useRef<HTMLInputElement>(null);
 
   const { data: session } = authClient.useSession();
@@ -298,71 +299,10 @@ function RegistrationContent() {
     fetchQuickRegistration();
   }, [quickRegId]);
 
-  // Auto-fill from Quick Registration when passport number changes/is scanned
-  useEffect(() => {
-    const passportNumber = passportData.passportNumber?.trim();
-    if (!passportNumber || passportNumber.length < 5 || passportNumber === checkedPassportNum) return;
-
-    // Don't auto-fill if we already explicitly loaded a quick registration via URL param
-    if (quickRegId) return;
-
-    async function checkQuickRegistration() {
-      try {
-        setCheckedPassportNum(passportNumber);
-        const res = await api(`/api/quick-registrations/by-passport/${passportNumber}`);
-        if (!res.ok) return; // Silent return if not found in Quick Registration
-        const data = await res.json();
-        
-        console.log('[DEBUG] Found matching Quick Registration record:', data);
-        setQuickRegistrationId(data.id);
-        
-        setPassportData(prev => ({
-          ...prev,
-          passportNumber: data.passportNumber || prev.passportNumber || '',
-          surname: data.surname || prev.surname || '',
-          givenNames: data.givenNames || prev.givenNames || '',
-          dateOfBirth: prev.dateOfBirth || '',
-          gender: prev.gender || '',
-          nationality: prev.nationality || '',
-          issuingCountry: prev.issuingCountry || '',
-          dateOfExpiry: prev.dateOfExpiry || '',
-          placeOfBirth: prev.placeOfBirth || '',
-        }));
-
-        setPersonalInfo(prev => ({
-          ...prev,
-          religion: data.religion || prev.religion || '',
-          maritalStatus: data.maritalStatus || prev.maritalStatus || '',
-          numberOfChildren: data.numberOfChildren || prev.numberOfChildren || 0,
-          educationLevel: prev.educationLevel || '',
-          brokerId: data.brokerId || prev.brokerId || '',
-          additionalPhones: prev.additionalPhones || [],
-          workExperience: prev.workExperience || [],
-          cocDocumentUrl: data.cocDocumentUrl || prev.cocDocumentUrl || '',
-          labourIdUrl: data.labourIdUrl || prev.labourIdUrl || '',
-          candidateIdImageUrl: data.candidateIdImageUrl || prev.candidateIdImageUrl || '',
-          relativeIdImageUrl: data.relativeIdImageUrl || prev.relativeIdImageUrl || '',
-          languages: Array.isArray(data.languages) ? data.languages : (prev.languages || []),
-        }));
-
-        if (data.passportImageUrl) {
-          setPassportImage(data.passportImageUrl);
-        }
-        if (data.videoUrl && data.videoUrl.startsWith('http')) {
-          setVideoUrl(data.videoUrl);
-        }
-        setProcessingComplete(true);
-        
-        alert(`Found associated Quick Registration details for passport ${passportNumber}! Auto-filling candidate fields & documents.`);
-      } catch (err) {
-        console.error('Error auto-filling from Quick Registration:', err);
-      }
-    }
-    checkQuickRegistration();
-  }, [passportData.passportNumber, checkedPassportNum, quickRegId]);
 
   // Auto-fill pre-registered video URLs & photos by passport number
   useEffect(() => {
+    if (isEditMode) return;
     const passportNumber = passportData.passportNumber?.trim();
     if (!passportNumber || passportNumber.length < 5) return;
 
@@ -444,6 +384,7 @@ function RegistrationContent() {
     setIsProcessing(true);
     setMusanedError(null);
     setMusanedSuccess(false);
+    setCandidateExists(false);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -452,6 +393,14 @@ function RegistrationContent() {
       if (!res.ok) throw new Error(result.error || 'Failed to process PDF');
 
       const data = result.data;
+      const passportNum = (data.passportNumber || '').trim().toUpperCase();
+      if (passportNum) {
+        const alreadyExists = candidates.some((c: any) => c.passportData?.passportNumber?.trim().toUpperCase() === passportNum || c.passportNumber?.trim().toUpperCase() === passportNum);
+        if (alreadyExists) {
+          setCandidateExists(true);
+          throw new Error(`Candidate with Passport Number ${data.passportNumber} already exists in the system.`);
+        }
+      }
       const convertDate = (dateStr?: string): string => {
         if (!dateStr) return '';
         if (dateStr.includes('T')) {
@@ -757,9 +706,18 @@ function RegistrationContent() {
                     <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-red-600 text-xs font-bold">!</span>
                     </div>
-                    <div>
+                    <div className="flex-1 text-left">
                       <p className="text-sm font-bold text-red-800">Extraction Error</p>
                       <p className="text-xs text-red-600 mt-1">{musanedError}</p>
+                      {candidateExists && (
+                        <button
+                          type="button"
+                          onClick={() => router.push('/candidates')}
+                          className="mt-3 px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        >
+                          Back to Candidates
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -844,8 +802,6 @@ function RegistrationContent() {
             onFullBodyPhotoChange={setFullBodyPhoto}
             videoUrl={videoUrl}
             onVideoUrlChange={setVideoUrl}
-            allowVideo={allowVideo}
-            onAllowVideoChange={setAllowVideo}
           />
         )}
 

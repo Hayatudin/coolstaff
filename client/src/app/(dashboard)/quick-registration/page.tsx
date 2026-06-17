@@ -86,6 +86,7 @@ export default function QuickRegistrationPage() {
   const [candidateIdImageUrl, setCandidateIdImageUrl] = useState<string | null>(null);
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [allowVideo, setAllowVideo] = useState(false);
   const [agency, setAgency] = useState('');
   const [passportType, setPassportType] = useState('original');
 
@@ -325,6 +326,7 @@ export default function QuickRegistrationPage() {
           candidateIdImageUrl,
           relativeIdImageUrl,
           videoUrl,
+          allowVideo,
           agency,
           passportType,
           registeredById: session?.user?.id || null,
@@ -622,6 +624,20 @@ export default function QuickRegistrationPage() {
                     onClear={() => setVideoUrl(null)}
                     helperText="MP4, WebM or MOV — Max 50MB"
                   />
+                </div>
+              )}
+              {videoUrl && (
+                <div className="flex items-center gap-2.5 mt-2.5 select-none">
+                  <input
+                    type="checkbox"
+                    id="allowVideo"
+                    checked={allowVideo}
+                    onChange={e => setAllowVideo(e.target.checked)}
+                    className="w-4 h-4 accent-primary rounded cursor-pointer"
+                  />
+                  <label htmlFor="allowVideo" className="text-sm font-medium text-text-secondary cursor-pointer">
+                    Show Imported video to agency
+                  </label>
                 </div>
               )}
             </div>

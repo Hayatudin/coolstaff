@@ -60,7 +60,7 @@ router.get('/', async (req: Request, res: Response) => {
     try {
       // Include registeredById in raw query to bypass any stale schema generator definitions
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages FROM \`QuickRegistration\``
+        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo FROM \`QuickRegistration\``
       );
       const rawMap = new Map();
       for (const row of rawRows) {
@@ -79,6 +79,7 @@ router.get('/', async (req: Request, res: Response) => {
           reg.promotedCandidateId = raw.promotedCandidateId;
           reg.agency = raw.agency;
           reg.languages = raw.languages ? (typeof raw.languages === 'string' ? JSON.parse(raw.languages) : raw.languages) : null;
+          reg.allowVideo = raw.allowVideo === 1 || raw.allowVideo === true;
           if (raw.registeredById) {
             reg.registeredById = raw.registeredById;
           }
@@ -191,6 +192,7 @@ router.post('/', async (req: Request, res: Response) => {
       passportImageUrl,
       religion: body.religion || null,
       broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
+      allowVideo: body.allowVideo ?? false,
     };
 
     let registration: any;
@@ -218,7 +220,7 @@ router.post('/', async (req: Request, res: Response) => {
       const languagesString = body.languages ? JSON.stringify(body.languages) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?, \`languages\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?, \`languages\` = ?, \`allowVideo\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
@@ -230,6 +232,7 @@ router.post('/', async (req: Request, res: Response) => {
         registeredById || null,
         body.passportType || 'original',
         languagesString,
+        body.allowVideo ? 1 : 0,
         registration.id
       );
 
@@ -243,6 +246,7 @@ router.post('/', async (req: Request, res: Response) => {
       registration.agency = body.agency || 'daera';
       registration.passportType = body.passportType || 'original';
       registration.languages = body.languages || null;
+      registration.allowVideo = body.allowVideo ?? false;
     } catch (rawError) {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
@@ -310,6 +314,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateData.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateData.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateData.religion = body.religion;
+    if (body.allowVideo !== undefined) updateData.allowVideo = body.allowVideo;
     if (body.brokerId !== undefined) {
       if (body.brokerId === null || body.brokerId === '') {
         updateData.broker = { disconnect: true };
@@ -335,7 +340,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       videoUrl !== undefined ||
       body.agency !== undefined ||
       body.passportType !== undefined ||
-      body.languages !== undefined
+      body.languages !== undefined ||
+      body.allowVideo !== undefined
     ) {
       try {
         const setClauses: string[] = [];
@@ -385,6 +391,11 @@ router.put('/:id', async (req: Request, res: Response) => {
           setClauses.push('`languages` = ?');
           queryParams.push(body.languages ? JSON.stringify(body.languages) : null);
           updated.languages = body.languages;
+        }
+        if (body.allowVideo !== undefined) {
+          setClauses.push('`allowVideo` = ?');
+          queryParams.push(body.allowVideo ? 1 : 0);
+          updated.allowVideo = body.allowVideo;
         }
 
         if (setClauses.length > 0) {
@@ -443,7 +454,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
@@ -458,6 +469,7 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
         registration.promotedCandidateId = raw.promotedCandidateId;
         registration.agency = raw.agency;
         registration.languages = raw.languages ? (typeof raw.languages === 'string' ? JSON.parse(raw.languages) : raw.languages) : null;
+        registration.allowVideo = raw.allowVideo === 1 || raw.allowVideo === true;
       }
     } catch (_) { /* ignore */ }
 
@@ -494,7 +506,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
@@ -509,6 +521,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         registration.promotedCandidateId = raw.promotedCandidateId;
         registration.agency = raw.agency;
         registration.languages = raw.languages ? (typeof raw.languages === 'string' ? JSON.parse(raw.languages) : raw.languages) : null;
+        registration.allowVideo = raw.allowVideo === 1 || raw.allowVideo === true;
       }
     } catch (_) { /* ignore */ }
 

@@ -216,15 +216,17 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
     }
 
 
-    // Also fetch raw videoUrl which may not be in Prisma Client cache
+    // Also fetch raw videoUrl and allowVideo which may not be in Prisma Client cache
     let videoUrl = qr.videoUrl || null;
+    let allowVideo = qr.allowVideo ?? false;
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT \`videoUrl\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT \`videoUrl\`, \`allowVideo\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         quickRegistrationId
       );
-      if (rawRows.length > 0 && rawRows[0].videoUrl) {
-        videoUrl = rawRows[0].videoUrl;
+      if (rawRows.length > 0) {
+        if (rawRows[0].videoUrl) videoUrl = rawRows[0].videoUrl;
+        allowVideo = rawRows[0].allowVideo === 1 || rawRows[0].allowVideo === true;
       }
     } catch (_) { /* column may not exist yet */ }
 
@@ -298,6 +300,8 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
       setClauses.push('`agency` = ?');
       params.push(qr.agency);
     }
+    setClauses.push('`allowVideo` = ?');
+    params.push(allowVideo ? 1 : 0);
 
     if (setClauses.length > 0) {
       params.push(candidate.id);
@@ -557,6 +561,23 @@ router.post('/', async (req: Request, res: Response) => {
     // If quickRegistrationId is provided, mark it as promoted
     if (body.quickRegistrationId) {
       try {
+        // Query allowVideo from QuickRegistration
+        const qrRows: any[] = await prisma.$queryRawUnsafe(
+          `SELECT \`allowVideo\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+          body.quickRegistrationId
+        );
+        let qrAllowVideo = false;
+        if (qrRows && qrRows.length > 0) {
+          qrAllowVideo = qrRows[0].allowVideo === 1 || qrRows[0].allowVideo === true;
+          // Update the newly created Candidate's allowVideo field
+          await prisma.$executeRawUnsafe(
+            `UPDATE \`Candidate\` SET \`allowVideo\` = ? WHERE \`id\` = ?`,
+            qrAllowVideo ? 1 : 0,
+            candidate.id
+          );
+          console.log(`[DEBUG] Copied allowVideo (${qrAllowVideo}) from QuickRegistration to Candidate ${candidate.id}`);
+        }
+
         await prisma.$executeRawUnsafe(
           `UPDATE \`QuickRegistration\` SET \`promotedAt\` = NOW(), \`promotedCandidateId\` = ?, \`verificationStatus\` = 'promoted' WHERE \`id\` = ?`,
           candidate.id,

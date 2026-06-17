@@ -248,6 +248,7 @@ model QuickRegistration {
   agency              String?  @default("daera")
   videoUrl            String?  @db.VarChar(500)
   languages           Json?
+  allowVideo          Boolean  @default(false)
 
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?
