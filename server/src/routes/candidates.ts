@@ -181,6 +181,7 @@ router.get('/', async (req: Request, res: Response) => {
         hasInvoice: c.invoices && c.invoices.length > 0,
         isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
         agency: c.agency || 'daera',
+        allowVideo: c.allowVideo ?? false,
       };
     });
 
@@ -497,6 +498,7 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: null, // YouTube URL saved separately via raw SQL
         status: body.status || 'pending',
+        allowVideo: body.allowVideo ?? false,
     };
 
     let candidate;
@@ -697,6 +699,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
       registeredBy: (c as any).registeredBy?.name || 'Admin',
       agency: c.agency || 'daera',
+      allowVideo: c.allowVideo ?? false,
     };
     res.json(candidate);
   } catch (error) {
@@ -814,6 +817,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
+        allowVideo: body.allowVideo ?? false,
       },
     });
 

@@ -91,6 +91,7 @@ model Candidate {
   agency                   String?   @default("daera")
   deployedDate             DateTime?
   isLocked                 Boolean   @default(false)
+  allowVideo               Boolean   @default(false)
   embassyIssue             String    @default("No")
   cocStatus                String    @default("No")
   tasheerStatus            String    @default("No")

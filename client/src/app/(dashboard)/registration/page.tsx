@@ -88,6 +88,7 @@ function RegistrationContent() {
   const [importMethod, setImportMethod] = useState<'musaned' | 'passport'>('musaned');
   const [registeredCandidateId, setRegisteredCandidateId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
+  const [allowVideo, setAllowVideo] = useState(false);
   const [quickRegistrationId, setQuickRegistrationId] = useState<string | null>(null);
   const [checkedPassportNum, setCheckedPassportNum] = useState<string | null>(null);
 
@@ -241,6 +242,7 @@ function RegistrationContent() {
       setFacePhoto(c.facePhotoUrl || null);
       setFullBodyPhoto(c.fullBodyPhotoUrl || null);
       setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
+      setAllowVideo(c.allowVideo || false);
       setProcessingComplete(true);
     }
   }, [editId, candidates]);
@@ -581,6 +583,7 @@ function RegistrationContent() {
           facePhotoUrl: compressedFace,
           fullBodyPhotoUrl: compressedFullBody,
           videoUrl: videoUrl || null,
+          allowVideo: allowVideo,
           status: isEditMode ? (candidates.find(c => c.id === editId)?.status || 'pending') : 'pending',
           isRequested: isEditMode ? (candidates.find(c => c.id === editId)?.isRequested || false) : false,
           visaSelected: isEditMode ? (candidates.find(c => c.id === editId)?.visaSelected || false) : false,
@@ -620,7 +623,7 @@ function RegistrationContent() {
             setSubmitted(false); setStep(1); setPassportImage(null); setFacePhoto(null); setFullBodyPhoto(null);
             setProcessingComplete(false); setPassportData(emptyPassportData);
             setPersonalInfo(emptyPersonalInfo); setMusanedSuccess(false);
-            setImportMethod('musaned'); setVideoUrl('');
+            setImportMethod('musaned'); setVideoUrl(''); setAllowVideo(false);
           }}>
             Add Another Candidate
           </Button>
@@ -841,6 +844,8 @@ function RegistrationContent() {
             onFullBodyPhotoChange={setFullBodyPhoto}
             videoUrl={videoUrl}
             onVideoUrlChange={setVideoUrl}
+            allowVideo={allowVideo}
+            onAllowVideoChange={setAllowVideo}
           />
         )}
 

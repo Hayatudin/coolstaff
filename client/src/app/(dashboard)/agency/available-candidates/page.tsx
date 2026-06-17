@@ -74,6 +74,7 @@ interface AvailableCandidate {
   job: string | null;
   dateOfBirth: string | null;
   videoUrl: string | null;
+  allowVideo?: boolean;
   latestCVTemplate: string | null;
   broker: { name: string } | null;
   agency?: string | null;
@@ -1044,7 +1045,7 @@ export default function AvailableCandidatesPage() {
       ) : paginatedCandidates.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedCandidates.map((c) => {
-            const hasVideo = !!c.videoUrl;
+            const hasVideo = !!c.videoUrl && c.allowVideo === true;
             return (
               <div 
                 key={c.id} 

@@ -32,9 +32,11 @@ interface PersonalInfoFormProps {
   onFullBodyPhotoChange?: (url: string) => void;
   videoUrl?: string;
   onVideoUrlChange?: (url: string) => void;
+  allowVideo?: boolean;
+  onAllowVideoChange?: (val: boolean) => void;
 }
 
-export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange }: PersonalInfoFormProps) {
+export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange, allowVideo, onAllowVideoChange }: PersonalInfoFormProps) {
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
     if (file.size > 50 * 1024 * 1024) {
       alert('Max file size is 50MB');
@@ -249,12 +251,28 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
 
           {/* YouTube Video URL */}
           {onVideoUrlChange && (
-            <Input
-              label="YouTube Video URL"
-              value={videoUrl || ''}
-              onChange={e => onVideoUrlChange(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
-            />
+            <div className="space-y-3">
+              <Input
+                label="YouTube Video URL"
+                value={videoUrl || ''}
+                onChange={e => onVideoUrlChange(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+              {videoUrl && videoUrl.trim() !== '' && onAllowVideoChange && (
+                <div className="flex items-center gap-2.5 mt-1 select-none">
+                  <input
+                    type="checkbox"
+                    id="allowVideo"
+                    checked={allowVideo || false}
+                    onChange={e => onAllowVideoChange(e.target.checked)}
+                    className="w-4 h-4 accent-primary rounded cursor-pointer"
+                  />
+                  <label htmlFor="allowVideo" className="text-sm font-medium text-text-secondary cursor-pointer">
+                    Show Imported video to agency
+                  </label>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </section>

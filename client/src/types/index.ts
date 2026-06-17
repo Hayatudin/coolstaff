@@ -92,6 +92,7 @@ export interface Candidate {
   visaDate?: string | null;
   cvDownloaded?: boolean;
   isLocked?: boolean;
+  allowVideo?: boolean;
 }
 
 export interface Leader {
