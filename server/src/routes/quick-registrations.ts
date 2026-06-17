@@ -243,7 +243,6 @@ router.post('/', async (req: Request, res: Response) => {
       passportImageUrl,
       religion: body.religion || null,
       broker: body.brokerId ? { connect: { id: body.brokerId } } : undefined,
-      allowVideo: body.allowVideo ?? false,
     };
 
     let registration: any;
@@ -373,7 +372,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateData.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateData.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateData.religion = body.religion;
-    if (body.allowVideo !== undefined) updateData.allowVideo = body.allowVideo;
     if (body.brokerId !== undefined) {
       if (body.brokerId === null || body.brokerId === '') {
         updateData.broker = { disconnect: true };
