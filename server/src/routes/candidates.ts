@@ -555,7 +555,6 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: null, // YouTube URL saved separately via raw SQL
         status: body.status || 'pending',
-        allowVideo: body.allowVideo ?? false,
     };
 
     let candidate;
@@ -597,6 +596,19 @@ router.post('/', async (req: Request, res: Response) => {
         candidate.id
       );
     } catch (_) { /* salary column may not exist yet, ignore */ }
+
+    // Save allowVideo separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    try {
+      const allowVideoVal = body.allowVideo ?? false;
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET \`allowVideo\` = ? WHERE \`id\` = ?`,
+        allowVideoVal ? 1 : 0,
+        candidate.id
+      );
+      console.log(`[DEBUG] Saved allowVideo (${allowVideoVal}) via raw SQL in POST`);
+    } catch (e) {
+      console.error('Failed to save allowVideo via raw SQL in POST:', e);
+    }
 
     // Save quickVideoUrl separately with graceful fallback (local uploaded video)
     if (isLocalVideo) {
@@ -903,9 +915,21 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
-        allowVideo: body.allowVideo ?? false,
       },
     });
+
+    // Save allowVideo separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    try {
+      const allowVideoVal = body.allowVideo ?? false;
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET \`allowVideo\` = ? WHERE \`id\` = ?`,
+        allowVideoVal ? 1 : 0,
+        candidate.id
+      );
+      console.log(`[DEBUG] Saved allowVideo (${allowVideoVal}) via raw SQL in PUT`);
+    } catch (e) {
+      console.error('Failed to save allowVideo via raw SQL in PUT:', e);
+    }
 
     // Save YouTube URL separately via raw SQL
     if (videoUrl && videoUrl.startsWith('http')) {
