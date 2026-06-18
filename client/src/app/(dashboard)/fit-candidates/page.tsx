@@ -1273,7 +1273,7 @@ export default function FitCandidatesPage() {
       {/* Change Template Modal */}
       {changeTarget && (() => {
         const isBulk = changeTarget === 'bulk';
-        const currentTmpl = isBulk ? 'alm' : (getNormalizedTemplateId(changeTarget) || 'alm');
+        const currentTmpl = isBulk ? '' : (getNormalizedTemplateId(changeTarget) || '');
 
         return (
           <ChangeTemplateModal

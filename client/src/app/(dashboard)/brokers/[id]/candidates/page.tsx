@@ -1547,7 +1547,7 @@ export default function BrokerCandidatesPage() {
       {/* Change Template Modal */}
       {templateChangeTarget && (() => {
         const isBulk = templateChangeTarget === 'bulk';
-        const currentTmpl = isBulk ? 'alm' : (getNormalizedTemplateId(templateChangeTarget) || 'alm');
+        const currentTmpl = isBulk ? '' : (getNormalizedTemplateId(templateChangeTarget) || '');
 
         return (
           <ChangeTemplateModal
