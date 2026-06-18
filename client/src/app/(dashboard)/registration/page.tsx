@@ -185,10 +185,20 @@ function RegistrationContent() {
         city: extractedData.city || prev.city,
         address: extractedData.address || prev.address,
         country: extractedData.nationality ? extractedData.nationality.toUpperCase() : prev.country,
-        languages: extractedData.languages 
-          ? extractedData.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) 
-          : (Array.isArray(quickRegistration.languages) ? quickRegistration.languages : prev.languages),
-        skills: extractedData.skills ? extractedData.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
+        languages: (() => {
+          const cvLangs = extractedData.languages
+            ? extractedData.languages.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean)
+            : [];
+          const quickLangs = quickRegistration && Array.isArray(quickRegistration.languages)
+            ? quickRegistration.languages.map((s: string) => s.toUpperCase())
+            : [];
+          const combined = Array.from(new Set([...cvLangs, ...quickLangs])).filter(lang => {
+            const l = lang.toUpperCase();
+            return l !== 'NONE' && l !== 'N/A' && l !== 'NIL' && l !== 'NULL' && l !== 'UNDEFINED';
+          });
+          return combined.length > 0 ? combined : prev.languages;
+        })(),
+        skills: extractedData.skills ? extractedData.skills.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
         emergencyContactName: extractedData.emergencyContactName || prev.emergencyContactName,
         emergencyContactRelation: extractedData.emergencyContactRelation || prev.emergencyContactRelation,
         emergencyContactPhone: extractedData.emergencyContactPhone || prev.emergencyContactPhone,
@@ -474,9 +484,17 @@ function RegistrationContent() {
       };
 
       setPersonalInfo(prev => {
-        const mergedLanguages = data.languages 
-          ? data.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) 
-          : (quickReg && Array.isArray(quickReg.languages) ? quickReg.languages : prev.languages);
+        const cvLangs = data.languages
+          ? data.languages.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean)
+          : [];
+        const quickLangs = quickReg && Array.isArray(quickReg.languages)
+          ? quickReg.languages.map((s: string) => s.toUpperCase())
+          : [];
+        const combinedLangs = Array.from(new Set([...cvLangs, ...quickLangs])).filter(lang => {
+          const l = lang.toUpperCase();
+          return l !== 'NONE' && l !== 'N/A' && l !== 'NIL' && l !== 'NULL' && l !== 'UNDEFINED';
+        });
+        const mergedLanguages = combinedLangs.length > 0 ? combinedLangs : prev.languages;
 
         return {
           ...prev,
@@ -494,7 +512,7 @@ function RegistrationContent() {
           address: data.address || prev.address,
           country: data.nationality ? data.nationality.toUpperCase() : prev.country,
           languages: mergedLanguages,
-          skills: data.skills ? data.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
+          skills: data.skills ? data.skills.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
           emergencyContactName: data.emergencyContactName || prev.emergencyContactName,
           emergencyContactRelation: data.emergencyContactRelation || prev.emergencyContactRelation,
           emergencyContactPhone: data.emergencyContactPhone || prev.emergencyContactPhone,
