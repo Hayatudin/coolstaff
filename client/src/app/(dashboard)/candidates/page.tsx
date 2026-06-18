@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -348,17 +348,18 @@ export default function CandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
                 <th className="px-6 py-4 font-semibold hidden xl:table-cell">{isSuperAdmin ? 'Registrar' : 'COC'}</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
+                <th className="px-6 py-4 font-semibold">Open</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <TableSkeleton rows={8} cols={9} />
+                <TableSkeleton rows={8} cols={10} />
               ) : error ? (
-                <tr><td colSpan={9} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
+                <tr><td colSpan={10} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
               ) : filtered.length > 0 ? (
                 paginatedCandidates.map((candidate) => (
-                  <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors cursor-pointer" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) router.push(`/candidates/${candidate.id}`); }}>
+                  <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors">
                     {/* Shelf ID */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200 shadow-sm">
@@ -474,6 +475,17 @@ export default function CandidatesPage() {
                       </div>
                     </td>
 
+                    {/* Open Details Button */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => router.push(`/candidates/${candidate.id}`)}
+                        className="px-3 py-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:shadow-primary/20"
+                      >
+                        Open
+                        <ArrowRight size={10} />
+                      </button>
+                    </td>
+
                     {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="relative inline-block" data-action-menu>
@@ -536,7 +548,7 @@ export default function CandidatesPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={9} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No candidates found matching your search or filters.</td></tr>
+                <tr><td colSpan={10} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No candidates found matching your search or filters.</td></tr>
               )}
             </tbody>
           </table>

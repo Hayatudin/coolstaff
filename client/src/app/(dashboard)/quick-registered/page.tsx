@@ -494,13 +494,14 @@ export default function QuickRegisteredPage() {
                 <th className="px-6 py-4 font-semibold hidden lg:table-cell">Broker</th>
                 <th className="px-6 py-4 font-semibold hidden sm:table-cell">Status</th>
                 <th className="px-6 py-4 font-semibold hidden sm:table-cell">Date</th>
+                <th className="px-6 py-4 font-semibold">Open</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading registrations...</p>
@@ -515,7 +516,7 @@ export default function QuickRegisteredPage() {
                       key={r.id}
                       className="hover:bg-gray-50/30 transition-colors"
                     >
-                      <td className="px-6 py-4 cursor-pointer" onClick={() => router.push(`/quick-registration/preview/${r.id}`)}>
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0 border border-primary-100">
                             <span className="text-primary font-bold text-sm">
@@ -561,6 +562,15 @@ export default function QuickRegisteredPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-text-primary font-semibold hidden sm:table-cell whitespace-nowrap">
                         {new Date(r.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => router.push(`/quick-registration/preview/${r.id}`)}
+                          className="px-3 py-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:shadow-primary/20"
+                        >
+                          Open
+                          <ArrowRight size={10} />
+                        </button>
                       </td>
                       <td className="px-6 py-4 text-right relative whitespace-nowrap">
                         <div className="flex items-center justify-end">
@@ -652,7 +662,7 @@ export default function QuickRegisteredPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                  <td colSpan={9} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     No registrations found.
                   </td>
                 </tr>

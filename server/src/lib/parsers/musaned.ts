@@ -92,15 +92,9 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
 
     if (parts.length === 1) {
       givenNames = parts[0];
-    } else if (parts.length === 2) {
-      givenNames = parts[0];
-      surname = parts[1];
-    } else if (parts.length === 3) {
-      givenNames = parts.slice(0, 2).join(' ');
-      surname = parts[2];
-    } else if (parts.length > 3) {
-      givenNames = parts.slice(0, 2).join(' ');
-      surname = parts.slice(2).join(' ');
+    } else if (parts.length >= 2) {
+      surname = parts[0];
+      givenNames = parts.slice(1).join(' ');
     }
 
     return { givenNames, surname };

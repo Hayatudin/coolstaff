@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { 
   Users, Plus, Search, Folder, FolderOpen,
   TrendingUp, Award, Clock, ArrowUpRight, 
-  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, Loader2, Edit3
+  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, Loader2, Edit3, ArrowRight
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -396,9 +396,8 @@ export default function BrokersPage() {
     return (
       <div
         key={broker.id}
-        onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
         className={cn(
-          "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 cursor-pointer relative flex flex-col min-h-[220px]",
+          "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 relative flex flex-col min-h-[220px]",
           broker.isLocked
             ? "border-red-300 hover:border-red-400 bg-red-50/5 hover:shadow-red-500/5"
             : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5",
@@ -577,9 +576,13 @@ export default function BrokersPage() {
               {broker._count?.candidates || 0}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
-            <ArrowUpRight size={20} />
-          </div>
+          <button
+            onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
+            className="px-4 py-2 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:shadow-primary/20"
+          >
+            Open
+            <ArrowRight size={12} />
+          </button>
         </div>
       </div>
     );
@@ -612,9 +615,8 @@ export default function BrokersPage() {
             return (
               <div
                 key={broker.id}
-                onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
                 className={cn(
-                  "interactive-broker flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-300 hover:bg-primary/5 hover:border-primary/20 cursor-pointer group/broker",
+                  "interactive-broker flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-300 hover:bg-primary/5 hover:border-primary/20 group/broker",
                   isSelected ? "border-primary/30 bg-primary-50/10" : "border-border/40 bg-surface-hover/10"
                 )}
               >
@@ -641,9 +643,16 @@ export default function BrokersPage() {
                 </div>
                 
                 {/* Actions */}
-                <div className="flex items-center gap-1 opacity-0 group-hover/broker:opacity-100 transition-opacity ml-2 shrink-0 relative-z-menu" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 ml-2 shrink-0 relative-z-menu" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
+                    className="px-3 py-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:shadow-primary/20"
+                  >
+                    Open
+                    <ArrowRight size={10} />
+                  </button>
                   {isAuthorized && (
-                    <div className="relative" ref={openMenuId === broker.id ? menuRef : null}>
+                    <div className="relative opacity-0 group-hover/broker:opacity-100 transition-opacity" ref={openMenuId === broker.id ? menuRef : null}>
                       <button
                         onClick={() => setOpenMenuId(openMenuId === broker.id ? null : broker.id)}
                         className="p-1 rounded-lg hover:bg-black/5 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
@@ -868,8 +877,7 @@ export default function BrokersPage() {
                   <div key={leader.id} className="relative pt-10 group/folder flex flex-col">
                     {/* Folder Tab shape */}
                     <div 
-                      onClick={() => router.push(`/brokers/leader/${leader.id}`)}
-                      className="absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 cursor-pointer transition-all duration-300 bg-gray-100 hover:bg-gray-200 border border-b-0 border-gray-300"
+                      className="absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 transition-all duration-300 bg-gray-100 border border-b-0 border-gray-300"
                     >
                       <Folder size={14} className="text-gray-700 shrink-0" />
                       <span className="truncate max-w-[120px]">{leader.name}</span>
@@ -906,8 +914,7 @@ export default function BrokersPage() {
 
                     {/* Folder Body */}
                     <div
-                      onClick={() => router.push(`/brokers/leader/${leader.id}`)}
-                      className="bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-lime-400/30 flex flex-col justify-between cursor-pointer relative overflow-hidden w-full min-h-[160px] h-full"
+                      className="bg-surface border border-border/50 rounded-b-[2rem] rounded-tr-[2rem] p-6 shadow-md transition-all duration-300 hover:shadow-xl hover:border-lime-400/30 flex flex-col justify-between relative overflow-hidden w-full min-h-[160px] h-full"
                     >
                       {/* Background element */}
                       <div className="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-xl pointer-events-none" />
@@ -917,19 +924,28 @@ export default function BrokersPage() {
                         <p className="text-xs text-text-tertiary">Recruitment Leader Profile Group</p>
                       </div>
 
-                      <div className="mt-8 flex justify-between items-end relative z-10 border-t border-border/30 pt-4 w-full">
-                        <div>
-                          <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
-                          <p className="text-2xl font-black text-text-primary leading-none tabular-nums">
-                            {leader._count?.brokers || 0}
-                          </p>
+                      <div className="mt-8 flex justify-between items-center relative z-10 border-t border-border/30 pt-4 w-full">
+                        <div className="flex gap-6">
+                          <div>
+                            <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Brokers</p>
+                            <p className="text-xl font-black text-text-primary leading-none tabular-nums">
+                              {leader._count?.brokers || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Candidates</p>
+                            <p className="text-xl font-black text-lime-500 leading-none tabular-nums">
+                              {leader.totalCandidates || 0}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-text-tertiary uppercase font-black tracking-wider mb-1">Candidates</p>
-                          <p className="text-2xl font-black text-lime-500 leading-none tabular-nums">
-                            {leader.totalCandidates || 0}
-                          </p>
-                        </div>
+                        <button
+                          onClick={() => router.push(`/brokers/leader/${leader.id}`)}
+                          className="px-4 py-2 text-xs font-bold bg-lime-500/10 text-lime-600 hover:bg-lime-500 hover:text-white border border-lime-500/20 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:shadow-lime-500/20"
+                        >
+                          Open Group
+                          <ArrowRight size={12} />
+                        </button>
                       </div>
                     </div>
                   </div>

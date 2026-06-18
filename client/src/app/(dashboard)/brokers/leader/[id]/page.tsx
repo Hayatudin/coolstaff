@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { 
   Users, Search, Folder, ArrowLeft,
   Award, Clock, ArrowUpRight, 
-  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, ChevronRight, Edit3
+  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, ChevronRight, Edit3, ArrowRight
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -232,9 +232,8 @@ export default function LeaderBrokersPage() {
     return (
       <div
         key={broker.id}
-        onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
         className={cn(
-          "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 cursor-pointer relative overflow-hidden flex flex-col min-h-[220px]",
+          "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 relative overflow-hidden flex flex-col min-h-[220px]",
           broker.isLocked
             ? "border-red-300 hover:border-red-400 bg-red-50/5 hover:shadow-red-500/5"
             : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5"
@@ -404,9 +403,13 @@ export default function LeaderBrokersPage() {
               {broker._count?.candidates || 0}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
-            <ArrowUpRight size={20} />
-          </div>
+          <button
+            onClick={() => router.push(`/brokers/${broker.id}/candidates`)}
+            className="px-4 py-2 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:shadow-primary/20"
+          >
+            Open
+            <ArrowRight size={12} />
+          </button>
         </div>
       </div>
     );

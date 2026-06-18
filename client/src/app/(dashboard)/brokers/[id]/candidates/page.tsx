@@ -6,7 +6,7 @@ import {
   Users, Loader2, Search, ArrowLeft, FileText,
   ChevronRight, Filter, Download, Trash2, Briefcase,
   Lock, FileDown, ImageIcon, LayoutTemplate, Check, X, AlertCircle,
-  MoreVertical, CheckCircle, Eye, ChevronDown, ArrowRightLeft, Flag
+  MoreVertical, CheckCircle, Eye, ChevronDown, ArrowRightLeft, Flag, ArrowRight
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import Button from '@/components/ui/Button';
@@ -1234,16 +1234,17 @@ export default function BrokerCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Passport Number</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
                 <th className="px-6 py-4 font-semibold">Medical Status</th>
-                <th className="px-6 py-4 font-semibold">CV</th>
+                <th className="px-6 py-4 font-semibold">CV Preview</th>
                 <th className="px-6 py-4 font-semibold">Agency</th>
                 <th className="px-6 py-4 hidden lg:table-cell font-semibold">Registered Date</th>
+                <th className="px-6 py-4 font-semibold">Open</th>
                 <th className="px-6 py-4 text-right pr-12 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Syncing portfolio...</p>
@@ -1256,12 +1257,7 @@ export default function BrokerCandidatesPage() {
                   return (
                     <tr
                       key={candidate.id}
-                      className="hover:bg-gray-50/30 transition-colors cursor-pointer group relative"
-                      onClick={(e) => {
-                        if (!(e.target as HTMLElement).closest('button') && !(e.target as HTMLElement).closest('select') && !(e.target as HTMLElement).closest('input')) {
-                          router.push(`/candidates/${candidate.id}`);
-                        }
-                      }}
+                      className="hover:bg-gray-50/30 transition-colors group relative"
                     >
                       <td className="px-6 py-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -1362,7 +1358,7 @@ export default function BrokerCandidatesPage() {
                             title="Open CV Preview"
                           >
                             <Eye size={14} />
-                            <span className="text-[10px] uppercase tracking-wider">Open</span>
+                            <span className="text-[10px] uppercase tracking-wider">Preview</span>
                           </button>
                         ) : (
                           <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">No CV</span>
@@ -1390,6 +1386,15 @@ export default function BrokerCandidatesPage() {
                             day: 'numeric'
                           })}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => router.push(`/candidates/${candidate.id}`)}
+                          className="px-3 py-1.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-sm hover:shadow-primary/20"
+                        >
+                          Open
+                          <ArrowRight size={10} />
+                        </button>
                       </td>
                       <td className="px-6 py-4 text-right pr-12 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="relative inline-block" data-action-menu>
@@ -1476,7 +1481,7 @@ export default function BrokerCandidatesPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-text-tertiary text-sm">
+                  <td colSpan={10} className="px-6 py-12 text-center text-text-tertiary text-sm">
                     <div className="max-w-xs mx-auto py-8">
                       <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-gray-200">
                         <Search size={24} className="text-text-tertiary opacity-40" />
