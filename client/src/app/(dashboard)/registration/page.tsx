@@ -185,14 +185,17 @@ function RegistrationContent() {
         city: extractedData.city || prev.city,
         address: extractedData.address || prev.address,
         country: extractedData.nationality ? extractedData.nationality.toUpperCase() : prev.country,
-        languages: extractedData.languages ? extractedData.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.languages,
+        languages: extractedData.languages 
+          ? extractedData.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) 
+          : (Array.isArray(quickRegistration.languages) ? quickRegistration.languages : prev.languages),
         skills: extractedData.skills ? extractedData.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
         emergencyContactName: extractedData.emergencyContactName || prev.emergencyContactName,
         emergencyContactRelation: extractedData.emergencyContactRelation || prev.emergencyContactRelation,
         emergencyContactPhone: extractedData.emergencyContactPhone || prev.emergencyContactPhone,
         emergencyContactAddress: extractedData.emergencyContactAddress || prev.emergencyContactAddress,
         
-        // Quick Registration files:
+        // Broker and Quick Registration files:
+        brokerId: quickRegistration.brokerId || quickRegistration.broker?.id || prev.brokerId,
         cocDocumentUrl: quickRegistration.cocDocumentUrl || '',
         labourIdUrl: quickRegistration.labourIdUrl || '',
         candidateIdImageUrl: quickRegistration.candidateIdImageUrl || '',
@@ -401,6 +404,31 @@ function RegistrationContent() {
           throw new Error(`Candidate with Passport Number ${data.passportNumber} already exists in the system.`);
         }
       }
+      
+      // Try to match and fetch existing Quick Registration (Entry) by passport number
+      let quickReg: any = null;
+      if (passportNum) {
+        try {
+          const quickRes = await api(`/api/quick-registrations/by-passport/${encodeURIComponent(passportNum)}`);
+          if (quickRes.ok) {
+            quickReg = await quickRes.json();
+            setQuickRegistrationId(quickReg.id);
+            if (quickReg.passportImageUrl) {
+              setPassportImage(quickReg.passportImageUrl);
+            }
+            if (quickReg.videoUrl && quickReg.videoUrl.startsWith('http')) {
+              setVideoUrl(quickReg.videoUrl);
+            }
+            if (quickReg.allowVideo !== undefined) {
+              setAllowVideo(quickReg.allowVideo);
+            }
+            console.log('[DEBUG] Autocompleted Quick Registration details matching passport:', quickReg);
+          }
+        } catch (matchErr) {
+          console.warn('[DEBUG] Failed to search for quick registration record:', matchErr);
+        }
+      }
+
       const convertDate = (dateStr?: string): string => {
         if (!dateStr) return '';
         if (dateStr.includes('T')) {
@@ -445,28 +473,41 @@ function RegistrationContent() {
         return r;
       };
 
-      setPersonalInfo(prev => ({
-        ...prev,
-        idNumber: data.passportNumber || prev.idNumber,
-        job: data.job ? data.job.toUpperCase() : prev.job,
-        religion: mapReligion(data.religion) || prev.religion,
-        maritalStatus: data.maritalStatus || prev.maritalStatus,
-        phone: data.phone || prev.phone,
-        email: data.email || prev.email,
-        educationLevel: data.educationLevel || prev.educationLevel,
-        numberOfChildren: data.numberOfChildren ? parseInt(data.numberOfChildren) : prev.numberOfChildren,
-        height: data.height || prev.height,
-        weight: data.weight || prev.weight,
-        city: data.city || prev.city,
-        address: data.address || prev.address,
-        country: data.nationality ? data.nationality.toUpperCase() : prev.country,
-        languages: data.languages ? data.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.languages,
-        skills: data.skills ? data.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
-        emergencyContactName: data.emergencyContactName || prev.emergencyContactName,
-        emergencyContactRelation: data.emergencyContactRelation || prev.emergencyContactRelation,
-        emergencyContactPhone: data.emergencyContactPhone || prev.emergencyContactPhone,
-        emergencyContactAddress: data.emergencyContactAddress || prev.emergencyContactAddress,
-      }));
+      setPersonalInfo(prev => {
+        const mergedLanguages = data.languages 
+          ? data.languages.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) 
+          : (quickReg && Array.isArray(quickReg.languages) ? quickReg.languages : prev.languages);
+
+        return {
+          ...prev,
+          idNumber: data.passportNumber || prev.idNumber,
+          job: data.job ? data.job.toUpperCase() : prev.job,
+          religion: mapReligion(data.religion) || (quickReg ? quickReg.religion : '') || prev.religion,
+          maritalStatus: data.maritalStatus || (quickReg ? quickReg.maritalStatus : '') || prev.maritalStatus,
+          phone: data.phone || prev.phone,
+          email: data.email || prev.email,
+          educationLevel: data.educationLevel || prev.educationLevel,
+          numberOfChildren: data.numberOfChildren ? parseInt(data.numberOfChildren) : (quickReg ? quickReg.numberOfChildren : prev.numberOfChildren),
+          height: data.height || prev.height,
+          weight: data.weight || prev.weight,
+          city: data.city || prev.city,
+          address: data.address || prev.address,
+          country: data.nationality ? data.nationality.toUpperCase() : prev.country,
+          languages: mergedLanguages,
+          skills: data.skills ? data.skills.split(/[,&]/).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
+          emergencyContactName: data.emergencyContactName || prev.emergencyContactName,
+          emergencyContactRelation: data.emergencyContactRelation || prev.emergencyContactRelation,
+          emergencyContactPhone: data.emergencyContactPhone || prev.emergencyContactPhone,
+          emergencyContactAddress: data.emergencyContactAddress || prev.emergencyContactAddress,
+          
+          // Merge from Quick Registration if found:
+          brokerId: (quickReg ? (quickReg.brokerId || quickReg.broker?.id) : '') || prev.brokerId,
+          cocDocumentUrl: (quickReg ? quickReg.cocDocumentUrl : '') || prev.cocDocumentUrl || '',
+          labourIdUrl: (quickReg ? quickReg.labourIdUrl : '') || prev.labourIdUrl || '',
+          candidateIdImageUrl: (quickReg ? quickReg.candidateIdImageUrl : '') || prev.candidateIdImageUrl || '',
+          relativeIdImageUrl: (quickReg ? quickReg.relativeIdImageUrl : '') || prev.relativeIdImageUrl || '',
+        };
+      });
 
       setProcessingComplete(true);
       setMusanedSuccess(true);
