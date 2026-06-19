@@ -55,7 +55,15 @@ router.get('/', async (req: Request, res: Response) => {
             id: true,
             givenNames: true,
             surname: true,
-            passportNumber: true
+            passportNumber: true,
+            facePhotoUrl: true,
+            fullBodyPhotoUrl: true,
+            generatedCVs: {
+              select: {
+                id: true,
+                templateId: true
+              }
+            }
           }
         },
         _count: {
@@ -530,6 +538,66 @@ router.patch('/:id/leader', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Failed to update broker leader via raw SQL:', error);
     res.status(500).json({ error: error.message || 'Failed to update broker leader' });
+  }
+});
+
+// POST /api/brokers/:id/change-template — Bulk change CV template for all candidates under broker
+router.post('/:id/change-template', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { templateId } = req.body;
+
+    if (!templateId) {
+      return res.status(400).json({ error: 'Template ID is required' });
+    }
+
+    // Verify broker exists
+    const broker = await prisma.broker.findUnique({
+      where: { id },
+      include: {
+        candidates: {
+          include: {
+            generatedCVs: true
+          }
+        }
+      }
+    });
+
+    if (!broker) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
+
+    let updatedCount = 0;
+    for (const candidate of broker.candidates) {
+      const existingCv = candidate.generatedCVs?.[0];
+      if (existingCv) {
+        await prisma.generatedCV.update({
+          where: { id: existingCv.id },
+          data: { templateId }
+        });
+      } else {
+        await prisma.generatedCV.create({
+          data: {
+            candidateId: candidate.id,
+            templateId,
+            facePhotoUrl: candidate.facePhotoUrl,
+            fullBodyPhotoUrl: candidate.fullBodyPhotoUrl
+          }
+        });
+      }
+      updatedCount++;
+    }
+
+    console.log(`[BROKER-TEMPLATE] Updated ${updatedCount} candidates of broker "${broker.name}" to template "${templateId}"`);
+
+    res.json({
+      success: true,
+      updatedCount,
+      message: `Successfully updated ${updatedCount} candidate(s) to template "${templateId.toUpperCase()}"`
+    });
+  } catch (error: any) {
+    console.error('Failed to change broker templates:', error);
+    res.status(500).json({ error: error.message || 'Failed to change broker templates' });
   }
 });
 

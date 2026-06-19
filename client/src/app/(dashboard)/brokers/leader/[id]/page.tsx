@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { 
   Users, Search, Folder, ArrowLeft,
   Award, Clock, ArrowUpRight, 
-  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, ChevronRight, Edit3, ArrowRight
+  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, ChevronRight, Edit3, ArrowRight, LayoutTemplate, Check, Loader2
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -22,10 +22,13 @@ export default function LeaderBrokersPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isAuthorized = role === 'super_admin' || role === 'accountant';
+  const canChangeTemplate = role === 'super_admin' || role === 'processor' || role === 'coordinator';
 
   const [leader, setLeader] = useState<Leader | null>(null);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [brokers, setBrokers] = useState<Broker[]>([]);
+  const [selectedBrokerForTemplate, setSelectedBrokerForTemplate] = useState<Broker | null>(null);
+  const [isChangingTemplate, setIsChangingTemplate] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -114,6 +117,50 @@ export default function LeaderBrokersPage() {
   useEffect(() => {
     fetchData();
   }, [leaderId]);
+
+  const getBrokerTemplates = (broker: Broker) => {
+    const templatesSet = new Set<string>();
+    const safeCandidates = Array.isArray(broker.candidates) ? broker.candidates : [];
+    safeCandidates.forEach((c: any) => {
+      const safeCVs = Array.isArray(c.generatedCVs) ? c.generatedCVs : [];
+      safeCVs.forEach((cv: any) => {
+        if (cv.templateId) {
+          const cleanId = cv.templateId.replace('tmpl-', '').toLowerCase();
+          const templateObj = TEMPLATES.find(t => t.id === cleanId);
+          if (templateObj) {
+            templatesSet.add(templateObj.name);
+          } else {
+            templatesSet.add(cv.templateId.toUpperCase());
+          }
+        }
+      });
+    });
+    return Array.from(templatesSet);
+  };
+
+  const handleConfirmChangeTemplate = async (newTemplateId: string) => {
+    if (!selectedBrokerForTemplate) return;
+    setIsChangingTemplate(true);
+    try {
+      const res = await api(`/api/brokers/${selectedBrokerForTemplate.id}/change-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId: newTemplateId }),
+      });
+      if (res.ok) {
+        setSelectedBrokerForTemplate(null);
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to change template');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to change template');
+    } finally {
+      setIsChangingTemplate(false);
+    }
+  };
 
   // ─── Action: Edit Leader ──────────────────────────────────────────
   const handleEditLeader = async (e: React.FormEvent) => {
@@ -220,7 +267,7 @@ export default function LeaderBrokersPage() {
     }
   };
 
-  const currentLeaderBrokers = leader?.brokers || [];
+  const currentLeaderBrokers = brokers.filter(b => b.leaderId === leaderId);
   const filteredBrokers = currentLeaderBrokers.filter(b =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -394,6 +441,42 @@ export default function LeaderBrokersPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* CV Templates Box */}
+        <div className="mt-4 pt-3 border-t border-border/20 flex items-center justify-between relative z-10">
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="text-[10px] text-text-tertiary uppercase font-black tracking-widest">CV Templates</span>
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {(() => {
+                const templates = getBrokerTemplates(broker);
+                if (templates.length > 0) {
+                  return templates.map((t, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100/50 truncate max-w-[100px]"
+                      title={t}
+                    >
+                      {t}
+                    </span>
+                  ));
+                }
+                return <span className="text-[11px] text-text-tertiary italic">No CVs</span>;
+              })()}
+            </div>
+          </div>
+          {canChangeTemplate && broker.candidates && broker.candidates.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedBrokerForTemplate(broker);
+              }}
+              className="p-1.5 text-primary hover:text-primary-dark hover:bg-primary/5 rounded-xl border border-primary/10 transition-all cursor-pointer shadow-sm shrink-0"
+              title="Quick change CV template for all candidates"
+            >
+              <LayoutTemplate size={12} />
+            </button>
+          )}
         </div>
 
         <div className="mt-8 flex items-end justify-between relative z-10">
@@ -815,6 +898,119 @@ export default function LeaderBrokersPage() {
           </div>
         </div>
       )}
+
+      {selectedBrokerForTemplate && (
+        <ChangeTemplateModal
+          brokerName={selectedBrokerForTemplate.name}
+          onChange={handleConfirmChangeTemplate}
+          onClose={() => setSelectedBrokerForTemplate(null)}
+          isLoading={isChangingTemplate}
+        />
+      )}
+    </div>
+  );
+}
+
+const TEMPLATES = [
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'ka7', name: 'KAAFAAT' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
+
+function ChangeTemplateModal({
+  brokerName,
+  onChange,
+  onClose,
+  isLoading,
+}: {
+  brokerName: string;
+  onChange: (newTemplateId: string) => void;
+  onClose: () => void;
+  isLoading: boolean;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && selected && !isLoading) {
+        onChange(selected);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selected, isLoading, onChange]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div
+        className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col scale-in"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-gray-50">
+          <div>
+            <h2 className="text-lg font-bold text-text-primary">Change Broker CV Template</h2>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Select a new CV template for all candidates under broker <strong>"{brokerName}"</strong>
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-text-tertiary hover:text-text-primary cursor-pointer">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {TEMPLATES.map(template => {
+              const isSelected = selected === template.id;
+
+              return (
+                <button
+                  key={template.id}
+                  onClick={() => setSelected(template.id)}
+                  className={cn(
+                    'relative rounded-2xl border-2 overflow-hidden transition-all text-left flex flex-col cursor-pointer bg-white group p-4 min-h-[120px] justify-between',
+                    isSelected
+                      ? 'border-primary shadow-lg shadow-primary/10 scale-[1.02]'
+                      : 'border-border/60 hover:border-primary/40'
+                  )}
+                >
+                  <div className="flex flex-col gap-2">
+                    <span className="text-base font-bold text-text-primary group-hover:text-primary transition-colors">{template.name}</span>
+                    <span className="text-[10px] uppercase font-bold text-text-tertiary">Template ID: {template.id}</span>
+                  </div>
+                  {isSelected && (
+                    <div className="self-end w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow mt-2">
+                      <Check size={12} className="text-white" strokeWidth={3} />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="px-6 py-5 border-t border-border bg-gray-50 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-text-secondary hover:bg-gray-150 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => selected && onChange(selected)}
+            disabled={!selected || isLoading}
+            className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/15 hover:bg-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+          >
+            {isLoading && <Loader2 size={16} className="animate-spin" />}
+            Change Template
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
