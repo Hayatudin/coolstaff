@@ -49,7 +49,7 @@ export const mockCandidates: Candidate[] = [
       educationLevel: 'High School',
       languages: ['Amharic', 'English', 'Arabic'],
       workExperience: [{ experienceStatus: 'Have experience', country: 'UAE', yearsOfExperience: '3' }],
-      skills: ['Cooking', 'Cleaning', 'Childcare', 'Laundry'],
+      skills: ['Cooking', 'Cleaning', 'Babysitting', 'Laundry'],
       medicalStatus: 'Fit',
       biometricStatus: 'Completed',
       medicalDate: '2026-04-18',
@@ -100,7 +100,7 @@ export const mockCandidates: Candidate[] = [
       educationLevel: 'Vocational Training',
       languages: ['Amharic', 'English'],
       workExperience: [{ experienceStatus: 'Have experience', country: 'Lebanon', yearsOfExperience: '2' }],
-      skills: ['Childcare', 'Cooking', 'First Aid', 'Ironing'],
+      skills: ['Babysitting', 'Cooking', 'First Aid', 'Ironing'],
       medicalStatus: 'Fit',
       biometricStatus: 'Completed',
       medicalDate: '2026-04-16',
@@ -200,7 +200,7 @@ export const mockCandidates: Candidate[] = [
       educationLevel: 'High School',
       languages: ['Amharic', 'Somali', 'Arabic'],
       workExperience: [{ experienceStatus: 'Have experience', country: 'Saudi Arabia', yearsOfExperience: '4' }],
-      skills: ['Cooking', 'Cleaning', 'Childcare', 'Sewing'],
+      skills: ['Cooking', 'Cleaning', 'Babysitting', 'Sewing'],
       medicalStatus: 'Fit',
       knownConditions: 'None',
       emergencyContactName: 'Yusuf Alemayehu',
@@ -320,7 +320,7 @@ export const languageOptions = [
 ];
 
 export const skillOptions = [
-  'Cooking', 'Cleaning', 'Childcare', 'Elderly Care', 'Laundry',
+  'Cooking', 'Cleaning', 'Babysitting', 'Elderly Care', 'Laundry',
   'Ironing', 'Sewing', 'Driving', 'First Aid', 'Gardening',
   'Pet Care', 'Computer Skills', 'Tutoring', 'Shopping',
 ];
