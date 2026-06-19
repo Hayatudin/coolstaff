@@ -22,7 +22,8 @@ export default function LeaderBrokersPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isAuthorized = role === 'super_admin' || role === 'accountant';
-  const canChangeTemplate = role === 'super_admin' || role === 'processor' || role === 'coordinator';
+  const canChangeTemplate = role === 'super_admin' || role === 'processor' || role === 'coordinator' || role === 'genaral';
+  const canManageBrokers = role === 'super_admin' || role === 'accountant' || role === 'genaral';
 
   const [leader, setLeader] = useState<Leader | null>(null);
   const [leaders, setLeaders] = useState<Leader[]>([]);
@@ -302,7 +303,7 @@ export default function LeaderBrokersPage() {
             )}
 
             {/* ───── Action Menu Button ───── */}
-            {isAuthorized && (
+            {canManageBrokers && (
               <div className="relative" ref={openMenuId === broker.id ? menuRef : null}>
                 <button
                   onClick={(e) => {
@@ -361,64 +362,68 @@ export default function LeaderBrokersPage() {
                       </div>
                     </button>
 
-                    <div className="border-t border-border/40 my-1" />
+                    {isAuthorized && (
+                      <>
+                        <div className="border-t border-border/40 my-1" />
 
-                    {/* Assign Leader */}
-                    <button
-                      onClick={() => {
-                        setOpenMenuId(null);
-                        setMenuCoords(null);
-                        setMoveBrokerTarget(broker);
-                        setSelectedLeaderId(broker.leaderId || '');
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-primary/5 hover:text-primary transition-colors text-left cursor-pointer"
-                    >
-                      <Folder size={16} className="text-lime-500 shrink-0" />
-                      <div>
-                        <p>Assign Leader</p>
-                        <p className="text-[10px] font-normal text-text-tertiary">
-                          {broker.leader ? `Leader: ${broker.leader.name}` : 'Unassigned'}
-                        </p>
-                      </div>
-                    </button>
+                        {/* Assign Leader */}
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setMenuCoords(null);
+                            setMoveBrokerTarget(broker);
+                            setSelectedLeaderId(broker.leaderId || '');
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-primary/5 hover:text-primary transition-colors text-left cursor-pointer"
+                        >
+                          <Folder size={16} className="text-lime-500 shrink-0" />
+                          <div>
+                            <p>Assign Leader</p>
+                            <p className="text-[10px] font-normal text-text-tertiary">
+                              {broker.leader ? `Leader: ${broker.leader.name}` : 'Unassigned'}
+                            </p>
+                          </div>
+                        </button>
 
-                    <div className="border-t border-border/40 my-1" />
+                        <div className="border-t border-border/40 my-1" />
 
-                    {/* Lock / Unlock */}
-                    <button
-                      onClick={() => {
-                        setOpenMenuId(null);
-                        setMenuCoords(null);
-                        handleToggleLock(broker);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-amber-50 hover:text-amber-700 transition-colors text-left cursor-pointer"
-                    >
-                      {broker.isLocked ? <Unlock size={16} /> : <Lock size={16} />}
-                      <div>
-                        <p>{broker.isLocked ? 'Unlock Broker' : 'Lock Broker'}</p>
-                        <p className="text-[10px] font-normal text-text-tertiary">
-                          {broker.isLocked ? 'Restore CVs from backup' : 'Hide CVs to backup'}
-                        </p>
-                      </div>
-                    </button>
+                        {/* Lock / Unlock */}
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setMenuCoords(null);
+                            handleToggleLock(broker);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-amber-50 hover:text-amber-700 transition-colors text-left cursor-pointer"
+                        >
+                          {broker.isLocked ? <Unlock size={16} /> : <Lock size={16} />}
+                          <div>
+                            <p>{broker.isLocked ? 'Unlock Broker' : 'Lock Broker'}</p>
+                            <p className="text-[10px] font-normal text-text-tertiary">
+                              {broker.isLocked ? 'Restore CVs from backup' : 'Hide CVs to backup'}
+                            </p>
+                          </div>
+                        </button>
 
-                    <div className="border-t border-border/40 my-1" />
+                        <div className="border-t border-border/40 my-1" />
 
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        setOpenMenuId(null);
-                        setMenuCoords(null);
-                        setDeleteTarget(broker);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
-                    >
-                      <Trash2 size={16} />
-                      <div>
-                        <p>Delete Broker</p>
-                        <p className="text-[10px] font-normal text-red-400">Permanently remove</p>
-                      </div>
-                    </button>
+                        {/* Delete */}
+                        <button
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setMenuCoords(null);
+                            setDeleteTarget(broker);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
+                        >
+                          <Trash2 size={16} />
+                          <div>
+                            <p>Delete Broker</p>
+                            <p className="text-[10px] font-normal text-red-400">Permanently remove</p>
+                          </div>
+                        </button>
+                      </>
+                    )}
                   </div>,
                   document.body
                 )}
