@@ -87,6 +87,7 @@ interface AvailableCandidate {
   maritalStatus?: string | null;
   workExperience?: any;
   skills?: any;
+  city?: string | null;
 }
 
 const SKILL_TAGS = ['WASH & IRON', 'BABY SITTING', 'COOKING', 'CLEANING', 'DRIVING'];
@@ -198,6 +199,7 @@ export default function AvailableCandidatesPage() {
   const [inputExperience, setInputExperience] = useState('all');
   const [inputEducation, setInputEducation] = useState('all');
   const [inputMaritalStatus, setInputMaritalStatus] = useState('all');
+  const [inputCity, setInputCity] = useState('all');
   const [inputSkills, setInputSkills] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
@@ -270,6 +272,17 @@ export default function AvailableCandidatesPage() {
       }
     });
     return Array.from(status).sort();
+  }, [candidates]);
+
+  const uniqueCities = useMemo(() => {
+    const cities = new Set<string>();
+    candidates.forEach(c => {
+      if (c.city) {
+        const clean = c.city.trim();
+        cities.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+      }
+    });
+    return Array.from(cities).sort();
   }, [candidates]);
 
   // Helper to calculate candidate age
@@ -647,7 +660,7 @@ export default function AvailableCandidatesPage() {
   // Reset page number when any filter updates
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputSkills, sortOrder]);
+  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputCity, inputSkills, sortOrder]);
 
   const toggleSkillTag = (skill: string) => {
     setInputSkills(prev => {
@@ -666,6 +679,7 @@ export default function AvailableCandidatesPage() {
     setInputExperience('all');
     setInputEducation('all');
     setInputMaritalStatus('all');
+    setInputCity('all');
     setInputSkills([]);
     setSearchInput('');
     setSearchQuery('');
@@ -753,6 +767,13 @@ export default function AvailableCandidatesPage() {
       // 6. Marital Status Filter
       if (inputMaritalStatus !== 'all') {
         if (!c.maritalStatus || c.maritalStatus.toLowerCase() !== inputMaritalStatus.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // City Filter
+      if (inputCity !== 'all') {
+        if (!c.city || c.city.toLowerCase() !== inputCity.toLowerCase()) {
           return false;
         }
       }
@@ -958,6 +979,20 @@ export default function AvailableCandidatesPage() {
               </option>
             ))}
           </select>
+
+          {/* City Select */}
+          <select
+            value={inputCity}
+            onChange={(e) => setInputCity(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
+          >
+            <option value="all">All cities</option>
+            {uniqueCities.map((city) => (
+              <option key={city} value={city.toLowerCase()}>
+                {city}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Line 2: Skills and Clear button */}
@@ -1119,9 +1154,15 @@ export default function AvailableCandidatesPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="truncate">
-                    <span className="text-slate-400 font-medium">Religion : </span>
-                    <span className="font-extrabold text-slate-800">{c.religion || '—'}</span>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Religion : </span>
+                      <span className="font-extrabold text-slate-800">{c.religion || '—'}</span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">City : </span>
+                      <span className="font-extrabold text-slate-800">{c.city || '—'}</span>
+                    </div>
                   </div>
                 </div>
 
