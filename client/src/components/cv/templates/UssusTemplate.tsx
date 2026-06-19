@@ -95,7 +95,7 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
           {/* Bottom Left: Full Body Photo */}
           <div className="absolute bottom-[90px] left-[75px] w-[290px] h-[480px] bg-white flex items-center justify-center shadow-sm p-0 overflow-hidden">
             {fullBodyPhoto ? (
-              <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
+              <img src={fullBodyPhoto} className="h-full w-auto mx-auto block max-w-none" alt="Full Body" />
             ) : (
               <div className="text-gray-400 text-sm">Full Body Photo</div>
             )}

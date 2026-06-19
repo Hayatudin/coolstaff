@@ -127,15 +127,25 @@ router.get('/', async (req: Request, res: Response) => {
     let deployedDateMap: Record<string, string | null> = {};
     let candidateLockMap: Record<string, boolean> = {};
     let candidateCvDownloadedMap: Record<string, boolean> = {};
+    let registeredByMap: Record<string, string> = {};
     try {
+      const users: any[] = await prisma.$queryRawUnsafe(`SELECT \`id\`, \`name\` FROM \`User\``);
+      const userMap = new Map<string, string>();
+      for (const u of users) {
+        userMap.set(u.id, u.name);
+      }
+
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded FROM \`Candidate\``
+        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded, registeredById FROM \`Candidate\``
       );
       for (const row of rawRows) {
         youtubeUrlMap[row.id] = row.Youtube_URL || null;
         deployedDateMap[row.id] = row.deployedDate ? new Date(row.deployedDate).toISOString() : null;
         candidateLockMap[row.id] = row.isLocked === 1 || row.isLocked === true;
         candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
+        if (row.registeredById && userMap.has(row.registeredById)) {
+          registeredByMap[row.id] = userMap.get(row.registeredById)!;
+        }
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -220,7 +230,7 @@ router.get('/', async (req: Request, res: Response) => {
         salary: c.salary || '1000SR',
         generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
         latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
-        registeredBy: c.registeredBy?.name || 'Admin',
+        registeredBy: registeredByMap[c.id] || c.registeredBy?.name || 'Admin',
         hasInvoice: c.invoices && c.invoices.length > 0,
         isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
         agency: c.agency || 'daera',
@@ -608,6 +618,20 @@ router.post('/', async (req: Request, res: Response) => {
       console.log(`[DEBUG] Saved allowVideo (${allowVideoVal}) via raw SQL in POST`);
     } catch (e) {
       console.error('Failed to save allowVideo via raw SQL in POST:', e);
+    }
+
+    // Save registeredById separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    if (registeredById) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`registeredById\` = ? WHERE \`id\` = ?`,
+          registeredById,
+          candidate.id
+        );
+        console.log(`[DEBUG] Saved registeredById (${registeredById}) via raw SQL in POST`);
+      } catch (e) {
+        console.error('Failed to save registeredById via raw SQL in POST:', e);
+      }
     }
 
     // Save quickVideoUrl separately with graceful fallback (local uploaded video)

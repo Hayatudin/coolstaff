@@ -84,7 +84,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                   <td rowSpan={22} className="border-r border-[#0a5c4e] p-2 bg-slate-50 w-[270px] align-top text-center">
                     <div className="flex flex-col gap-2 items-center">
                       {/* Full Body Photo instead of Face Photo */}
-                      <div className={`border-2 ${borderTeal} w-[235px] h-[380px] p-0.5 bg-white relative flex items-center justify-center`}>
+                      <div className={`border-2 ${borderTeal} w-[235px] h-[520px] p-0.5 bg-white relative flex items-center justify-center`}>
                         {fullBodyPhoto ? (
                           <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Candidate Full Body" />
                         ) : (
@@ -93,7 +93,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                       </div>
                       
                       {/* Spacer to push Contact Us Card to bottom */}
-                      <div className="h-[80px]"></div>
+                      <div className="h-[15px]"></div>
 
                       {/* Contact Us Card */}
                       <div className={`w-[220px] ${bgTeal} text-white p-2.5 rounded-sm border border-white shadow-sm flex flex-col gap-2 text-left`}>

@@ -195,7 +195,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       if (!r) return '';
       const upper = r.toUpperCase();
       if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
-      return 'Non-Muslim';
+      return 'Non muslim';
     };
 
     let parsedPhones: string[] = [''];
@@ -836,7 +836,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                       >
                         <option value="">Select Religion</option>
                         <option value="Muslim">Muslim</option>
-                        <option value="Non-Muslim">Non-Muslim</option>
+                        <option value="Non muslim">Non muslim</option>
                       </select>
                     </div>
                   </div>

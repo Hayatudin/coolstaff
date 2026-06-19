@@ -479,7 +479,7 @@ export default function QuickRegistrationPage() {
             <div>
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Religion</label>
               <div className="flex gap-2 pt-1">
-                {['Muslim', 'Non-Muslim'].map(r => (
+                {['Muslim', 'Non muslim'].map(r => (
                   <button
                     key={r}
                     type="button"

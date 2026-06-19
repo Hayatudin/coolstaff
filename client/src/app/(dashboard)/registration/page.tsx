@@ -162,6 +162,7 @@ function RegistrationContent() {
       const mapReligion = (r?: string): string => {
         if (!r) return '';
         const upper = r.toUpperCase();
+        if (upper.includes('NON-MUSLIM') || upper.includes('NON MUSLIM')) return 'Non muslim';
         if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
         if (upper.includes('ORTHODOX')) return 'Orthodox Christian';
         if (upper.includes('PROTESTANT')) return 'Protestant';
@@ -475,6 +476,7 @@ function RegistrationContent() {
       const mapReligion = (r?: string): string => {
         if (!r) return '';
         const upper = r.toUpperCase();
+        if (upper.includes('NON-MUSLIM') || upper.includes('NON MUSLIM')) return 'Non muslim';
         if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
         if (upper.includes('ORTHODOX')) return 'Orthodox Christian';
         if (upper.includes('PROTESTANT')) return 'Protestant';
