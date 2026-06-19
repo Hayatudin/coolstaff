@@ -278,20 +278,56 @@ export default function QuickRegistrationPage() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
   const handleSave = async () => {
-    if (!passportData.passportNumber || !passportData.surname) {
-      setError('Please scan a passport or fill in the Passport Number and Full Name.');
+    if (!passportImage) {
+      setError('Passport photo upload is required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    if (!agency) {
-      setError('Please select an Agency.');
+    if (!fullName.trim() || !passportData.passportNumber || !passportData.surname) {
+      setError('Full Name and Passport Number are required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!passportType) {
+      setError('Passport Type is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!selectedBrokerId) {
+      setError('Broker selection is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!religion) {
+      setError('Religion is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!maritalStatus) {
+      setError('Marital Status is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (selectedLanguages.length === 0) {
+      setError('At least one language must be selected.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
     if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
-      setError('All document uploads (COC, Labour ID, Candidate ID, Relative ID, and Video) are required to register.');
+      setError('All documents (COC, Labour ID, Candidate ID, Relative ID, and Video) are required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!agency) {
+      setError('Agency selection is required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -379,7 +415,7 @@ export default function QuickRegistrationPage() {
       {/* STEP 1: Scan Passport */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
         <div className="bg-gray-50 border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-text-primary">1. Scan Passport</h2>
+          <h2 className="text-base font-semibold text-text-primary">1. Scan Passport <span className="text-red-500">*</span></h2>
         </div>
         <div className="p-4 sm:p-6">
           <PassportUploader
@@ -421,12 +457,14 @@ export default function QuickRegistrationPage() {
                   value={fullName}
                   onChange={onFullNameChange}
                   placeholder="Enter full name"
+                  required
                 />
                 <Input
                   label="Passport Number"
                   value={passportData.passportNumber}
                   onChange={(e) => handlePassportChange('passportNumber', e.target.value)}
                   placeholder="Enter passport number"
+                  required
                 />
               </div>
             </div>
@@ -437,13 +475,13 @@ export default function QuickRegistrationPage() {
       {/* STEP 2: Additional Info */}
       <div className="bg-surface rounded-2xl border border-border shadow-sm">
         <div className="bg-gray-50 border-b border-border px-5 py-3 rounded-t-2xl">
-          <h2 className="text-base font-semibold text-text-primary">2. Additional Information</h2>
+          <h2 className="text-base font-semibold text-text-primary">2. Additional Information <span className="text-red-500">*</span></h2>
         </div>
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Passport Type */}
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Passport Type</label>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Passport Type <span className="text-red-500">*</span></label>
               <div className="flex gap-2 pt-1">
                 {['original', 'scan'].map(type => (
                   <button
@@ -471,13 +509,14 @@ export default function QuickRegistrationPage() {
                 disabled={brokersLoading}
                 placeholder="Select or add broker..."
                 onCreate={handleCreateBroker}
+                required
               />
             </div>
 
 
             {/* Religion */}
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Religion</label>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Religion <span className="text-red-500">*</span></label>
               <div className="flex gap-2 pt-1">
                 {['Muslim', 'Non muslim'].map(r => (
                   <button
@@ -498,7 +537,7 @@ export default function QuickRegistrationPage() {
 
             {/* Marital Status */}
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Marital Status</label>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Marital Status <span className="text-red-500">*</span></label>
               <div className="flex gap-3 pt-1">
                 {['Single', 'Married'].map(s => (
                   <label key={s} className="flex items-center gap-2 cursor-pointer text-sm">
@@ -534,6 +573,7 @@ export default function QuickRegistrationPage() {
                 searchable
                 allowAddCustom
                 customStorageKey="custom_languages"
+                required
               />
             </div>
           </div>
@@ -543,7 +583,7 @@ export default function QuickRegistrationPage() {
       {/* STEP 3: Documents */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
         <div className="bg-gray-50 border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-text-primary">3. Documents</h2>
+          <h2 className="text-base font-semibold text-text-primary">3. Documents <span className="text-red-500">*</span></h2>
         </div>
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -555,6 +595,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCocDocumentUrl(base64))}
               onClear={() => setCocDocumentUrl(null)}
               helperText="COC Document — Max 50MB"
+              required
             />
             <FileUpload
               label="Labour ID"
@@ -564,6 +605,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setLabourIdUrl(base64))}
               onClear={() => setLabourIdUrl(null)}
               helperText="Labour ID Image — Max 50MB"
+              required
             />
             <FileUpload
               label="Candidate ID"
@@ -573,6 +615,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCandidateIdImageUrl(base64))}
               onClear={() => setCandidateIdImageUrl(null)}
               helperText="Candidate ID Image — Max 50MB"
+              required
             />
             <FileUpload
               label="Relative ID"
@@ -582,9 +625,10 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setRelativeIdImageUrl(base64))}
               onClear={() => setRelativeIdImageUrl(null)}
               helperText="Relative ID Image — Max 50MB"
+              required
             />
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video</label>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video <span className="text-red-500">*</span></label>
               {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
                 <div className="space-y-2">
                   <div className="relative">
@@ -623,6 +667,7 @@ export default function QuickRegistrationPage() {
                     onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64), 50 * 1024 * 1024)}
                     onClear={() => setVideoUrl(null)}
                     helperText="MP4, WebM or MOV — Max 50MB"
+                    required
                   />
                 </div>
               )}
@@ -643,7 +688,7 @@ export default function QuickRegistrationPage() {
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-border/60">
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Agency</label>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Agency <span className="text-red-500">*</span></label>
               <select
                 value={agency}
                 onChange={e => setAgency(e.target.value)}

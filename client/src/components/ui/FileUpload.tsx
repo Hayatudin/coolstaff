@@ -14,6 +14,7 @@ interface FileUploadProps {
   shape?: 'rect' | 'circle';
   helperText?: string;
   icon?: React.ReactNode;
+  required?: boolean;
 }
 
 export default function FileUpload({
@@ -26,6 +27,7 @@ export default function FileUpload({
   shape = 'rect',
   helperText,
   icon,
+  required = false,
 }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -55,7 +57,7 @@ export default function FileUpload({
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
-          <label className="text-sm font-medium text-text-secondary">{label}</label>
+          <label className="text-sm font-medium text-text-secondary">{label} {required && <span className="text-red-500">*</span>}</label>
         )}
         <div className={cn(
           'relative group overflow-hidden border-2 border-border bg-surface',
@@ -93,7 +95,7 @@ export default function FileUpload({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-text-secondary">{label}</label>
+        <label className="text-sm font-medium text-text-secondary">{label} {required && <span className="text-red-500">*</span>}</label>
       )}
       <label
         onDragOver={handleDragOver}

@@ -765,21 +765,7 @@ function GeneratedCVsContent() {
     };
   });
 
-  const backupCvs = cvs.filter(c => c.candidate?.isLocked === true || c.candidate?.broker?.isLocked === true);
-  const backupFolder = {
-    id: '__backup__',
-    name: 'Back-up CVs',
-    category: 'Archive',
-    color: 'bg-rose-500',
-    textColor: 'text-rose-600',
-    bgLight: 'bg-rose-50',
-    cvs: backupCvs,
-  };
-
-  const displayedFolders = [
-    ...processedFolders,
-    ...(backupCvs.length > 0 ? [backupFolder] : [])
-  ];
+  const displayedFolders = processedFolders;
 
   const someSelected = selectedCVIds.size > 0;
 

@@ -28,7 +28,7 @@ export default function Input({
           htmlFor={inputId}
           className="text-sm font-medium text-text-secondary"
         >
-          {label}
+          {label} {props.required && <span className="text-red-500">*</span>}
         </label>
       )}
       <input

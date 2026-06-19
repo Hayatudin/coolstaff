@@ -928,7 +928,7 @@ export default function AgencyContractsPage() {
 
                       {/* Wakala Status */}
                       <td className="px-5 py-4.5 text-center">
-                        {!isSuperAdmin ? (
+                        {userRole === 'agency' ? (
                           <button
                             disabled={updatingField !== null}
                             onClick={() => handleUpdateCandidate(c.id, { wakalaStatus: c.wakalaStatus === 'Paid' ? 'Unpaid' : 'Paid' })}
@@ -955,7 +955,7 @@ export default function AgencyContractsPage() {
 
                       {/* Selected Type */}
                       <td className="px-5 py-4.5 text-center">
-                        {isSuperAdmin ? (
+                        {userRole === 'agency' ? (
                           <button
                             disabled={updatingField !== null}
                             onClick={() => handleUpdateCandidate(c.id, { selectedType: c.selectedType === 'Company' ? 'Private' : 'Company' })}

@@ -20,6 +20,7 @@ interface MultiSelectProps {
   searchable?: boolean;
   allowAddCustom?: boolean;
   customStorageKey?: string;
+  required?: boolean;
 }
 
 export default function MultiSelect({
@@ -33,6 +34,7 @@ export default function MultiSelect({
   searchable = false,
   allowAddCustom = false,
   customStorageKey,
+  required = false,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -113,7 +115,7 @@ export default function MultiSelect({
   return (
     <div className={cn("flex flex-col gap-1.5 relative", isOpen && "z-30")} ref={ref}>
       {label && (
-        <label className="text-sm font-medium text-text-secondary">{label}</label>
+        <label className="text-sm font-medium text-text-secondary">{label} {required && <span className="text-red-500">*</span>}</label>
       )}
       <div className="relative">
         <button
