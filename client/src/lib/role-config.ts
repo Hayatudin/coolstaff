@@ -2,7 +2,7 @@
 // Single source of truth for all role definitions and route access in the system.
 
 // All valid roles in the system
-export type Role = 'user' | 'agency' | 'super_admin' | 'registrar' | 'processor' | 'coordinator' | 'accountant' | 'video_uploader';
+export type Role = 'user' | 'agency' | 'super_admin' | 'registrar' | 'processor' | 'coordinator' | 'accountant' | 'video_uploader' | 'genaral';
 
 // Roles that can access the internal dashboard (agency is treated like user for now)
 export const DASHBOARD_ROLES: Role[] = [
@@ -13,24 +13,25 @@ export const DASHBOARD_ROLES: Role[] = [
   'accountant',
   'video_uploader',
   'agency',
+  'genaral',
 ];
 
 // Route → which roles can see/access it
 export const ROUTE_ACCESS: Record<string, Role[]> = {
-  '/dashboard':          ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant'],
-  '/candidates':         ['super_admin', 'processor', 'coordinator'],
-  '/quick-registration': ['super_admin', 'registrar'],
-  '/quick-registered':   ['super_admin', 'registrar', 'processor'],
-  '/requested':          ['super_admin', 'coordinator', 'accountant'],
-  '/fit-candidates':     ['super_admin', 'coordinator'],
-  '/registration':       ['super_admin', 'processor'],
-  '/cv-generator':       ['super_admin', 'processor', 'coordinator'],
-  '/generated-cvs':      ['super_admin', 'processor'],
-  '/invoice':            ['super_admin', 'accountant'],
-  '/deployments':        ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant'],
-  '/brokers':            ['super_admin', 'registrar', 'processor'],
-  '/backup':             ['super_admin', 'processor', 'coordinator'],
-  '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader', 'agency'],
+  '/dashboard':          ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'genaral'],
+  '/candidates':         ['super_admin', 'processor', 'coordinator', 'genaral'],
+  '/quick-registration': ['super_admin', 'registrar', 'genaral'],
+  '/quick-registered':   ['super_admin', 'registrar', 'processor', 'genaral'],
+  '/requested':          ['super_admin', 'coordinator', 'accountant', 'genaral'],
+  '/fit-candidates':     ['super_admin', 'coordinator', 'genaral'],
+  '/registration':       ['super_admin', 'processor', 'genaral'],
+  '/cv-generator':       ['super_admin', 'processor', 'coordinator', 'genaral'],
+  '/generated-cvs':      ['super_admin', 'processor', 'genaral'],
+  '/invoice':            ['super_admin', 'accountant', 'genaral'],
+  '/deployments':        ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'genaral'],
+  '/brokers':            ['super_admin', 'registrar', 'processor', 'genaral'],
+  '/backup':             ['super_admin', 'processor', 'coordinator', 'genaral'],
+  '/settings':           ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader', 'agency', 'genaral'],
   '/users':              ['super_admin'],
   '/video-uploads':      ['super_admin', 'video_uploader'],
   '/uploaded-videos':    ['super_admin', 'video_uploader', 'processor', 'coordinator', 'registrar', 'accountant'],
@@ -66,6 +67,7 @@ export const ROLE_CONFIG: Record<Role, { label: string; color: string; badgeBg: 
   accountant:     { label: 'Accountant',     color: 'orange',   badgeBg: 'bg-orange-100',  badgeText: 'text-orange-700',  badgeBorder: 'border-orange-200' },
   agency:         { label: 'Agency',         color: 'cyan',     badgeBg: 'bg-cyan-100',    badgeText: 'text-cyan-700',    badgeBorder: 'border-cyan-200' },
   video_uploader: { label: 'Video Uploader', color: 'rose',     badgeBg: 'bg-rose-100',    badgeText: 'text-rose-700',    badgeBorder: 'border-rose-200' },
+  genaral:        { label: 'General',        color: 'indigo',   badgeBg: 'bg-indigo-100',  badgeText: 'text-indigo-700',  badgeBorder: 'border-indigo-200' },
   user:           { label: 'User',           color: 'gray',     badgeBg: 'bg-gray-100',    badgeText: 'text-gray-500',    badgeBorder: 'border-gray-200' },
 };
 
@@ -78,5 +80,6 @@ export const SIDEBAR_BADGE_COLORS: Record<string, string> = {
   accountant:     'bg-orange-400/20 text-orange-300',
   agency:         'bg-cyan-400/20 text-cyan-300',
   video_uploader: 'bg-rose-400/20 text-rose-300',
+  genaral:        'bg-indigo-400/20 text-indigo-300',
   user:           'bg-white/10 text-white/40',
 };

@@ -15,6 +15,7 @@ import Select from '@/components/ui/Select';
 import { Broker } from '@/types';
 import { api } from '@/lib/api';
 import { getFileUrl, cn } from '@/lib/utils';
+import { useSession } from '@/lib/auth-client';
 
 // Import CV templates
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -79,6 +80,8 @@ export default function BrokerCandidatesPage() {
   const params = useParams();
   const router = useRouter();
   const brokerId = params.id as string;
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
 
   const [broker, setBroker] = useState<Broker | null>(null);
   const [candidates, setCandidates] = useState<BrokerCandidate[]>([]);
@@ -1448,18 +1451,20 @@ export default function BrokerCandidatesPage() {
                                 <span>{candidate.isFlagged ? 'Unflag Candidate' : 'Flag Candidate'}</span>
                               </button>
 
-                              <button
-                                onClick={() => handleToggleCandidateLock(candidate.id, candidate.isLocked || false)}
-                                disabled={lockingCandidateId === candidate.id}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
-                              >
-                                {lockingCandidateId === candidate.id ? (
-                                  <Loader2 size={16} className="animate-spin" />
-                                ) : (
-                                  <Lock size={16} className="text-text-secondary" />
-                                )}
-                                <span>{candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}</span>
-                              </button>
+                              {role !== 'genaral' && (
+                                <button
+                                  onClick={() => handleToggleCandidateLock(candidate.id, candidate.isLocked || false)}
+                                  disabled={lockingCandidateId === candidate.id}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-text-primary font-semibold cursor-pointer"
+                                >
+                                  {lockingCandidateId === candidate.id ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                  ) : (
+                                    <Lock size={16} className="text-text-secondary" />
+                                  )}
+                                  <span>{candidate.isLocked ? 'Unlock Candidate' : 'Lock Candidate'}</span>
+                                </button>
+                              )}
 
 
                               <div className="border-t border-border/60 my-1" />

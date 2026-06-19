@@ -40,6 +40,7 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'accountant',     label: 'Accountant'     },
   { value: 'agency',         label: 'Agency'         },
   { value: 'video_uploader', label: 'Video Uploader' },
+  { value: 'genaral',        label: 'General'        },
 ];
 
 const roleBadge = (role: Role) => {
