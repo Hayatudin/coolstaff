@@ -69,7 +69,7 @@ export default function QuickRegisteredPage() {
   const [search, setSearch] = useState('');
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role ?? 'user';
-  const canVerify = ['super_admin', 'processor'].includes(userRole);
+  const canVerify = ['super_admin', 'processor', 'genaral'].includes(userRole);
 
   // Verify modal state
   const [verifyTarget, setVerifyTarget] = useState<QuickReg | null>(null);
