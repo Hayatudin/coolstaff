@@ -32,15 +32,17 @@ const AGENCIES = [
 ];
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'user',           label: 'User'           },
-  { value: 'super_admin',    label: 'Super Admin'    },
-  { value: 'registrar',      label: 'Registrar'      },
-  { value: 'processor',      label: 'Processor'      },
-  { value: 'coordinator',    label: 'Coordinator'    },
-  { value: 'accountant',     label: 'Accountant'     },
-  { value: 'agency',         label: 'Agency'         },
+  { value: 'user', label: 'User' },
   { value: 'video_uploader', label: 'Video Uploader' },
-  { value: 'genaral',        label: 'General'        },
+  { value: 'genaral', label: 'General' },
+  { value: 'super_admin', label: 'Super Admin' },
+  { value: 'registrar', label: 'Registrar' },
+  { value: 'processor', label: 'Processor' },
+  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'accountant', label: 'Accountant' },
+  { value: 'agency', label: 'Agency' },
+
+
 ];
 
 const roleBadge = (role: Role) => {
@@ -51,13 +53,13 @@ const roleBadge = (role: Role) => {
 
 // ── Create User Modal ─────────────────────────────────────────────────────────
 function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [name, setName]       = useState('');
-  const [email, setEmail]     = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole]       = useState<Role>('processor');
-  const [agency, setAgency]   = useState('ussus');
+  const [role, setRole] = useState<Role>('processor');
+  const [agency, setAgency] = useState('ussus');
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [error, setError] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,15 +211,15 @@ function AgencySelectModal({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function UsersPage() {
-  const [users, setUsers]       = useState<UserRow[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch]     = useState('');
+  const [search, setSearch] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [agencyModalTarget, setAgencyModalTarget] = useState<{ userId: string; role: Role; currentAgency?: string | null } | null>(null);
-  const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showMsg = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
