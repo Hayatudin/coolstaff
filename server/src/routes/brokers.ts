@@ -251,6 +251,20 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
     // Augment with isLocked status via raw SQL
     const isLocked = await getBrokerIsLocked(id);
 
+    // Fetch leaderId via raw SQL to bypass stale Prisma client
+    let leaderId = null;
+    try {
+      const leaderRows = await prisma.$queryRawUnsafe<{ leaderId: string | null }[]>(
+        'SELECT leaderId FROM Broker WHERE id = ?',
+        id
+      );
+      if (leaderRows.length > 0) {
+        leaderId = leaderRows[0].leaderId;
+      }
+    } catch (e) {
+      console.warn('[BROKER] Could not fetch leaderId for broker', id, e);
+    }
+
     // Fetch per-candidate isLocked via raw SQL
     let candidateIsLockedMap: Record<string, boolean> = {};
     let candidateCvDownloadedMap: Record<string, boolean> = {};
@@ -271,6 +285,7 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
 
     const augmentedBroker = {
       ...broker,
+      leaderId,
       isLocked,
       candidates: broker.candidates.map((c: any) => ({
         ...c,
