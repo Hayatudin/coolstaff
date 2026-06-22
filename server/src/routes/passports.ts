@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { uploadToLocal } from '../lib/upload';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -11,6 +14,50 @@ const generateCuid = (prefix = 'pp') => {
     randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return prefix + randomPart;
+};
+
+// Safe shelfNo generator
+const getNextShelfNo = async (): Promise<string> => {
+  const counterFilePath = path.join(process.cwd(), 'passport_shelf_counter.json');
+  let currentCounter = 0;
+
+  // 1. Try reading from the persisted file
+  if (fs.existsSync(counterFilePath)) {
+    try {
+      const fileData = fs.readFileSync(counterFilePath, 'utf8');
+      const parsed = JSON.parse(fileData);
+      if (typeof parsed.counter === 'number') {
+        currentCounter = parsed.counter;
+      }
+    } catch (e) {
+      console.error('Error reading passport_shelf_counter.json:', e);
+    }
+  }
+
+  // 2. Fallback / double-check against the max shelf number in the database
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ maxShelf: string | number | null }[]>(
+      'SELECT MAX(CAST(shelfNo AS UNSIGNED)) AS maxShelf FROM `Passport`'
+    );
+    const dbMax = rows[0]?.maxShelf ? Number(rows[0].maxShelf) : 0;
+    if (dbMax > currentCounter) {
+      currentCounter = dbMax;
+    }
+  } catch (dbErr) {
+    console.warn('Could not query max shelfNo from Passport table:', dbErr);
+  }
+
+  const nextNum = currentCounter + 1;
+  const shelfNoStr = String(nextNum).padStart(3, '0');
+
+  // 3. Write the updated counter back to file
+  try {
+    fs.writeFileSync(counterFilePath, JSON.stringify({ counter: nextNum }), 'utf8');
+  } catch (e) {
+    console.error('Error writing passport_shelf_counter.json:', e);
+  }
+
+  return shelfNoStr;
 };
 
 // GET /api/passports
@@ -38,26 +85,23 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/passports
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { passportNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, gender } = req.body;
+    const { passportNumber, fullName, passportImageUrl } = req.body;
 
     if (!passportNumber || !passportNumber.trim()) {
       return res.status(400).json({ error: 'Passport number is required' });
     }
-    if (!surname || !surname.trim()) {
-      return res.status(400).json({ error: 'Surname is required' });
-    }
-    if (!givenNames || !givenNames.trim()) {
-      return res.status(400).json({ error: 'Given names are required' });
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ error: 'Full name is required' });
     }
 
     const cleanPassportNumber = passportNumber.trim().toUpperCase();
-    const cleanSurname = surname.trim().toUpperCase();
-    const cleanGivenNames = givenNames.trim().toUpperCase();
-    const dob = dateOfBirth ? new Date(dateOfBirth) : null;
-    const doe = dateOfExpiry ? new Date(dateOfExpiry) : null;
-    const cleanNationality = nationality ? nationality.trim() : null;
-    const cleanGender = gender ? gender.trim() : null;
+    const cleanFullName = fullName.trim().toUpperCase();
 
+    // Upload image to local disk / cloud
+    const savedImageUrl = await uploadToLocal(passportImageUrl, 'passports');
+
+    // Generate unique sequential shelfNo
+    const shelfNo = await getNextShelfNo();
     const id = generateCuid('pp');
 
     let createdPassport;
@@ -66,13 +110,10 @@ router.post('/', async (req: Request, res: Response) => {
       createdPassport = await (prisma as any).passport.create({
         data: {
           id,
+          shelfNo,
+          fullName: cleanFullName,
           passportNumber: cleanPassportNumber,
-          surname: cleanSurname,
-          givenNames: cleanGivenNames,
-          dateOfBirth: dob,
-          dateOfExpiry: doe,
-          nationality: cleanNationality,
-          gender: cleanGender,
+          passportImageUrl: savedImageUrl,
           status: 'Available',
         },
       });
@@ -84,15 +125,12 @@ router.post('/', async (req: Request, res: Response) => {
       
       try {
         await prisma.$executeRawUnsafe(
-          'INSERT INTO `Passport` (id, passportNumber, surname, givenNames, dateOfBirth, dateOfExpiry, nationality, gender, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))',
+          'INSERT INTO `Passport` (id, shelfNo, fullName, passportNumber, passportImageUrl, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, NOW(3), NOW(3))',
           id,
+          shelfNo,
+          cleanFullName,
           cleanPassportNumber,
-          cleanSurname,
-          cleanGivenNames,
-          dob,
-          doe,
-          cleanNationality,
-          cleanGender,
+          savedImageUrl,
           'Available'
         );
 

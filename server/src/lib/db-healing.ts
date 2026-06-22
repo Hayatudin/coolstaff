@@ -412,18 +412,24 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ TemplatePrice table check warning:', e.message || e);
   }
 
-  // 9b. Create Passport Table
+  // 9b. Create Passport Table (Auto-migrated if older schema detected)
   try {
+    try {
+      const cols: any[] = await prisma.$queryRawUnsafe('SHOW COLUMNS FROM `Passport`');
+      const hasShelfNo = cols.some(c => c.Field === 'shelfNo');
+      if (!hasShelfNo) {
+        console.log('🔄 Old Passport table detected. Recreating to match new schema...');
+        await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS `Passport`');
+      }
+    } catch (_) {}
+
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS \`Passport\` (
         \`id\` VARCHAR(191) NOT NULL,
+        \`shelfNo\` VARCHAR(191) NOT NULL,
+        \`fullName\` VARCHAR(191) NOT NULL,
         \`passportNumber\` VARCHAR(191) NOT NULL,
-        \`surname\` VARCHAR(191) NOT NULL,
-        \`givenNames\` VARCHAR(191) NOT NULL,
-        \`dateOfBirth\` DATETIME(3) NULL,
-        \`dateOfExpiry\` DATETIME(3) NULL,
-        \`nationality\` VARCHAR(191) NULL,
-        \`gender\` VARCHAR(191) NULL,
+        \`passportImageUrl\` LONGTEXT NULL,
         \`status\` VARCHAR(191) NOT NULL DEFAULT 'Available',
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

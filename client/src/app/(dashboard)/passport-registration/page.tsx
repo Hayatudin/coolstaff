@@ -1,32 +1,22 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import PassportUploader from '@/components/registration/PassportUploader';
 import { Save, Loader2 } from 'lucide-react';
-import { allCountries } from '@/data/countries';
-import Select from '@/components/ui/Select';
 import Input from '@/components/ui/Input';
 
 interface PassportForm {
   passportNumber: string;
-  surname: string;
-  givenNames: string;
-  dateOfBirth: string;
-  dateOfExpiry: string;
-  nationality: string;
-  gender: string;
+  fullName: string;
+  passportImageUrl: string;
 }
 
 const emptyForm: PassportForm = {
   passportNumber: '',
-  surname: '',
-  givenNames: '',
-  dateOfBirth: '',
-  dateOfExpiry: '',
-  nationality: '',
-  gender: '',
+  fullName: '',
+  passportImageUrl: '',
 };
 
 const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
@@ -76,10 +66,8 @@ export default function PassportRegistrationPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
 
-  const handleFieldChange = (field: keyof PassportForm, value: string) => {
-    const cleanValue = (field === 'passportNumber' || field === 'surname' || field === 'givenNames')
-      ? value.toUpperCase()
-      : value;
+  const handleFieldChange = (field: 'passportNumber' | 'fullName', value: string) => {
+    const cleanValue = value.toUpperCase();
     setForm(prev => ({ ...prev, [field]: cleanValue }));
   };
 
@@ -116,15 +104,17 @@ export default function PassportRegistrationPage() {
       
       setOcrProgress(100);
       
+      // Compute fullName from surname and givenNames if available
+      const parts = [];
+      if (data.surname) parts.push(data.surname.trim());
+      if (data.givenNames) parts.push(data.givenNames.trim());
+      const computedName = parts.join(' ').toUpperCase();
+
       // Auto-fill form fields
       setForm({
         passportNumber: data.passportNumber ? data.passportNumber.toUpperCase() : '',
-        surname: data.surname ? data.surname.toUpperCase() : '',
-        givenNames: data.givenNames ? data.givenNames.toUpperCase() : '',
-        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split('T')[0] : '',
-        dateOfExpiry: data.dateOfExpiry ? data.dateOfExpiry.split('T')[0] : '',
-        nationality: data.nationality ? data.nationality.toUpperCase() : '',
-        gender: data.gender ? data.gender.toUpperCase() : '',
+        fullName: computedName,
+        passportImageUrl: preprocessedUrl,
       });
       setProcessingComplete(true);
     } catch (err) {
@@ -134,10 +124,25 @@ export default function PassportRegistrationPage() {
     }
   }, []);
 
+  // Handlers for manual passport image upload
+  const handleImageUploaded = (imageUrl: string) => {
+    setPassportImage(imageUrl);
+    setForm(prev => ({ ...prev, passportImageUrl: imageUrl }));
+    setProcessingComplete(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.passportNumber.trim() || !form.surname.trim() || !form.givenNames.trim()) {
-      setError('Passport Number, Surname, and Given Names are required.');
+    if (!form.passportNumber.trim()) {
+      setError('Passport Number is required.');
+      return;
+    }
+    if (!form.fullName.trim()) {
+      setError('Full Name is required.');
+      return;
+    }
+    if (!passportImage) {
+      setError('Passport Image is required.');
       return;
     }
 
@@ -149,7 +154,11 @@ export default function PassportRegistrationPage() {
       const response = await api('/api/passports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          passportNumber: form.passportNumber,
+          fullName: form.fullName,
+          passportImageUrl: passportImage,
+        }),
       });
 
       if (!response.ok) {
@@ -172,18 +181,8 @@ export default function PassportRegistrationPage() {
     }
   };
 
-  const countryOptions = allCountries.map(c => ({
-    value: c.toUpperCase(),
-    label: c,
-  }));
-
-  const genderOptions = [
-    { value: 'MALE', label: 'Male' },
-    { value: 'FEMALE', label: 'Female' },
-  ];
-
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-24 animate-fade-in">
+    <div className="max-w-2xl mx-auto space-y-6 pb-24 animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">Passport Registration</h1>
         <p className="text-text-tertiary mt-1 text-sm">Register passport records for quick management and tracking.</p>
@@ -202,7 +201,7 @@ export default function PassportRegistrationPage() {
                 }}
                 className="text-xs font-bold text-primary hover:underline uppercase tracking-wider block"
               >
-                Fill form manually
+                Fill form manually (keeps passport image)
               </button>
             </div>
           )}
@@ -215,10 +214,10 @@ export default function PassportRegistrationPage() {
         </div>
       )}
 
-      {/* STEP 1: Scan Passport (Optional) */}
+      {/* STEP 1: Scan Passport */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
         <div className="bg-gray-50 border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-text-primary">1. Scan Passport (Optional)</h2>
+          <h2 className="text-base font-semibold text-text-primary">1. Passport Image <span className="text-red-500">*</span></h2>
         </div>
         <div className="p-4 sm:p-6">
           <PassportUploader
@@ -253,61 +252,20 @@ export default function PassportRegistrationPage() {
         <div className="p-4 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Input
+              label="Full Name"
+              value={form.fullName}
+              onChange={(e) => handleFieldChange('fullName', e.target.value)}
+              placeholder="Enter full name"
+              required
+            />
+            
+            <Input
               label="Passport Number"
               value={form.passportNumber}
               onChange={(e) => handleFieldChange('passportNumber', e.target.value)}
               placeholder="Enter passport number"
               required
             />
-            
-            <Input
-              label="Surname"
-              value={form.surname}
-              onChange={(e) => handleFieldChange('surname', e.target.value)}
-              placeholder="Enter surname"
-              required
-            />
-
-            <Input
-              label="Given Names"
-              value={form.givenNames}
-              onChange={(e) => handleFieldChange('givenNames', e.target.value)}
-              placeholder="Enter given names"
-              required
-            />
-
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={form.dateOfBirth}
-              onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
-            />
-
-            <Input
-              label="Date of Expiry"
-              type="date"
-              value={form.dateOfExpiry}
-              onChange={(e) => handleFieldChange('dateOfExpiry', e.target.value)}
-            />
-
-            <Select
-              label="Gender"
-              options={genderOptions}
-              value={form.gender}
-              onChange={(val) => handleFieldChange('gender', val)}
-              placeholder="Select gender"
-            />
-
-            <div className="sm:col-span-2">
-              <Select
-                label="Nationality"
-                options={countryOptions}
-                value={form.nationality}
-                onChange={(val) => handleFieldChange('nationality', val)}
-                placeholder="Search and select nationality"
-                searchable
-              />
-            </div>
           </div>
 
           <div className="flex justify-end pt-4 border-t border-border">

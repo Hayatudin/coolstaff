@@ -287,17 +287,14 @@ model PreRegisteredVideo {
 }
 
 model Passport {
-  id             String    @id @default(cuid())
-  passportNumber String    @unique
-  surname        String
-  givenNames     String
-  dateOfBirth    DateTime?
-  dateOfExpiry   DateTime?
-  nationality    String?
-  gender         String?
-  status         String    @default("Available")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  shelfNo          String
+  fullName         String
+  passportNumber   String   @unique
+  passportImageUrl String?  @db.LongText
+  status           String   @default("Available")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([passportNumber])
   @@index([status])
