@@ -130,6 +130,34 @@ router.post('/', async (req: Request, res: Response) => {
         }
       }
     });
+
+    // Auto-assign new broker to 'DAERA OFFICE' leader group
+    try {
+      const leaderRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+        "SELECT id FROM Leader WHERE name = 'DAERA OFFICE' LIMIT 1"
+      );
+      let daeraLeaderId = null;
+      if (leaderRows.length > 0) {
+        daeraLeaderId = leaderRows[0].id;
+      } else {
+        // Auto-create leader "DAERA OFFICE" if missing
+        const newLeader = await prisma.leader.create({
+          data: { name: 'DAERA OFFICE' }
+        });
+        daeraLeaderId = newLeader.id;
+      }
+      
+      if (daeraLeaderId) {
+        await prisma.$executeRawUnsafe(
+          'UPDATE Broker SET leaderId = ? WHERE id = ?',
+          daeraLeaderId,
+          broker.id
+        );
+        console.log(`[BROKER-CREATE] Automatically assigned new broker "${broker.name}" to Leader "DAERA OFFICE"`);
+      }
+    } catch (e) {
+      console.warn('[BROKER-CREATE] Failed to auto-assign/create DAERA OFFICE leader:', e);
+    }
     
     res.json(broker);
   } catch (error: any) {
@@ -265,23 +293,30 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
       console.warn('[BROKER] Could not fetch leaderId for broker', id, e);
     }
 
-    // Fetch per-candidate isLocked via raw SQL
+    // Fetch per-candidate isLocked & price via raw SQL
     let candidateIsLockedMap: Record<string, boolean> = {};
     let candidateCvDownloadedMap: Record<string, boolean> = {};
+    let candidatePriceMap: Record<string, string | null> = {};
     try {
       const candidateIds = broker.candidates.map((c: any) => c.id);
       if (candidateIds.length > 0) {
         const placeholders = candidateIds.map(() => '?').join(',');
-        const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean; cvDownloaded: number | boolean }[]>(
-          `SELECT id, isLocked, cvDownloaded FROM Candidate WHERE id IN (${placeholders})`,
+        const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean; cvDownloaded: number | boolean; price: string | null }[]>(
+          `SELECT id, isLocked, cvDownloaded, price FROM Candidate WHERE id IN (${placeholders})`,
           ...candidateIds
         );
         for (const row of rows) {
           candidateIsLockedMap[row.id] = row.isLocked === 1 || row.isLocked === true;
           candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
+          candidatePriceMap[row.id] = row.price || null;
         }
       }
-    } catch (_) { /* isLocked/cvDownloaded columns may not exist yet */ }
+    } catch (_) { /* columns may not exist yet */ }
+
+    // Resolve requester role
+    const session = await getSession(req);
+    const role = (session?.user as any)?.role;
+    const isSuperAdmin = role === 'super_admin';
 
     const augmentedBroker = {
       ...broker,
@@ -291,6 +326,7 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
         ...c,
         isLocked: candidateIsLockedMap[c.id] ?? false,
         cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
+        price: isSuperAdmin ? (candidatePriceMap[c.id] ?? null) : null,
       })),
     };
 

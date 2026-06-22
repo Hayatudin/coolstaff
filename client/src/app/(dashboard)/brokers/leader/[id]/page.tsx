@@ -119,6 +119,45 @@ export default function LeaderBrokersPage() {
     fetchData();
   }, [leaderId]);
 
+  // Keyboard navigation spelling search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        activeEl.getAttribute('contenteditable') === 'true'
+      )) {
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      if (e.key.length === 1 && /[a-zA-Z]/i.test(e.key)) {
+        const char = e.key.toLowerCase();
+        const targetBroker = brokers
+          .filter(b => b.leaderId === leaderId)
+          .find(b => b.name.trim().toLowerCase().startsWith(char));
+        if (targetBroker) {
+          const el = document.getElementById(`broker-card-${targetBroker.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-4', 'ring-primary/40');
+            setTimeout(() => {
+              el.classList.remove('ring-4', 'ring-primary/40');
+            }, 1500);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [brokers, leaderId]);
+
   const getBrokerTemplates = (broker: Broker) => {
     const templatesSet = new Set<string>();
     const safeCandidates = Array.isArray(broker.candidates) ? broker.candidates : [];
@@ -280,6 +319,7 @@ export default function LeaderBrokersPage() {
     return (
       <div
         key={broker.id}
+        id={`broker-card-${broker.id}`}
         className={cn(
           "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 relative overflow-hidden flex flex-col min-h-[220px]",
           broker.isLocked

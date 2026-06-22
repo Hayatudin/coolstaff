@@ -74,6 +74,7 @@ interface BrokerCandidate {
   medicalStatus?: string;
   visaOrContractNumber?: string | null;
   cvDownloaded?: boolean;
+  price?: string | null;
 }
 
 export default function BrokerCandidatesPage() {
@@ -1239,7 +1240,11 @@ export default function BrokerCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Medical Status</th>
                 <th className="px-6 py-4 font-semibold">CV Preview</th>
                 <th className="px-6 py-4 font-semibold">Agency</th>
-                <th className="px-6 py-4 hidden lg:table-cell font-semibold">Registered Date</th>
+                {role === 'super_admin' ? (
+                  <th className="px-6 py-4 hidden lg:table-cell font-semibold">Price</th>
+                ) : (
+                  <th className="px-6 py-4 hidden lg:table-cell font-semibold">Registered Date</th>
+                )}
                 <th className="px-6 py-4 font-semibold">Open</th>
                 <th className="px-6 py-4 text-right pr-12 font-semibold">Actions</th>
               </tr>
@@ -1382,13 +1387,41 @@ export default function BrokerCandidatesPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
-                        <span className="text-xs xl:text-sm font-bold text-text-secondary">
-                          {new Date(candidate.registeredAt).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </span>
+                        {role === 'super_admin' ? (
+                          <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={candidate.price || ''}
+                              onChange={(e) => {
+                                const newPrice = e.target.value;
+                                setCandidates(prev => prev.map(cand => cand.id === candidate.id ? { ...cand, price: newPrice } : cand));
+                              }}
+                              onBlur={async (e) => {
+                                try {
+                                  await api(`/api/candidates/${candidate.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ price: e.target.value })
+                                  });
+                                  showToast('Price updated successfully');
+                                } catch (err) {
+                                  console.error(err);
+                                  showToast('Failed to update price', 'error');
+                                }
+                              }}
+                              placeholder="Set Price"
+                              className="w-28 px-2.5 py-1.5 text-xs border border-border rounded-xl bg-surface text-text-primary outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs xl:text-sm font-bold text-text-secondary">
+                            {new Date(candidate.registeredAt).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button

@@ -68,6 +68,9 @@ async function getBrokerLockMap(): Promise<Record<string, boolean>> {
 // GET /api/candidates
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const session = await getSession(req);
+    const role = (session?.user as any)?.role;
+    const isSuperAdmin = role === 'super_admin';
     // Fetch all brokers and their lock status safely
     const lockMap = await getBrokerLockMap();
     const brokerMap = new Map<string, any>();
@@ -127,6 +130,7 @@ router.get('/', async (req: Request, res: Response) => {
     let deployedDateMap: Record<string, string | null> = {};
     let candidateLockMap: Record<string, boolean> = {};
     let candidateCvDownloadedMap: Record<string, boolean> = {};
+    let candidatePriceMap: Record<string, string | null> = {};
     let registeredByMap: Record<string, string> = {};
     try {
       const users: any[] = await prisma.$queryRawUnsafe(`SELECT \`id\`, \`name\` FROM \`User\``);
@@ -136,13 +140,14 @@ router.get('/', async (req: Request, res: Response) => {
       }
 
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded, registeredById FROM \`Candidate\``
+        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded, registeredById, price FROM \`Candidate\``
       );
       for (const row of rawRows) {
         youtubeUrlMap[row.id] = row.Youtube_URL || null;
         deployedDateMap[row.id] = row.deployedDate ? new Date(row.deployedDate).toISOString() : null;
         candidateLockMap[row.id] = row.isLocked === 1 || row.isLocked === true;
         candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
+        candidatePriceMap[row.id] = row.price || null;
         if (row.registeredById && userMap.has(row.registeredById)) {
           registeredByMap[row.id] = userMap.get(row.registeredById)!;
         }
@@ -228,6 +233,7 @@ router.get('/', async (req: Request, res: Response) => {
         visaSelected: c.visaSelected,
         visaDate: c.visaDate ? c.visaDate.toISOString() : null,
         salary: c.salary || '1000SR',
+        price: isSuperAdmin ? (candidatePriceMap[c.id] ?? null) : null,
         generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
         latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
         registeredBy: registeredByMap[c.id] || c.registeredBy?.name || 'Admin',
@@ -723,6 +729,9 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 // GET /api/candidates/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const session = await getSession(req);
+    const role = (session?.user as any)?.role;
+    const isSuperAdmin = role === 'super_admin';
     const { id } = req.params;
     let c;
     try {
@@ -746,20 +755,22 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     if (!c) return res.status(404).json({ error: 'Not found' });
 
-    // Read Youtube_URL, deployedDate and isLocked via raw SQL
+    // Read Youtube_URL, deployedDate, isLocked and price via raw SQL
     let youtubeUrl: string | null = null;
     let candidateDeployedDate: string | null = null;
     let candidateIsLocked = false;
     let candidateCvDownloaded = false;
+    let candidatePrice: string | null = null;
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT Youtube_URL, deployedDate, isLocked, cvDownloaded FROM \`Candidate\` WHERE id = ?`, id
+        `SELECT Youtube_URL, deployedDate, isLocked, cvDownloaded, price FROM \`Candidate\` WHERE id = ?`, id
       );
       if (rawRows.length > 0) {
         youtubeUrl = rawRows[0].Youtube_URL || null;
         candidateDeployedDate = rawRows[0].deployedDate ? new Date(rawRows[0].deployedDate).toISOString() : null;
         candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
         candidateCvDownloaded = rawRows[0].cvDownloaded === 1 || rawRows[0].cvDownloaded === true;
+        candidatePrice = rawRows[0].price || null;
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -842,6 +853,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       registeredBy: (c as any).registeredBy?.name || 'Admin',
       agency: c.agency || 'daera',
       allowVideo: c.allowVideo ?? false,
+      price: isSuperAdmin ? candidatePrice : null,
     };
     res.json(candidate);
   } catch (error) {
@@ -855,6 +867,13 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const body = req.body;
+    
+    // Extract and strip price field to bypass stale Prisma client static schema errors
+    const priceVal = body.price;
+    delete body.price;
+    if (body.personalInfo) {
+      delete body.personalInfo.price;
+    }
 
     // Ensure allowVideo columns exist in database (self-healing fallback)
     try {
@@ -1034,6 +1053,19 @@ router.put('/:id', async (req: Request, res: Response) => {
       );
     } catch (_) { /* salary column may not exist yet, ignore */ }
 
+    // Save price separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    if (priceVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`price\` = ? WHERE \`id\` = ?`,
+          priceVal,
+          candidate.id
+        );
+      } catch (e) {
+        console.error('Failed to save price via raw SQL in PUT:', e);
+      }
+    }
+
     res.json(candidate);
   } catch (error: any) {
     console.error('Failed to update candidate:', error);
@@ -1123,6 +1155,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
     // Handle cvDownloaded via raw SQL to bypass stale Prisma Client
     const cvDownloadedVal = body.cvDownloaded;
     delete body.cvDownloaded;
+
+    // Extract and strip price field to bypass stale Prisma client static schema errors
+    const priceVal = body.price;
+    delete body.price;
+    if (body.personalInfo) {
+      delete body.personalInfo.price;
+    }
 
     let visaDateVal: any = undefined;
     if (body.visaSelected) {
@@ -1242,6 +1281,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
         }
       } catch (e) {
         console.error('Failed to save cvDownloaded / auto-create GeneratedCV via raw SQL:', e);
+      }
+    }
+
+    // Save price if passed
+    if (priceVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`price\` = ? WHERE \`id\` = ?`,
+          priceVal,
+          id
+        );
+        (updated as any).price = priceVal;
+      } catch (e) {
+        console.error('Failed to save price via raw SQL in PATCH:', e);
       }
     }
 

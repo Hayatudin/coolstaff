@@ -199,6 +199,44 @@ export default function BrokersPage() {
     fetchData();
   }, []);
 
+  // Keyboard navigation spelling search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.tagName === 'SELECT' ||
+        activeEl.getAttribute('contenteditable') === 'true'
+      )) {
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      if (e.key.length === 1 && /[a-zA-Z]/i.test(e.key)) {
+        const char = e.key.toLowerCase();
+        const targetBroker = brokers.find(b => b.name.trim().toLowerCase().startsWith(char));
+        if (targetBroker) {
+          const el = document.getElementById(`broker-card-${targetBroker.id}`) || 
+                     document.getElementById(`broker-item-${targetBroker.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-4', 'ring-primary/40');
+            setTimeout(() => {
+              el.classList.remove('ring-4', 'ring-primary/40');
+            }, 1500);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [brokers]);
+
   const handleAddBroker = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBrokerName.trim()) return;
@@ -444,6 +482,7 @@ export default function BrokersPage() {
     return (
       <div
         key={broker.id}
+        id={`broker-card-${broker.id}`}
         className={cn(
           "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 relative flex flex-col min-h-[220px]",
           broker.isLocked
@@ -703,6 +742,7 @@ export default function BrokersPage() {
             return (
               <div
                 key={broker.id}
+                id={`broker-item-${broker.id}`}
                 className={cn(
                   "interactive-broker flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-300 hover:bg-primary/5 hover:border-primary/20 group/broker",
                   isSelected ? "border-primary/30 bg-primary-50/10" : "border-border/40 bg-surface-hover/10"
