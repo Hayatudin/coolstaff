@@ -688,6 +688,38 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/candidates/by-passport/:passportNumber
+router.get('/by-passport/:passportNumber', async (req: Request, res: Response) => {
+  try {
+    const { passportNumber } = req.params;
+    const candidate = await prisma.candidate.findFirst({
+      where: {
+        OR: [
+          { passportNumber: passportNumber },
+          { passportNumber: passportNumber.toUpperCase() },
+          { passportNumber: passportNumber.toLowerCase() },
+        ]
+      },
+      select: {
+        givenNames: true,
+        surname: true
+      }
+    });
+
+    if (!candidate) {
+      return res.json({ found: false });
+    }
+
+    res.json({
+      found: true,
+      fullName: `${candidate.surname} ${candidate.givenNames}`.trim()
+    });
+  } catch (err: any) {
+    console.error('Failed to lookup candidate by passport:', err);
+    res.status(500).json({ error: 'Failed to look up candidate: ' + err.message });
+  }
+});
+
 // GET /api/candidates/:id
 router.get('/:id', async (req: Request, res: Response) => {
   try {
