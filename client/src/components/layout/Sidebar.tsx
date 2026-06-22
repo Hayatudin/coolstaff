@@ -28,6 +28,8 @@ const allNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Entry', href: '/quick-registration', icon: ClipboardList },
   { label: 'Records', href: '/quick-registered', icon: Users },
+  { label: 'Passport registration', href: '/passport-registration', icon: UserPlus },
+  { label: 'Available Passport', href: '/available-passport', icon: FolderOpen },
   { label: 'Registration', href: '/registration', icon: UserPlus },
   { label: 'Candidates', href: '/candidates', icon: Users },
   { label: 'CV Generator', href: '/cv-generator', icon: FileText },

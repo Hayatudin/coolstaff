@@ -412,6 +412,33 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ TemplatePrice table check warning:', e.message || e);
   }
 
+  // 9b. Create Passport Table
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`Passport\` (
+        \`id\` VARCHAR(191) NOT NULL,
+        \`passportNumber\` VARCHAR(191) NOT NULL,
+        \`surname\` VARCHAR(191) NOT NULL,
+        \`givenNames\` VARCHAR(191) NOT NULL,
+        \`dateOfBirth\` DATETIME(3) NULL,
+        \`dateOfExpiry\` DATETIME(3) NULL,
+        \`nationality\` VARCHAR(191) NULL,
+        \`gender\` VARCHAR(191) NULL,
+        \`status\` VARCHAR(191) NOT NULL DEFAULT 'Available',
+        \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY \`Passport_passportNumber_key\` (\`passportNumber\`),
+        INDEX \`Passport_passportNumber_idx\` (\`passportNumber\`),
+        INDEX \`Passport_status_idx\` (\`status\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    `);
+    console.log(`✅ Verified/Created 'Passport' table.`);
+  } catch (e: any) {
+    console.warn('⚠️ Passport table check warning:', e.message || e);
+  }
+
+
   const candidateColumns = [
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
     { name: 'visaDate', type: 'DATETIME(3) NULL' },

@@ -113,6 +113,7 @@ import invoiceRoutes from './routes/invoices';
 import settingsRoutes from './routes/settings';
 import videoUploadsRoutes from './routes/video-uploads';
 import agencyRoutes from './routes/agency';
+import passportRoutes from './routes/passports';
 
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/brokers', brokerRoutes);
@@ -133,6 +134,8 @@ app.use('/api/video-uploads', videoUploadsRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/deployments', deploymentRoutes);
 app.use('/api/agency', agencyRoutes);
+app.use('/api/passports', passportRoutes);
+
 
 // Database Debug Endpoint (Direct Browser Diagnostics)
 app.get('/api/debug-db', async (req: Request, res: Response) => {
