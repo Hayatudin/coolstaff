@@ -9,7 +9,9 @@ import {
   Eye,
   X,
   AlertCircle,
-  Trash2
+  Trash2,
+  FileCheck,
+  XCircle
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 
@@ -128,52 +130,57 @@ export default function AvailablePassportPage() {
         </div>
       </div>
 
+      {/* Large Stats Counter Boxes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Available Passports Stats Box */}
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/60 p-6 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
+          <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.08] text-emerald-800 pointer-events-none transition-transform duration-300 group-hover:scale-110">
+            <FileCheck size={120} />
+          </div>
+          <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Available Passports</span>
+          <span className="text-4xl sm:text-5xl font-extrabold text-emerald-700 tracking-tight mt-2">
+            {loading ? <Loader2 size={24} className="animate-spin text-emerald-500" /> : availableList.length}
+          </span>
+        </div>
+
+        {/* Taken Passports Stats Box */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 p-6 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
+          <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-[0.08] text-blue-800 pointer-events-none transition-transform duration-300 group-hover:scale-110">
+            <XCircle size={120} />
+          </div>
+          <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Taken Passports</span>
+          <span className="text-4xl sm:text-5xl font-extrabold text-blue-700 tracking-tight mt-2">
+            {loading ? <Loader2 size={24} className="animate-spin text-blue-500" /> : takenList.length}
+          </span>
+        </div>
+      </div>
+
       {/* Category Tabs & Search Panel */}
       <div className="bg-surface rounded-2xl border border-border p-4 sm:p-5 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Tabs */}
+          {/* Tabs (No small badge counts inside) */}
           <div className="flex bg-lavender-dark p-1 rounded-xl w-full md:w-auto self-start border border-border/40">
             <button
               onClick={() => setActiveTab('available')}
               className={cn(
-                'flex-1 md:flex-none px-5 py-2 text-sm font-semibold rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2',
+                'flex-1 md:flex-none px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2',
                 activeTab === 'available'
                   ? 'bg-white text-primary shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'
               )}
             >
-              <span>Passport available</span>
-              <span
-                className={cn(
-                  'px-2 py-0.5 text-xs rounded-full font-bold',
-                  activeTab === 'available'
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-black/5 text-text-tertiary'
-                )}
-              >
-                {availableList.length}
-              </span>
+              Passport available
             </button>
             <button
               onClick={() => setActiveTab('taken')}
               className={cn(
-                'flex-1 md:flex-none px-5 py-2 text-sm font-semibold rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2',
+                'flex-1 md:flex-none px-6 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2',
                 activeTab === 'taken'
                   ? 'bg-white text-primary shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'
               )}
             >
-              <span>Taken</span>
-              <span
-                className={cn(
-                  'px-2 py-0.5 text-xs rounded-full font-bold',
-                  activeTab === 'taken'
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-black/5 text-text-tertiary'
-                )}
-              >
-                {takenList.length}
-              </span>
+              Taken
             </button>
           </div>
 
@@ -261,7 +268,7 @@ export default function AvailablePassportPage() {
                               <span>View Image</span>
                             </button>
                           ) : (
-                            <span className="text-text-tertiary text-xs italic">No Image</span>
+                            <span className="text-text-tertiary text-xs font-medium">No image</span>
                           )}
                         </td>
 
