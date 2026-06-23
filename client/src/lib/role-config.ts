@@ -22,7 +22,7 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/dashboard': ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'genaral', 'calling'],
   '/candidates': ['super_admin', 'processor', 'coordinator', 'genaral', 'calling'],
   '/quick-registration': ['super_admin', 'registrar', 'genaral', 'calling'],
-  '/quick-registered': ['super_admin', 'registrar', 'processor', 'genaral', 'calling'],
+  '/quick-registered': ['super_admin', 'registrar', 'processor', 'genaral'],
   '/requested': ['super_admin', 'coordinator', 'accountant', 'genaral'],
   '/fit-candidates': ['super_admin', 'coordinator', 'genaral'],
   '/registration': ['super_admin', 'processor', 'genaral'],
