@@ -2,7 +2,7 @@
 // Single source of truth for all role definitions and route access in the system.
 
 // All valid roles in the system
-export type Role = 'user' | 'agency' | 'super_admin' | 'registrar' | 'processor' | 'coordinator' | 'accountant' | 'video_uploader' | 'genaral';
+export type Role = 'user' | 'agency' | 'super_admin' | 'registrar' | 'processor' | 'coordinator' | 'accountant' | 'video_uploader' | 'genaral' | 'calling';
 
 // Roles that can access the internal dashboard (agency is treated like user for now)
 export const DASHBOARD_ROLES: Role[] = [
@@ -14,14 +14,15 @@ export const DASHBOARD_ROLES: Role[] = [
   'video_uploader',
   'agency',
   'genaral',
+  'calling',
 ];
 
 // Route → which roles can see/access it
 export const ROUTE_ACCESS: Record<string, Role[]> = {
-  '/dashboard': ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'genaral'],
-  '/candidates': ['super_admin', 'processor', 'coordinator', 'genaral'],
-  '/quick-registration': ['super_admin', 'registrar', 'genaral'],
-  '/quick-registered': ['super_admin', 'registrar', 'processor', 'genaral'],
+  '/dashboard': ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'genaral', 'calling'],
+  '/candidates': ['super_admin', 'processor', 'coordinator', 'genaral', 'calling'],
+  '/quick-registration': ['super_admin', 'registrar', 'genaral', 'calling'],
+  '/quick-registered': ['super_admin', 'registrar', 'processor', 'genaral', 'calling'],
   '/requested': ['super_admin', 'coordinator', 'accountant', 'genaral'],
   '/fit-candidates': ['super_admin', 'coordinator', 'genaral'],
   '/registration': ['super_admin', 'processor', 'genaral'],
@@ -31,7 +32,7 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/deployments': ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'genaral'],
   '/brokers': ['super_admin', 'registrar', 'processor', 'genaral'],
   '/backup': ['super_admin', 'processor', 'coordinator', 'genaral'],
-  '/settings': ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader', 'agency', 'genaral'],
+  '/settings': ['super_admin', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader', 'agency', 'genaral', 'calling'],
   '/users': ['super_admin'],
   '/video-uploads': ['super_admin', 'video_uploader'],
   '/uploaded-videos': ['super_admin', 'video_uploader', 'processor', 'coordinator', 'registrar', 'accountant'],
@@ -71,6 +72,7 @@ export const ROLE_CONFIG: Record<Role, { label: string; color: string; badgeBg: 
   accountant: { label: 'Accountant', color: 'orange', badgeBg: 'bg-orange-100', badgeText: 'text-orange-700', badgeBorder: 'border-orange-200' },
   agency: { label: 'Agency', color: 'cyan', badgeBg: 'bg-cyan-100', badgeText: 'text-cyan-700', badgeBorder: 'border-cyan-200' },
   user: { label: 'User', color: 'gray', badgeBg: 'bg-gray-100', badgeText: 'text-gray-500', badgeBorder: 'border-gray-200' },
+  calling: { label: 'Calling', color: 'teal', badgeBg: 'bg-teal-100', badgeText: 'text-teal-700', badgeBorder: 'border-teal-200' },
 };
 
 // Sidebar badge colors (dark theme for sidebar)
@@ -84,4 +86,5 @@ export const SIDEBAR_BADGE_COLORS: Record<string, string> = {
   video_uploader: 'bg-rose-400/20 text-rose-300',
   genaral: 'bg-indigo-400/20 text-indigo-300',
   user: 'bg-white/10 text-white/40',
+  calling: 'bg-teal-400/20 text-teal-300',
 };

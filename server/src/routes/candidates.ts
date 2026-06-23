@@ -409,6 +409,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Resolve logged in user from session to populate registeredById
     let registeredById = body.registeredById || null;
+    let userRole = null;
     console.log('[DEBUG] POST /candidates - body.registeredById:', body.registeredById);
 
     try {
@@ -417,6 +418,7 @@ router.post('/', async (req: Request, res: Response) => {
 
       if (session?.user?.id) {
         registeredById = session.user.id;
+        userRole = (session?.user as any)?.role;
         console.log('[DEBUG] Resolved registeredById from server session:', registeredById, 'User Name:', session.user.name);
       } else {
         console.log('[DEBUG] Server session returned null or no user ID.');
@@ -516,6 +518,23 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
+    let finalBrokerId = body.personalInfo?.brokerId;
+    if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
+      try {
+        let callingBroker = await prisma.broker.findUnique({
+          where: { name: 'Calling' }
+        });
+        if (!callingBroker) {
+          callingBroker = await prisma.broker.create({
+            data: { name: 'Calling' }
+          });
+        }
+        finalBrokerId = callingBroker.id;
+      } catch (brokerErr) {
+        console.error('Failed to resolve or create Calling broker:', brokerErr);
+      }
+    }
+
     const candidateData: any = {
         shelfId: nextShelfId,
         passportNumber: body.passportData.passportNumber,
@@ -557,8 +576,8 @@ router.post('/', async (req: Request, res: Response) => {
         emergencyContactPhone: body.personalInfo.emergencyContactPhone,
         emergencyContactAddress: body.personalInfo.emergencyContactAddress,
         additionalPhones: body.personalInfo.additionalPhones || [],
-        ...(body.personalInfo.brokerId ? {
-          broker: { connect: { id: body.personalInfo.brokerId } }
+        ...(finalBrokerId ? {
+          broker: { connect: { id: finalBrokerId } }
         } : {}),
 
         passportImageUrl,

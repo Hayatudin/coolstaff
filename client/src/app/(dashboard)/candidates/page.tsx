@@ -41,6 +41,7 @@ export default function CandidatesPage() {
   const [missingFileFilter, setMissingFileFilter] = useState('');
   const [agencyFilter, setAgencyFilter] = useState('all');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [callingFilter, setCallingFilter] = useState(false);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [viewDoc, setViewDoc] = useState<string | null>(null);
@@ -194,6 +195,7 @@ export default function CandidatesPage() {
       const matchesGender = genderFilter ? c.passportData.gender?.toLowerCase() === genderFilter.toLowerCase() : true;
       const matchesReligion = religionFilter ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase() : true;
       const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
+      const matchesCalling = callingFilter ? c.broker?.name === 'Calling' : true;
 
       let matchesMissingFile = true;
       if (missingFileFilter === 'COC') matchesMissingFile = !c.cocDocumentUrl;
@@ -202,17 +204,17 @@ export default function CandidatesPage() {
       else if (missingFileFilter === 'FacePhoto') matchesMissingFile = !c.facePhotoUrl;
       else if (missingFileFilter === 'FullBody') matchesMissingFile = !c.fullBodyPhotoUrl;
 
-      return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile && matchesAgency;
+      return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile && matchesAgency && matchesCalling;
     });
     result.sort((a, b) => {
       const dA = new Date(a.registeredAt).getTime(), dB = new Date(b.registeredAt).getTime();
       return sortOrder === 'new_to_old' ? dB - dA : dA - dB;
     });
     return result;
-  }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter]);
+  }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter, callingFilter]);
 
   // Reset to page 1 whenever filters change
-  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter]);
+  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter, callingFilter]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedCandidates = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -247,33 +249,57 @@ export default function CandidatesPage() {
         )}
       </div>
 
-      {/* Agency filter capsules */}
-      <div className="flex flex-wrap items-center gap-2">
-        {[
-          { key: 'all', label: 'All Agencies', color: 'border-gray-200 text-gray-700 hover:bg-gray-50', activeColor: 'bg-gray-900 border-gray-900 text-white' },
-          { key: 'daera', label: 'Daera', color: 'border-blue-200 text-blue-700 hover:bg-blue-50/55', activeColor: 'bg-blue-600 border-blue-600 text-white' },
-          { key: 'coolstaff', label: 'Coolstaff', color: 'border-teal-200 text-teal-700 hover:bg-teal-50/55', activeColor: 'bg-teal-600 border-teal-600 text-white' },
-          { key: 'boss', label: 'Boss', color: 'border-purple-200 text-purple-700 hover:bg-purple-50/55', activeColor: 'bg-purple-600 border-purple-600 text-white' },
-        ].map((btn) => {
-          const isActive = agencyFilter === btn.key;
-          const count = candidates.filter(c => btn.key === 'all' ? true : c.agency?.toLowerCase() === btn.key).length;
-          return (
-            <button
-              key={btn.key}
-              onClick={() => setAgencyFilter(btn.key)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
-                isActive ? btn.activeColor : btn.color
-              }`}
-            >
-              <span>{btn.label}</span>
-              <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full ${
-                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-              }`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+      {/* Agency & Calling filter capsules */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: 'all', label: 'All Agencies', color: 'border-gray-200 text-gray-700 hover:bg-gray-50', activeColor: 'bg-gray-900 border-gray-900 text-white' },
+            { key: 'daera', label: 'Daera', color: 'border-blue-200 text-blue-700 hover:bg-blue-50/55', activeColor: 'bg-blue-600 border-blue-600 text-white' },
+            { key: 'coolstaff', label: 'Coolstaff', color: 'border-teal-200 text-teal-700 hover:bg-teal-50/55', activeColor: 'bg-teal-600 border-teal-600 text-white' },
+            { key: 'boss', label: 'Boss', color: 'border-purple-200 text-purple-700 hover:bg-purple-50/55', activeColor: 'bg-purple-600 border-purple-600 text-white' },
+          ].map((btn) => {
+            const isActive = agencyFilter === btn.key;
+            const count = candidates.filter(c => btn.key === 'all' ? true : c.agency?.toLowerCase() === btn.key).length;
+            return (
+              <button
+                key={btn.key}
+                onClick={() => setAgencyFilter(btn.key)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                  isActive ? btn.activeColor : btn.color
+                }`}
+              >
+                <span>{btn.label}</span>
+                <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Separator */}
+        <div className="hidden sm:block w-px h-6 bg-border" />
+
+        {/* Calling Filter Capsule */}
+        <button
+          onClick={() => setCallingFilter(!callingFilter)}
+          className={cn(
+            "flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95",
+            callingFilter
+              ? "bg-teal-600 border-teal-600 text-white"
+              : "border-teal-200 text-teal-700 hover:bg-teal-50/55"
+          )}
+        >
+          <span>Calling Candidates</span>
+          <span className={cn(
+            "inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full",
+            callingFilter ? "bg-white/20 text-white" : "bg-teal-55 text-teal-700 border border-teal-200"
+          )}>
+            {candidates.filter(c => c.broker?.name === 'Calling').length}
+          </span>
+        </button>
       </div>
 
       {/* Filters */}
@@ -326,8 +352,8 @@ export default function CandidatesPage() {
               ]} 
             />
           </div>
-          {(jobFilter || genderFilter || religionFilter || statusFilter || customDate || searchQuery || missingFileFilter || agencyFilter !== 'all') && (
-            <button onClick={() => { setJobFilter(''); setGenderFilter(''); setReligionFilter(''); setStatusFilter(''); setCustomDate(''); setSearchQuery(''); setMissingFileFilter(''); setAgencyFilter('all'); }} className="text-sm text-text-tertiary hover:text-danger font-medium px-3 transition-colors">
+          {(jobFilter || genderFilter || religionFilter || statusFilter || customDate || searchQuery || missingFileFilter || agencyFilter !== 'all' || callingFilter) && (
+            <button onClick={() => { setJobFilter(''); setGenderFilter(''); setReligionFilter(''); setStatusFilter(''); setCustomDate(''); setSearchQuery(''); setMissingFileFilter(''); setAgencyFilter('all'); setCallingFilter(false); }} className="text-sm text-text-tertiary hover:text-danger font-medium px-3 transition-colors">
               Clear Filters
             </button>
           )}
@@ -396,13 +422,17 @@ export default function CandidatesPage() {
 
                     {/* CV Agency */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
-                        {(() => {
-                          const templateId = candidate.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || 'alm';
-                          const templateObj = TEMPLATES.find(t => t.id === templateId);
-                          return templateObj ? templateObj.name : 'ALAALAM';
-                        })()}
-                      </span>
+                      {candidate.broker?.name === 'Calling' ? (
+                        <span className="text-xs text-text-tertiary">No CV</span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
+                          {(() => {
+                            const templateId = candidate.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || 'alm';
+                            const templateObj = TEMPLATES.find(t => t.id === templateId);
+                            return templateObj ? templateObj.name : 'ALAALAM';
+                          })()}
+                        </span>
+                      )}
                     </td>
 
                     {/* Broker */}

@@ -11,6 +11,7 @@ import {
 import Badge from '@/components/ui/Badge';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
   <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10 min-w-0">
@@ -25,6 +26,8 @@ const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; valu
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role ?? 'user';
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
@@ -169,20 +172,22 @@ export default function CandidateDetailPage() {
               </div>
 
               {/* Top Right Actions (Like the 'send message' button) */}
-              <div className="flex flex-row xl:flex-col items-center xl:items-end justify-center gap-2 mt-4 xl:mt-0">
-                <button
-                  onClick={() => router.push(`/registration?edit=${c.id}`)}
-                  className="flex items-center justify-center gap-2 px-5 py-2 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
-                >
-                  <Edit3 size={14} /> Edit Profile
-                </button>
-                <button
-                  onClick={() => handleDelete()}
-                  className="flex items-center justify-center gap-2 px-5 py-2 bg-white text-red-600 border border-red-100 hover:bg-red-50 hover:border-red-200 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto cursor-pointer"
-                >
-                  <Trash2 size={14} /> Delete
-                </button>
-              </div>
+              {userRole !== 'calling' && (
+                <div className="flex flex-row xl:flex-col items-center xl:items-end justify-center gap-2 mt-4 xl:mt-0">
+                  <button
+                    onClick={() => router.push(`/registration?edit=${c.id}`)}
+                    className="flex items-center justify-center gap-2 px-5 py-2 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
+                  >
+                    <Edit3 size={14} /> Edit Profile
+                  </button>
+                  <button
+                    onClick={() => handleDelete()}
+                    className="flex items-center justify-center gap-2 px-5 py-2 bg-white text-red-600 border border-red-100 hover:bg-red-50 hover:border-red-200 rounded-md text-xs font-bold shadow-sm transition-all w-full xl:w-auto cursor-pointer"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -207,7 +212,11 @@ export default function CandidateDetailPage() {
           </div>
 
           <div className="mt-6 sm:mt-0 w-full sm:w-auto">
-            {c.isLocked ? (
+            {c.broker?.name === 'Calling' ? (
+              <div className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm bg-gray-100 text-gray-400 border border-gray-200/50 cursor-not-allowed select-none" title="CV is not available for Calling candidates.">
+                <FileText size={16} /> CV Not Available
+              </div>
+            ) : c.isLocked ? (
               <div className="w-full sm:w-auto flex items-center justify-center gap-2 px-10 py-3 rounded-md font-bold text-sm bg-gray-100 text-gray-400 border border-gray-200/50 cursor-not-allowed select-none" title="Candidate is locked. CV generation is unavailable.">
                 <Lock size={16} /> CV Locked
               </div>
@@ -412,46 +421,48 @@ export default function CandidateDetailPage() {
           </div>
 
           {/* Generated CV */}
-          <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-            <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
-              <FileText size={20} className="text-emerald-500" /> Generated CV
-            </h2>
-            {c.latestCVTemplate ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 p-4 bg-emerald-50/50 rounded-[1.25rem] border border-emerald-100/50">
-                  <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl">
-                    <FileText size={18} />
+          {c.broker?.name !== 'Calling' && (
+            <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+              <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
+                <FileText size={20} className="text-emerald-500" /> Generated CV
+              </h2>
+              {c.latestCVTemplate ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3 p-4 bg-emerald-50/50 rounded-[1.25rem] border border-emerald-100/50">
+                    <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-xl">
+                      <FileText size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-emerald-700/70 uppercase tracking-[0.1em] font-bold">Template Layout</p>
+                      <span className="text-[15px] font-bold text-emerald-800 uppercase block truncate">{c.latestCVTemplate}</span>
+                    </div>
+                    {c.isLocked ? (
+                      <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-650 border border-red-200/60 rounded-xl text-xs font-black select-none" title="Candidate is locked. CV is unavailable.">
+                        <Lock size={12} className="text-red-500" />
+                        Locked
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => router.push(`/generated-cvs?folder=${c.latestCVTemplate}&search=${c.passportData.passportNumber}`)}
+                        className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                      >
+                        View
+                      </button>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-emerald-700/70 uppercase tracking-[0.1em] font-bold">Template Layout</p>
-                    <span className="text-[15px] font-bold text-emerald-800 uppercase block truncate">{c.latestCVTemplate}</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3 p-4 bg-gray-50/80 rounded-[1.25rem] border border-gray-100">
+                    <p className="text-text-tertiary text-[15px] font-semibold">No CV generated yet</p>
                   </div>
-                  {c.isLocked ? (
-                    <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-650 border border-red-200/60 rounded-xl text-xs font-black select-none" title="Candidate is locked. CV is unavailable.">
-                      <Lock size={12} className="text-red-500" />
-                      Locked
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => router.push(`/generated-cvs?folder=${c.latestCVTemplate}&search=${c.passportData.passportNumber}`)}
-                      className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
-                    >
-                      View
-                    </button>
-                  )}
+                  <button onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)} className="w-full py-3 bg-emerald-100 text-emerald-800 rounded-xl text-sm font-bold hover:bg-emerald-200 transition-colors">
+                    Generate CV
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 p-4 bg-gray-50/80 rounded-[1.25rem] border border-gray-100">
-                  <p className="text-text-tertiary text-[15px] font-semibold">No CV generated yet</p>
-                </div>
-                <button onClick={() => router.push(`/cv-generator?candidateId=${c.id}`)} className="w-full py-3 bg-emerald-100 text-emerald-800 rounded-xl text-sm font-bold hover:bg-emerald-200 transition-colors">
-                  Generate CV
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Shelf ID */}
           <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">

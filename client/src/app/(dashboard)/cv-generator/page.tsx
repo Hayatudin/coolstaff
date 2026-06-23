@@ -38,6 +38,7 @@ function CVGeneratorContent() {
   const urlCandidateId = searchParams.get('candidateId');
 
   const { candidates, isLoading, mutate: setCandidates } = useCandidates();
+  const nonCallingCandidates = React.useMemo(() => candidates.filter((c: Candidate) => c.broker?.name !== 'Calling'), [candidates]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(urlCandidateId);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('alm');
   const [toast, setToast] = useState<string | null>(null);
@@ -78,14 +79,15 @@ function CVGeneratorContent() {
 
   React.useEffect(() => {
     // Auto-select if candidateId was passed via URL and exists in data
-    if (urlCandidateId && candidates.length > 0 && !selectedCandidateId) {
-      if (candidates.some((c: Candidate) => c.id === urlCandidateId)) {
+    // Auto-select if candidateId was passed via URL and exists in data
+    if (urlCandidateId && nonCallingCandidates.length > 0 && !selectedCandidateId) {
+      if (nonCallingCandidates.some((c: Candidate) => c.id === urlCandidateId)) {
         setSelectedCandidateId(urlCandidateId);
       }
     }
-  }, [urlCandidateId, candidates, selectedCandidateId]);
+  }, [urlCandidateId, nonCallingCandidates, selectedCandidateId]);
 
-  const selectedCandidate = candidates.find(c => c.id === selectedCandidateId) || null;
+  const selectedCandidate = nonCallingCandidates.find(c => c.id === selectedCandidateId) || null;
 
   // Pre-load images as Base64 to avoid CORS issues with html-to-image
   React.useEffect(() => {
@@ -253,7 +255,7 @@ function CVGeneratorContent() {
               <h2 className="font-semibold text-text-primary">Candidate</h2>
             </div>
             <CandidateSelector
-              candidates={candidates}
+              candidates={nonCallingCandidates}
               selectedId={selectedCandidateId}
               onSelect={setSelectedCandidateId}
             />

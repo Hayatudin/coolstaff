@@ -96,6 +96,11 @@ export default function QuickRegistrationPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Calling role custom state variables
+  const [facePhotoUrl, setFacePhotoUrl] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+  const [additionalPhones, setAdditionalPhones] = useState<string[]>([]);
+
   // Pre-registered video auto-fill
   const [matchedVideoBadge, setMatchedVideoBadge] = useState<string | null>(null);
 
@@ -296,7 +301,26 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    if (!selectedBrokerId) {
+    if (selectedLanguages.length === 0) {
+      setError('At least one language must be selected.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const isCalling = (session?.user as any)?.role === 'calling';
+    if (isCalling && !facePhotoUrl) {
+      setError('Face Photo upload is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (isCalling && !phone.trim()) {
+      setError('Primary Phone Number is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!isCalling && !selectedBrokerId) {
       setError('Broker selection is required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -336,38 +360,83 @@ export default function QuickRegistrationPage() {
     setError(null);
 
     try {
-      const response = await api('/api/quick-registrations', {
+      const url = isCalling ? '/api/candidates' : '/api/quick-registrations';
+      const bodyPayload = isCalling
+        ? {
+            passportData: {
+              passportNumber: passportData.passportNumber,
+              surname: passportData.surname,
+              givenNames: passportData.givenNames,
+              dateOfBirth: passportData.dateOfBirth,
+              gender: passportData.gender,
+              nationality: passportData.nationality,
+              issuingCountry: passportData.issuingCountry,
+              dateOfIssue: passportData.dateOfIssue || new Date().toISOString(),
+              dateOfExpiry: passportData.dateOfExpiry,
+              placeOfBirth: passportData.placeOfBirth || passportData.nationality || '',
+            },
+            personalInfo: {
+              maritalStatus,
+              numberOfChildren,
+              religion,
+              bloodType: 'O+',
+              phone,
+              additionalPhones: additionalPhones.filter(Boolean),
+              languages: selectedLanguages,
+              brokerId: 'calling-broker', // Backend handles auto-connecting to 'Calling' broker
+              cocDocumentUrl,
+              labourIdUrl,
+              candidateIdImageUrl,
+              relativeIdImageUrl,
+              medicalStatus: 'Pending',
+              biometricStatus: 'Pending',
+              job: 'Calling',
+              educationLevel: 'None',
+              skills: [],
+              workExperience: [],
+            },
+            passportImageUrl: passportImage,
+            facePhotoUrl: facePhotoUrl,
+            videoUrl,
+            allowVideo,
+            agency,
+            status: 'pending',
+            registeredById: session?.user?.id || null,
+          }
+        : {
+            passportNumber: passportData.passportNumber,
+            surname: passportData.surname,
+            givenNames: passportData.givenNames,
+            dateOfBirth: passportData.dateOfBirth,
+            gender: passportData.gender,
+            nationality: passportData.nationality,
+            dateOfExpiry: passportData.dateOfExpiry,
+            issuingCountry: passportData.issuingCountry,
+            placeOfBirth: passportData.placeOfBirth,
+            educationLevel: null,
+            jobExperience: null,
+            maritalStatus,
+            numberOfChildren,
+            passportImageUrl: passportImage,
+            religion,
+            brokerId: selectedBrokerId || null,
+            relativePhones: null,
+            cocDocumentUrl,
+            labourIdUrl,
+            candidateIdImageUrl,
+            relativeIdImageUrl,
+            videoUrl,
+            allowVideo,
+            agency,
+            passportType,
+            registeredById: session?.user?.id || null,
+            languages: selectedLanguages,
+          };
+
+      const response = await api(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          passportNumber: passportData.passportNumber,
-          surname: passportData.surname,
-          givenNames: passportData.givenNames,
-          dateOfBirth: passportData.dateOfBirth,
-          gender: passportData.gender,
-          nationality: passportData.nationality,
-          dateOfExpiry: passportData.dateOfExpiry,
-          issuingCountry: passportData.issuingCountry,
-          placeOfBirth: passportData.placeOfBirth,
-          educationLevel: null,
-          jobExperience: null,
-          maritalStatus,
-          numberOfChildren,
-          passportImageUrl: passportImage,
-          religion,
-          brokerId: selectedBrokerId || null,
-          relativePhones: null,
-          cocDocumentUrl,
-          labourIdUrl,
-          candidateIdImageUrl,
-          relativeIdImageUrl,
-          videoUrl,
-          allowVideo,
-          agency,
-          passportType,
-          registeredById: session?.user?.id || null,
-          languages: selectedLanguages,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -376,7 +445,11 @@ export default function QuickRegistrationPage() {
       }
 
       const data = await response.json();
-      router.push(`/quick-registration/preview/${data.id}`);
+      if (isCalling) {
+        router.push(`/candidates/${data.id}`);
+      } else {
+        router.push(`/quick-registration/preview/${data.id}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -387,9 +460,18 @@ export default function QuickRegistrationPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-24">
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">Quick Registration</h1>
-        <p className="text-text-tertiary mt-1 text-sm">Scan passport & fill minimal info for Musaned entry.</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">Quick Registration</h1>
+            {((session?.user as any)?.role === 'calling') && (
+              <span className="px-3 py-1 bg-teal-500/10 text-teal-600 text-xs font-black rounded-full border border-teal-500/20 uppercase tracking-wider animate-pulse">
+                Calling Portal
+              </span>
+            )}
+          </div>
+          <p className="text-text-tertiary mt-1 text-sm">Scan passport & fill minimal info for Musaned entry.</p>
+        </div>
       </div>
 
       {error && (
@@ -501,16 +583,27 @@ export default function QuickRegistrationPage() {
 
             {/* Broker */}
             <div className="flex flex-col relative z-10">
-              <BrokerSelect
-                label="Broker"
-                brokers={brokers}
-                value={selectedBrokerId}
-                onChange={setSelectedBrokerId}
-                disabled={brokersLoading}
-                placeholder="Select or add broker..."
-                onCreate={handleCreateBroker}
-                required
-              />
+              {((session?.user as any)?.role === 'calling') ? (
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Broker</label>
+                  <Input
+                    value="Calling"
+                    disabled
+                    className="bg-gray-100/80 cursor-not-allowed font-bold"
+                  />
+                </div>
+              ) : (
+                <BrokerSelect
+                  label="Broker"
+                  brokers={brokers}
+                  value={selectedBrokerId}
+                  onChange={setSelectedBrokerId}
+                  disabled={brokersLoading}
+                  placeholder="Select or add broker..."
+                  onCreate={handleCreateBroker}
+                  required
+                />
+              )}
             </div>
 
 
@@ -576,6 +669,58 @@ export default function QuickRegistrationPage() {
                 required
               />
             </div>
+
+            {/* Phone numbers (only for Calling role) */}
+            {((session?.user as any)?.role === 'calling') && (
+              <div className="sm:col-span-2 space-y-3 pt-4 border-t border-border/60">
+                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Phone Numbers <span className="text-red-500">*</span></label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      placeholder="Primary Phone Number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                    />
+                    <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdditionalPhones(prev => [...prev, ''])}
+                    className="px-4 py-2.5 bg-primary/10 text-primary font-bold text-xs rounded-xl hover:bg-primary/20 transition-all flex items-center gap-1.5 border border-primary/20 cursor-pointer"
+                  >
+                    <Plus size={14} /> Add Phone
+                  </button>
+                </div>
+
+                {additionalPhones.map((phoneVal, idx) => (
+                  <div key={idx} className="flex gap-2 items-center animate-fade-in">
+                    <div className="relative flex-1">
+                      <Input
+                        placeholder={`Additional Phone ${idx + 1}`}
+                        value={phoneVal}
+                        onChange={(e) => {
+                          const newPhones = [...additionalPhones];
+                          newPhones[idx] = e.target.value;
+                          setAdditionalPhones(newPhones);
+                        }}
+                      />
+                      <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newPhones = additionalPhones.filter((_, i) => i !== idx);
+                        setAdditionalPhones(newPhones);
+                      }}
+                      className="p-2.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-150 rounded-xl transition-all border border-red-200 cursor-pointer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -587,6 +732,18 @@ export default function QuickRegistrationPage() {
         </div>
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {((session?.user as any)?.role === 'calling') && (
+              <FileUpload
+                label="Face Photo"
+                shape="rect"
+                compact
+                preview={facePhotoUrl}
+                onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoUrl(base64))}
+                onClear={() => setFacePhotoUrl(null)}
+                helperText="Face Photo Image — Max 50MB"
+                required
+              />
+            )}
             <FileUpload
               label="COC (Certificate of Competence)"
               shape="rect"
