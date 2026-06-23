@@ -41,8 +41,7 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'coordinator', label: 'Coordinator' },
   { value: 'accountant', label: 'Accountant' },
   { value: 'agency', label: 'Agency' },
-
-
+  { value: 'calling', label: 'Calling' },
 ];
 
 const roleBadge = (role: Role) => {
