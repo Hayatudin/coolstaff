@@ -62,6 +62,7 @@ const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
 export default function QuickRegistrationPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const isCalling = (session?.user as any)?.role === 'calling';
 
   // Passport state
   const [passportImage, setPassportImage] = useState<string | null>(null);
@@ -307,7 +308,6 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    const isCalling = (session?.user as any)?.role === 'calling';
     if (isCalling && !facePhotoUrl) {
       setError('Face Photo upload is required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -344,8 +344,8 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
-      setError('All documents (COC, Labour ID, Candidate ID, Relative ID, and Video) are required.');
+    if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || (!isCalling && !videoUrl)) {
+      setError(`All documents (COC, Labour ID, Candidate ID, Relative ID${isCalling ? '' : ', and Video'}) are required.`);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -397,7 +397,7 @@ export default function QuickRegistrationPage() {
             },
             passportImageUrl: passportImage,
             facePhotoUrl: facePhotoUrl,
-            videoUrl,
+            videoUrl: null,
             allowVideo,
             agency,
             status: 'pending',
@@ -494,45 +494,70 @@ export default function QuickRegistrationPage() {
         </div>
       )}
 
-      {/* STEP 1: Scan Passport */}
+      {/* STEP 1: Scan Passport / Passport Information */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
         <div className="bg-gray-50 border-b border-border px-5 py-3">
-          <h2 className="text-base font-semibold text-text-primary">1. Scan Passport <span className="text-red-500">*</span></h2>
+          <h2 className="text-base font-semibold text-text-primary">
+            {isCalling ? "1. Passport Information" : "1. Scan Passport"} <span className="text-red-500">*</span>
+          </h2>
         </div>
         <div className="p-4 sm:p-6">
-          <PassportUploader
-            onImageUploaded={performOCR}
-            isProcessing={isProcessing}
-            processingComplete={processingComplete}
-            passportImage={passportImage}
-            ocrProgress={ocrProgress}
-          />
-          {passportImage && !processingComplete && !isProcessing && (
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setProcessingComplete(true);
-                }}
-                className="text-sm font-semibold text-primary hover:text-primary-dark underline"
-              >
-                Fill the form manually
-              </button>
-            </div>
-          )}
-          <div className="mt-6 border-t border-border pt-6">
-            <div className="animate-fade-in-up">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-1 h-6 bg-primary rounded-full" />
-                <h3 className="text-lg font-semibold text-text-primary">Extracted Passport Data</h3>
-                {processingComplete && (
-                  <span className="px-2.5 py-0.5 bg-success-light text-green-700 text-xs font-medium rounded-full animate-scale-pop">
-                    Auto-filled
-                  </span>
-                )}
-              </div>
+          {!isCalling ? (
+            <>
+              <PassportUploader
+                onImageUploaded={performOCR}
+                isProcessing={isProcessing}
+                processingComplete={processingComplete}
+                passportImage={passportImage}
+                ocrProgress={ocrProgress}
+              />
+              {passportImage && !processingComplete && !isProcessing && (
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setProcessingComplete(true);
+                    }}
+                    className="text-xs font-bold text-primary hover:underline uppercase tracking-wider block"
+                  >
+                    Fill the form manually (keeps passport image)
+                  </button>
+                </div>
+              )}
+              <div className="mt-6 border-t border-border pt-6">
+                <div className="animate-fade-in-up">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-1 h-6 bg-primary rounded-full" />
+                    <h3 className="text-lg font-semibold text-text-primary">Extracted Passport Data</h3>
+                    {processingComplete && (
+                      <span className="px-2.5 py-0.5 bg-success-light text-green-700 text-xs font-medium rounded-full animate-scale-pop">
+                        Auto-filled
+                      </span>
+                    )}
+                  </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <Input
+                      label="FULL NAME"
+                      value={fullName}
+                      onChange={onFullNameChange}
+                      placeholder="Enter full name"
+                      required
+                    />
+                    <Input
+                      label="Passport Number"
+                      value={passportData.passportNumber}
+                      onChange={(e) => handlePassportChange('passportNumber', e.target.value)}
+                      placeholder="Enter passport number"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="animate-fade-in-up">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <Input
                   label="FULL NAME"
@@ -550,7 +575,7 @@ export default function QuickRegistrationPage() {
                 />
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -732,7 +757,19 @@ export default function QuickRegistrationPage() {
         </div>
         <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {((session?.user as any)?.role === 'calling') && (
+            {isCalling && (
+              <FileUpload
+                label="Passport Scan"
+                shape="rect"
+                compact
+                preview={passportImage}
+                onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setPassportImage(base64))}
+                onClear={() => setPassportImage(null)}
+                helperText="Passport Scan Image — Max 50MB"
+                required
+              />
+            )}
+            {isCalling && (
               <FileUpload
                 label="Face Photo"
                 shape="rect"
@@ -784,52 +821,53 @@ export default function QuickRegistrationPage() {
               helperText="Relative ID Image — Max 50MB"
               required
             />
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video <span className="text-red-500">*</span></label>
-              {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Input
-                      placeholder="YouTube Video URL"
-                      value={videoUrl}
-                      onChange={e => setVideoUrl(e.target.value)}
-                      className="pr-10"
-                    />
-                    <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+            {!isCalling && (
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video <span className="text-red-500">*</span></label>
+                {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Input
+                        placeholder="YouTube Video URL"
+                        value={videoUrl}
+                        onChange={e => setVideoUrl(e.target.value)}
+                        className="pr-10"
+                      />
+                      <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                    </div>
+                    {matchedVideoBadge && (
+                      <p className="text-xs font-semibold text-emerald-600 animate-scale-pop">
+                        {matchedVideoBadge}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVideoUrl(null);
+                        setMatchedVideoBadge(null);
+                      }}
+                      className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
+                    >
+                      Clear Link & Upload File Instead
+                    </button>
                   </div>
-                  {matchedVideoBadge && (
-                    <p className="text-xs font-semibold text-emerald-600 animate-scale-pop">
-                      {matchedVideoBadge}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVideoUrl(null);
-                      setMatchedVideoBadge(null);
-                    }}
-                    className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
-                  >
-                    Clear Link & Upload File Instead
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <FileUpload
-                    label="Candidate Video"
-                    accept="video/*"
-                    shape="rect"
-                    compact
-                    preview={videoUrl}
-                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64), 50 * 1024 * 1024)}
-                    onClear={() => setVideoUrl(null)}
-                    helperText="MP4, WebM or MOV — Max 50MB"
-                    required
-                  />
-                </div>
-              )}
-
-            </div>
+                ) : (
+                  <div className="space-y-2">
+                    <FileUpload
+                      label="Candidate Video"
+                      accept="video/*"
+                      shape="rect"
+                      compact
+                      preview={videoUrl}
+                      onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64), 50 * 1024 * 1024)}
+                      onClear={() => setVideoUrl(null)}
+                      helperText="MP4, WebM or MOV — Max 50MB"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="md:col-span-2 pt-4 border-t border-border/60">
               <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Agency <span className="text-red-500">*</span></label>
