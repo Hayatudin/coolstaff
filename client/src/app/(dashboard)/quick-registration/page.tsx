@@ -344,10 +344,12 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || (!isCalling && !videoUrl)) {
-      setError(`All documents (COC, Labour ID, Candidate ID, Relative ID${isCalling ? '' : ', and Video'}) are required.`);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+    if (!isCalling) {
+      if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
+        setError('All documents (COC, Labour ID, Candidate ID, Relative ID, and Video) are required.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
     }
 
     if (!agency) {
@@ -789,7 +791,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCocDocumentUrl(base64))}
               onClear={() => setCocDocumentUrl(null)}
               helperText="COC Document — Max 50MB"
-              required
+              required={!isCalling}
             />
             <FileUpload
               label="Labour ID"
@@ -799,7 +801,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setLabourIdUrl(base64))}
               onClear={() => setLabourIdUrl(null)}
               helperText="Labour ID Image — Max 50MB"
-              required
+              required={!isCalling}
             />
             <FileUpload
               label="Candidate ID"
@@ -809,7 +811,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCandidateIdImageUrl(base64))}
               onClear={() => setCandidateIdImageUrl(null)}
               helperText="Candidate ID Image — Max 50MB"
-              required
+              required={!isCalling}
             />
             <FileUpload
               label="Relative ID"
@@ -819,7 +821,7 @@ export default function QuickRegistrationPage() {
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setRelativeIdImageUrl(base64))}
               onClear={() => setRelativeIdImageUrl(null)}
               helperText="Relative ID Image — Max 50MB"
-              required
+              required={!isCalling}
             />
             {!isCalling && (
               <div className="space-y-2">
