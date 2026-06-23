@@ -387,6 +387,21 @@ export default function RequestedPage() {
         </button>
       </div>
 
+      {/* Stats Counter Box */}
+      {!isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-surface rounded-2xl border border-border/30 p-5 flex items-center gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+            <div className="p-3 bg-green-50 rounded-xl border border-green-100">
+              <ClipboardList className="text-green-600" size={24} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-text-tertiary uppercase tracking-wider">Total Candidates</p>
+              <p className="text-2xl font-black text-text-primary mt-0.5">{candidates.length}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full md:w-96">
         <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
       </div>

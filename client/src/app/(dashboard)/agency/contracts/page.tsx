@@ -98,6 +98,8 @@ interface AgencyCandidate {
   job?: string | null;
   dateOfBirth?: string | null;
   city?: string | null;
+  visaDate?: string | null;
+  registeredAt?: string | null;
 }
 
 const getCandidateAgencyName = (c: AgencyCandidate) => {
@@ -554,26 +556,46 @@ export default function AgencyContractsPage() {
   const handleExportCSV = () => {
     const headers = [
       'Roll No', 'Given Names', 'Surname', 'Passport Number', 'Embassy Issue', 
-      'COC Status', 'Medical Status', 'Tasheer Status', 'Wakala Status', 
+      'Date Interval', 'Medical Status', 'Tasheer Status', 'Wakala Status', 
       'Selected Type', 'Travel Date', 'Status', 'Broker', 'Latest CV Template'
     ];
 
-    const rows = filteredCandidates.map((c, i) => [
-      String(i + 1),
-      c.givenNames,
-      c.surname,
-      c.passportNumber,
-      c.embassyIssue,
-      c.cocStatus,
-      c.medicalStatus,
-      c.tasheerStatus,
-      c.wakalaStatus,
-      c.selectedType,
-      c.travelDate ? c.travelDate.substring(0, 10) : '—',
-      c.agencyStatus,
-      c.broker?.name || '—',
-      c.latestCVTemplate || '—'
-    ]);
+    const rows = filteredCandidates.map((c, i) => {
+      const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+      let daysAgoText = '—';
+      if (targetDate) {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const selected = new Date(targetDate);
+        selected.setHours(0, 0, 0, 0);
+        const diffTime = now.getTime() - selected.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) {
+          daysAgoText = 'Today';
+        } else if (diffDays === 1) {
+          daysAgoText = '1 day';
+        } else {
+          daysAgoText = `${diffDays} days`;
+        }
+      }
+
+      return [
+        String(i + 1),
+        c.givenNames,
+        c.surname,
+        c.passportNumber,
+        c.embassyIssue,
+        daysAgoText,
+        c.medicalStatus,
+        c.tasheerStatus,
+        c.wakalaStatus,
+        c.selectedType,
+        c.travelDate ? c.travelDate.substring(0, 10) : '—',
+        c.agencyStatus,
+        c.broker?.name || '—',
+        c.latestCVTemplate || '—'
+      ];
+    });
 
     const csvContent = "\uFEFF" + [
       headers.join(','),
@@ -774,7 +796,7 @@ export default function AgencyContractsPage() {
                 <th className="px-5 py-4 font-semibold">Candidate</th>
                 {isSuperAdmin && <th className="px-5 py-4 font-semibold">Agency</th>}
                 <th className="px-5 py-4 font-semibold text-center">Embassy Issue</th>
-                <th className="px-5 py-4 font-semibold text-center">COC</th>
+                <th className="px-5 py-4 font-semibold text-center">Date Interval</th>
                 <th className="px-5 py-4 font-semibold text-center">Medical</th>
                 <th className="px-5 py-4 font-semibold text-center">Tasheer</th>
                 <th className="px-5 py-4 font-semibold text-center">Wakala</th>
@@ -900,31 +922,27 @@ export default function AgencyContractsPage() {
                         )}
                       </td>
 
-                      {/* COC Status */}
+                      {/* Date Interval */}
                       <td className="px-5 py-4.5 text-center">
-                        {isSuperAdmin ? (
-                          <button
-                            disabled={updatingField !== null}
-                            onClick={() => handleUpdateCandidate(c.id, { cocStatus: c.cocStatus === 'Completed' ? 'No' : 'Completed' })}
-                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
-                              c.cocStatus === 'Completed' 
-                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0] hover:bg-emerald-100/60' 
-                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5] hover:bg-red-100/60'
-                            }`}
-                          >
-                            {isUpdating('cocStatus') ? <Loader2 size={12} className="animate-spin" /> : c.cocStatus}
-                          </button>
-                        ) : (
-                          <span
-                            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black border select-none ${
-                              c.cocStatus === 'Completed' 
-                                ? 'bg-[#ecfdf5] text-[#059669] border-[#a7f3d0]' 
-                                : 'bg-[#fef2f2] text-[#dc2626] border-[#fca5a5]'
-                            }`}
-                          >
-                            {c.cocStatus}
-                          </span>
-                        )}
+                        <span className="font-bold text-gray-700 text-xs">
+                          {(() => {
+                            const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+                            if (!targetDate) return '—';
+                            const now = new Date();
+                            now.setHours(0, 0, 0, 0);
+                            const selected = new Date(targetDate);
+                            selected.setHours(0, 0, 0, 0);
+                            const diffTime = now.getTime() - selected.getTime();
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays <= 0) {
+                              return 'Today';
+                            } else if (diffDays === 1) {
+                              return '1 day';
+                            } else {
+                              return `${diffDays} days`;
+                            }
+                          })()}
+                        </span>
                       </td>
 
                       {/* Medical Status */}
@@ -1391,7 +1409,6 @@ export default function AgencyContractsPage() {
                                 { label: 'Candidate National ID Scan', url: cd.candidateIdImageUrl, color: 'indigo' },
                                 { label: 'Relative National ID Scan', url: cd.relativeIdImageUrl, color: 'amber' },
                                 { label: 'Labour ID Scan', url: cd.labourIdUrl, color: 'violet' },
-                                { label: 'Pre-registered video presentation', url: cd.quickVideoUrl || cd.videoUrl, color: 'pink', isVideo: true },
                               ].map((doc, i) => (
                                 <div key={i} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl border border-transparent hover:border-gray-200/40 transition-colors">
                                   <span className="text-xs font-bold text-text-primary">{doc.label}</span>

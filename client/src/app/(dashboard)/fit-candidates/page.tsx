@@ -58,7 +58,6 @@ export default function FitCandidatesPage() {
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
-  const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -241,20 +240,15 @@ export default function FitCandidatesPage() {
         ? c.visaSelected === true
         : c.visaSelected !== true;
 
-      // 6. CV Status Filter
-      const matchesCvStatus = cvStatusFilter === 'cv-downloaded'
-        ? c.cvDownloaded === true
-        : c.cvDownloaded !== true;
-
-      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa && matchesCvStatus;
+      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa;
     });
-  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter, cvStatusFilter]);
+  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
 
   // Reset to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter, cvStatusFilter]);
+  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
 
   const deleteCandidate = async (id: string) => {
     setOpenMenuId(null);
@@ -781,34 +775,6 @@ export default function FitCandidatesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0 w-full md:w-auto">
-            {/* CV Status Filter Tabs */}
-            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
-              <button
-                type="button"
-                onClick={() => setCvStatusFilter('cv-available')}
-                className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                  cvStatusFilter === 'cv-available'
-                    ? "bg-white text-text-primary shadow-md"
-                    : "text-text-tertiary hover:bg-white/50"
-                )}
-              >
-                CV Available
-              </button>
-              <button
-                type="button"
-                onClick={() => setCvStatusFilter('cv-downloaded')}
-                className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
-                  cvStatusFilter === 'cv-downloaded'
-                    ? "bg-white text-text-primary shadow-md"
-                    : "text-text-tertiary hover:bg-white/50"
-                )}
-              >
-                CV Downloaded
-              </button>
-            </div>
-
             {/* Visa Status Filter Tabs */}
             <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
               <button
@@ -821,7 +787,7 @@ export default function FitCandidatesPage() {
                     : "text-text-tertiary hover:bg-white/50"
                 )}
               >
-                Pending Visa
+                Available
               </button>
               <button
                 type="button"
@@ -1145,16 +1111,7 @@ export default function FitCandidatesPage() {
             Change Template
           </button>
 
-          {/* Mark as CV Available bulk */}
-          {cvStatusFilter === 'cv-downloaded' && (
-            <button
-              onClick={handleBulkMarkAsCvAvailable}
-              className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer font-semibold"
-            >
-              <Check size={14} className="text-emerald-600" />
-              Mark as CV Available
-            </button>
-          )}
+
 
           <div className="relative">
             <button

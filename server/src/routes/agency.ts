@@ -266,9 +266,10 @@ router.get('/candidates', async (req: Request, res: Response) => {
         job: c.job,
         city: c.city,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: c.Youtube_URL || c.quickVideoUrl || null,
+        videoUrl: null,
         registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null,
-        allowVideo: c.allowVideo ?? false
+        allowVideo: c.allowVideo ?? false,
+        visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null
       };
     }));
 
@@ -411,7 +412,7 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         job: c.job,
         city: c.city,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: c.Youtube_URL || c.quickVideoUrl || null,
+        videoUrl: null,
         registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null,
         facePhotoUrl: c.facePhotoUrl,
         fullBodyPhotoUrl: c.fullBodyPhotoUrl,
@@ -421,7 +422,8 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         maritalStatus: c.maritalStatus,
         workExperience: c.workExperience,
         skills: c.skills,
-        allowVideo: c.allowVideo ?? false
+        allowVideo: c.allowVideo ?? false,
+        visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null
       };
     }));
 

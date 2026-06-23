@@ -671,20 +671,7 @@ export default function QuickRegistrationPage() {
                   />
                 </div>
               )}
-              {videoUrl && (
-                <div className="flex items-center gap-2.5 mt-2.5 select-none">
-                  <input
-                    type="checkbox"
-                    id="allowVideo"
-                    checked={allowVideo}
-                    onChange={e => setAllowVideo(e.target.checked)}
-                    className="w-4 h-4 accent-primary rounded cursor-pointer"
-                  />
-                  <label htmlFor="allowVideo" className="text-sm font-medium text-text-secondary cursor-pointer">
-                    Show Imported video to agency
-                  </label>
-                </div>
-              )}
+
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-border/60">
