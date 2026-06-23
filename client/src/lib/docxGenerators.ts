@@ -168,9 +168,16 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
   const age = calculateAge(candidate.passportData?.dateOfBirth);
 
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
+  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
-    if (s === 'COOKING' || s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
+    if (s === 'COOKING' || s === 'ARABIC COOKING') {
+      return isExperienced ? 'YES' : 'NO';
+    }
+    if (s === 'IRONING') {
+      return (!isExperienced) ? 'NO' : (candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO');
+    }
+    if (s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
       return 'YES';
     }
     return candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO';

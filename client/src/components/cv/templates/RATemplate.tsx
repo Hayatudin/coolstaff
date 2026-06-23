@@ -24,9 +24,16 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
     return age;
   };
 
+  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
-    if (s === 'COOKING' || s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
+    if (s === 'COOKING' || s === 'ARABIC COOKING') {
+      return isExperienced;
+    }
+    if (s === 'IRONING') {
+      return isExperienced ? (candidate.personalInfo?.skills || []).some(sk => sk.toUpperCase().includes(s)) : false;
+    }
+    if (s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
       return true;
     }
     const skills = candidate.personalInfo?.skills || [];

@@ -26,9 +26,16 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
     return candidate.personalInfo?.languages?.some(l => l.toUpperCase().includes(lang.toUpperCase())) ? 'YES' : 'NO';
   };
 
+  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
   const hasSkill = (skillName: string) => {
     const s = skillName.toUpperCase();
-    if (s === 'COOKING' || s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
+    if (s === 'COOKING' || s === 'ARABIC COOKING') {
+      return isExperienced ? 'YES' : 'NO';
+    }
+    if (s === 'IRONING') {
+      return isExperienced ? (candidate.personalInfo?.skills || []).some(sk => sk.toUpperCase().includes(s)) ? 'YES' : 'NO' : 'NO';
+    }
+    if (s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
       return 'YES';
     }
     const skills = candidate.personalInfo?.skills || [];

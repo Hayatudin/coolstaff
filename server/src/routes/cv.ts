@@ -282,9 +282,16 @@ router.post('/generate', async (req: Request, res: Response) => {
 
       const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
       const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
+      const isExperienced = Array.isArray(candidate.workExperience) && (candidate.workExperience as any[]).some((e: any) => e.experienceStatus === 'Have experience');
       const hasSkill = (keyword: string) => {
         const kw = keyword.toLowerCase();
-        if (kw.includes('cook') || kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
+        if (kw.includes('cook') || kw.includes('arabic')) {
+          return isExperienced ? 'Yes' : 'No';
+        }
+        if (kw.includes('iron')) {
+          return isExperienced ? (skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No') : 'No';
+        }
+        if (kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
           return 'Yes';
         }
         return skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';
@@ -542,9 +549,16 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
                 const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
                 const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
+                const isExperienced = Array.isArray(candidate.workExperience) && (candidate.workExperience as any[]).some((e: any) => e.experienceStatus === 'Have experience');
                 const hasSkill = (keyword: string) => {
                   const kw = keyword.toLowerCase();
-                  if (kw.includes('cook') || kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
+                  if (kw.includes('cook') || kw.includes('arabic')) {
+                    return isExperienced ? 'Yes' : 'No';
+                  }
+                  if (kw.includes('iron')) {
+                    return isExperienced ? (skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No') : 'No';
+                  }
+                  if (kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
                     return 'Yes';
                   }
                   return skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';

@@ -32,12 +32,32 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
   };
 
   const getSkillsText = () => {
+    const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
     const dbSkills = candidate.personalInfo?.skills || [];
-    const skillsSet = new Set(dbSkills.map(s => s.toLowerCase().replace('_', ' ')));
-    skillsSet.add('cooking');
+    const skillsSet = new Set<string>();
+
+    dbSkills.forEach(s => {
+      const normalized = s.toLowerCase().replace('_', ' ');
+      if (normalized === 'cooking' || normalized === 'arabic cooking') {
+        if (isExperienced) {
+          skillsSet.add('cooking');
+        }
+      } else if (normalized === 'ironing') {
+        if (isExperienced) {
+          skillsSet.add('ironing');
+        }
+      } else {
+        skillsSet.add(normalized);
+      }
+    });
+
     skillsSet.add('cleaning');
     skillsSet.add('washing');
     skillsSet.add('babysitting');
+
+    if (isExperienced) {
+      skillsSet.add('cooking');
+    }
     
     const skills = Array.from(skillsSet);
     if (skills.length === 0) return 'No specific skills listed.';
