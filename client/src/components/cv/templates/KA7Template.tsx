@@ -25,8 +25,12 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
   };
 
   const hasSkill = (skill: string) => {
+    const s = skill.toUpperCase();
+    if (s === 'COOKING' || s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
+      return true;
+    }
     const skills = candidate.personalInfo?.skills || [];
-    return skills.some(s => s.toUpperCase().includes(skill.toUpperCase()));
+    return skills.some(sk => sk.toUpperCase().includes(s));
   };
 
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang);

@@ -29,7 +29,13 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
   };
 
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
-  const hasSkill = (skill: string) => candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO';
+  const hasSkill = (skill: string) => {
+    const s = skill.toUpperCase();
+    if (s === 'COOKING' || s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
+      return 'YES';
+    }
+    return candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO';
+  };
 
   const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim();
   const age = calculateAge(candidate.passportData?.dateOfBirth);

@@ -27,8 +27,12 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
   };
 
   const hasSkill = (skillName: string) => {
+    const s = skillName.toUpperCase();
+    if (s === 'COOKING' || s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
+      return 'YES';
+    }
     const skills = candidate.personalInfo?.skills || [];
-    return skills.some(s => s.toUpperCase().includes(skillName.toUpperCase())) ? 'YES' : 'NO';
+    return skills.some(sk => sk.toUpperCase().includes(s)) ? 'YES' : 'NO';
   };
 
   const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim();

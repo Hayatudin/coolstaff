@@ -282,7 +282,13 @@ router.post('/generate', async (req: Request, res: Response) => {
 
       const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
       const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
-      const hasSkill = (keyword: string) => skillsArray.some((s: string) => s.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
+      const hasSkill = (keyword: string) => {
+        const kw = keyword.toLowerCase();
+        if (kw.includes('cook') || kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
+          return 'Yes';
+        }
+        return skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';
+      };
       const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
 
 
@@ -536,7 +542,13 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
                 const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
                 const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
-                const hasSkill = (keyword: string) => skillsArray.some((s: string) => s.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
+                const hasSkill = (keyword: string) => {
+                  const kw = keyword.toLowerCase();
+                  if (kw.includes('cook') || kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
+                    return 'Yes';
+                  }
+                  return skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';
+                };
                 const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
 
                 const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');

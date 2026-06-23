@@ -32,15 +32,19 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
   };
 
   const getSkillsText = () => {
-    const skills = candidate.personalInfo?.skills || [];
+    const dbSkills = candidate.personalInfo?.skills || [];
+    const skillsSet = new Set(dbSkills.map(s => s.toLowerCase().replace('_', ' ')));
+    skillsSet.add('cooking');
+    skillsSet.add('cleaning');
+    skillsSet.add('washing');
+    skillsSet.add('babysitting');
+    
+    const skills = Array.from(skillsSet);
     if (skills.length === 0) return 'No specific skills listed.';
+    if (skills.length === 1) return `Good at ${skills[0]}.`;
     
-    // Format nicely like: "Good at childcare, house hold chores, and babysitting..."
-    const lowerSkills = skills.map(s => s.toLowerCase().replace('_', ' '));
-    if (lowerSkills.length === 1) return `Good at ${lowerSkills[0]}.`;
-    
-    const lastSkill = lowerSkills.pop();
-    return `Good at ${lowerSkills.join(', ')}, and ${lastSkill}.`;
+    const lastSkill = skills.pop();
+    return `Good at ${skills.join(', ')}, and ${lastSkill}.`;
   };
 
   return (
