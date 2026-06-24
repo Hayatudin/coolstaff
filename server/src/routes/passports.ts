@@ -158,18 +158,40 @@ router.post('/', async (req: Request, res: Response) => {
 router.patch('/:id/taken', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { takenReason, takenByName, takenByPhone } = req.body;
+
+    if (!takenReason || !['Medical', 'Terminate'].includes(takenReason)) {
+      return res.status(400).json({ error: "Invalid or missing 'takenReason'. Must be 'Medical' or 'Terminate'." });
+    }
+    if (!takenByName || !takenByName.trim()) {
+      return res.status(400).json({ error: "Person name who took the passport is required." });
+    }
+    if (takenReason === 'Terminate' && (!takenByPhone || !takenByPhone.trim())) {
+      return res.status(400).json({ error: "Phone number is required for Terminate." });
+    }
+
+    const cleanTakerName = takenByName.trim().toUpperCase();
+    const cleanTakerPhone = takenByPhone ? takenByPhone.trim() : null;
 
     try {
       // Attempt using Prisma client
       await (prisma as any).passport.update({
         where: { id },
-        data: { status: 'PassportTaken' },
+        data: {
+          status: 'PassportTaken',
+          takenReason,
+          takenByName: cleanTakerName,
+          takenByPhone: cleanTakerPhone,
+        },
       });
     } catch (prismaErr: any) {
       console.warn('[PASSPORTS] prisma.passport.update failed, trying raw SQL fallback:', prismaErr.message || prismaErr);
       
       await prisma.$executeRawUnsafe(
-        "UPDATE `Passport` SET status = 'PassportTaken', updatedAt = NOW(3) WHERE id = ?",
+        "UPDATE `Passport` SET status = 'PassportTaken', takenReason = ?, takenByName = ?, takenByPhone = ?, updatedAt = NOW(3) WHERE id = ?",
+        takenReason,
+        cleanTakerName,
+        cleanTakerPhone,
         id
       );
     }
