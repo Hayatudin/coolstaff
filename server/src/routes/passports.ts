@@ -203,6 +203,38 @@ router.patch('/:id/taken', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/passports/:id/return
+router.patch('/:id/return', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    try {
+      // Attempt using Prisma client
+      await (prisma as any).passport.update({
+        where: { id },
+        data: {
+          status: 'Available',
+          takenReason: null,
+          takenByName: null,
+          takenByPhone: null,
+        },
+      });
+    } catch (prismaErr: any) {
+      console.warn('[PASSPORTS] prisma.passport.update (return) failed, trying raw SQL fallback:', prismaErr.message || prismaErr);
+      
+      await prisma.$executeRawUnsafe(
+        "UPDATE `Passport` SET status = 'Available', takenReason = NULL, takenByName = NULL, takenByPhone = NULL, updatedAt = NOW(3) WHERE id = ?",
+        id
+      );
+    }
+
+    res.json({ success: true, message: 'Passport returned to available successfully' });
+  } catch (error: any) {
+    console.error('Failed to return passport:', error);
+    res.status(500).json({ error: 'Failed to return passport: ' + error.message });
+  }
+});
+
 // DELETE /api/passports/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {

@@ -12,7 +12,8 @@ import {
   FileCheck,
   XCircle,
   HeartPulse,
-  AlertTriangle
+  AlertTriangle,
+  Undo2,
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 
@@ -44,6 +45,10 @@ export default function AvailablePassportPage() {
   const [takenReason, setTakenReason] = useState<'Medical' | 'Terminate'>('Medical');
   const [takenByName, setTakenByName] = useState('');
   const [takenByPhone, setTakenByPhone] = useState('');
+
+  // Return Confirmation Modal State
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnPassport, setReturnPassport] = useState<Passport | null>(null);
 
   // Fetch all passports from backend
   const fetchPassports = async () => {
@@ -118,6 +123,50 @@ export default function AvailablePassportPage() {
     }
   };
 
+  // Return handlers
+  const handleOpenReturnModal = (passport: Passport) => {
+    setReturnPassport(passport);
+    setReturnModalOpen(true);
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!returnPassport) return;
+
+    setIsUpdating(returnPassport.id);
+    setReturnModalOpen(false);
+    try {
+      const res = await api(`/api/passports/${returnPassport.id}/return`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        // Update local state — restore to Available, keep shelfNo
+        setPassports(prev =>
+          prev.map(p =>
+            p.id === returnPassport.id
+              ? {
+                  ...p,
+                  status: 'Available',
+                  takenReason: null,
+                  takenByName: null,
+                  takenByPhone: null,
+                }
+              : p
+          )
+        );
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to return passport');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error returning passport');
+    } finally {
+      setIsUpdating(null);
+      setReturnPassport(null);
+    }
+  };
+
   // Filter and Category Splitting
   const availableList = passports.filter(p => p.status === 'Available');
   const takenList = passports.filter(p => p.status === 'PassportTaken');
@@ -135,6 +184,7 @@ export default function AvailablePassportPage() {
 
   const currentList = activeTab === 'available' ? availableList : takenList;
   const filteredList = getFilteredList(currentList);
+  const isTakenTab = activeTab === 'taken';
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-24 animate-fade-in">
@@ -231,6 +281,8 @@ export default function AvailablePassportPage() {
                   <th className="px-6 py-4">Shelf No</th>
                   <th className="px-6 py-4">Full Name</th>
                   <th className="px-6 py-4">Passport Number</th>
+                  {isTakenTab && <th className="px-6 py-4">Reason</th>}
+                  {isTakenTab && <th className="px-6 py-4">Taken By</th>}
                   <th className="px-6 py-4">Image</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -238,7 +290,7 @@ export default function AvailablePassportPage() {
               <tbody className="divide-y divide-border text-sm text-text-primary">
                 {filteredList.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-text-tertiary">
+                    <td colSpan={isTakenTab ? 7 : 5} className="px-6 py-12 text-center text-text-tertiary">
                       <div className="max-w-md mx-auto space-y-2">
                         <AlertCircle className="w-8 h-8 text-text-tertiary mx-auto mb-2" />
                         <p className="font-semibold text-text-secondary">No passports found</p>
@@ -269,34 +321,51 @@ export default function AvailablePassportPage() {
                           <div className="font-bold text-text-primary">
                             {passport.fullName}
                           </div>
-                          {passport.status === 'PassportTaken' && passport.takenReason && (
-                            <div className="text-xs mt-1.5 space-y-1">
-                              <div className="inline-block">
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-                                  passport.takenReason === 'Medical'
-                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                    : "bg-rose-50 text-rose-600 border border-rose-100"
-                                )}>
-                                  {passport.takenReason}
-                                </span>
-                              </div>
-                              <div className="text-text-secondary font-medium">
-                                <span className="text-text-tertiary">Taken by:</span> {passport.takenByName}
-                              </div>
-                              {passport.takenByPhone && (
-                                <div className="text-text-secondary font-mono text-[11px]">
-                                  <span className="text-text-tertiary">Phone:</span> {passport.takenByPhone}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </td>
 
                         {/* Passport Number */}
                         <td className="px-6 py-4 font-semibold text-primary tracking-wide">
                           {passport.passportNumber}
                         </td>
+
+                        {/* Reason Column — only in Taken tab */}
+                        {isTakenTab && (
+                          <td className="px-6 py-4">
+                            {passport.takenReason ? (
+                              <span className={cn(
+                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider",
+                                passport.takenReason === 'Medical'
+                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                  : "bg-rose-50 text-rose-600 border border-rose-200"
+                              )}>
+                                {passport.takenReason === 'Medical' ? (
+                                  <HeartPulse size={12} />
+                                ) : (
+                                  <AlertTriangle size={12} />
+                                )}
+                                {passport.takenReason}
+                              </span>
+                            ) : (
+                              <span className="text-text-tertiary text-xs">—</span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* Taken By Column — only in Taken tab */}
+                        {isTakenTab && (
+                          <td className="px-6 py-4">
+                            {passport.takenByName ? (
+                              <div>
+                                <div className="font-semibold text-text-primary text-sm">{passport.takenByName}</div>
+                                {passport.takenByPhone && (
+                                  <div className="text-text-secondary font-mono text-xs mt-0.5">{passport.takenByPhone}</div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-text-tertiary text-xs">—</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* Image Preview */}
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -326,6 +395,21 @@ export default function AvailablePassportPage() {
                               >
                                 <CheckCircle2 size={13} />
                                 <span>Taken</span>
+                              </button>
+                            )}
+                            {passport.status === 'PassportTaken' && (
+                              <button
+                                onClick={() => handleOpenReturnModal(passport)}
+                                disabled={isUpdating !== null}
+                                title="Return to Available"
+                                className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+                              >
+                                {isUpdating === passport.id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <Undo2 size={13} />
+                                )}
+                                <span>Return</span>
                               </button>
                             )}
                           </div>
@@ -454,6 +538,64 @@ export default function AvailablePassportPage() {
                 >
                   <CheckCircle2 size={14} />
                   <span>Confirm Taken</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Confirmation Modal */}
+      {returnModalOpen && returnPassport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative max-w-md w-full bg-surface rounded-2xl overflow-hidden shadow-2xl border border-border animate-scale-pop">
+            <button
+              onClick={() => { setReturnModalOpen(false); setReturnPassport(null); }}
+              className="absolute top-4 right-4 p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-full transition-colors z-10 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-text-primary mb-2 border-b border-border pb-3 flex items-center gap-2">
+                <Undo2 className="text-blue-500 w-5 h-5" />
+                <span>Return Passport</span>
+              </h3>
+
+              <div className="mb-5 bg-blue-50/60 p-4 rounded-xl border border-blue-200/60">
+                <div className="text-xs text-text-tertiary uppercase tracking-wider font-semibold">Candidate</div>
+                <div className="font-bold text-text-primary text-sm mt-0.5">{returnPassport.fullName}</div>
+                <div className="text-xs text-primary font-semibold font-mono mt-0.5">{returnPassport.passportNumber}</div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-text-tertiary font-semibold">Shelf No:</span>
+                  <span className="text-xs font-bold font-mono text-text-primary bg-white px-2 py-0.5 rounded border border-border">{returnPassport.shelfNo}</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200/60 p-3 rounded-xl mb-5">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-700 font-medium">
+                    Are you sure you want to return this passport to Available? It will go back to shelf <strong>{returnPassport.shelfNo}</strong> with the same shelf number.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => { setReturnModalOpen(false); setReturnPassport(null); }}
+                  className="px-4 py-2 text-xs font-semibold text-text-secondary hover:text-text-primary rounded-xl hover:bg-gray-50 border border-border transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReturn}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Confirm Return</span>
                 </button>
               </div>
             </div>
