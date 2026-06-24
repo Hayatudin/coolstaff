@@ -590,6 +590,7 @@ router.post('/', async (req: Request, res: Response) => {
         labourIdUrl,
         videoUrl: null, // YouTube URL saved separately via raw SQL
         status: body.status || 'pending',
+        agency: body.agency || 'daera',
     };
 
     let candidate;
@@ -631,6 +632,16 @@ router.post('/', async (req: Request, res: Response) => {
         candidate.id
       );
     } catch (_) { /* salary column may not exist yet, ignore */ }
+
+    // Save agency separately with graceful fallback
+    try {
+      const agencyValue = body.agency || 'daera';
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` SET \`agency\` = ? WHERE \`id\` = ?`,
+        agencyValue,
+        candidate.id
+      );
+    } catch (_) { /* agency column may not exist yet, ignore */ }
 
     // Save allowVideo separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
     try {
@@ -1009,6 +1020,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         status: body.status,
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
+        agency: body.agency,
       },
     });
 
@@ -1048,6 +1060,19 @@ router.put('/:id', async (req: Request, res: Response) => {
         );
       } catch (e) {
         console.warn('[DEBUG] Failed to save registeredById via raw SQL (schema may be out of sync):', e);
+      }
+    }
+
+    // Save agency separately with graceful fallback
+    if (body.agency) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`agency\` = ? WHERE \`id\` = ?`,
+          body.agency,
+          candidate.id
+        );
+      } catch (err) {
+        console.warn('[DEBUG] Failed to save agency via raw SQL in PUT:', err);
       }
     }
 

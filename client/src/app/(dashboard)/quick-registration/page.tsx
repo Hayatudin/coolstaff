@@ -102,6 +102,11 @@ export default function QuickRegistrationPage() {
   const [phone, setPhone] = useState('');
   const [additionalPhones, setAdditionalPhones] = useState<string[]>([]);
 
+  // Experience states (only for Calling role)
+  const [hasExperience, setHasExperience] = useState('no');
+  const [experienceCountry, setExperienceCountry] = useState('');
+  const [experienceYears, setExperienceYears] = useState('');
+
   // Pre-registered video auto-fill
   const [matchedVideoBadge, setMatchedVideoBadge] = useState<string | null>(null);
 
@@ -320,6 +325,19 @@ export default function QuickRegistrationPage() {
       return;
     }
 
+    if (isCalling && hasExperience === 'yes') {
+      if (!experienceCountry) {
+        setError('Country of experience is required.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      if (!experienceYears.trim()) {
+        setError('Years of experience is required.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    }
+
     if (!isCalling && !selectedBrokerId) {
       setError('Broker selection is required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -395,7 +413,17 @@ export default function QuickRegistrationPage() {
               job: 'Calling',
               educationLevel: 'None',
               skills: [],
-              workExperience: [],
+              workExperience: hasExperience === 'yes'
+                ? [{
+                    experienceStatus: 'Have experience',
+                    country: experienceCountry.toUpperCase(),
+                    yearsOfExperience: experienceYears.trim()
+                  }]
+                : [{
+                    experienceStatus: 'No experience',
+                    country: '',
+                    yearsOfExperience: '0'
+                  }],
             },
             passportImageUrl: passportImage,
             facePhotoUrl: facePhotoUrl,
@@ -721,31 +749,91 @@ export default function QuickRegistrationPage() {
                 </div>
 
                 {additionalPhones.map((phoneVal, idx) => (
-                  <div key={idx} className="flex gap-2 items-center animate-fade-in">
-                    <div className="relative flex-1">
-                      <Input
-                        placeholder={`Additional Phone ${idx + 1}`}
-                        value={phoneVal}
-                        onChange={(e) => {
-                          const newPhones = [...additionalPhones];
-                          newPhones[idx] = e.target.value;
-                          setAdditionalPhones(newPhones);
-                        }}
-                      />
-                      <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newPhones = additionalPhones.filter((_, i) => i !== idx);
-                        setAdditionalPhones(newPhones);
-                      }}
-                      className="p-2.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-150 rounded-xl transition-all border border-red-200 cursor-pointer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                   <div key={idx} className="flex gap-2 items-center animate-fade-in">
+                     <div className="relative flex-1">
+                       <Input
+                         placeholder={`Additional Phone ${idx + 1}`}
+                         value={phoneVal}
+                         onChange={(e) => {
+                           const newPhones = [...additionalPhones];
+                           newPhones[idx] = e.target.value;
+                           setAdditionalPhones(newPhones);
+                         }}
+                       />
+                       <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                     </div>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         const newPhones = additionalPhones.filter((_, i) => i !== idx);
+                         setAdditionalPhones(newPhones);
+                       }}
+                       className="p-2.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-150 rounded-xl transition-all border border-red-200 cursor-pointer"
+                     >
+                       <Trash2 size={16} />
+                     </button>
+                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Experience Section (only for Calling role) */}
+            {isCalling && (
+              <div className="sm:col-span-2 space-y-4 pt-4 border-t border-border/60">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+                    Do you have Work Experience? <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={hasExperience}
+                    onChange={e => {
+                      setHasExperience(e.target.value);
+                      if (e.target.value === 'no') {
+                        setExperienceCountry('');
+                        setExperienceYears('');
+                      }
+                    }}
+                    className="w-full h-12 px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
+                  >
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </select>
+                </div>
+
+                {hasExperience === 'yes' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+                        Country of Experience <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={experienceCountry}
+                        onChange={e => setExperienceCountry(e.target.value)}
+                        className="w-full h-12 px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
+                        required
+                      >
+                        <option value="" disabled>Select country...</option>
+                        {allCountries.map(c => (
+                          <option key={c} value={c.toUpperCase()}>
+                            {c.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <Input
+                        label="Years of Experience"
+                        type="number"
+                        min="1"
+                        value={experienceYears}
+                        onChange={e => setExperienceYears(e.target.value)}
+                        placeholder="e.g. 2"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
