@@ -139,6 +139,37 @@ export default function BrokerCandidatesPage() {
   // Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
+  const [isSettingAgency, setIsSettingAgency] = useState(false);
+
+  const handleSetAgency = async (candidateId: string, templateId: string) => {
+    setIsSettingAgency(true);
+    try {
+      const cand = candidates.find(c => c.id === candidateId);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/generated-cvs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId,
+          templateId,
+          facePhotoUrl: cand?.facePhotoUrl || null,
+          fullBodyPhotoUrl: cand?.fullBodyPhotoUrl || null
+        })
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to set agency');
+      }
+      
+      fetchBrokerData(); // Trigger refetch of candidates list
+      setSelectedCandidateForAgency(null);
+    } catch (err: any) {
+      alert(err.message || 'Error setting agency');
+    } finally {
+      setIsSettingAgency(false);
+    }
+  };
+
   // Custom states
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -1383,7 +1414,33 @@ export default function BrokerCandidatesPage() {
                             </span>
                           );
                         })() : (
-                          <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">None</span>
+                          <>
+                            {selectedCandidateForAgency === candidate.id ? (
+                              <select
+                                value=""
+                                disabled={isSettingAgency}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  if (val) {
+                                    await handleSetAgency(candidate.id, val);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
+                              >
+                                <option value="" disabled>Select Agency...</option>
+                                {TEMPLATES.map(t => (
+                                  <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <button
+                                onClick={() => setSelectedCandidateForAgency(candidate.id)}
+                                className="px-2.5 py-1 text-[10px] uppercase font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg shadow-sm transition-all"
+                              >
+                                Set Agency
+                              </button>
+                            )}
+                          </>
                         )}
                       </td>
                       <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">

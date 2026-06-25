@@ -643,6 +643,43 @@ router.post('/', async (req: Request, res: Response) => {
       );
     } catch (_) { /* agency column may not exist yet, ignore */ }
 
+    // Automatically create a GeneratedCV record for Calling candidates with the selected Office (template ID)
+    if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
+      const agencyValue = body.agency || '';
+      const validTemplates = ['ussus', 'al-shablan', 'alm', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+      if (validTemplates.includes(agencyValue.toLowerCase())) {
+        try {
+          const existingCV = await prisma.generatedCV.findFirst({
+            where: {
+              candidateId: candidate.id,
+              templateId: agencyValue.toLowerCase()
+            }
+          });
+          if (!existingCV) {
+            await prisma.generatedCV.create({
+              data: {
+                candidateId: candidate.id,
+                templateId: agencyValue.toLowerCase(),
+                facePhotoUrl: facePhotoUrl || null,
+                fullBodyPhotoUrl: null
+              }
+            });
+            // Also update cvDeadline
+            const deadline = new Date();
+            deadline.setDate(deadline.getDate() + 30);
+            await prisma.$executeRawUnsafe(
+              `UPDATE \`Candidate\` SET \`cvDeadline\` = ? WHERE \`id\` = ?`,
+              deadline,
+              candidate.id
+            );
+            console.log(`[AUTO-CV] Created initial GeneratedCV for Calling candidate ${candidate.id} using template: ${agencyValue}`);
+          }
+        } catch (cvErr) {
+          console.error('[AUTO-CV] Failed to create initial GeneratedCV for calling candidate:', cvErr);
+        }
+      }
+    }
+
     // Save allowVideo separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
     try {
       const allowVideoVal = body.allowVideo ?? false;

@@ -52,6 +52,37 @@ export default function CandidatesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
+  const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
+  const [isSettingAgency, setIsSettingAgency] = useState(false);
+
+  const handleSetAgency = async (candidateId: string, templateId: string) => {
+    setIsSettingAgency(true);
+    try {
+      const cand = candidates.find(c => c.id === candidateId);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/generated-cvs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId,
+          templateId,
+          facePhotoUrl: cand?.facePhotoUrl || null,
+          fullBodyPhotoUrl: cand?.fullBodyPhotoUrl || null
+        })
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to set agency');
+      }
+      
+      setCandidates(); // Trigger cache clear and refetch candidates list
+      setSelectedCandidateForAgency(null);
+    } catch (err: any) {
+      alert(err.message || 'Error setting agency');
+    } finally {
+      setIsSettingAgency(false);
+    }
+  };
+
   // Close menu on outside click, scroll, or resize
   useEffect(() => {
     if (!openMenuId) return;
@@ -422,16 +453,42 @@ export default function CandidatesPage() {
 
                     {/* CV Agency */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.broker?.name === 'Calling' ? (
-                        <span className="text-xs text-text-tertiary">No CV</span>
-                      ) : (
+                      {candidate.latestCVTemplate ? (
                         <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
                           {(() => {
-                            const templateId = candidate.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || 'alm';
+                            const templateId = candidate.latestCVTemplate.replace('tmpl-', '').toLowerCase();
                             const templateObj = TEMPLATES.find(t => t.id === templateId);
-                            return templateObj ? templateObj.name : 'ALAALAM';
+                            return templateObj ? templateObj.name : candidate.latestCVTemplate.toUpperCase();
                           })()}
                         </span>
+                      ) : (
+                        <>
+                          {selectedCandidateForAgency === candidate.id ? (
+                            <select
+                              value=""
+                              disabled={isSettingAgency}
+                              onChange={async (e) => {
+                                const val = e.target.value;
+                                if (val) {
+                                  await handleSetAgency(candidate.id, val);
+                                }
+                              }}
+                              className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
+                            >
+                              <option value="" disabled>Select Agency...</option>
+                              {TEMPLATES.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <button
+                              onClick={() => setSelectedCandidateForAgency(candidate.id)}
+                              className="px-2.5 py-1 text-[10px] uppercase font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg shadow-sm transition-all"
+                            >
+                              Set Agency
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
 

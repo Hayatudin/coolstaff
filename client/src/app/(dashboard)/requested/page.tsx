@@ -39,6 +39,37 @@ export default function RequestedPage() {
   const [cancelVisaModalId, setCancelVisaModalId] = useState<string | null>(null);
   const [cancelVisaReason, setCancelVisaReason] = useState('');
 
+  const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
+  const [isSettingAgency, setIsSettingAgency] = useState(false);
+
+  const handleSetAgency = async (candidateId: string, templateId: string) => {
+    setIsSettingAgency(true);
+    try {
+      const cand = allCandidates.find(c => c.id === candidateId);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/generated-cvs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateId,
+          templateId,
+          facePhotoUrl: cand?.facePhotoUrl || null,
+          fullBodyPhotoUrl: cand?.fullBodyPhotoUrl || null
+        })
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to set agency');
+      }
+      
+      mutate(); // Trigger cache clear and refetch candidates list
+      setSelectedCandidateForAgency(null);
+    } catch (err: any) {
+      alert(err.message || 'Error setting agency');
+    } finally {
+      setIsSettingAgency(false);
+    }
+  };
+
   const handleGenerateReport = async () => {
     if (candidates.length === 0) {
       alert("No visa selected candidates to generate report.");
@@ -490,13 +521,43 @@ export default function RequestedPage() {
 
                       {/* CV Agency */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
-                          {(() => {
-                            const templateId = c.latestCVTemplate?.replace('tmpl-', '').toLowerCase() || 'alm';
-                            const templateObj = TEMPLATES.find(t => t.id === templateId);
-                            return templateObj ? templateObj.name : 'ALAALAM';
-                          })()}
-                        </span>
+                        {c.latestCVTemplate ? (
+                          <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
+                            {(() => {
+                              const templateId = c.latestCVTemplate.replace('tmpl-', '').toLowerCase();
+                              const templateObj = TEMPLATES.find(t => t.id === templateId);
+                              return templateObj ? templateObj.name : c.latestCVTemplate.toUpperCase();
+                            })()}
+                          </span>
+                        ) : (
+                          <>
+                            {selectedCandidateForAgency === c.id ? (
+                              <select
+                                value=""
+                                disabled={isSettingAgency}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  if (val) {
+                                    await handleSetAgency(c.id, val);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
+                              >
+                                <option value="" disabled>Select Agency...</option>
+                                {TEMPLATES.map(t => (
+                                  <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <button
+                                onClick={() => setSelectedCandidateForAgency(c.id)}
+                                className="px-2.5 py-1 text-[10px] uppercase font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg shadow-sm transition-all"
+                              >
+                                Set Agency
+                              </button>
+                            )}
+                          </>
+                        )}
                       </td>
 
                       {/* Selected Date (Days Ago) */}
