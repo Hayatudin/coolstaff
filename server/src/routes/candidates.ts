@@ -645,21 +645,21 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Automatically create a GeneratedCV record for Calling candidates with the selected Office (template ID)
     if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
-      const agencyValue = body.agency || '';
+      const templateId = body.office || body.templateId || body.agency || '';
       const validTemplates = ['ussus', 'al-shablan', 'alm', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
-      if (validTemplates.includes(agencyValue.toLowerCase())) {
+      if (validTemplates.includes(templateId.toLowerCase())) {
         try {
           const existingCV = await prisma.generatedCV.findFirst({
             where: {
               candidateId: candidate.id,
-              templateId: agencyValue.toLowerCase()
+              templateId: templateId.toLowerCase()
             }
           });
           if (!existingCV) {
             await prisma.generatedCV.create({
               data: {
                 candidateId: candidate.id,
-                templateId: agencyValue.toLowerCase(),
+                templateId: templateId.toLowerCase(),
                 facePhotoUrl: facePhotoUrl || null,
                 fullBodyPhotoUrl: null
               }
@@ -672,7 +672,7 @@ router.post('/', async (req: Request, res: Response) => {
               deadline,
               candidate.id
             );
-            console.log(`[AUTO-CV] Created initial GeneratedCV for Calling candidate ${candidate.id} using template: ${agencyValue}`);
+            console.log(`[AUTO-CV] Created initial GeneratedCV for Calling candidate ${candidate.id} using template: ${templateId}`);
           }
         } catch (cvErr) {
           console.error('[AUTO-CV] Failed to create initial GeneratedCV for calling candidate:', cvErr);
