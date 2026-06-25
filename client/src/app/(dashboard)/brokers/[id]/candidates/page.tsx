@@ -367,7 +367,7 @@ export default function BrokerCandidatesPage() {
     setCancelVisaNumberInput('');
 
     const cand = candidates.find(c => c.id === id);
-    if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
+    if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0) && cand.job !== 'Calling') {
       alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
       return;
     }

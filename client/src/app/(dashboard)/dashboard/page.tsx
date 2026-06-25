@@ -100,7 +100,7 @@ export default function DashboardPage() {
     setCancelVisaModalId(null);
     setCancelVisaNumberInput('');
 
-    if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0)) {
+    if (!current && cand && (!cand.generatedCVs || cand.generatedCVs.length === 0) && cand.personalInfo?.job !== 'Calling') {
       alert("Generate CV first. The candidate must have a Generated CV to be marked as Visa Selected.");
       return;
     }
