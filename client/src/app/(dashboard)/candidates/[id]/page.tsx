@@ -66,6 +66,31 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const handleDeleteVideo = async () => {
+    if (!confirm('Are you sure you want to delete the video for this candidate? This action cannot be undone.')) return;
+    try {
+      const res = await api(`/api/candidates/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          videoUrl: null,
+          quickVideoUrl: null,
+          allowVideo: false
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete video');
+      }
+      const updatedCandidate = await res.json();
+      setCandidate(updatedCandidate);
+      alert('Video successfully deleted!');
+      window.dispatchEvent(new Event('app-refresh'));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete video');
+    }
+  };
+
   const handleImportFile = async (field: string, file: File) => {
     const limit = 50 * 1024 * 1024;
     if (file.size > limit) {
@@ -302,12 +327,20 @@ export default function CandidateDetailPage() {
                         </svg>
                         Candidate Video Profile
                       </h2>
-                      <button
-                        onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <Video size={13} /> Replace Video Path
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Video size={13} /> Replace Video Path
+                        </button>
+                        <button
+                          onClick={handleDeleteVideo}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 rounded-xl text-xs font-bold transition-all border border-red-100 hover:border-red-200 cursor-pointer"
+                        >
+                          <Trash2 size={13} /> Delete Video
+                        </button>
+                      </div>
                     </div>
                     <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
                       <video
@@ -329,12 +362,20 @@ export default function CandidateDetailPage() {
                         </svg>
                         YouTube Video Profile
                       </h2>
-                      <button
-                        onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <Video size={13} /> Replace Video Path
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Video size={13} /> Replace Video Path
+                        </button>
+                        <button
+                          onClick={handleDeleteVideo}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 rounded-xl text-xs font-bold transition-all border border-red-100 hover:border-red-200 cursor-pointer"
+                        >
+                          <Trash2 size={13} /> Delete Video
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-red-50/20 rounded-2xl border border-red-100/50">
                       <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
