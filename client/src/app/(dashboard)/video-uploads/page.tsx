@@ -76,9 +76,61 @@ export default function VideoUploadsPage() {
   const [searchResults, setSearchResults] = useState<CandidateResult[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
 
-  const [videoUrl, setVideoUrl] = useState('');
-  const [facePhotoBase64, setFacePhotoBase64] = useState<string | null>(null);
-  const [fullBodyPhotoBase64, setFullBodyPhotoBase64] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [facePhotoFile, setFacePhotoFile] = useState<File | null>(null);
+  const [facePhotoPreview, setFacePhotoPreview] = useState<string | null>(null);
+  const [fullBodyPhotoFile, setFullBodyPhotoFile] = useState<File | null>(null);
+  const [fullBodyPhotoPreview, setFullBodyPhotoPreview] = useState<string | null>(null);
+
+  const handleVideoSelect = (file: File) => {
+    if (file.size > 50 * 1024 * 1024) {
+      alert("Max file size is 50MB");
+      return;
+    }
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file) + '#.mp4');
+  };
+
+  const handleFaceSelect = (file: File) => {
+    if (file.size > 50 * 1024 * 1024) {
+      alert("Max file size is 50MB");
+      return;
+    }
+    if (facePhotoPreview) URL.revokeObjectURL(facePhotoPreview);
+    setFacePhotoFile(file);
+    setFacePhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleFullBodySelect = (file: File) => {
+    if (file.size > 50 * 1024 * 1024) {
+      alert("Max file size is 50MB");
+      return;
+    }
+    if (fullBodyPhotoPreview) URL.revokeObjectURL(fullBodyPhotoPreview);
+    setFullBodyPhotoFile(file);
+    setFullBodyPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleClearVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
+  };
+
+  const handleClearFace = () => {
+    if (facePhotoPreview) URL.revokeObjectURL(facePhotoPreview);
+    setFacePhotoFile(null);
+    setFacePhotoPreview(null);
+  };
+
+  const handleClearFullBody = () => {
+    if (fullBodyPhotoPreview) URL.revokeObjectURL(fullBodyPhotoPreview);
+    setFullBodyPhotoFile(null);
+    setFullBodyPhotoPreview(null);
+  };
+
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -277,48 +329,17 @@ export default function VideoUploadsPage() {
     setPassportNumber('');
   };
 
-  const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 50 * 1024 * 1024) => {
-    if (file.size > maxBytes) {
-      alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (ev.target?.result) {
-        callback(ev.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
     // Validate inputs
-    const finalUrl = videoUrl.trim();
-    if (!finalUrl) {
+    if (!videoFile) {
       setMessage({ type: 'error', text: 'Please upload a video file first' });
       return;
     }
 
     const trimmedPassport = passportNumber.trim().toUpperCase();
-
-    const payload = selectedCandidate
-      ? {
-        id: selectedCandidate.id,
-        source: selectedCandidate.source,
-        videoUrl: finalUrl,
-        facePhotoUrl: facePhotoBase64 || undefined,
-        fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
-      }
-      : {
-        passportNumber: trimmedPassport,
-        videoUrl: finalUrl,
-        facePhotoUrl: facePhotoBase64 || undefined,
-        fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
-      };
-
     if (!selectedCandidate && !trimmedPassport) {
       setMessage({ type: 'error', text: 'Please enter a passport number or select a candidate from the dropdown' });
       return;
@@ -326,12 +347,25 @@ export default function VideoUploadsPage() {
 
     setIsSubmitting(true);
     try {
+      const formData = new FormData();
+      if (selectedCandidate) {
+        formData.append('id', selectedCandidate.id);
+        formData.append('source', selectedCandidate.source);
+      } else {
+        formData.append('passportNumber', trimmedPassport);
+      }
+
+      formData.append('video', videoFile);
+      if (facePhotoFile) {
+        formData.append('facePhoto', facePhotoFile);
+      }
+      if (fullBodyPhotoFile) {
+        formData.append('fullBodyPhoto', fullBodyPhotoFile);
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/save`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       const resData = await response.json();
@@ -345,9 +379,9 @@ export default function VideoUploadsPage() {
         });
 
         // Reset state
-        setVideoUrl('');
-        setFacePhotoBase64(null);
-        setFullBodyPhotoBase64(null);
+        handleClearVideo();
+        handleClearFace();
+        handleClearFullBody();
         setPassportImage(null);
         handleClearSelection();
       } else {
@@ -630,9 +664,9 @@ export default function VideoUploadsPage() {
                 shape="rect"
                 compact
                 accept="video/*"
-                preview={videoUrl ? getFileUrl(videoUrl) : null}
-                onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
-                onClear={() => setVideoUrl('')}
+                preview={videoPreview}
+                onFileSelect={handleVideoSelect}
+                onClear={handleClearVideo}
                 helperText="Supports MP4, WebM, MOV — Max 50MB"
               />
             </div>
@@ -651,15 +685,15 @@ export default function VideoUploadsPage() {
                 <FileUpload
                   label="Face Photo"
                   shape="circle"
-                  preview={facePhotoBase64}
-                  onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoBase64(base64))}
-                  onClear={() => setFacePhotoBase64(null)}
+                  preview={facePhotoPreview}
+                  onFileSelect={handleFaceSelect}
+                  onClear={handleClearFace}
                   helperText="Circle crop — Max 50MB"
                 />
-                {facePhotoBase64 && (
+                {facePhotoPreview && (
                   <button
                     type="button"
-                    onClick={() => setViewingImage({ url: facePhotoBase64!, title: 'Face Photo' })}
+                    onClick={() => setViewingImage({ url: facePhotoPreview, title: 'Face Photo' })}
                     className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
                   >
                     <Eye size={14} /> View Full Image
@@ -673,15 +707,15 @@ export default function VideoUploadsPage() {
                   label="Full Body Photo"
                   shape="rect"
                   compact
-                  preview={fullBodyPhotoBase64}
-                  onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFullBodyPhotoBase64(base64))}
-                  onClear={() => setFullBodyPhotoBase64(null)}
+                  preview={fullBodyPhotoPreview}
+                  onFileSelect={handleFullBodySelect}
+                  onClear={handleClearFullBody}
                   helperText="Rectangle — Max 50MB"
                 />
-                {fullBodyPhotoBase64 && (
+                {fullBodyPhotoPreview && (
                   <button
                     type="button"
-                    onClick={() => setViewingImage({ url: fullBodyPhotoBase64!, title: 'Full Body Photo' })}
+                    onClick={() => setViewingImage({ url: fullBodyPhotoPreview, title: 'Full Body Photo' })}
                     className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
                   >
                     <Eye size={14} /> View Full Image

@@ -1,7 +1,29 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
-import { uploadToLocal } from '../lib/upload';
+import { uploadToLocal, uploadFileFromDisk } from '../lib/upload';
 import { encryptPath, decryptPath, sanitizeIncomingPath } from '../lib/crypto';
+import multer from 'multer';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    let folder = 'videos';
+    if (file.fieldname === 'facePhoto') folder = 'faces';
+    else if (file.fieldname === 'fullBodyPhoto') folder = 'fullbody';
+
+    const dir = path.join(process.cwd(), 'public', 'uploads', folder);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || (file.fieldname === 'video' ? '.mp4' : '.jpg');
+    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+    cb(null, `${uniqueSuffix}${ext}`);
+  }
+});
+const upload = multer({ storage });
 
 const router = Router();
 
@@ -81,23 +103,27 @@ router.get('/search-candidates', async (req: Request, res: Response) => {
 });
 
 // 2. POST /api/video-uploads/save
-router.post('/save', async (req: Request, res: Response) => {
+router.post('/save', upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'facePhoto', maxCount: 1 },
+  { name: 'fullBodyPhoto', maxCount: 1 }
+]), async (req: Request, res: Response) => {
   try {
-    const { id, source, passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl } = req.body;
+    const { id, source, passportNumber } = req.body;
 
-    if (!videoUrl) {
-      return res.status(400).json({ error: 'Video URL is required' });
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const videoFile = files?.['video']?.[0];
+    const facePhotoFile = files?.['facePhoto']?.[0];
+    const fullBodyPhotoFile = files?.['fullBodyPhoto']?.[0];
+
+    if (!videoFile) {
+      return res.status(400).json({ error: 'Video file is required' });
     }
 
-    const cleanVideoUrl = sanitizeIncomingPath(videoUrl);
-    const cleanFacePhotoUrl = sanitizeIncomingPath(facePhotoUrl);
-    const cleanFullBodyPhotoUrl = sanitizeIncomingPath(fullBodyPhotoUrl);
-
-    // Process base64 uploads if present (existing paths remain unchanged)
     const [finalVideoUrl, facePhoto, fullBodyPhoto] = await Promise.all([
-      uploadToLocal(cleanVideoUrl, 'videos'),
-      uploadToLocal(cleanFacePhotoUrl, 'faces'),
-      uploadToLocal(cleanFullBodyPhotoUrl, 'fullbody')
+      uploadFileFromDisk(videoFile.path, 'videos'),
+      facePhotoFile ? uploadFileFromDisk(facePhotoFile.path, 'faces') : Promise.resolve(null),
+      fullBodyPhotoFile ? uploadFileFromDisk(fullBodyPhotoFile.path, 'fullbody') : Promise.resolve(null)
     ]);
 
     if (!finalVideoUrl) {

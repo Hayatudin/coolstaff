@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { getSession } from '../lib/auth-helper';
+import { encryptPath } from '../lib/crypto';
 
 const router = Router();
 
@@ -266,7 +267,7 @@ router.get('/candidates', async (req: Request, res: Response) => {
         job: c.job,
         city: c.city,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: null,
+        videoUrl: encryptPath(c.videoUrl || (c as any).Youtube_URL || null) || null,
         registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null,
         allowVideo: c.allowVideo ?? false,
         visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null
@@ -412,7 +413,7 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         job: c.job,
         city: c.city,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: null,
+        videoUrl: encryptPath(c.videoUrl || (c as any).Youtube_URL || null) || null,
         registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null,
         facePhotoUrl: c.facePhotoUrl,
         fullBodyPhotoUrl: c.fullBodyPhotoUrl,

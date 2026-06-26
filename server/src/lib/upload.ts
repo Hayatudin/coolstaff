@@ -92,3 +92,30 @@ async function uploadToLocalDisk(fileString: string, folder: string): Promise<st
     return null;
   }
 }
+
+/**
+ * Upload a local disk file (saved by multer) to the target storage backend (local public folder or Cloudinary)
+ */
+export async function uploadFileFromDisk(filePath: string | null | undefined, folder: string): Promise<string | null> {
+  if (!filePath) return null;
+
+  if (isLocal) {
+    const fileName = path.basename(filePath);
+    return `/uploads/${folder}/${fileName}`;
+  } else {
+    try {
+      const result = await cloudinary.uploader.upload(filePath, {
+        folder: `coolstaff/${folder}`,
+        resource_type: 'auto',
+      });
+      const fs = require('fs');
+      try {
+        fs.unlinkSync(filePath);
+      } catch (_) {}
+      return result.secure_url;
+    } catch (err) {
+      console.error(`Cloudinary disk file upload error for ${folder}:`, err);
+      return null;
+    }
+  }
+}

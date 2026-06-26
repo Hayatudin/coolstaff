@@ -119,8 +119,7 @@ export default function UploadedVideosPage() {
 
   const handleCopy = (path: string, id: string) => {
     if (!path) return;
-    const fullUrl = getFileUrl(path);
-    navigator.clipboard.writeText(fullUrl);
+    navigator.clipboard.writeText(path);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };

@@ -328,7 +328,7 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
     let hasRemoteVideo = false;
     if (videoUrl) {
       if (videoUrl.startsWith('http')) {
-        setClauses.push('`videoUrl` = ?');
+        setClauses.push('`Youtube_URL` = ?');
         params.push(videoUrl);
         hasRemoteVideo = true;
       } else {
@@ -494,29 +494,22 @@ router.post('/', async (req: Request, res: Response) => {
 
     const nextShelfId = body.shelfId || String(nextNum).padStart(3, '0');
 
-    // Separate local video upload and remote YouTube URL
-    const isLocalVideo = videoUrl && videoUrl.startsWith('/uploads');
-    const isRemoteVideo = videoUrl && videoUrl.startsWith('http');
+    // Check if there is a pre-registered video matching this candidate's passport number
+    let matchedPreRegisteredVideoUrl: string | null = null;
+    try {
+      const pNum = (body.passportData.passportNumber || '').trim().toUpperCase();
+      if (pNum) {
+        const matchingVideo = await prisma.preRegisteredVideo.findUnique({
+          where: { passportNumber: pNum }
+        });
 
-    let finalVideoUrl = isRemoteVideo ? videoUrl : null;
-
-    // Check if there is a pre-registered YouTube video matching this candidate's passport number
-    if (!finalVideoUrl) {
-      try {
-        const pNum = (body.passportData.passportNumber || '').trim().toUpperCase();
-        if (pNum) {
-          const matchingVideo = await prisma.preRegisteredVideo.findUnique({
-            where: { passportNumber: pNum }
-          });
-
-          if (matchingVideo) {
-            finalVideoUrl = matchingVideo.videoUrl;
-            console.log(`[AUTO-MATCH] Linked pre-registered YouTube video to Candidate: ${finalVideoUrl}`);
-          }
+        if (matchingVideo) {
+          matchedPreRegisteredVideoUrl = matchingVideo.videoUrl;
+          console.log(`[AUTO-MATCH] Linked pre-registered video to Candidate: ${matchedPreRegisteredVideoUrl}`);
         }
-      } catch (err) {
-        console.error('Failed to auto-match pre-registered video:', err);
       }
+    } catch (err) {
+      console.error('Failed to auto-match pre-registered video:', err);
     }
 
     let finalBrokerId = body.personalInfo?.brokerId;
@@ -611,12 +604,12 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
-    // Save YouTube URL separately via raw SQL to bypass stale Prisma Client
-    if (finalVideoUrl) {
+    // Save pre-registered video URL (from video uploads portal) if matched
+    if (matchedPreRegisteredVideoUrl) {
       try {
         await prisma.$executeRawUnsafe(
           `UPDATE \`Candidate\` SET \`Youtube_URL\` = ? WHERE \`id\` = ?`,
-          finalVideoUrl,
+          matchedPreRegisteredVideoUrl,
           candidate.id
         );
       } catch (err) {
@@ -708,8 +701,8 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
-    // Save quickVideoUrl separately with graceful fallback (local uploaded video)
-    if (isLocalVideo) {
+    // Save entry page video URL (local or remote) to quickVideoUrl
+    if (videoUrl) {
       try {
         await prisma.$executeRawUnsafe(
           `UPDATE \`Candidate\` SET \`quickVideoUrl\` = ? WHERE \`id\` = ?`,
@@ -1295,18 +1288,18 @@ router.patch('/:id', async (req: Request, res: Response) => {
       data: body,
     });
 
-    // Save videoUrl separately if passed
+    // Save videoUrl separately if passed (updates Youtube_URL database column)
     if (videoUrlVal !== undefined) {
       try {
         const sanitizedVideoUrl = sanitizeIncomingPath(videoUrlVal);
         await prisma.$executeRawUnsafe(
-          `UPDATE \`Candidate\` SET \`videoUrl\` = ? WHERE \`id\` = ?`,
+          `UPDATE \`Candidate\` SET \`Youtube_URL\` = ? WHERE \`id\` = ?`,
           sanitizedVideoUrl || null,
           id
         );
         (updated as any).videoUrl = sanitizedVideoUrl;
       } catch (e) {
-        console.error('Failed to save videoUrl via raw SQL in PATCH:', e);
+        console.error('Failed to save Youtube_URL via raw SQL in PATCH:', e);
       }
     }
 
