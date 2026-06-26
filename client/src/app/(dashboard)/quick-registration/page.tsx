@@ -938,7 +938,7 @@ export default function QuickRegistrationPage() {
                   <div className="space-y-2">
                     <div className="relative">
                       <Input
-                        placeholder="YouTube Video URL"
+                        placeholder="Video Token / Path"
                         value={videoUrl}
                         onChange={e => setVideoUrl(e.target.value)}
                         className="pr-10"
@@ -946,7 +946,7 @@ export default function QuickRegistrationPage() {
                       <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
                     </div>
                     {matchedVideoBadge && (
-                      <p className="text-xs font-semibold text-emerald-600 animate-scale-pop">
+                      <p className="text-xs font-semibold text-emerald-650 animate-scale-pop">
                         {matchedVideoBadge}
                       </p>
                     )}
@@ -956,9 +956,9 @@ export default function QuickRegistrationPage() {
                         setVideoUrl(null);
                         setMatchedVideoBadge(null);
                       }}
-                      className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
+                      className="text-xs font-bold text-red-650 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
                     >
-                      Clear Link & Upload File Instead
+                      Clear Path & Upload File Instead
                     </button>
                   </div>
                 ) : (

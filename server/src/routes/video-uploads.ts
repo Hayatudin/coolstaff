@@ -175,21 +175,27 @@ router.post('/save', upload.fields([
 
     const cleanedPassportNumber = passportNumber.trim().toUpperCase();
 
-    // Use upsert to create or update the video mapping by unique passport number
-    const result = await prisma.preRegisteredVideo.upsert({
-      where: { passportNumber: cleanedPassportNumber },
-      update: { 
-        videoUrl: finalVideoUrl,
-        facePhotoUrl: facePhoto || undefined,
-        fullBodyPhotoUrl: fullBodyPhoto || undefined,
-      },
-      create: { 
-        passportNumber: cleanedPassportNumber, 
-        videoUrl: finalVideoUrl,
-        facePhotoUrl: facePhoto || null,
-        fullBodyPhotoUrl: fullBodyPhoto || null,
-      },
-    });
+    // Use raw MySQL query to create or update the video mapping by unique passport number to bypass stale Prisma client structures
+    const generatedId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO \`PreRegisteredVideo\` (\`id\`, \`passportNumber\`, \`videoUrl\`, \`facePhotoUrl\`, \`fullBodyPhotoUrl\`) 
+       VALUES (?, ?, ?, ?, ?) 
+       ON DUPLICATE KEY UPDATE 
+         \`videoUrl\` = VALUES(\`videoUrl\`), 
+         \`facePhotoUrl\` = VALUES(\`facePhotoUrl\`), 
+         \`fullBodyPhotoUrl\` = VALUES(\`fullBodyPhotoUrl\`)`,
+      generatedId,
+      cleanedPassportNumber,
+      finalVideoUrl,
+      facePhoto || null,
+      fullBodyPhoto || null
+    );
+
+    const rawRows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM \`PreRegisteredVideo\` WHERE \`passportNumber\` = ? LIMIT 1`,
+      cleanedPassportNumber
+    );
+    const result = rawRows[0];
 
     res.json({ 
       success: true, 
@@ -297,21 +303,6 @@ router.get('/uploaded', async (req: Request, res: Response) => {
       orderBy: { registeredAt: 'desc' },
     });
 
-    // QuickRegistrations with videoUrl (fetched via raw SQL since videoUrl may not be in Prisma cache)
-    let qrRows: any[] = [];
-    try {
-      if (q) {
-        qrRows = await prisma.$queryRawUnsafe(
-          `SELECT id, givenNames, surname, passportNumber, nationality, videoUrl, createdAt FROM \`QuickRegistration\` WHERE \`videoUrl\` IS NOT NULL AND \`videoUrl\` != '' AND (givenNames LIKE ? OR surname LIKE ? OR passportNumber LIKE ?) ORDER BY createdAt DESC`,
-          `%${q}%`, `%${q}%`, `%${q}%`
-        );
-      } else {
-        qrRows = await prisma.$queryRawUnsafe(
-          `SELECT id, givenNames, surname, passportNumber, nationality, videoUrl, createdAt FROM \`QuickRegistration\` WHERE \`videoUrl\` IS NOT NULL AND \`videoUrl\` != '' ORDER BY createdAt DESC`
-        );
-      }
-    } catch (_) { /* videoUrl column may not exist */ }
-
     // PreRegisteredVideo records (buffered)
     let preRegs: any[] = [];
     try {
@@ -336,17 +327,6 @@ router.get('/uploaded', async (req: Request, res: Response) => {
         fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
         date: c.registeredAt?.toISOString() || '',
         source: 'candidate' as const,
-      })),
-      ...qrRows.map((r: any) => ({
-        id: r.id,
-        fullName: `${r.givenNames || ''} ${r.surname || ''}`.trim().toUpperCase(),
-        passportNumber: r.passportNumber || '',
-        nationality: r.nationality || '',
-        videoUrl: encryptPath(r.videoUrl),
-        facePhotoUrl: null,
-        fullBodyPhotoUrl: null,
-        date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
-        source: 'quickRegistration' as const,
       })),
       ...preRegs.map((p: any) => ({
         id: p.id,

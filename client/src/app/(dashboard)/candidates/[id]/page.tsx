@@ -296,21 +296,21 @@ export default function CandidateDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Candidate Video */}
           {(() => {
-            const hasLocalVideo = !!c.quickVideoUrl || (!!c.videoUrl && !c.videoUrl.startsWith('http'));
-            const hasYoutubeVideo = !!c.videoUrl && c.videoUrl.startsWith('http');
+            const hasUploadedVideo = !!c.videoUrl;
+            const hasEntryVideo = !!c.quickVideoUrl;
             
-            if (!hasLocalVideo && !hasYoutubeVideo) {
+            if (!hasUploadedVideo && !hasEntryVideo) {
               return (
                 <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 text-center py-12 flex flex-col items-center">
                   <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-text-secondary font-semibold text-sm mb-4">Video URL is not inserted</p>
+                  <p className="text-text-secondary font-semibold text-sm mb-4">Video is not uploaded</p>
                   <button
                     onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
                     className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-primary/95 cursor-pointer"
                   >
-                    <Video size={14} /> Insert Video Path / URL
+                    <Video size={14} /> Insert Video Path / Token
                   </button>
                 </div>
               );
@@ -318,14 +318,14 @@ export default function CandidateDetailPage() {
 
             return (
               <div className="space-y-6">
-                {hasLocalVideo && (
+                {hasUploadedVideo && (
                   <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
                     <div className="flex items-center justify-between mb-6">
                       <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
                         <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        Candidate Video Profile
+                        Candidate Uploaded Video
                       </h2>
                       <div className="flex items-center gap-2">
                         <button
@@ -344,7 +344,7 @@ export default function CandidateDetailPage() {
                     </div>
                     <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
                       <video
-                        src={getFileUrl(c.quickVideoUrl || c.videoUrl!)}
+                        src={getFileUrl(c.videoUrl!)}
                         controls
                         className="w-full h-full object-contain"
                         crossOrigin="anonymous"
@@ -353,51 +353,23 @@ export default function CandidateDetailPage() {
                   </div>
                 )}
 
-                {hasYoutubeVideo && (
+                {hasEntryVideo && (
                   <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-6">
                       <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                        <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                        <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        YouTube Video Profile
+                        Entry Page Video Profile
                       </h2>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
-                        >
-                          <Video size={13} /> Replace Video Path
-                        </button>
-                        <button
-                          onClick={handleDeleteVideo}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 rounded-xl text-xs font-bold transition-all border border-red-100 hover:border-red-200 cursor-pointer"
-                        >
-                          <Trash2 size={13} /> Delete Video
-                        </button>
-                      </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-red-50/20 rounded-2xl border border-red-100/50">
-                      <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
-                        <svg className="w-9 h-9 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-center sm:text-left min-w-0">
-                        <p className="text-base font-bold text-text-primary">Watch YouTube Video</p>
-                        <p className="text-xs text-text-tertiary mt-1 truncate max-w-md">{c.videoUrl}</p>
-                      </div>
-                      <a
-                        href={c.videoUrl!}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2.5 px-6 py-2.5 border border-red-200/60 bg-white hover:bg-red-50 text-red-600 rounded-xl text-sm font-black shadow-sm transition-all shrink-0 cursor-pointer"
-                      >
-                        <svg className="w-4.5 h-4.5 text-red-600 fill-current" viewBox="0 0 24 24">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                        </svg>
-                        Watch on YouTube
-                      </a>
+                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
+                      <video
+                        src={getFileUrl(c.quickVideoUrl!)}
+                        controls
+                        className="w-full h-full object-contain"
+                        crossOrigin="anonymous"
+                      />
                     </div>
                   </div>
                 )}

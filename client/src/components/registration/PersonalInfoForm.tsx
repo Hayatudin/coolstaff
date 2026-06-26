@@ -247,13 +247,13 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
             onCreate={onBrokerCreate}
           />
 
-          {/* YouTube Video URL */}
+          {/* Video Token / Path */}
           {onVideoUrlChange && (
             <Input
-              label="YouTube Video URL"
+              label="Video Token / Path"
               value={videoUrl || ''}
               onChange={e => onVideoUrlChange(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="e.g. ENC-xxxx or /uploads/videos/..."
             />
           )}
         </div>

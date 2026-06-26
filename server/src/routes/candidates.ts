@@ -1266,8 +1266,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       { key: 'medicalDocumentUrl', dir: 'medical' },
       { key: 'candidateIdImageUrl', dir: 'candidate-id' },
       { key: 'relativeIdImageUrl', dir: 'relative-id' },
-      { key: 'labourIdUrl', dir: 'labour-id' },
-      { key: 'quickVideoUrl', dir: 'videos' }
+      { key: 'labourIdUrl', dir: 'labour-id' }
     ];
 
     for (const field of docFields) {
@@ -1283,10 +1282,38 @@ router.patch('/:id', async (req: Request, res: Response) => {
       }
     }
 
+    let quickVideoUrlVal = body.quickVideoUrl;
+    delete body.quickVideoUrl;
+
+    if (quickVideoUrlVal) {
+      quickVideoUrlVal = sanitizeIncomingPath(quickVideoUrlVal);
+      if (quickVideoUrlVal.startsWith('data:')) {
+        try {
+          quickVideoUrlVal = await uploadToLocal(quickVideoUrlVal, 'videos');
+        } catch (uploadErr) {
+          console.error(`Failed to upload quickVideoUrl in PATCH:`, uploadErr);
+        }
+      }
+    }
+
     const updated = await prisma.candidate.update({
       where: { id },
       data: body,
     });
+
+    // Save quickVideoUrl separately via raw SQL to bypass stale Prisma client static schema check
+    if (quickVideoUrlVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`quickVideoUrl\` = ? WHERE \`id\` = ?`,
+          quickVideoUrlVal || null,
+          id
+        );
+        (updated as any).quickVideoUrl = quickVideoUrlVal;
+      } catch (err) {
+        console.error('Failed to save quickVideoUrl via raw SQL in PATCH:', err);
+      }
+    }
 
     // Save videoUrl separately if passed (updates Youtube_URL database column)
     if (videoUrlVal !== undefined) {
