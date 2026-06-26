@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
 import { getSession } from '../lib/auth-helper';
+import { encryptPath, sanitizeIncomingPath } from '../lib/crypto';
 
 function formatPrismaError(error: any): string {
   if (!error) return 'Unknown error';
@@ -203,29 +204,29 @@ router.get('/', async (req: Request, res: Response) => {
           emergencyContactAddress: c.emergencyContactAddress,
           additionalPhones: c.additionalPhones,
           brokerId: c.brokerId || '',
-          cocDocumentUrl: c.cocDocumentUrl || '',
-          medicalDocumentUrl: c.medicalDocumentUrl || '',
-          candidateIdImageUrl: c.candidateIdImageUrl || '',
-          relativeIdImageUrl: c.relativeIdImageUrl || '',
-          labourIdUrl: c.labourIdUrl || '',
+          cocDocumentUrl: encryptPath(c.cocDocumentUrl),
+          medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
+          candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
+          relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
+          labourIdUrl: encryptPath(c.labourIdUrl),
           salary: c.salary || '1000SR',
         },
         brokerId: c.brokerId,
         broker: c.brokerId ? (brokerMap.get(c.brokerId) || null) : null,
-        passportImageUrl: c.passportImageUrl || '',
-        facePhotoUrl: c.facePhotoUrl || '',
-        fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
-        cocDocumentUrl: c.cocDocumentUrl || '',
-        medicalDocumentUrl: c.medicalDocumentUrl || '',
-        candidateIdImageUrl: c.candidateIdImageUrl || '',
-        relativeIdImageUrl: c.relativeIdImageUrl || '',
-        labourIdUrl: c.labourIdUrl || '',
+        passportImageUrl: encryptPath(c.passportImageUrl),
+        facePhotoUrl: encryptPath(c.facePhotoUrl),
+        fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
+        cocDocumentUrl: encryptPath(c.cocDocumentUrl),
+        medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
+        candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
+        relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
+        labourIdUrl: encryptPath(c.labourIdUrl),
         isRequested: c.isRequested || false,
         visaOrContractNumber: c.visaOrContractNumber || null,
         isFlagged: c.isFlagged || false,
         isLocked: candidateLockMap[c.id] ?? false,
         cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
-        videoUrl: youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null,
+        videoUrl: encryptPath(youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null),
         Youtube_URL: youtubeUrlMap[c.id] ?? null,
         deployedDate: deployedDateMap[c.id] ?? null,
         registeredAt: c.registeredAt.toISOString(),
@@ -887,27 +888,27 @@ router.get('/:id', async (req: Request, res: Response) => {
         emergencyContactAddress: c.emergencyContactAddress,
         additionalPhones: c.additionalPhones,
         brokerId: c.brokerId || '',
-        cocDocumentUrl: c.cocDocumentUrl || '',
-        medicalDocumentUrl: c.medicalDocumentUrl || '',
-        candidateIdImageUrl: c.candidateIdImageUrl || '',
-        relativeIdImageUrl: c.relativeIdImageUrl || '',
-        labourIdUrl: c.labourIdUrl || '',
+        cocDocumentUrl: encryptPath(c.cocDocumentUrl),
+        medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
+        candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
+        relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
+        labourIdUrl: encryptPath(c.labourIdUrl),
         salary: c.salary || '1000SR',
       },
-      passportImageUrl: c.passportImageUrl || '',
-      facePhotoUrl: c.facePhotoUrl || '',
-      fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
-      cocDocumentUrl: c.cocDocumentUrl || '',
-      medicalDocumentUrl: c.medicalDocumentUrl || '',
-      candidateIdImageUrl: c.candidateIdImageUrl || '',
-      relativeIdImageUrl: c.relativeIdImageUrl || '',
-      labourIdUrl: c.labourIdUrl || '',
+      passportImageUrl: encryptPath(c.passportImageUrl),
+      facePhotoUrl: encryptPath(c.facePhotoUrl),
+      fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
+      cocDocumentUrl: encryptPath(c.cocDocumentUrl),
+      medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
+      candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
+      relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
+      labourIdUrl: encryptPath(c.labourIdUrl),
       status: c.status,
       isRequested: c.isRequested,
       visaOrContractNumber: c.visaOrContractNumber || null,
-      videoUrl: youtubeUrl ?? (c as any).videoUrl ?? null,
+      videoUrl: encryptPath(youtubeUrl ?? (c as any).videoUrl ?? null),
       Youtube_URL: youtubeUrl,
-      quickVideoUrl: (c as any).quickVideoUrl || null,
+      quickVideoUrl: encryptPath((c as any).quickVideoUrl || null),
       deployedDate: candidateDeployedDate,
       registeredAt: c.registeredAt.toISOString(),
       broker: c.broker,
@@ -1244,6 +1245,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
       delete body.personalInfo.price;
     }
 
+    const videoUrlVal = body.videoUrl;
+    const allowVideoVal = body.allowVideo;
+
     let visaDateVal: any = undefined;
     if (body.visaSelected) {
       const existing = await prisma.candidate.findUnique({ where: { id } });
@@ -1255,6 +1259,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     // Strip videoUrl and deployedDate from the payload to prevent Prisma Client validation error on stale client builds
     delete body.visaDate;
     delete body.videoUrl;
+    delete body.allowVideo;
     const deployedDateVal = body.deployedDate;
     delete body.deployedDate;
     delete body.Youtube_URL;
@@ -1273,11 +1278,14 @@ router.patch('/:id', async (req: Request, res: Response) => {
     ];
 
     for (const field of docFields) {
-      if (body[field.key] && body[field.key].startsWith('data:')) {
-        try {
-          body[field.key] = await uploadToLocal(body[field.key], field.dir);
-        } catch (uploadErr) {
-          console.error(`Failed to upload ${field.key} in PATCH:`, uploadErr);
+      if (body[field.key]) {
+        body[field.key] = sanitizeIncomingPath(body[field.key]);
+        if (body[field.key].startsWith('data:')) {
+          try {
+            body[field.key] = await uploadToLocal(body[field.key], field.dir);
+          } catch (uploadErr) {
+            console.error(`Failed to upload ${field.key} in PATCH:`, uploadErr);
+          }
         }
       }
     }
@@ -1286,6 +1294,35 @@ router.patch('/:id', async (req: Request, res: Response) => {
       where: { id },
       data: body,
     });
+
+    // Save videoUrl separately if passed
+    if (videoUrlVal !== undefined) {
+      try {
+        const sanitizedVideoUrl = sanitizeIncomingPath(videoUrlVal);
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`videoUrl\` = ? WHERE \`id\` = ?`,
+          sanitizedVideoUrl || null,
+          id
+        );
+        (updated as any).videoUrl = sanitizedVideoUrl;
+      } catch (e) {
+        console.error('Failed to save videoUrl via raw SQL in PATCH:', e);
+      }
+    }
+
+    // Save allowVideo if passed
+    if (allowVideoVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`allowVideo\` = ? WHERE \`id\` = ?`,
+          allowVideoVal ? 1 : 0,
+          id
+        );
+        (updated as any).allowVideo = Boolean(allowVideoVal);
+      } catch (e) {
+        console.error('Failed to save allowVideo via raw SQL in PATCH:', e);
+      }
+    }
 
     if (visaDateVal !== undefined) {
       try {

@@ -6,9 +6,10 @@ import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
   Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink,
-  Lock
+  Lock, Video
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
+import Input from '@/components/ui/Input';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
@@ -32,6 +33,38 @@ export default function CandidateDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState<string | null>(null);
+
+  const [insertVideoModalOpen, setInsertVideoModalOpen] = useState(false);
+  const [insertVideoInput, setInsertVideoInput] = useState('');
+  const [isSavingVideo, setIsSavingVideo] = useState(false);
+
+  const handleSaveVideoPath = async () => {
+    setIsSavingVideo(true);
+    try {
+      const res = await api(`/api/candidates/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          videoUrl: insertVideoInput.trim(),
+          allowVideo: true
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save video path');
+      }
+      const updatedCandidate = await res.json();
+      setCandidate(updatedCandidate);
+      setInsertVideoModalOpen(false);
+      setInsertVideoInput('');
+      alert('Video path successfully updated!');
+      window.dispatchEvent(new Event('app-refresh'));
+    } catch (err: any) {
+      alert(err.message || 'Failed to save video path');
+    } finally {
+      setIsSavingVideo(false);
+    }
+  };
 
   const handleImportFile = async (field: string, file: File) => {
     const limit = 50 * 1024 * 1024;
@@ -243,11 +276,17 @@ export default function CandidateDetailPage() {
             
             if (!hasLocalVideo && !hasYoutubeVideo) {
               return (
-                <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 text-center py-12">
+                <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 text-center py-12 flex flex-col items-center">
                   <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-text-secondary font-semibold text-sm">Video URL is not inserted</p>
+                  <p className="text-text-secondary font-semibold text-sm mb-4">Video URL is not inserted</p>
+                  <button
+                    onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
+                    className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-primary/95 cursor-pointer"
+                  >
+                    <Video size={14} /> Insert Video Path / URL
+                  </button>
                 </div>
               );
             }
@@ -256,12 +295,20 @@ export default function CandidateDetailPage() {
               <div className="space-y-6">
                 {hasLocalVideo && (
                   <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-                    <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Candidate Video Profile
-                    </h2>
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                        <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Candidate Video Profile
+                      </h2>
+                      <button
+                        onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Video size={13} /> Replace Video Path
+                      </button>
+                    </div>
                     <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
                       <video
                         src={getFileUrl(c.quickVideoUrl || c.videoUrl!)}
@@ -275,12 +322,20 @@ export default function CandidateDetailPage() {
 
                 {hasYoutubeVideo && (
                   <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-                    <h2 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                      </svg>
-                      YouTube Video Profile
-                    </h2>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                        <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                        </svg>
+                        YouTube Video Profile
+                      </h2>
+                      <button
+                        onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Video size={13} /> Replace Video Path
+                      </button>
+                    </div>
                     <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-red-50/20 rounded-2xl border border-red-100/50">
                       <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center shrink-0">
                         <svg className="w-9 h-9 text-red-600" viewBox="0 0 24 24" fill="currentColor">
@@ -495,6 +550,10 @@ export default function CandidateDetailPage() {
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => setViewDoc(getFileUrl(doc.url!))} className={`text-[11px] uppercase tracking-[0.1em] text-${doc.color}-600 hover:text-${doc.color}-800 font-black px-3 py-1.5 bg-${doc.color}-100 hover:bg-${doc.color}-200 rounded-lg transition-colors flex items-center gap-1.5`}><Eye size={12} /> View</button>
                       <a href={getDownloadUrl(doc.url!)} download rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
+                      <label className="text-[11px] uppercase tracking-[0.1em] text-primary/75 hover:text-primary font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
+                        {isImporting === doc.field ? 'Importing...' : 'Replace'}
+                        <input type="file" accept={doc.accept} className="hidden" disabled={isImporting !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImportFile(doc.field, file); }} />
+                      </label>
                     </div>
                   ) : (
                     <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
@@ -544,6 +603,42 @@ export default function CandidateDetailPage() {
                   <a href={viewDoc} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in new tab</a>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Insert/Replace Video Modal */}
+      {insertVideoModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setInsertVideoModalOpen(false)}>
+          <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+              <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                <Video className="text-primary" size={20} /> Insert Video Path / URL
+              </h3>
+              <button onClick={() => setInsertVideoModalOpen(false)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-semibold text-text-primary mb-2">Paste copied video path or token here:</label>
+              <Input 
+                autoFocus
+                placeholder="e.g. ENC-xxxx or http://..." 
+                value={insertVideoInput} 
+                onChange={(e) => setInsertVideoInput(e.target.value)} 
+                className="w-full"
+              />
+            </div>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setInsertVideoModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                Cancel
+              </button>
+              <button 
+                disabled={isSavingVideo || !insertVideoInput.trim()}
+                onClick={handleSaveVideoPath}
+                className="px-6 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSavingVideo ? <Loader2 size={13} className="animate-spin" /> : null}
+                Save Video
+              </button>
             </div>
           </div>
         </div>

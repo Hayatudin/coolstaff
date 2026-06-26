@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Video, Search, ExternalLink, Loader2, RefreshCw,
-  User, Calendar, Globe, FileText, Filter, Edit2, Trash2, X, AlertCircle
+  User, Calendar, Globe, FileText, Filter, Edit2, Trash2, X, AlertCircle,
+  Copy, Check, Eye
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
+import FileUpload from '@/components/ui/FileUpload';
 
 interface UploadedVideo {
   id: string;
@@ -14,6 +16,8 @@ interface UploadedVideo {
   passportNumber: string;
   nationality: string;
   videoUrl: string;
+  facePhotoUrl: string | null;
+  fullBodyPhotoUrl: string | null;
   date: string;
   source: 'candidate' | 'quickRegistration' | 'preRegistered';
 }
@@ -30,11 +34,11 @@ export default function UploadedVideosPage() {
   const [search, setSearch] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const ITEMS_PER_PAGE = 10;
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, filterSource]);
+  // Preview Media Modal State
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'image' | 'video'; title: string } | null>(null);
 
   // Edit Video Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -48,6 +52,10 @@ export default function UploadedVideosPage() {
   const [deleteRecord, setDeleteRecord] = useState<UploadedVideo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterSource]);
+
   const handleStartEdit = (record: UploadedVideo) => {
     setEditRecord(record);
     setEditVideoUrl(record.videoUrl || '');
@@ -59,7 +67,7 @@ export default function UploadedVideosPage() {
     e.preventDefault();
     if (!editRecord) return;
     if (!editVideoUrl.trim()) {
-      setEditError('Video URL is required');
+      setEditError('Video file is required');
       return;
     }
 
@@ -73,7 +81,7 @@ export default function UploadedVideosPage() {
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update video link');
+        throw new Error(errData.error || 'Failed to update video');
       }
       setIsEditOpen(false);
       fetchVideos();
@@ -107,6 +115,14 @@ export default function UploadedVideosPage() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleCopy = (path: string, id: string) => {
+    if (!path) return;
+    const fullUrl = getFileUrl(path);
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const fetchVideos = useCallback(async () => {
@@ -156,12 +172,6 @@ export default function UploadedVideosPage() {
     } catch {
       return '—';
     }
-  };
-
-  const getYouTubeUrl = (url: string) => {
-    if (!url) return '#';
-    if (url.startsWith('http')) return url;
-    return `https://${url}`;
   };
 
   return (
@@ -230,6 +240,9 @@ export default function UploadedVideosPage() {
               <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold hidden sm:table-cell">Passport</th>
+                <th className="px-6 py-4 font-semibold">Face Photo</th>
+                <th className="px-6 py-4 font-semibold">Full Body</th>
+                <th className="px-6 py-4 font-semibold">Video</th>
                 <th className="px-6 py-4 font-semibold hidden md:table-cell">Source</th>
                 <th className="px-6 py-4 font-semibold hidden lg:table-cell">Date</th>
                 <th className="px-6 py-4 font-semibold text-right">Action</th>
@@ -238,7 +251,7 @@ export default function UploadedVideosPage() {
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading videos...</p>
@@ -247,7 +260,7 @@ export default function UploadedVideosPage() {
                 </tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center">
                         <Video size={24} className="text-gray-300" />
@@ -266,11 +279,15 @@ export default function UploadedVideosPage() {
                     {/* Name */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
-                          <User size={16} className="text-rose-600" />
+                        <div className="w-9 h-9 rounded-full bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100 overflow-hidden">
+                          {v.facePhotoUrl ? (
+                            <img src={getFileUrl(v.facePhotoUrl)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={16} className="text-rose-600" />
+                          )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-text-primary text-sm truncate max-w-[200px]">{v.fullName || '—'}</p>
+                          <p className="font-semibold text-text-primary text-sm truncate max-w-[150px]">{v.fullName || '—'}</p>
                           {v.nationality && (
                             <p className="text-[10px] text-text-tertiary flex items-center gap-1 mt-0.5">
                               <Globe size={10} /> {v.nationality}
@@ -286,6 +303,91 @@ export default function UploadedVideosPage() {
                         <span className="text-xs font-mono font-bold text-text-secondary px-2.5 py-1 bg-gray-50 rounded-lg border border-border/40">
                           {v.passportNumber}
                         </span>
+                      ) : (
+                        <span className="text-xs text-text-tertiary">—</span>
+                      )}
+                    </td>
+
+                    {/* Face Photo */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {v.facePhotoUrl ? (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={getFileUrl(v.facePhotoUrl)}
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover border border-border"
+                          />
+                          <button
+                            onClick={() => setPreviewMedia({ url: getFileUrl(v.facePhotoUrl), type: 'image', title: `${v.fullName}'s Face Photo` })}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                            title="View Photo"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleCopy(v.facePhotoUrl!, `${v.id}-face`)}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                            title="Copy secure path"
+                          >
+                            {copiedId === `${v.id}-face` ? <Check size={14} className="text-emerald-600 animate-scale-pop" /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-text-tertiary">—</span>
+                      )}
+                    </td>
+
+                    {/* Full Body Photo */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {v.fullBodyPhotoUrl ? (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={getFileUrl(v.fullBodyPhotoUrl)}
+                            alt=""
+                            className="w-10 h-12 rounded object-cover border border-border"
+                          />
+                          <button
+                            onClick={() => setPreviewMedia({ url: getFileUrl(v.fullBodyPhotoUrl), type: 'image', title: `${v.fullName}'s Full Body Photo` })}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                            title="View Photo"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleCopy(v.fullBodyPhotoUrl!, `${v.id}-body`)}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                            title="Copy secure path"
+                          >
+                            {copiedId === `${v.id}-body` ? <Check size={14} className="text-emerald-600 animate-scale-pop" /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-text-tertiary">—</span>
+                      )}
+                    </td>
+
+                    {/* Video Column */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {v.videoUrl ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 rounded bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
+                            <Video size={15} className="text-rose-600" />
+                          </div>
+                          <button
+                            onClick={() => setPreviewMedia({ url: getFileUrl(v.videoUrl), type: 'video', title: `${v.fullName || 'Candidate'}'s Video Profile` })}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                            title="Play Video"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleCopy(v.videoUrl, `${v.id}-video`)}
+                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                            title="Copy secure path"
+                          >
+                            {copiedId === `${v.id}-video` ? <Check size={14} className="text-emerald-600 animate-scale-pop" /> : <Copy size={14} />}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-xs text-text-tertiary">—</span>
                       )}
@@ -309,31 +411,20 @@ export default function UploadedVideosPage() {
                       </div>
                     </td>
 
-                    {/* Watch/Edit/Delete Actions */}
+                    {/* Actions */}
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <a
-                          href={getYouTubeUrl(v.videoUrl)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 hover:text-red-700 transition-all border border-red-100"
-                        >
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                          </svg>
-                          Watch
-                        </a>
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleStartEdit(v)}
-                          className="p-1.5 text-text-tertiary hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"
-                          title="Edit URL"
+                          className="p-1.5 text-text-tertiary hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100 cursor-pointer"
+                          title="Edit video file"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => handleStartDelete(v)}
-                          className="p-1.5 text-text-tertiary hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                          title="Delete Video Link"
+                          className="p-1.5 text-text-tertiary hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 cursor-pointer"
+                          title="Delete video record"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -401,6 +492,52 @@ export default function UploadedVideosPage() {
         </div>
       )}
 
+      {/* Media Preview Modal */}
+      {previewMedia && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <div
+            className="relative bg-surface rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden animate-scale-pop"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Video size={16} className="text-primary" />
+                <h3 className="text-sm font-bold text-text-primary">{previewMedia.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewMedia(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 flex items-center justify-center bg-gray-950 max-h-[75vh] overflow-auto">
+              {previewMedia.type === 'video' ? (
+                <video
+                  src={previewMedia.url}
+                  controls
+                  autoPlay
+                  className="max-w-full max-h-[70vh] object-contain rounded-xl"
+                />
+              ) : (
+                <img
+                  src={previewMedia.url}
+                  alt={previewMedia.title}
+                  className="max-w-full max-h-[70vh] object-contain rounded-xl"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Modal */}
       {isEditOpen && editRecord && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -408,11 +545,11 @@ export default function UploadedVideosPage() {
             <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <Edit2 size={16} className="text-indigo-600" />
-                Edit YouTube Link
+                Edit Video File
               </h3>
               <button
                 onClick={() => setIsEditOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all"
+                className="p-1 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -432,29 +569,38 @@ export default function UploadedVideosPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
-                  YouTube Video URL
+                  Upload Video File
                 </label>
-                <input
-                  type="url"
-                  required
-                  value={editVideoUrl}
-                  onChange={e => setEditVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all font-medium"
+                <FileUpload
+                  shape="rect"
+                  compact
+                  accept="video/*"
+                  preview={editVideoUrl ? getFileUrl(editVideoUrl) : null}
+                  onFileSelect={(file) => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      if (ev.target?.result) {
+                        setEditVideoUrl(ev.target.result as string);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                  onClear={() => setEditVideoUrl('')}
+                  helperText="Supports MP4, WebM, MOV — Max 50MB"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsEditOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded-xl transition-all"
+                  className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-all flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   {isSaving ? <Loader2 size={13} className="animate-spin" /> : null}
                   Save Changes
@@ -476,28 +622,28 @@ export default function UploadedVideosPage() {
               </h3>
               <button
                 onClick={() => setIsDeleteOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all"
+                className="p-1 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-all cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed">
-                Are you sure you want to remove the YouTube video link for <span className="font-bold text-gray-900">{deleteRecord.fullName}</span>?
+                Are you sure you want to remove the video link for <span className="font-bold text-gray-900">{deleteRecord.fullName}</span>?
                 {deleteRecord.source === 'preRegistered' && ' This will delete the pre-registration record completely.'}
               </p>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsDeleteOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded-xl transition-all"
+                  className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl transition-all flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   {isDeleting ? <Loader2 size={13} className="animate-spin" /> : null}
                   Delete Link

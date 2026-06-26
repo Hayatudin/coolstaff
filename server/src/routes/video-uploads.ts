@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
+import { encryptPath, decryptPath, sanitizeIncomingPath } from '../lib/crypto';
 
 const router = Router();
 
@@ -88,11 +89,20 @@ router.post('/save', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Video URL is required' });
     }
 
-    // Process base64 photo uploads if present
-    const [facePhoto, fullBodyPhoto] = await Promise.all([
-      uploadToLocal(facePhotoUrl, 'faces'),
-      uploadToLocal(fullBodyPhotoUrl, 'fullbody')
+    const cleanVideoUrl = sanitizeIncomingPath(videoUrl);
+    const cleanFacePhotoUrl = sanitizeIncomingPath(facePhotoUrl);
+    const cleanFullBodyPhotoUrl = sanitizeIncomingPath(fullBodyPhotoUrl);
+
+    // Process base64 uploads if present (existing paths remain unchanged)
+    const [finalVideoUrl, facePhoto, fullBodyPhoto] = await Promise.all([
+      uploadToLocal(cleanVideoUrl, 'videos'),
+      uploadToLocal(cleanFacePhotoUrl, 'faces'),
+      uploadToLocal(cleanFullBodyPhotoUrl, 'fullbody')
     ]);
+
+    if (!finalVideoUrl) {
+      return res.status(400).json({ error: 'Failed to process video file' });
+    }
 
     // A. Attach to an existing registered candidate directly
     if (id && source) {
@@ -100,17 +110,32 @@ router.post('/save', async (req: Request, res: Response) => {
         const updated = await prisma.candidate.update({
           where: { id },
           data: { 
-            videoUrl,
+            videoUrl: finalVideoUrl,
             facePhotoUrl: facePhoto || undefined,
             fullBodyPhotoUrl: fullBodyPhoto || undefined,
           },
         });
-        return res.json({ success: true, message: 'Attached to Candidate profile', data: updated });
+        try {
+          await prisma.$executeRawUnsafe(
+            'UPDATE `Candidate` SET `allowVideo` = 1 WHERE `id` = ?',
+            id
+          );
+        } catch (_) {}
+        return res.json({ 
+          success: true, 
+          message: 'Attached to Candidate profile', 
+          data: {
+            ...updated,
+            videoUrl: encryptPath(updated.videoUrl),
+            facePhotoUrl: encryptPath(updated.facePhotoUrl),
+            fullBodyPhotoUrl: encryptPath(updated.fullBodyPhotoUrl)
+          } 
+        });
       } else if (source === 'quickRegistration') {
         // Safe database direct update
         await prisma.$executeRawUnsafe(
-          'UPDATE `QuickRegistration` SET `videoUrl` = ? WHERE `id` = ?',
-          videoUrl,
+          'UPDATE `QuickRegistration` SET `videoUrl` = ?, `allowVideo` = 1 WHERE `id` = ?',
+          finalVideoUrl,
           id
         );
         return res.json({ success: true, message: 'Attached to QuickRegistration record' });
@@ -128,19 +153,28 @@ router.post('/save', async (req: Request, res: Response) => {
     const result = await prisma.preRegisteredVideo.upsert({
       where: { passportNumber: cleanedPassportNumber },
       update: { 
-        videoUrl,
+        videoUrl: finalVideoUrl,
         facePhotoUrl: facePhoto || undefined,
         fullBodyPhotoUrl: fullBodyPhoto || undefined,
       },
       create: { 
         passportNumber: cleanedPassportNumber, 
-        videoUrl,
+        videoUrl: finalVideoUrl,
         facePhotoUrl: facePhoto || null,
         fullBodyPhotoUrl: fullBodyPhoto || null,
       },
     });
 
-    res.json({ success: true, message: 'Pre-registration video & photos saved successfully', data: result });
+    res.json({ 
+      success: true, 
+      message: 'Pre-registration video & photos saved successfully', 
+      data: {
+        ...result,
+        videoUrl: encryptPath(result.videoUrl),
+        facePhotoUrl: encryptPath(result.facePhotoUrl),
+        fullBodyPhotoUrl: encryptPath(result.fullBodyPhotoUrl)
+      } 
+    });
   } catch (error: any) {
     console.error('Error saving video upload record:', error);
     res.status(500).json({ error: error.message || 'Failed to save video record' });
@@ -163,9 +197,9 @@ router.get('/match', async (req: Request, res: Response) => {
       if (matchingVideo) {
         return res.json({
           matchFound: true,
-          videoUrl: matchingVideo.videoUrl,
-          facePhotoUrl: matchingVideo.facePhotoUrl,
-          fullBodyPhotoUrl: matchingVideo.fullBodyPhotoUrl,
+          videoUrl: encryptPath(matchingVideo.videoUrl),
+          facePhotoUrl: encryptPath(matchingVideo.facePhotoUrl),
+          fullBodyPhotoUrl: encryptPath(matchingVideo.fullBodyPhotoUrl),
           matchedName: `PASSPORT: ${matchingVideo.passportNumber}`,
         });
       }
@@ -192,9 +226,9 @@ router.get('/match', async (req: Request, res: Response) => {
       if (matchingVideo) {
         return res.json({
           matchFound: true,
-          videoUrl: matchingVideo.videoUrl,
-          facePhotoUrl: matchingVideo.facePhotoUrl,
-          fullBodyPhotoUrl: matchingVideo.fullBodyPhotoUrl,
+          videoUrl: encryptPath(matchingVideo.videoUrl),
+          facePhotoUrl: encryptPath(matchingVideo.facePhotoUrl),
+          fullBodyPhotoUrl: encryptPath(matchingVideo.fullBodyPhotoUrl),
           matchedName: `PASSPORT: ${matchingVideo.passportNumber}`,
         });
       }
@@ -264,58 +298,47 @@ router.get('/uploaded', async (req: Request, res: Response) => {
       }
     } catch (_) { /* table may not exist */ }
 
-    const isYouTube = (url: string | null | undefined): boolean => {
-      if (!url) return false;
-      const lower = url.toLowerCase();
-      return lower.includes('youtube.com') || lower.includes('youtu.be');
-    };
-
-    // Combine into a unified list, filtering only YouTube video urls
+    // Combine into a unified list, encrypting local URLs
     const results = [
-      ...candidates
-        .filter((c: any) => isYouTube(c.videoUrl))
-        .map((c: any) => ({
-          id: c.id,
-          fullName: `${c.givenNames} ${c.surname}`.trim().toUpperCase(),
-          passportNumber: c.passportNumber || '',
-          nationality: c.nationality || '',
-          videoUrl: c.videoUrl,
-          facePhotoUrl: c.facePhotoUrl || null,
-          fullBodyPhotoUrl: c.fullBodyPhotoUrl || null,
-          date: c.registeredAt?.toISOString() || '',
-          source: 'candidate' as const,
-        })),
-      ...qrRows
-        .filter((r: any) => isYouTube(r.videoUrl))
-        .map((r: any) => ({
-          id: r.id,
-          fullName: `${r.givenNames || ''} ${r.surname || ''}`.trim().toUpperCase(),
-          passportNumber: r.passportNumber || '',
-          nationality: r.nationality || '',
-          videoUrl: r.videoUrl,
-          facePhotoUrl: null,
-          fullBodyPhotoUrl: null,
-          date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
-          source: 'quickRegistration' as const,
-        })),
-      ...preRegs
-        .filter((p: any) => isYouTube(p.videoUrl))
-        .map((p: any) => ({
-          id: p.id,
-          fullName: `PASSPORT: ${p.passportNumber || ''}`,
-          passportNumber: p.passportNumber || '',
-          nationality: '',
-          videoUrl: p.videoUrl,
-          facePhotoUrl: p.facePhotoUrl || null,
-          fullBodyPhotoUrl: p.fullBodyPhotoUrl || null,
-          date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
-          source: 'preRegistered' as const,
-        })),
+      ...candidates.map((c: any) => ({
+        id: c.id,
+        fullName: `${c.givenNames} ${c.surname}`.trim().toUpperCase(),
+        passportNumber: c.passportNumber || '',
+        nationality: c.nationality || '',
+        videoUrl: encryptPath(c.videoUrl),
+        facePhotoUrl: encryptPath(c.facePhotoUrl),
+        fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
+        date: c.registeredAt?.toISOString() || '',
+        source: 'candidate' as const,
+      })),
+      ...qrRows.map((r: any) => ({
+        id: r.id,
+        fullName: `${r.givenNames || ''} ${r.surname || ''}`.trim().toUpperCase(),
+        passportNumber: r.passportNumber || '',
+        nationality: r.nationality || '',
+        videoUrl: encryptPath(r.videoUrl),
+        facePhotoUrl: null,
+        fullBodyPhotoUrl: null,
+        date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
+        source: 'quickRegistration' as const,
+      })),
+      ...preRegs.map((p: any) => ({
+        id: p.id,
+        fullName: `PASSPORT: ${p.passportNumber || ''}`,
+        passportNumber: p.passportNumber || '',
+        nationality: '',
+        videoUrl: encryptPath(p.videoUrl),
+        facePhotoUrl: encryptPath(p.facePhotoUrl),
+        fullBodyPhotoUrl: encryptPath(p.fullBodyPhotoUrl),
+        date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
+        source: 'preRegistered' as const,
+      })),
     ];
 
     // De-duplicate by videoUrl
     const seen = new Set<string>();
     const unique = results.filter(r => {
+      if (!r.videoUrl) return false;
       if (seen.has(r.videoUrl)) return false;
       seen.add(r.videoUrl);
       return true;
@@ -338,23 +361,25 @@ router.put('/:source/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Video URL is required' });
     }
 
+    const sanitizedVideoUrl = sanitizeIncomingPath(videoUrl);
+
     if (source === 'candidate') {
       await prisma.candidate.update({
         where: { id },
-        data: { videoUrl },
+        data: { videoUrl: sanitizedVideoUrl },
       });
       return res.json({ success: true, message: 'Candidate video updated successfully' });
     } else if (source === 'quickRegistration') {
       await prisma.$executeRawUnsafe(
         'UPDATE `QuickRegistration` SET `videoUrl` = ? WHERE `id` = ?',
-        videoUrl,
+        sanitizedVideoUrl,
         id
       );
       return res.json({ success: true, message: 'Quick registration video updated successfully' });
     } else if (source === 'preRegistered') {
       await prisma.preRegisteredVideo.update({
         where: { id },
-        data: { videoUrl },
+        data: { videoUrl: sanitizedVideoUrl },
       });
       return res.json({ success: true, message: 'Pre-registered video updated successfully' });
     }

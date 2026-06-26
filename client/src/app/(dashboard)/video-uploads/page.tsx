@@ -298,14 +298,7 @@ export default function VideoUploadsPage() {
     // Validate inputs
     const finalUrl = videoUrl.trim();
     if (!finalUrl) {
-      setMessage({ type: 'error', text: 'Please enter a valid YouTube Video URL' });
-      return;
-    }
-
-    // YouTube regex validation
-    const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
-    if (!ytRegex.test(finalUrl)) {
-      setMessage({ type: 'error', text: 'Invalid URL. Please enter a valid YouTube video link' });
+      setMessage({ type: 'error', text: 'Please upload a video file first' });
       return;
     }
 
@@ -347,8 +340,8 @@ export default function VideoUploadsPage() {
         setMessage({
           type: 'success',
           text: selectedCandidate
-            ? `Successfully attached YouTube video to registered candidate "${selectedCandidate.fullName}" (${selectedCandidate.passportNumber})!`
-            : `Successfully pre-registered video for passport "${trimmedPassport}"!`,
+            ? `Successfully uploaded and attached video to candidate "${selectedCandidate.fullName}" (${selectedCandidate.passportNumber})!`
+            : `Successfully uploaded and pre-registered video for passport "${trimmedPassport}"!`,
         });
 
         // Reset state
@@ -360,7 +353,7 @@ export default function VideoUploadsPage() {
       } else {
         setMessage({
           type: 'error',
-          text: resData.error || 'Failed to save video URL. Please try again.',
+          text: resData.error || 'Failed to save video. Please try again.',
         });
       }
     } catch (err: any) {
@@ -374,14 +367,14 @@ export default function VideoUploadsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+    <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">Video Uploads Portal</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Attach YouTube interview videos & photos directly to candidates or buffer them prior to registration.
+            Upload interview videos & photos directly to candidates or buffer them prior to registration.
           </p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full text-rose-700 text-xs font-semibold self-start">
@@ -390,413 +383,357 @@ export default function VideoUploadsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-2xl shadow-sm p-6 space-y-6 relative overflow-visible">
 
-        {/* Portal Form Section */}
-        <div className="lg:col-span-2 space-y-6">
-          <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-2xl shadow-sm p-6 space-y-6 relative overflow-visible">
+          {/* Form Section 1: Identify Candidate by Passport Number */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">1</span>
+              <h3 className="text-base font-semibold text-text-primary">Identify Candidate</h3>
+            </div>
 
-            {/* Form Section 1: Identify Candidate by Passport Number */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">1</span>
-                <h3 className="text-base font-semibold text-text-primary">Identify Candidate</h3>
-              </div>
-
-              {/* Passport Scanner Panel */}
-              <div className="bg-lavender-dark/10 border border-primary/10 rounded-2xl p-5 mb-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ScanLine className="text-primary animate-pulse" size={18} />
-                    <h4 className="text-sm font-bold text-text-primary">Passport OCR Scanner</h4>
-                  </div>
-                  {passportImage && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPassportImage(null);
-                        setOcrProgress(0);
-                        setIsScanning(false);
-                        setScanError(null);
-                      }}
-                      className="text-xs font-semibold text-red-600 hover:underline"
-                    >
-                      Reset Scanner
-                    </button>
-                  )}
+            {/* Passport Scanner Panel */}
+            <div className="bg-lavender-dark/10 border border-primary/10 rounded-2xl p-5 mb-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ScanLine className="text-primary animate-pulse" size={18} />
+                  <h4 className="text-sm font-bold text-text-primary">Passport OCR Scanner</h4>
                 </div>
-
-                {/* Camera / Upload buttons */}
-                {!isCameraActive && !passportImage && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary-50/20 text-xs font-semibold text-primary cursor-pointer transition-all duration-150">
-                      <Upload size={14} />
-                      Import Passport Image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              if (ev.target?.result) {
-                                performOCR(ev.target.result as string);
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={startCamera}
-                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary-50/20 text-xs font-semibold text-primary transition-all duration-150 cursor-pointer"
-                    >
-                      <Camera size={14} />
-                      Take Live Photo
-                    </button>
-                  </div>
-                )}
-
-                {/* Webcam Stream Area */}
-                {isCameraActive && (
-                  <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3] max-w-md mx-auto border-2 border-primary">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-4 border border-dashed border-white/50 rounded-lg pointer-events-none flex items-center justify-center">
-                      <div className="text-[10px] text-white/70 bg-black/40 px-2 py-1 rounded">Align Passport MRZ inside frame</div>
-                    </div>
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={captureSnapshot}
-                        className="px-4 py-2 bg-primary hover:bg-primary/95 text-white text-xs font-semibold rounded-lg shadow cursor-pointer active:scale-95 transition-transform"
-                      >
-                        Capture Snapshot
-                      </button>
-                      <button
-                        type="button"
-                        onClick={stopCamera}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold rounded-lg shadow cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Scanned Image and Progress Indicator */}
                 {passportImage && (
-                  <div className="relative rounded-xl overflow-hidden border border-border bg-gray-50 p-4 flex flex-col items-center gap-3">
-                    <div className="relative w-full max-w-[200px] aspect-[3/2] overflow-hidden rounded border border-border">
-                      <img src={passportImage} alt="Scanned passport" className="w-full h-full object-contain" />
-                      {isScanning && <div className="scan-animation absolute inset-0" />}
-                    </div>
-                    {isScanning && (
-                      <div className="w-full max-w-xs space-y-1">
-                        <div className="flex justify-between text-[10px] text-text-secondary font-medium">
-                          <span>Reading passport data...</span>
-                          <span>{Math.round(ocrProgress)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
-                          <div className="bg-primary h-full transition-all duration-300" style={{ width: `${ocrProgress}%` }} />
-                        </div>
-                      </div>
-                    )}
-                    {!isScanning && (
-                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
-                        <CheckCircle size={14} /> Scan Complete & Extracted!
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {scanError && (
-                  <div className="text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-100">
-                    {scanError}
-                  </div>
-                )}
-              </div>
-
-              {/* Passport Number Search input */}
-              <div className="relative" ref={dropdownRef}>
-                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                  Passport Number
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="Type passport number to search or pre-register..."
-                    value={passportNumber}
-                    onChange={(e) => {
-                      setPassportNumber(e.target.value.toUpperCase());
-                      if (selectedCandidate) handleClearSelection();
-                    }}
-                    disabled={!!selectedCandidate}
-                    className="pr-10"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-text-tertiary">
-                    {isSearching ? (
-                      <RefreshCw size={16} className="animate-spin text-primary" />
-                    ) : (
-                      <Search size={16} />
-                    )}
-                  </div>
-                </div>
-
-                {/* Autocomplete dropdown list */}
-                {showDropdown && (
-                  <div className="absolute left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto divide-y divide-border/50 animate-dropdown">
-                    {searchResults.map((c) => (
-                      <button
-                        key={`${c.source}-${c.id}`}
-                        type="button"
-                        onClick={() => handleSelectCandidate(c)}
-                        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-primary-50/50 transition-colors duration-150 group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-text-secondary overflow-hidden border border-border">
-                            {c.passportImageUrl ? (
-                              <img src={c.passportImageUrl} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <User size={16} />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors">
-                              {c.passportNumber}
-                            </p>
-                            <p className="text-xs text-text-tertiary">
-                              {c.fullName} • {c.nationality}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                            c.source === 'candidate'
-                              ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
-                              : "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                          )}>
-                            {c.source === 'candidate' ? 'Full candidate' : 'Entry Record'}
-                          </span>
-                          <ChevronRight size={14} className="text-text-tertiary group-hover:text-primary transition-transform duration-150 group-hover:translate-x-0.5" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Selected Candidate Badge */}
-              {selectedCandidate && (
-                <div className="flex items-center justify-between p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-xl animate-scale-pop">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="text-indigo-600 shrink-0" size={18} />
-                    <div>
-                      <p className="text-xs font-bold text-indigo-900">LINKED CANDIDATE ACTIVE</p>
-                      <p className="text-sm font-semibold text-indigo-950 mt-0.5">
-                        {selectedCandidate.passportNumber} — {selectedCandidate.fullName}
-                      </p>
-                    </div>
-                  </div>
                   <button
                     type="button"
-                    onClick={handleClearSelection}
-                    className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider shrink-0 ml-4 hover:underline"
+                    onClick={() => {
+                      setPassportImage(null);
+                      setOcrProgress(0);
+                      setIsScanning(false);
+                      setScanError(null);
+                    }}
+                    className="text-xs font-semibold text-red-600 hover:underline"
                   >
-                    Change
+                    Reset Scanner
+                  </button>
+                )}
+              </div>
+
+              {/* Camera / Upload buttons */}
+              {!isCameraActive && !passportImage && (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary-50/20 text-xs font-semibold text-primary cursor-pointer transition-all duration-150">
+                    <Upload size={14} />
+                    Import Passport Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            if (ev.target?.result) {
+                              performOCR(ev.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary-50/20 text-xs font-semibold text-primary transition-all duration-150 cursor-pointer"
+                  >
+                    <Camera size={14} />
+                    Take Live Photo
                   </button>
                 </div>
               )}
 
-              {/* Manual Entry Hint */}
-              {!selectedCandidate && passportNumber.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
-                <div className="flex items-center gap-2 p-3 bg-amber-50/60 border border-amber-100 rounded-xl text-xs text-amber-800 animate-fade-in">
-                  <PlusCircle size={14} className="text-amber-600 shrink-0" />
-                  <span>
-                    No matching candidate found. <strong>"{passportNumber.trim().toUpperCase()}"</strong> will be pre-registered when you submit.
-                  </span>
+              {/* Webcam Stream Area */}
+              {isCameraActive && (
+                <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3] max-w-md mx-auto border-2 border-primary">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-4 border border-dashed border-white/50 rounded-lg pointer-events-none flex items-center justify-center">
+                    <div className="text-[10px] text-white/70 bg-black/40 px-2 py-1 rounded">Align Passport MRZ inside frame</div>
+                  </div>
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={captureSnapshot}
+                      className="px-4 py-2 bg-primary hover:bg-primary/95 text-white text-xs font-semibold rounded-lg shadow cursor-pointer active:scale-95 transition-transform"
+                    >
+                      Capture Snapshot
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold rounded-lg shadow cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Scanned Image and Progress Indicator */}
+              {passportImage && (
+                <div className="relative rounded-xl overflow-hidden border border-border bg-gray-50 p-4 flex flex-col items-center gap-3">
+                  <div className="relative w-full max-w-[200px] aspect-[3/2] overflow-hidden rounded border border-border">
+                    <img src={passportImage} alt="Scanned passport" className="w-full h-full object-contain" />
+                    {isScanning && <div className="scan-animation absolute inset-0" />}
+                  </div>
+                  {isScanning && (
+                    <div className="w-full max-w-xs space-y-1">
+                      <div className="flex justify-between text-[10px] text-text-secondary font-medium">
+                        <span>Reading passport data...</span>
+                        <span>{Math.round(ocrProgress)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+                        <div className="bg-primary h-full transition-all duration-300" style={{ width: `${ocrProgress}%` }} />
+                      </div>
+                    </div>
+                  )}
+                  {!isScanning && (
+                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
+                      <CheckCircle size={14} /> Scan Complete & Extracted!
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {scanError && (
+                <div className="text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-100">
+                  {scanError}
                 </div>
               )}
             </div>
 
-            {/* Form Section 2: YouTube Video Link */}
-            <div className="space-y-4 border-t border-border pt-6">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">2</span>
-                <h3 className="text-base font-semibold text-text-primary">Insert YouTube Video URL</h3>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                  YouTube Video Link
-                </label>
-                <div className="relative">
-                  <Input
-                    placeholder="e.g. https://www.youtube.com/watch?v=..."
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    className="pr-10"
-                  />
-                  <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
-                </div>
-              </div>
-            </div>
-
-            {/* Form Section 3: Photo Uploads */}
-            <div className="space-y-4 border-t border-border pt-6">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">3</span>
-                <h3 className="text-base font-semibold text-text-primary">Upload Photos <span className="text-text-tertiary font-normal text-sm">(Optional)</span></h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Face Photo */}
-                <div className="space-y-2">
-                  <FileUpload
-                    label="Face Photo"
-                    shape="circle"
-                    preview={facePhotoBase64}
-                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoBase64(base64))}
-                    onClear={() => setFacePhotoBase64(null)}
-                    helperText="Circle crop — Max 50MB"
-                  />
-                  {facePhotoBase64 && (
-                    <button
-                      type="button"
-                      onClick={() => setViewingImage({ url: facePhotoBase64!, title: 'Face Photo' })}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
-                    >
-                      <Eye size={14} /> View Full Image
-                    </button>
-                  )}
-                </div>
-
-                {/* Full Body Photo */}
-                <div className="space-y-2">
-                  <FileUpload
-                    label="Full Body Photo"
-                    shape="rect"
-                    compact
-                    preview={fullBodyPhotoBase64}
-                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFullBodyPhotoBase64(base64))}
-                    onClear={() => setFullBodyPhotoBase64(null)}
-                    helperText="Rectangle — Max 50MB"
-                  />
-                  {fullBodyPhotoBase64 && (
-                    <button
-                      type="button"
-                      onClick={() => setViewingImage({ url: fullBodyPhotoBase64!, title: 'Full Body Photo' })}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
-                    >
-                      <Eye size={14} /> View Full Image
-                    </button>
+            {/* Passport Number Search input */}
+            <div className="relative" ref={dropdownRef}>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+                Passport Number
+              </label>
+              <div className="relative">
+                <Input
+                  placeholder="Type passport number to search or pre-register..."
+                  value={passportNumber}
+                  onChange={(e) => {
+                    setPassportNumber(e.target.value.toUpperCase());
+                    if (selectedCandidate) handleClearSelection();
+                  }}
+                  disabled={!!selectedCandidate}
+                  className="pr-10"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-text-tertiary">
+                  {isSearching ? (
+                    <RefreshCw size={16} className="animate-spin text-primary" />
+                  ) : (
+                    <Search size={16} />
                   )}
                 </div>
               </div>
+
+              {/* Autocomplete dropdown list */}
+              {showDropdown && (
+                <div className="absolute left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto divide-y divide-border/50 animate-dropdown">
+                  {searchResults.map((c) => (
+                    <button
+                      key={`${c.source}-${c.id}`}
+                      type="button"
+                      onClick={() => handleSelectCandidate(c)}
+                      className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-primary-50/50 transition-colors duration-150 group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-text-secondary overflow-hidden border border-border">
+                          {c.passportImageUrl ? (
+                            <img src={getFileUrl(c.passportImageUrl)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={16} />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors">
+                            {c.passportNumber}
+                          </p>
+                          <p className="text-xs text-text-tertiary">
+                            {c.fullName} • {c.nationality}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                          "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
+                          c.source === 'candidate'
+                            ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                            : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                        )}>
+                          {c.source === 'candidate' ? 'Full candidate' : 'Entry Record'}
+                        </span>
+                        <ChevronRight size={14} className="text-text-tertiary group-hover:text-primary transition-transform duration-150 group-hover:translate-x-0.5" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Alert / Notification Feedback */}
-            {message && (
-              <div className={cn(
-                "p-4 rounded-xl text-sm border animate-scale-pop flex items-start gap-2.5",
-                message.type === 'success'
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-100"
-                  : "bg-red-50 text-red-800 border-red-100"
-              )}>
-                {message.type === 'success' ? (
-                  <CheckCircle className="text-emerald-600 shrink-0 mt-0.5" size={18} />
-                ) : (
-                  <HelpCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
-                )}
-                <p className="font-medium leading-relaxed">{message.text}</p>
+            {/* Selected Candidate Badge */}
+            {selectedCandidate && (
+              <div className="flex items-center justify-between p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-xl animate-scale-pop">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="text-indigo-600 shrink-0" size={18} />
+                  <div>
+                    <p className="text-xs font-bold text-indigo-900">LINKED CANDIDATE ACTIVE</p>
+                    <p className="text-sm font-semibold text-indigo-950 mt-0.5">
+                      {selectedCandidate.passportNumber} — {selectedCandidate.fullName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider shrink-0 ml-4 hover:underline"
+                >
+                  Change
+                </button>
               </div>
             )}
 
-            {/* Submit Action */}
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={cn(
-                  "w-full py-3 px-4 rounded-xl font-semibold text-sm text-white shadow-sm flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer",
-                  isSubmitting
-                    ? "bg-primary/70 cursor-not-allowed"
-                    : "bg-primary hover:bg-primary/95 active:scale-[0.98] hover:shadow-md"
-                )}
-              >
-                {isSubmitting ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    Saving Video & Photos...
-                  </>
-                ) : (
-                  <>
-                    <FileVideo size={16} />
-                    Push Video & Photos to Database
-                  </>
-                )}
-              </button>
+            {/* Manual Entry Hint */}
+            {!selectedCandidate && passportNumber.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
+              <div className="flex items-center gap-2 p-3 bg-amber-50/60 border border-amber-100 rounded-xl text-xs text-amber-800 animate-fade-in">
+                <PlusCircle size={14} className="text-amber-600 shrink-0" />
+                <span>
+                  No matching candidate found. <strong>"{passportNumber.trim().toUpperCase()}"</strong> will be pre-registered when you submit.
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Form Section 2: Upload Video File */}
+          <div className="space-y-4 border-t border-border pt-6">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">2</span>
+              <h3 className="text-base font-semibold text-text-primary">Upload Video File</h3>
             </div>
-          </form>
-        </div>
 
-        {/* Portal Guidelines Card */}
-        <div className="space-y-6">
-
-          {/* Quick Guide Card */}
-          <div className="bg-surface border border-border rounded-2xl p-5 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
-              Uploader Quick Guidelines
-            </h3>
-
-            <ul className="space-y-3.5 text-xs text-text-secondary leading-relaxed">
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                <span>
-                  <strong>Search by Passport Number</strong>: Type the candidate's passport number in Step 1. If they appear in the search dropdown, click to link them directly.
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                <span>
-                  <strong>Pre-Registration Fallback</strong>: If the candidate isn't registered yet, type their passport number manually. The recruiter's scanner will auto-match and link the video & photos during registration.
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                <span>
-                  <strong>Photo Uploads</strong>: Optionally upload a face photo and full body photo. These will be auto-filled into the registration form when the passport number matches.
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                <span>
-                  <strong>YouTube URL syntax</strong>: Copy the direct link from your browser URL bar or click Share on YouTube.
-                </span>
-              </li>
-            </ul>
-
-            <div className="border-t border-border/60 pt-4 flex justify-between items-center text-xs text-text-tertiary">
-              <span>Need help? Contact Admin</span>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-primary hover:underline font-medium"
-              >
-                Go to YouTube <ExternalLink size={12} />
-              </a>
+            <div>
+              <FileUpload
+                label="Candidate Video"
+                shape="rect"
+                compact
+                accept="video/*"
+                preview={videoUrl ? getFileUrl(videoUrl) : null}
+                onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64))}
+                onClear={() => setVideoUrl('')}
+                helperText="Supports MP4, WebM, MOV — Max 50MB"
+              />
             </div>
           </div>
-        </div>
+
+          {/* Form Section 3: Photo Uploads */}
+          <div className="space-y-4 border-t border-border pt-6">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-50 text-primary text-xs font-bold">3</span>
+              <h3 className="text-base font-semibold text-text-primary">Upload Photos <span className="text-text-tertiary font-normal text-sm">(Optional)</span></h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Face Photo */}
+              <div className="space-y-2">
+                <FileUpload
+                  label="Face Photo"
+                  shape="circle"
+                  preview={facePhotoBase64}
+                  onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoBase64(base64))}
+                  onClear={() => setFacePhotoBase64(null)}
+                  helperText="Circle crop — Max 50MB"
+                />
+                {facePhotoBase64 && (
+                  <button
+                    type="button"
+                    onClick={() => setViewingImage({ url: facePhotoBase64!, title: 'Face Photo' })}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
+                  >
+                    <Eye size={14} /> View Full Image
+                  </button>
+                )}
+              </div>
+
+              {/* Full Body Photo */}
+              <div className="space-y-2">
+                <FileUpload
+                  label="Full Body Photo"
+                  shape="rect"
+                  compact
+                  preview={fullBodyPhotoBase64}
+                  onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFullBodyPhotoBase64(base64))}
+                  onClear={() => setFullBodyPhotoBase64(null)}
+                  helperText="Rectangle — Max 50MB"
+                />
+                {fullBodyPhotoBase64 && (
+                  <button
+                    type="button"
+                    onClick={() => setViewingImage({ url: fullBodyPhotoBase64!, title: 'Full Body Photo' })}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary-dark transition-colors"
+                  >
+                    <Eye size={14} /> View Full Image
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Alert / Notification Feedback */}
+          {message && (
+            <div className={cn(
+              "p-4 rounded-xl text-sm border animate-scale-pop flex items-start gap-2.5",
+              message.type === 'success'
+                ? "bg-emerald-50 text-emerald-800 border-emerald-100"
+                : "bg-red-50 text-red-800 border-red-100"
+            )}>
+              {message.type === 'success' ? (
+                <CheckCircle className="text-emerald-600 shrink-0 mt-0.5" size={18} />
+              ) : (
+                <HelpCircle className="text-red-600 shrink-0 mt-0.5" size={18} />
+              )}
+              <p className="font-medium leading-relaxed">{message.text}</p>
+            </div>
+          )}
+
+          {/* Submit Action */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={cn(
+                "w-full py-3 px-4 rounded-xl font-semibold text-sm text-white shadow-sm flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer",
+                isSubmitting
+                  ? "bg-primary/70 cursor-not-allowed"
+                  : "bg-primary hover:bg-primary/95 active:scale-[0.98] hover:shadow-md"
+              )}
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  Saving Video & Photos...
+                </>
+              ) : (
+                <>
+                  <FileVideo size={16} />
+                  Push Video & Photos to Database
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Image View Modal */}

@@ -76,13 +76,22 @@ app.all('/api/auth/*', express.text({ type: '*/*', limit: '50mb' }), async (req,
 app.use(express.json({ limit: '80mb' }));
 app.use(express.urlencoded({ extended: true, limit: '80mb' }));
 
+import { decryptPath } from './lib/crypto';
+
 // Static files
 app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
 
 // UNBLOCKABLE ASSET PROXY (Fixes cPanel CORS issues)
 app.get('/api/assets/*', (req: Request, res: Response) => {
-  const assetPath = (req.params as any)[0];
-  const fullPath = path.join(process.cwd(), 'public', assetPath);
+  let assetPath = (req.params as any)[0] || '';
+  
+  if (assetPath.startsWith('ENC-')) {
+    assetPath = decryptPath(assetPath);
+  }
+  
+  // Strip leading slash to prevent joining issues
+  const cleanAssetPath = assetPath.startsWith('/') ? assetPath.substring(1) : assetPath;
+  const fullPath = path.join(process.cwd(), 'public', cleanAssetPath);
   
   if (fs.existsSync(fullPath)) {
     res.setHeader('Access-Control-Allow-Origin', '*');

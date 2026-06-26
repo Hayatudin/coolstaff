@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -54,6 +54,42 @@ export default function CandidatesPage() {
 
   const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
   const [isSettingAgency, setIsSettingAgency] = useState(false);
+
+  const [insertVideoModalId, setInsertVideoModalId] = useState<string | null>(null);
+  const [insertVideoInput, setInsertVideoInput] = useState('');
+  const [isSavingVideo, setIsSavingVideo] = useState(false);
+
+  const handleSaveVideoPath = async () => {
+    if (!insertVideoModalId) return;
+    setIsSavingVideo(true);
+    try {
+      const res = await api(`/api/candidates/${insertVideoModalId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          videoUrl: insertVideoInput.trim(),
+          allowVideo: true
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save video path');
+      }
+      setCandidates(prev => prev.map(c => c.id === insertVideoModalId ? {
+        ...c,
+        videoUrl: insertVideoInput.trim(),
+        allowVideo: true
+      } : c));
+      setInsertVideoModalId(null);
+      setInsertVideoInput('');
+      // Trigger refresh
+      window.dispatchEvent(new Event('app-refresh'));
+    } catch (err: any) {
+      alert(err.message || 'Failed to save video path');
+    } finally {
+      setIsSavingVideo(false);
+    }
+  };
 
   const handleSetAgency = async (candidateId: string, templateId: string) => {
     setIsSettingAgency(true);
@@ -616,6 +652,10 @@ export default function CandidatesPage() {
                               <Edit3 size={16} className="text-text-tertiary" />
                               <span>Edit</span>
                             </button>
+                            <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setInsertVideoModalId(candidate.id); setInsertVideoInput(candidate.videoUrl || ''); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left">
+                              <Video size={16} className="text-text-tertiary" />
+                              <span>Insert Video</span>
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); toggleFlag(candidate.id, candidate.isFlagged || false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left">
                               <Flag size={16} className={candidate.isFlagged ? "text-red-500 fill-red-500" : "text-text-tertiary"} />
                               <span className={candidate.isFlagged ? "text-red-600 font-medium" : "text-text-primary"}>
@@ -803,6 +843,43 @@ export default function CandidatesPage() {
           </div>
         );
       })()}
+
+      {/* Insert Video Modal */}
+      {insertVideoModalId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setInsertVideoModalId(null)}>
+          <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+              <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                <Video className="text-primary" size={20} /> Insert Video Path / URL
+              </h3>
+              <button onClick={() => setInsertVideoModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-semibold text-text-primary mb-2">Paste copied video path or token here:</label>
+              <Input 
+                autoFocus
+                placeholder="e.g. ENC-xxxx or http://..." 
+                value={insertVideoInput} 
+                onChange={(e) => setInsertVideoInput(e.target.value)} 
+                className="w-full"
+              />
+            </div>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setInsertVideoModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                Cancel
+              </button>
+              <button 
+                disabled={isSavingVideo || !insertVideoInput.trim()}
+                onClick={handleSaveVideoPath}
+                className="px-6 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSavingVideo ? <Loader2 size={13} className="animate-spin" /> : null}
+                Save Video
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
