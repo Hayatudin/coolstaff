@@ -181,17 +181,17 @@ export default function VideoUploadsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ocrText }),
       });
-      
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to parse passport data');
-      
+
       setOcrProgress(100);
       setIsScanning(false);
 
       if (data.passportNumber) {
         const pNum = data.passportNumber.toUpperCase();
         setPassportNumber(pNum);
-        
+
         // Auto check if candidate is registered
         setIsSearching(true);
         try {
@@ -306,18 +306,18 @@ export default function VideoUploadsPage() {
 
     const payload = selectedCandidate
       ? {
-          id: selectedCandidate.id,
-          source: selectedCandidate.source,
-          videoUrl: finalUrl,
-          facePhotoUrl: facePhotoBase64 || undefined,
-          fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
-        }
+        id: selectedCandidate.id,
+        source: selectedCandidate.source,
+        videoUrl: finalUrl,
+        facePhotoUrl: facePhotoBase64 || undefined,
+        fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
+      }
       : {
-          passportNumber: trimmedPassport,
-          videoUrl: finalUrl,
-          facePhotoUrl: facePhotoBase64 || undefined,
-          fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
-        };
+        passportNumber: trimmedPassport,
+        videoUrl: finalUrl,
+        facePhotoUrl: facePhotoBase64 || undefined,
+        fullBodyPhotoUrl: fullBodyPhotoBase64 || undefined,
+      };
 
     if (!selectedCandidate && !trimmedPassport) {
       setMessage({ type: 'error', text: 'Please enter a passport number or select a candidate from the dropdown' });
@@ -728,7 +728,7 @@ export default function VideoUploadsPage() {
               ) : (
                 <>
                   <FileVideo size={16} />
-                  Push Video & Photos to Database
+                  Push Video
                 </>
               )}
             </button>
