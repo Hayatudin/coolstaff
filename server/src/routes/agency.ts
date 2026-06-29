@@ -299,41 +299,73 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
     }
 
     const { agency } = req.query;
+    
+    // Fetch all passportNumbers from UploadedVideoProfile table
+    let uploadedPassportList: string[] = [];
+    try {
+      const rows = await prisma.$queryRawUnsafe<{ passportNumber: string }[]>(
+        "SELECT `passportNumber` FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != ''"
+      );
+      uploadedPassportList = rows.map(r => r.passportNumber.trim().toUpperCase());
+    } catch (_) {}
+
+    const baseOrConditions: any[] = [
+      {
+        generatedCVs: {
+          some: {}
+        }
+      }
+    ];
+
+    if (uploadedPassportList.length > 0) {
+      baseOrConditions.push({
+        passportNumber: {
+          in: uploadedPassportList
+        }
+      });
+    }
+
     const queryConditions: any = {
       agencySelected: false,
-      generatedCVs: {
-        some: {}
-      }
+      OR: baseOrConditions
     };
- 
+
     if (role === 'agency') {
       const agencyStr = agencyName!.toLowerCase();
-      queryConditions.OR = [
-        { agency: agencyStr },
+      queryConditions.AND = [
         {
-          generatedCVs: {
-            some: {
-              templateId: {
-                contains: agencyStr
+          OR: [
+            { agency: agencyStr },
+            {
+              generatedCVs: {
+                some: {
+                  templateId: {
+                    contains: agencyStr
+                  }
+                }
               }
             }
-          }
+          ]
         }
       ];
     } else {
       // super_admin
       if (agency && agency !== 'all') {
         const agencyStr = String(agency).toLowerCase();
-        queryConditions.OR = [
-          { agency: agencyStr },
+        queryConditions.AND = [
           {
-            generatedCVs: {
-              some: {
-                templateId: {
-                  contains: agencyStr
+            OR: [
+              { agency: agencyStr },
+              {
+                generatedCVs: {
+                  some: {
+                    templateId: {
+                      contains: agencyStr
+                    }
+                  }
                 }
               }
-            }
+            ]
           }
         ];
       }
@@ -352,7 +384,7 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
     } catch (findErr: any) {
       console.warn('[AGENCY] prisma.candidate.findMany failed for available candidates, trying raw SQL fallback:', findErr.message || findErr);
       
-      let sqlQuery = 'SELECT c.*, b.name as brokerName FROM `Candidate` c LEFT JOIN `Broker` b ON c.brokerId = b.id WHERE c.`agencySelected` = 0 AND c.`id` IN (SELECT DISTINCT `candidateId` FROM `GeneratedCV`)';
+      let sqlQuery = 'SELECT c.*, b.name as brokerName FROM `Candidate` c LEFT JOIN `Broker` b ON c.brokerId = b.id WHERE c.`agencySelected` = 0 AND (c.`id` IN (SELECT DISTINCT `candidateId` FROM `GeneratedCV`) OR UPPER(c.`passportNumber`) IN (SELECT DISTINCT UPPER(`passportNumber`) FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != \'\'))';
       const sqlParams: any[] = [];
       const whereClauses: string[] = [];
       
@@ -391,7 +423,26 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
       }
     }
 
+    // Fetch all profiles from UploadedVideoProfile to map them easily
+    let videoProfileMap = new Map<string, any>();
+    try {
+      const profiles: any[] = await prisma.$queryRawUnsafe(
+        'SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != \'\''
+      );
+      for (const p of profiles) {
+        videoProfileMap.set(p.passportNumber.trim().toUpperCase(), p);
+      }
+    } catch (_) {}
+
     res.json(dbCandidates.map((c: any) => {
+      const pNum = (c.passportNumber || '').trim().toUpperCase();
+      const profile = videoProfileMap.get(pNum);
+      
+      const videoUrlVal = profile ? profile.videoUrl : (c.videoUrl || (c as any).Youtube_URL || null);
+      const facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
+      const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
+      const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true || !!c.videoUrl);
+
       return {
         id: c.id,
         givenNames: c.givenNames,
@@ -413,17 +464,17 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         job: c.job,
         city: c.city,
         dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString() : null,
-        videoUrl: encryptPath(c.videoUrl || (c as any).Youtube_URL || null) || null,
+        videoUrl: encryptPath(videoUrlVal) || null,
         registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : null,
-        facePhotoUrl: c.facePhotoUrl,
-        fullBodyPhotoUrl: c.fullBodyPhotoUrl,
-        passportImageUrl: c.passportImageUrl,
+        facePhotoUrl: encryptPath(facePhotoUrlVal) || null,
+        fullBodyPhotoUrl: encryptPath(fullBodyPhotoUrlVal) || null,
+        passportImageUrl: encryptPath(c.passportImageUrl) || null,
         nationality: c.nationality,
         educationLevel: c.educationLevel,
         maritalStatus: c.maritalStatus,
         workExperience: c.workExperience,
         skills: c.skills,
-        allowVideo: c.allowVideo ?? false,
+        allowVideo: allowVideoVal,
         visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null
       };
     }));

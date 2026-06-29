@@ -117,10 +117,15 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     const candidate = await prisma.candidate.findUnique({
       where: { id: candidateId },
+      include: { broker: true }
     });
 
     if (!candidate) {
       return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    if (candidate.broker?.name === 'Calling') {
+      return res.status(400).json({ error: 'CV is not available for Calling candidates.' });
     }
 
     let candidateIsLocked = false;
@@ -458,7 +463,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
           where: { 
             id: { in: candidateIds }
           },
-          include: { generatedCVs: true }
+          include: { generatedCVs: true, broker: true }
         });
 
         // Query candidate lock states via raw SQL to bypass stale Prisma Client
@@ -476,7 +481,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
           console.warn('[CV] Failed to fetch bulk isLocked map:', e);
         }
 
-        const candidates = dbCandidates.filter(c => !lockedIds.has(c.id));
+        const candidates = dbCandidates.filter(c => !lockedIds.has(c.id) && c.broker?.name !== 'Calling');
 
         if (format === 'doc' || format === 'docx') {
           const BATCH_SIZE = 20;
@@ -891,7 +896,7 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
       console.warn('[CV] Failed to fetch candidates-batch isLocked map:', e);
     }
 
-    const candidates = dbCandidates.filter(c => !lockedIds.has(c.id));
+    const candidates = dbCandidates.filter(c => !lockedIds.has(c.id) && c.broker?.name !== 'Calling');
 
     const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
 

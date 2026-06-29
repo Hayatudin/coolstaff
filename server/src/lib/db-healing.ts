@@ -666,5 +666,48 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Auto-backfill of QuickRegistration registeredById failed:', backfillErr.message || backfillErr);
   }
 
+  // 13. Create UploadedVideoProfile table automatically if it doesn't exist
+  try {
+    console.log('🔄 Checking/Creating UploadedVideoProfile table...');
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`UploadedVideoProfile\` (
+        \`id\` VARCHAR(191) NOT NULL,
+        \`passportNumber\` VARCHAR(191) NOT NULL,
+        \`fullName\` VARCHAR(191) NOT NULL,
+        \`videoUrl\` TEXT NOT NULL,
+        \`facePhotoUrl\` TEXT NULL,
+        \`fullBodyPhotoUrl\` TEXT NULL,
+        \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY \`UploadedVideoProfile_passportNumber_key\` (\`passportNumber\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    console.log('✅ Verified/Created UploadedVideoProfile table.');
+  } catch (err: any) {
+    console.warn('⚠️ Failed to check/create UploadedVideoProfile table:', err.message || err);
+  }
+
+  // 14. Clean up any GeneratedCV records of candidates registered as 'Calling'
+  try {
+    console.log('🔄 Cleaning up GeneratedCV entries for Calling candidates...');
+    const deletedCount = await prisma.$executeRawUnsafe(`
+      DELETE FROM \`GeneratedCV\` 
+      WHERE \`candidateId\` IN (
+        SELECT \`id\` FROM \`Candidate\` 
+        WHERE \`brokerId\` IN (
+          SELECT \`id\` FROM \`Broker\` 
+          WHERE UPPER(\`name\`) = 'CALLING'
+        )
+      )
+    `);
+    if (deletedCount > 0) {
+      console.log(`✅ Successfully deleted ${deletedCount} GeneratedCV records for Calling candidates!`);
+    } else {
+      console.log('ℹ️ No GeneratedCV records found for Calling candidates to delete.');
+    }
+  } catch (err: any) {
+    console.warn('⚠️ Failed to clean up GeneratedCV records for Calling candidates:', err.message || err);
+  }
+
   console.log('✅ Database self-healing complete.');
 }

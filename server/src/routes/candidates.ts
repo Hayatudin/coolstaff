@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
 import { getSession } from '../lib/auth-helper';
 import { encryptPath, sanitizeIncomingPath } from '../lib/crypto';
+import crypto from 'crypto';
 
 function formatPrismaError(error: any): string {
   if (!error) return 'Unknown error';
@@ -155,8 +156,25 @@ router.get('/', async (req: Request, res: Response) => {
       }
     } catch (_) { /* columns may not exist yet */ }
 
+    let videoProfileMap = new Map<string, any>();
+    try {
+      const profiles: any[] = await prisma.$queryRawUnsafe(
+        'SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != \'\''
+      );
+      for (const p of profiles) {
+        videoProfileMap.set(p.passportNumber.trim().toUpperCase(), p);
+      }
+    } catch (_) {}
+
     const candidates = dbCandidates.map((c: any) => {
       const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
+      const pNum = (c.passportNumber || '').trim().toUpperCase();
+      const profile = videoProfileMap.get(pNum);
+
+      const facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
+      const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
+      const videoUrlVal = profile ? profile.videoUrl : (youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null);
+      const allowVideoVal = profile ? true : (c.allowVideo ?? false);
 
       return {
         id: c.id,
@@ -214,8 +232,8 @@ router.get('/', async (req: Request, res: Response) => {
         brokerId: c.brokerId,
         broker: c.brokerId ? (brokerMap.get(c.brokerId) || null) : null,
         passportImageUrl: encryptPath(c.passportImageUrl),
-        facePhotoUrl: encryptPath(c.facePhotoUrl),
-        fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
+        facePhotoUrl: encryptPath(facePhotoUrlVal),
+        fullBodyPhotoUrl: encryptPath(fullBodyPhotoUrlVal),
         cocDocumentUrl: encryptPath(c.cocDocumentUrl),
         medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
         candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
@@ -226,8 +244,8 @@ router.get('/', async (req: Request, res: Response) => {
         isFlagged: c.isFlagged || false,
         isLocked: candidateLockMap[c.id] ?? false,
         cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
-        videoUrl: encryptPath(youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null),
-        Youtube_URL: youtubeUrlMap[c.id] ?? null,
+        videoUrl: encryptPath(videoUrlVal),
+        Youtube_URL: videoUrlVal,
         deployedDate: deployedDateMap[c.id] ?? null,
         registeredAt: c.registeredAt.toISOString(),
         status: c.status,
@@ -241,7 +259,7 @@ router.get('/', async (req: Request, res: Response) => {
         hasInvoice: c.invoices && c.invoices.length > 0,
         isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
         agency: c.agency || 'daera',
-        allowVideo: c.allowVideo ?? false,
+        allowVideo: allowVideoVal,
       };
     });
 
@@ -835,6 +853,22 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     } catch (_) { /* columns may not exist yet */ }
 
+    let uploadedFacePhotoUrl: string | null = null;
+    let uploadedFullBodyPhotoUrl: string | null = null;
+    let uploadedVideoUrl: string | null = null;
+    try {
+      const pNum = c.passportNumber.trim().toUpperCase();
+      const profileRows: any[] = await prisma.$queryRawUnsafe(
+        `SELECT facePhotoUrl, fullBodyPhotoUrl, videoUrl FROM \`UploadedVideoProfile\` WHERE UPPER(\`passportNumber\`) = ? LIMIT 1`,
+        pNum
+      );
+      if (profileRows.length > 0) {
+        uploadedFacePhotoUrl = profileRows[0].facePhotoUrl || null;
+        uploadedFullBodyPhotoUrl = profileRows[0].fullBodyPhotoUrl || null;
+        uploadedVideoUrl = profileRows[0].videoUrl || null;
+      }
+    } catch (_) {}
+
     const candidate = {
       id: c.id,
       shelfId: c.shelfId,
@@ -889,8 +923,8 @@ router.get('/:id', async (req: Request, res: Response) => {
         salary: c.salary || '1000SR',
       },
       passportImageUrl: encryptPath(c.passportImageUrl),
-      facePhotoUrl: encryptPath(c.facePhotoUrl),
-      fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
+      facePhotoUrl: encryptPath(uploadedFacePhotoUrl || c.facePhotoUrl),
+      fullBodyPhotoUrl: encryptPath(uploadedFullBodyPhotoUrl || c.fullBodyPhotoUrl),
       cocDocumentUrl: encryptPath(c.cocDocumentUrl),
       medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
       candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
@@ -899,8 +933,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       status: c.status,
       isRequested: c.isRequested,
       visaOrContractNumber: c.visaOrContractNumber || null,
-      videoUrl: encryptPath(youtubeUrl ?? (c as any).videoUrl ?? null),
-      Youtube_URL: youtubeUrl,
+      videoUrl: encryptPath(uploadedVideoUrl || youtubeUrl || (c as any).videoUrl || null),
+      Youtube_URL: uploadedVideoUrl || youtubeUrl,
       quickVideoUrl: encryptPath((c as any).quickVideoUrl || null),
       deployedDate: candidateDeployedDate,
       registeredAt: c.registeredAt.toISOString(),
@@ -913,7 +947,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
       registeredBy: (c as any).registeredBy?.name || 'Admin',
       agency: c.agency || 'daera',
-      allowVideo: c.allowVideo ?? false,
+      allowVideo: uploadedVideoUrl ? true : (c.allowVideo ?? false),
       price: isSuperAdmin ? candidatePrice : null,
     };
     res.json(candidate);
@@ -1325,6 +1359,37 @@ router.patch('/:id', async (req: Request, res: Response) => {
           id
         );
         (updated as any).videoUrl = sanitizedVideoUrl;
+
+        // Sync with UploadedVideoProfile
+        const cand = await prisma.candidate.findUnique({
+          where: { id },
+          select: { passportNumber: true, givenNames: true, surname: true, facePhotoUrl: true, fullBodyPhotoUrl: true }
+        });
+        if (cand) {
+          const pNum = cand.passportNumber.trim().toUpperCase();
+          if (videoUrlVal === null || videoUrlVal === '') {
+            await prisma.$executeRawUnsafe(
+              'DELETE FROM `UploadedVideoProfile` WHERE UPPER(`passportNumber`) = ?',
+              pNum
+            );
+          } else {
+            const generatedId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+            const fullName = `${cand.givenNames} ${cand.surname}`.trim().toUpperCase();
+            await prisma.$executeRawUnsafe(
+              `INSERT INTO \`UploadedVideoProfile\` (\`id\`, \`passportNumber\`, \`fullName\`, \`videoUrl\`, \`facePhotoUrl\`, \`fullBodyPhotoUrl\`) 
+               VALUES (?, ?, ?, ?, ?, ?) 
+               ON DUPLICATE KEY UPDATE 
+                 \`fullName\` = VALUES(\`fullName\`),
+                 \`videoUrl\` = VALUES(\`videoUrl\`)`,
+              generatedId,
+              pNum,
+              fullName,
+              sanitizedVideoUrl,
+              cand.facePhotoUrl || null,
+              cand.fullBodyPhotoUrl || null
+            );
+          }
+        }
       } catch (e) {
         console.error('Failed to save Youtube_URL via raw SQL in PATCH:', e);
       }

@@ -130,76 +130,103 @@ router.post('/save', upload.fields([
       return res.status(400).json({ error: 'Failed to process video file' });
     }
 
-    // A. Attach to an existing registered candidate directly
+    // Resolve passportNumber and fullName for UploadedVideoProfile entry
+    let resolvedPassportNumber = passportNumber ? passportNumber.trim().toUpperCase() : '';
+    let resolvedFullName = '';
+
     if (id && source) {
       if (source === 'candidate') {
-        const updated = await prisma.candidate.update({
+        const cand = await prisma.candidate.findUnique({
           where: { id },
-          data: { 
-            videoUrl: finalVideoUrl,
-            facePhotoUrl: facePhoto || undefined,
-            fullBodyPhotoUrl: fullBodyPhoto || undefined,
-          },
+          select: { passportNumber: true, givenNames: true, surname: true }
         });
-        try {
-          await prisma.$executeRawUnsafe(
-            'UPDATE `Candidate` SET `allowVideo` = 1 WHERE `id` = ?',
-            id
-          );
-        } catch (_) {}
-        return res.json({ 
-          success: true, 
-          message: 'Attached to Candidate profile', 
-          data: {
-            ...updated,
-            videoUrl: encryptPath(updated.videoUrl),
-            facePhotoUrl: encryptPath(updated.facePhotoUrl),
-            fullBodyPhotoUrl: encryptPath(updated.fullBodyPhotoUrl)
-          } 
-        });
+        if (cand) {
+          resolvedPassportNumber = cand.passportNumber.trim().toUpperCase();
+          resolvedFullName = `${cand.givenNames} ${cand.surname}`.trim().toUpperCase();
+        }
       } else if (source === 'quickRegistration') {
-        // Safe database direct update
-        await prisma.$executeRawUnsafe(
-          'UPDATE `QuickRegistration` SET `videoUrl` = ?, `allowVideo` = 1 WHERE `id` = ?',
-          finalVideoUrl,
-          id
-        );
-        return res.json({ success: true, message: 'Attached to QuickRegistration record' });
+        const qr: any = await prisma.quickRegistration.findUnique({
+          where: { id },
+          select: { passportNumber: true, givenNames: true, surname: true }
+        });
+        if (qr) {
+          resolvedPassportNumber = qr.passportNumber.trim().toUpperCase();
+          resolvedFullName = `${qr.givenNames || ''} ${qr.surname || ''}`.trim().toUpperCase();
+        }
       }
     }
 
-    // B. Pre-registration mode: save by Passport Number
-    if (!passportNumber || !passportNumber.trim()) {
-      return res.status(400).json({ error: 'Passport number is required for pre-registration' });
+    if (!resolvedPassportNumber && passportNumber) {
+      resolvedPassportNumber = passportNumber.trim().toUpperCase();
     }
 
-    const cleanedPassportNumber = passportNumber.trim().toUpperCase();
+    if (!resolvedPassportNumber) {
+      return res.status(400).json({ error: 'Passport number is required' });
+    }
 
-    // Use raw MySQL query to create or update the video mapping by unique passport number to bypass stale Prisma client structures
+    if (!resolvedFullName) {
+      const cand = await prisma.candidate.findFirst({
+        where: { passportNumber: resolvedPassportNumber },
+        select: { givenNames: true, surname: true }
+      });
+      if (cand) {
+        resolvedFullName = `${cand.givenNames} ${cand.surname}`.trim().toUpperCase();
+      } else {
+        resolvedFullName = `PASSPORT: ${resolvedPassportNumber}`;
+      }
+    }
+
+    // Insert or update UploadedVideoProfile record
     const generatedId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
     await prisma.$executeRawUnsafe(
-      `INSERT INTO \`PreRegisteredVideo\` (\`id\`, \`passportNumber\`, \`videoUrl\`, \`facePhotoUrl\`, \`fullBodyPhotoUrl\`) 
-       VALUES (?, ?, ?, ?, ?) 
+      `INSERT INTO \`UploadedVideoProfile\` (\`id\`, \`passportNumber\`, \`fullName\`, \`videoUrl\`, \`facePhotoUrl\`, \`fullBodyPhotoUrl\`) 
+       VALUES (?, ?, ?, ?, ?, ?) 
        ON DUPLICATE KEY UPDATE 
+         \`fullName\` = VALUES(\`fullName\`),
          \`videoUrl\` = VALUES(\`videoUrl\`), 
          \`facePhotoUrl\` = VALUES(\`facePhotoUrl\`), 
          \`fullBodyPhotoUrl\` = VALUES(\`fullBodyPhotoUrl\`)`,
       generatedId,
-      cleanedPassportNumber,
+      resolvedPassportNumber,
+      resolvedFullName,
       finalVideoUrl,
       facePhoto || null,
       fullBodyPhoto || null
     );
 
+    // Sync to Candidate table for backward compatibility
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`Candidate\` 
+         SET \`Youtube_URL\` = ?, \`facePhotoUrl\` = ?, \`fullBodyPhotoUrl\` = ?, \`allowVideo\` = 1 
+         WHERE UPPER(\`passportNumber\`) = ?`,
+        finalVideoUrl,
+        facePhoto || null,
+        fullBodyPhoto || null,
+        resolvedPassportNumber
+      );
+    } catch (_) {}
+
+    // Sync to QuickRegistration table for backward compatibility
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE \`QuickRegistration\` 
+         SET \`videoUrl\` = ?, \`allowVideo\` = 1 
+         WHERE UPPER(\`passportNumber\`) = ?`,
+        finalVideoUrl,
+        resolvedPassportNumber
+      );
+    } catch (_) {}
+
     const rawRows = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT * FROM \`PreRegisteredVideo\` WHERE \`passportNumber\` = ? LIMIT 1`,
-      cleanedPassportNumber
+      `SELECT * FROM \`UploadedVideoProfile\` WHERE \`passportNumber\` = ? LIMIT 1`,
+      resolvedPassportNumber
     );
     const result = rawRows[0];
 
     res.json({ 
       success: true, 
-      message: 'Pre-registration video & photos saved successfully', 
+      message: 'Video & photos registered successfully', 
       data: {
         ...result,
         videoUrl: encryptPath(result.videoUrl),
@@ -276,81 +303,32 @@ router.get('/match', async (req: Request, res: Response) => {
 // 4. GET /api/video-uploads/uploaded — List all records that have a video URL
 router.get('/uploaded', async (req: Request, res: Response) => {
   try {
-    const q = ((req.query.q as string) || '').trim();
+    const q = ((req.query.q as string) || '').trim().toUpperCase();
 
-    // Candidates with videoUrl
-    const candidateWhere: any = { videoUrl: { not: null } };
+    let queryStr = 'SELECT * FROM `UploadedVideoProfile`';
+    const queryParams: any[] = [];
+
     if (q) {
-      candidateWhere.OR = [
-        { givenNames: { contains: q } },
-        { surname: { contains: q } },
-        { passportNumber: { contains: q } },
-      ];
+      queryStr += ' WHERE UPPER(`passportNumber`) LIKE ? OR UPPER(`fullName`) LIKE ?';
+      queryParams.push(`%${q}%`, `%${q}%`);
     }
-    const candidates = await prisma.candidate.findMany({
-      where: candidateWhere,
-      select: {
-        id: true,
-        givenNames: true,
-        surname: true,
-        passportNumber: true,
-        nationality: true,
-        videoUrl: true,
-        facePhotoUrl: true,
-        fullBodyPhotoUrl: true,
-        registeredAt: true,
-      },
-      orderBy: { registeredAt: 'desc' },
-    });
+    queryStr += ' ORDER BY `createdAt` DESC';
 
-    // PreRegisteredVideo records (buffered)
-    let preRegs: any[] = [];
-    try {
-      preRegs = await prisma.preRegisteredVideo.findMany({
-        orderBy: { createdAt: 'desc' },
-      });
-      if (q) {
-        const qUp = q.toUpperCase();
-        preRegs = preRegs.filter((p: any) => (p.passportNumber || '').includes(qUp));
-      }
-    } catch (_) { /* table may not exist */ }
+    const rows = await prisma.$queryRawUnsafe<any[]>(queryStr, ...queryParams);
 
-    // Combine into a unified list, encrypting local URLs
-    const results = [
-      ...candidates.map((c: any) => ({
-        id: c.id,
-        fullName: `${c.givenNames} ${c.surname}`.trim().toUpperCase(),
-        passportNumber: c.passportNumber || '',
-        nationality: c.nationality || '',
-        videoUrl: encryptPath(c.videoUrl),
-        facePhotoUrl: encryptPath(c.facePhotoUrl),
-        fullBodyPhotoUrl: encryptPath(c.fullBodyPhotoUrl),
-        date: c.registeredAt?.toISOString() || '',
-        source: 'candidate' as const,
-      })),
-      ...preRegs.map((p: any) => ({
-        id: p.id,
-        fullName: `PASSPORT: ${p.passportNumber || ''}`,
-        passportNumber: p.passportNumber || '',
-        nationality: '',
-        videoUrl: encryptPath(p.videoUrl),
-        facePhotoUrl: encryptPath(p.facePhotoUrl),
-        fullBodyPhotoUrl: encryptPath(p.fullBodyPhotoUrl),
-        date: p.createdAt ? new Date(p.createdAt).toISOString() : '',
-        source: 'preRegistered' as const,
-      })),
-    ];
+    const results = rows.map((r: any) => ({
+      id: r.id,
+      fullName: r.fullName ? r.fullName.trim().toUpperCase() : `PASSPORT: ${r.passportNumber}`,
+      passportNumber: r.passportNumber || '',
+      nationality: '',
+      videoUrl: encryptPath(r.videoUrl),
+      facePhotoUrl: encryptPath(r.facePhotoUrl),
+      fullBodyPhotoUrl: encryptPath(r.fullBodyPhotoUrl),
+      date: r.createdAt ? new Date(r.createdAt).toISOString() : '',
+      source: 'candidate' as const,
+    }));
 
-    // De-duplicate by videoUrl
-    const seen = new Set<string>();
-    const unique = results.filter(r => {
-      if (!r.videoUrl) return false;
-      if (seen.has(r.videoUrl)) return false;
-      seen.add(r.videoUrl);
-      return true;
-    });
-
-    res.json(unique);
+    res.json(results);
   } catch (error: any) {
     console.error('Error fetching uploaded videos:', error);
     res.status(500).json({ error: 'Failed to fetch uploaded videos' });
@@ -368,6 +346,50 @@ router.put('/:source/:id', async (req: Request, res: Response) => {
     }
 
     const sanitizedVideoUrl = sanitizeIncomingPath(videoUrl);
+
+    // Try updating UploadedVideoProfile if it exists by ID
+    let profileUpdated = false;
+    try {
+      const profiles = await prisma.$queryRawUnsafe<{ passportNumber: string }[]>(
+        'SELECT `passportNumber` FROM `UploadedVideoProfile` WHERE `id` = ? LIMIT 1',
+        id
+      );
+      if (profiles.length > 0) {
+        const pNum = profiles[0].passportNumber.trim().toUpperCase();
+
+        await prisma.$executeRawUnsafe(
+          'UPDATE `UploadedVideoProfile` SET `videoUrl` = ? WHERE `id` = ?',
+          sanitizedVideoUrl,
+          id
+        );
+
+        // Sync to Candidate table
+        try {
+          await prisma.$executeRawUnsafe(
+            'UPDATE `Candidate` SET `Youtube_URL` = ?, `allowVideo` = 1 WHERE UPPER(`passportNumber`) = ?',
+            sanitizedVideoUrl,
+            pNum
+          );
+        } catch (_) {}
+
+        // Sync to QuickRegistration table
+        try {
+          await prisma.$executeRawUnsafe(
+            'UPDATE `QuickRegistration` SET `videoUrl` = ?, `allowVideo` = 1 WHERE UPPER(`passportNumber`) = ?',
+            sanitizedVideoUrl,
+            pNum
+          );
+        } catch (_) {}
+        
+        profileUpdated = true;
+      }
+    } catch (err) {
+      console.warn('Failed to update UploadedVideoProfile in PUT:', err);
+    }
+
+    if (profileUpdated) {
+      return res.json({ success: true, message: 'Uploaded video profile updated successfully' });
+    }
 
     if (source === 'candidate') {
       await prisma.candidate.update({
@@ -401,6 +423,47 @@ router.put('/:source/:id', async (req: Request, res: Response) => {
 router.delete('/:source/:id', async (req: Request, res: Response) => {
   try {
     const { source, id } = req.params;
+
+    // Try deleting from UploadedVideoProfile if it exists by ID
+    let profileDeleted = false;
+    try {
+      const profiles = await prisma.$queryRawUnsafe<{ passportNumber: string }[]>(
+        'SELECT `passportNumber` FROM `UploadedVideoProfile` WHERE `id` = ? LIMIT 1',
+        id
+      );
+      if (profiles.length > 0) {
+        const pNum = profiles[0].passportNumber.trim().toUpperCase();
+
+        await prisma.$executeRawUnsafe(
+          'DELETE FROM `UploadedVideoProfile` WHERE `id` = ?',
+          id
+        );
+
+        // Sync to Candidate table
+        try {
+          await prisma.$executeRawUnsafe(
+            'UPDATE `Candidate` SET `Youtube_URL` = NULL, `allowVideo` = 0 WHERE UPPER(`passportNumber`) = ?',
+            pNum
+          );
+        } catch (_) {}
+
+        // Sync to QuickRegistration table
+        try {
+          await prisma.$executeRawUnsafe(
+            'UPDATE `QuickRegistration` SET `videoUrl` = NULL, `allowVideo` = 0 WHERE UPPER(`passportNumber`) = ?',
+            pNum
+          );
+        } catch (_) {}
+
+        profileDeleted = true;
+      }
+    } catch (err) {
+      console.warn('Failed to delete UploadedVideoProfile in DELETE:', err);
+    }
+
+    if (profileDeleted) {
+      return res.json({ success: true, message: 'Uploaded video profile deleted successfully' });
+    }
 
     if (source === 'candidate') {
       await prisma.candidate.update({

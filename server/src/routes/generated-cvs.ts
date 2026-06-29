@@ -130,19 +130,21 @@ router.get('/', async (req: Request, res: Response) => {
       console.warn('[GENERATED-CVS] Could not fetch cvDownloaded column via raw SQL:', e);
     }
 
-    const mappedCVs = generatedCVs.map((cv: any) => {
-      const formattedCandidateObj = formatCandidate(cv.candidate);
-      if (formattedCandidateObj) {
-        formattedCandidateObj.cvDownloaded = cvDownloadedMap[formattedCandidateObj.id] ?? false;
-        if (formattedCandidateObj.broker) {
-          formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
+    const mappedCVs = generatedCVs
+      .filter((cv: any) => cv.candidate?.broker?.name !== 'Calling')
+      .map((cv: any) => {
+        const formattedCandidateObj = formatCandidate(cv.candidate);
+        if (formattedCandidateObj) {
+          formattedCandidateObj.cvDownloaded = cvDownloadedMap[formattedCandidateObj.id] ?? false;
+          if (formattedCandidateObj.broker) {
+            formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
+          }
         }
-      }
-      return {
-        ...cv,
-        candidate: formattedCandidateObj
-      };
-    });
+        return {
+          ...cv,
+          candidate: formattedCandidateObj
+        };
+      });
     
     res.json(mappedCVs);
   } catch (error) {
@@ -161,11 +163,16 @@ router.post('/', async (req: Request, res: Response) => {
     }
     
     const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId }
+      where: { id: candidateId },
+      include: { broker: true }
     });
     
     if (!candidate) {
       return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    if (candidate.broker?.name === 'Calling') {
+      return res.status(400).json({ error: 'CV is not available for Calling candidates.' });
     }
 
 
