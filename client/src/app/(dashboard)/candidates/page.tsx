@@ -110,8 +110,11 @@ export default function CandidatesPage() {
         throw new Error(errorData.error || 'Failed to set agency');
       }
       
-      setCandidates(); // Trigger cache clear and refetch candidates list
+      // Optimistically update local state so the select reflects the change immediately
+      setCandidates((prev: any) => prev.map((c: any) => c.id === candidateId ? { ...c, latestCVTemplate: templateId } : c));
       setSelectedCandidateForAgency(null);
+      // Also trigger a background refetch
+      window.dispatchEvent(new Event('app-refresh'));
     } catch (err: any) {
       alert(err.message || 'Error setting agency');
     } finally {

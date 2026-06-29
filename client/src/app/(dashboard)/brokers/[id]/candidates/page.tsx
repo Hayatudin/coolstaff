@@ -199,8 +199,17 @@ export default function BrokerCandidatesPage() {
         throw new Error(errorData.error || 'Failed to set agency');
       }
       
-      fetchBrokerData(); // Trigger refetch of candidates list
+      // Optimistically update local state so the select reflects the change immediately
+      setCandidates(prev => prev.map(c => {
+        if (c.id !== candidateId) return c;
+        const updatedCVs = c.generatedCVs && c.generatedCVs.length > 0
+          ? c.generatedCVs.map((cv: any, i: number) => i === 0 ? { ...cv, templateId } : cv)
+          : [{ id: 'temp', templateId }];
+        return { ...c, generatedCVs: updatedCVs };
+      }));
       setSelectedCandidateForAgency(null);
+      // Also trigger a background refetch
+      fetchBrokerData();
     } catch (err: any) {
       alert(err.message || 'Error setting agency');
     } finally {
@@ -1442,44 +1451,22 @@ export default function BrokerCandidatesPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {activeTmplId ? (() => {
-                          const tmpl = TEMPLATES.find(t => t.id === activeTmplId);
-                          return (
-                            <span
-                              className={`rounded-lg px-2.5 py-1 text-[8px] xl:text-[9px] font-bold uppercase tracking-widest shadow-sm border ${tmpl?.textColor || 'text-text-secondary'} ${tmpl?.bgLight || 'bg-gray-50'} ${tmpl?.textColor ? 'border-' + tmpl.textColor.split('-')[1] + '-100' : 'border-gray-200'}`}
-                            >
-                              {tmpl?.name || activeTmplId.toUpperCase()}
-                            </span>
-                          );
-                        })() : (
-                          <>
-                            {selectedCandidateForAgency === candidate.id ? (
-                              <select
-                                value=""
-                                disabled={isSettingAgency}
-                                onChange={async (e) => {
-                                  const val = e.target.value;
-                                  if (val) {
-                                    await handleSetAgency(candidate.id, val);
-                                  }
-                                }}
-                                className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
-                              >
-                                <option value="" disabled>Select Agency...</option>
-                                {TEMPLATES.map(t => (
-                                  <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <button
-                                onClick={() => setSelectedCandidateForAgency(candidate.id)}
-                                className="px-2.5 py-1 text-[10px] uppercase font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg shadow-sm transition-all"
-                              >
-                                Set Agency
-                              </button>
-                            )}
-                          </>
-                        )}
+                        <select
+                          value={activeTmplId || ""}
+                          disabled={isSettingAgency}
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              await handleSetAgency(candidate.id, val);
+                            }
+                          }}
+                          className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
+                        >
+                          <option value="" disabled>Select Agency...</option>
+                          {TEMPLATES.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
                         {role === 'super_admin' ? (
