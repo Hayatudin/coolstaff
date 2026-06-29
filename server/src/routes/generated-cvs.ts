@@ -131,7 +131,6 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const mappedCVs = generatedCVs
-      .filter((cv: any) => cv.candidate?.broker?.name !== 'Calling')
       .map((cv: any) => {
         const formattedCandidateObj = formatCandidate(cv.candidate);
         if (formattedCandidateObj) {
@@ -171,9 +170,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    if (candidate.broker?.name === 'Calling') {
-      return res.status(400).json({ error: 'CV is not available for Calling candidates.' });
-    }
+    // Calling candidates CAN have an agency saved, but actual CV generation/download is blocked in cv.ts
 
 
 

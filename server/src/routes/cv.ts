@@ -896,7 +896,7 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
       console.warn('[CV] Failed to fetch candidates-batch isLocked map:', e);
     }
 
-    const candidates = dbCandidates.filter(c => !lockedIds.has(c.id) && c.broker?.name !== 'Calling');
+    const candidates = dbCandidates.filter(c => !lockedIds.has(c.id));
 
     const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
 

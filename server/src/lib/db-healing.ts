@@ -687,27 +687,7 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Failed to check/create UploadedVideoProfile table:', err.message || err);
   }
 
-  // 14. Clean up any GeneratedCV records of candidates registered as 'Calling'
-  try {
-    console.log('🔄 Cleaning up GeneratedCV entries for Calling candidates...');
-    const deletedCount = await prisma.$executeRawUnsafe(`
-      DELETE FROM \`GeneratedCV\` 
-      WHERE \`candidateId\` IN (
-        SELECT \`id\` FROM \`Candidate\` 
-        WHERE \`brokerId\` IN (
-          SELECT \`id\` FROM \`Broker\` 
-          WHERE UPPER(\`name\`) = 'CALLING'
-        )
-      )
-    `);
-    if (deletedCount > 0) {
-      console.log(`✅ Successfully deleted ${deletedCount} GeneratedCV records for Calling candidates!`);
-    } else {
-      console.log('ℹ️ No GeneratedCV records found for Calling candidates to delete.');
-    }
-  } catch (err: any) {
-    console.warn('⚠️ Failed to clean up GeneratedCV records for Calling candidates:', err.message || err);
-  }
+
 
   console.log('✅ Database self-healing complete.');
 }
