@@ -1167,7 +1167,20 @@ export default function AvailableCandidatesPage() {
                 </div>
 
                 {/* Conditional View CV and Watch Video Buttons */}
-                {hasVideo ? (
+                {c.broker?.name === 'Calling' || c.job === 'Calling' ? (
+                  hasVideo ? (
+                    <div className="mt-5">
+                      <button
+                        type="button"
+                        onClick={() => setPlayVideoUrl(c.videoUrl)}
+                        className="w-full bg-[#e2315a] hover:bg-[#c9244c] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Video size={14} />
+                        Watch Video
+                      </button>
+                    </div>
+                  ) : null
+                ) : hasVideo ? (
                   <div className="flex items-center gap-2 mt-5">
                     <button
                       type="button"

@@ -489,43 +489,22 @@ export default function CandidatesPage() {
 
                     {/* CV Agency */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.latestCVTemplate ? (
-                        <span className="px-2.5 py-1 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg shadow-sm">
-                          {(() => {
-                            const templateId = candidate.latestCVTemplate.replace('tmpl-', '').toLowerCase();
-                            const templateObj = TEMPLATES.find(t => t.id === templateId);
-                            return templateObj ? templateObj.name : candidate.latestCVTemplate.toUpperCase();
-                          })()}
-                        </span>
-                      ) : (
-                        <>
-                          {selectedCandidateForAgency === candidate.id ? (
-                            <select
-                              value=""
-                              disabled={isSettingAgency}
-                              onChange={async (e) => {
-                                const val = e.target.value;
-                                if (val) {
-                                  await handleSetAgency(candidate.id, val);
-                                }
-                              }}
-                              className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
-                            >
-                              <option value="" disabled>Select Agency...</option>
-                              {TEMPLATES.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <button
-                              onClick={() => setSelectedCandidateForAgency(candidate.id)}
-                              className="px-2.5 py-1 text-[10px] uppercase font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg shadow-sm transition-all"
-                            >
-                              Set Agency
-                            </button>
-                          )}
-                        </>
-                      )}
+                      <select
+                        value={candidate.latestCVTemplate ? candidate.latestCVTemplate.replace('tmpl-', '').toLowerCase() : ""}
+                        disabled={isSettingAgency}
+                        onChange={async (e) => {
+                          const val = e.target.value;
+                          if (val) {
+                            await handleSetAgency(candidate.id, val);
+                          }
+                        }}
+                        className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
+                      >
+                        <option value="" disabled>Select Agency...</option>
+                        {TEMPLATES.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
                     </td>
 
                     {/* Broker */}

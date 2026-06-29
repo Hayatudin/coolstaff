@@ -131,6 +131,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const mappedCVs = generatedCVs
+      .filter((cv: any) => cv.candidate?.broker?.name !== 'Calling' && cv.candidate?.job !== 'Calling')
       .map((cv: any) => {
         const formattedCandidateObj = formatCandidate(cv.candidate);
         if (formattedCandidateObj) {
@@ -180,11 +181,25 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + 30);
+    const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
+
     if (duplicateCV) {
-      return res.status(409).json({ 
-        error: 'Candidate already generated', 
-        templateId: duplicateCV.templateId 
-      });
+      const [updatedCV] = await prisma.$transaction([
+        prisma.generatedCV.update({
+          where: { id: duplicateCV.id },
+          data: { templateId }
+        }),
+        prisma.candidate.update({
+          where: { id: candidateId },
+          data: { 
+            cvDeadline: deadline,
+            agency: cleanTemplateId
+          }
+        })
+      ]);
+      return res.json(updatedCV);
     }
     
     const [faceUrl, fullBodyUrl] = await Promise.all([
@@ -192,10 +207,6 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(fullBodyPhotoUrl, 'fullbody')
     ]);
 
-    const deadline = new Date();
-    deadline.setDate(deadline.getDate() + 30);
-
-    const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
     const [generatedCV] = await prisma.$transaction([
       prisma.generatedCV.create({
         data: {
