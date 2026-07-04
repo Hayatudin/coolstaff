@@ -62,7 +62,7 @@ export default function RequestedPage() {
       }
       
       // Optimistically update local state so the select reflects the change immediately
-      mutate((prev: any) => prev?.map((c: any) => c.id === candidateId ? { ...c, latestCVTemplate: templateId } : c), false);
+      mutate((prev: any) => prev?.map((c: any) => c.id === candidateId ? { ...c, latestCVTemplate: templateId } : c));
       setSelectedCandidateForAgency(null);
       // Also trigger a background refetch
       window.dispatchEvent(new Event('app-refresh'));
