@@ -1166,26 +1166,13 @@ export default function AvailableCandidatesPage() {
                   </div>
                 </div>
 
-                {/* Conditional View CV and Watch Video Buttons */}
-                {c.broker?.name === 'Calling' || c.job === 'Calling' ? (
-                  hasVideo ? (
-                    <div className="mt-5">
-                      <button
-                        type="button"
-                        onClick={() => setPlayVideoUrl(c.videoUrl)}
-                        className="w-full bg-[#e2315a] hover:bg-[#c9244c] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Video size={14} />
-                        Watch Video
-                      </button>
-                    </div>
-                  ) : null
-                ) : hasVideo ? (
+                {/* View CV and Watch Video Buttons */}
+                {hasVideo ? (
                   <div className="flex items-center gap-2 mt-5">
                     <button
                       type="button"
                       disabled={loadingCvId === c.id}
-                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
+                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate || 'alm')}
                       className="flex-1 bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       {loadingCvId === c.id ? (
@@ -1209,7 +1196,7 @@ export default function AvailableCandidatesPage() {
                     <button
                       type="button"
                       disabled={loadingCvId === c.id}
-                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
+                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate || 'alm')}
                       className="w-full bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       {loadingCvId === c.id ? (

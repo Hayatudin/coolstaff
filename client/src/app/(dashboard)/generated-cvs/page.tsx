@@ -8,7 +8,7 @@ import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
   FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye, Search, Lock,
-  Loader2
+  Loader2, Video
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -33,6 +33,17 @@ const TEMPLATES = [
   { id: 'ra', name: 'RAYAAT', category: 'Elegant', color: 'bg-purple-500', textColor: 'text-purple-600', bgLight: 'bg-purple-50', component: RATemplate },
   { id: 'vision', name: 'Vision Layout', category: 'Premium', color: 'bg-[#0a5c4e]', textColor: 'text-[#0a5c4e]', bgLight: 'bg-[#e8f5e9]', component: VisionTemplate },
 ];
+
+const getYouTubeEmbedUrl = (url: string) => {
+  if (!url) return '';
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  if (url.includes('youtube.com/embed/')) return url;
+  return url;
+};
 
 // ── Action Dropdown — portal with fixed positioning so it escapes overflow:hidden ──
 function ActionMenu({
@@ -320,6 +331,29 @@ function GeneratedCVsContent() {
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
+  const [previewFullImageUrl, setPreviewFullImageUrl] = useState<string | null>(null);
+  const [playVideoUrl, setPlayVideoUrl] = useState<string | null>(null);
+
+  const getAge = (dateOfBirthStr: string | null | undefined): number | null => {
+    if (!dateOfBirthStr) return null;
+    const dob = new Date(dateOfBirthStr);
+    if (isNaN(dob.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getExperienceDisplay = (workExperience: any): string => {
+    const exps = Array.isArray(workExperience) ? workExperience : [];
+    if (exps.length === 0) {
+      return 'First-Timer (جديد)';
+    }
+    return 'Experienced';
+  };
 
   const markAsCvDownloaded = async (candidateId: string) => {
     try {
@@ -1414,82 +1448,174 @@ function GeneratedCVsContent() {
               return (
               <div 
                 key={cv.id} 
-                className={`bg-surface border rounded-[1.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] overflow-hidden transition-all flex flex-col select-none ${
+                className={`bg-white border-2 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col select-none ${
                   isSelected 
-                    ? 'border-primary ring-2 ring-primary/20' 
+                    ? 'border-[#00A4EF] ring-2 ring-[#00A4EF]/20 bg-blue-50/5' 
                     : isLocked 
-                      ? 'border-red-200/60 hover:border-red-300 bg-red-50/5' 
-                      : 'border-border/50'
+                      ? 'border-red-300 bg-red-50/5' 
+                      : 'border-[#e2315a]'
                 }`}
                 onMouseDown={() => handleCardMouseDown(cv.id, isSelected)}
                 onMouseEnter={() => handleCardMouseEnter(cv.id)}
               >
-                {/* Live Preview */}
-                <div
-                  className="relative h-56 bg-gray-100 overflow-hidden cursor-pointer group border-b border-border"
-                  onClick={() => { setPreviewCv(cv); }}
-                >
-                  {/* Scaled live template render */}
-                  <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
-                    <CardTemplate
-                      candidate={cv.candidate}
-                      facePhoto={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
-                      fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)}
+                {/* Selection Checkbox */}
+                <div className="absolute top-4 left-4" onMouseDown={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => {
+                      setSelectedCVIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(cv.id)) {
+                          next.delete(cv.id);
+                        } else {
+                          next.add(cv.id);
+                        }
+                        return next;
+                      });
+                    }}
+                    className="w-5 h-5 border-2 border-slate-350 rounded accent-[#e2315a] cursor-pointer"
+                  />
+                </div>
+
+                {/* Age Badge */}
+                <div className="absolute top-4 right-4 bg-white border border-[#e2315a] text-[#e2315a] text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm">
+                  {getAge(cv.candidate.passportData?.dateOfBirth) ? `${getAge(cv.candidate.passportData?.dateOfBirth)} Years` : '—'}
+                </div>
+
+                {/* Avatar and Full Image Button */}
+                <div className="flex items-center gap-4 mt-6">
+                  <div className="w-20 h-20 rounded-full border-4 border-[#e2315a] overflow-hidden shrink-0 shadow-sm">
+                    <img
+                      src={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl || '')}
+                      alt={cv.candidate.passportData?.givenNames}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/150x150/f472b6/ffffff?text=' + cv.candidate.passportData?.givenNames.charAt(0);
+                      }}
                     />
                   </div>
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-gray-900 rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg font-medium text-sm">
-                      <Eye size={15} /> Preview
+                  <div onMouseDown={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewFullImageUrl(getFileUrl(cv.fullBodyPhotoUrl || cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl || ''));
+                      }}
+                      className="flex items-center gap-1.5 bg-[#e2315a] hover:bg-[#c9244c] text-white text-[11px] font-black px-3.5 py-1.5 rounded-full transition-all active:scale-95 shadow-sm shadow-pink-200 cursor-pointer"
+                    >
+                      <ImageIcon size={12} className="shrink-0" />
+                      Full image
+                    </button>
+                  </div>
+                </div>
+
+                {/* Candidate Name & Action Menu */}
+                <div className="flex items-start justify-between gap-2 mt-4" onMouseDown={(e) => e.stopPropagation()}>
+                  <h3 className="font-black text-[#1e293b] text-[15px] uppercase leading-snug font-sans tracking-wide">
+                    {cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}
+                    {cv.candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500 inline-block ml-1 shrink-0" />}
+                  </h3>
+                  {isLocked ? (
+                    <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={cv.candidate.isLocked ? "Candidate is locked. No actions allowed." : `Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
+                      <Lock size={14} />
+                    </div>
+                  ) : (
+                    <ActionMenu
+                      cvId={cv.id}
+                      currentTemplateId={cv.templateId}
+                      onDelete={() => setDeleteTarget(cv)}
+                      onChangeTemplate={() => setChangeTarget(cv)}
+                      isFlagged={cv.candidate.isFlagged || false}
+                      onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
+                      cvDownloaded={cv.candidate?.cvDownloaded}
+                      onMarkAsCvAvailable={() => markAsCvAvailable(cv.candidateId)}
+                    />
+                  )}
+                </div>
+
+                {/* Details list (two columns grid) */}
+                <div className="mt-4 pt-4 border-t border-dashed border-pink-100 flex flex-col gap-2.5 text-[12px] text-slate-700">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Passport No : </span>
+                      <span className="font-extrabold text-slate-800">{cv.candidate.passportData?.passportNumber}</span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Job : </span>
+                      <span className="font-extrabold text-slate-800">{cv.candidate.personalInfo?.job || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Nationality : </span>
+                      <span className="font-extrabold text-slate-800">{cv.candidate.passportData?.nationality || '—'}</span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Experience : </span>
+                      <span className="font-extrabold text-slate-800">
+                        {getExperienceDisplay(cv.candidate.personalInfo?.workExperience)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">Religion : </span>
+                      <span className="font-extrabold text-slate-800">{cv.candidate.personalInfo?.religion || '—'}</span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <span className="text-slate-400 font-medium">City : </span>
+                      <span className="font-extrabold text-slate-800">{cv.candidate.personalInfo?.city || '—'}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Card Body */}
-                <div className="p-4 flex-1 flex flex-col">
-                  {/* Per-card checkbox */}
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        readOnly
-                        className="w-4 h-4 accent-primary rounded cursor-pointer pointer-events-none"
-                      />
-                    </label>
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-text-primary truncate flex items-center gap-1.5">
-                          {cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}
-                          {cv.candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500 shrink-0" />}
-                        </p>
-                        <p className="text-xs text-text-tertiary">{cv.candidate.passportData?.passportNumber}</p>
-                      </div>
-                    </div>
+                {/* Watch Video / Preview CV and download format picker */}
+                <div className="mt-auto pt-4 border-t border-dashed border-pink-100 flex flex-col gap-3" onMouseDown={(e) => e.stopPropagation()}>
+                  {(() => {
+                    const hasVideo = !!cv.candidate.videoUrl && cv.candidate.allowVideo === true;
+                    if (hasVideo) {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setPreviewCv(cv); }}
+                            className="flex-1 bg-[#00A4EF] hover:bg-[#008bcb] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye size={14} />
+                            Preview CV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setPlayVideoUrl(cv.candidate.videoUrl); }}
+                            className="flex-1 bg-[#e2315a] hover:bg-[#c9244c] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Video size={14} />
+                            Watch Video
+                          </button>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setPreviewCv(cv); }}
+                            className="w-full bg-[#00A4EF] hover:bg-[#008bcb] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye size={14} />
+                            Preview CV
+                          </button>
+                        </div>
+                      );
+                    }
+                  })()}
 
-                    {isLocked ? (
-                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={cv.candidate.isLocked ? "Candidate is locked. No actions allowed." : `Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
-                        <Lock size={14} />
-                      </div>
-                    ) : (
-                      <ActionMenu
-                        cvId={cv.id}
-                        currentTemplateId={cv.templateId}
-                        onDelete={() => setDeleteTarget(cv)}
-                        onChangeTemplate={() => setChangeTarget(cv)}
-                        isFlagged={cv.candidate.isFlagged || false}
-                        onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
-                        cvDownloaded={cv.candidate?.cvDownloaded}
-                        onMarkAsCvAvailable={() => markAsCvAvailable(cv.candidateId)}
-                      />
-                    )}
-                  </div>
-
-                  <div className="mt-auto pt-3 border-t border-dashed border-border flex items-center justify-between">
-                    <span className="text-xs text-text-tertiary">
+                  {/* Format Pickers / Downloads & Date */}
+                  <div className="flex items-center justify-between text-xs text-text-tertiary">
+                    <span>
                       {new Date(cv.createdAt).toLocaleDateString()}
                     </span>
-                    {/* Format Picker */}
                     {cv.candidate?.personalInfo?.medicalStatus?.toLowerCase() === 'fit' ? (
                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 uppercase tracking-wider">
                         Medical: Fit
@@ -1500,7 +1626,7 @@ function GeneratedCVsContent() {
                           onClick={(e) => { e.stopPropagation(); startDownload(cv, 'pdf'); }}
                           onMouseDown={(e) => e.stopPropagation()}
                           disabled={isDownloading}
-                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
+                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5 cursor-pointer"
                           title="Download as PDF"
                         >
                           <FileDown size={12} /> PDF
@@ -1510,7 +1636,7 @@ function GeneratedCVsContent() {
                           onClick={(e) => { e.stopPropagation(); startDownload(cv, 'jpg'); }}
                           onMouseDown={(e) => e.stopPropagation()}
                           disabled={isDownloading}
-                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
+                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5 cursor-pointer"
                           title="Download as JPG"
                         >
                           <ImageIcon size={12} /> JPG
@@ -1520,7 +1646,7 @@ function GeneratedCVsContent() {
                           onClick={(e) => { e.stopPropagation(); startDownload(cv, 'doc'); }}
                           onMouseDown={(e) => e.stopPropagation()}
                           disabled={isDownloading}
-                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5"
+                          className="text-xs font-medium text-primary flex items-center gap-1 hover:underline disabled:opacity-50 px-1.5 py-1 rounded hover:bg-primary/5 cursor-pointer"
                           title="Download as DOCX"
                         >
                           <FileText size={12} /> DOCX
@@ -1719,6 +1845,112 @@ function GeneratedCVsContent() {
                 Restart Download
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Video Player Modal */}
+      {playVideoUrl && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPlayVideoUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col animate-scale-in"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4.5 border-b border-border bg-gray-50/50">
+              <h3 className="font-extrabold text-text-primary text-sm flex items-center gap-2">
+                <Video size={18} className="text-rose-600" />
+                Watch Candidate Video
+              </h3>
+              <button 
+                onClick={() => setPlayVideoUrl(null)}
+                className="text-text-tertiary hover:text-text-primary p-2 rounded-lg hover:bg-gray-100 font-bold transition-all text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 bg-slate-900 flex items-center justify-center aspect-video relative">
+              {(() => {
+                const isYouTube = playVideoUrl.includes('youtube.com') || playVideoUrl.includes('youtu.be');
+                if (isYouTube) {
+                  return (
+                    <iframe
+                      src={getYouTubeEmbedUrl(playVideoUrl)}
+                      className="absolute inset-0 w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                } else {
+                  return (
+                    <video
+                      src={getFileUrl(playVideoUrl)}
+                      controls
+                      autoPlay
+                      className="max-w-full max-h-full rounded-xl"
+                    />
+                  );
+                }
+              })()}
+            </div>
+            
+            <div className="p-4 border-t border-border bg-gray-50/50 flex justify-end">
+              <button 
+                onClick={() => setPlayVideoUrl(null)}
+                className="px-5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-750 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Body Image Overlay Modal */}
+      {previewFullImageUrl && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewFullImageUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col animate-scale-in"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4.5 border-b border-border bg-gray-50/50">
+              <h3 className="font-extrabold text-text-primary text-sm flex items-center gap-2">
+                <ImageIcon size={18} className="text-[#e2315a]" />
+                Candidate Full Image
+              </h3>
+              <button 
+                onClick={() => setPreviewFullImageUrl(null)}
+                className="text-text-tertiary hover:text-text-primary p-2 rounded-lg hover:bg-gray-100 font-bold transition-all text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 bg-slate-50 flex items-center justify-center max-h-[70vh] overflow-y-auto relative">
+              <img
+                src={previewFullImageUrl}
+                alt="Full Candidate"
+                className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-sm"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://placehold.co/300x450/f472b6/ffffff?text=Full+Photo+Unavailable';
+                }}
+              />
+            </div>
+            
+            <div className="p-4 border-t border-border bg-gray-50/50 flex justify-end">
+              <button 
+                onClick={() => setPreviewFullImageUrl(null)}
+                className="px-5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold text-gray-750 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
