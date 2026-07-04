@@ -149,16 +149,33 @@ router.get('/candidates', async (req: Request, res: Response) => {
  
     if (role === 'agency') {
       const agencyStr = agencyName!.toLowerCase();
-      queryConditions.OR = [
-        { agency: agencyStr },
+      queryConditions.AND = [
         {
-          generatedCVs: {
-            some: {
-              templateId: {
-                contains: agencyStr
+          OR: [
+            { agency: agencyStr },
+            {
+              generatedCVs: {
+                some: {
+                  templateId: {
+                    contains: agencyStr
+                  }
+                }
               }
             }
-          }
+          ]
+        },
+        {
+          isFlagged: { not: true }
+        },
+        {
+          OR: [
+            { brokerId: null },
+            {
+              broker: {
+                isLocked: { not: true }
+              }
+            }
+          ]
         }
       ];
     } else {
@@ -202,6 +219,8 @@ router.get('/candidates', async (req: Request, res: Response) => {
         const agencyStr = agencyName!.toLowerCase();
         whereClauses.push('c.`agencySelected` = 1');
         whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
+        whereClauses.push('(c.`isFlagged` IS NULL OR c.`isFlagged` = 0)');
+        whereClauses.push('(b.`isLocked` IS NULL OR b.`isLocked` = 0)');
         sqlParams.push(agencyStr, `%${agencyStr}%`);
       } else {
         if (agency && agency !== 'all') {
@@ -346,6 +365,19 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
               }
             }
           ]
+        },
+        {
+          isFlagged: { not: true }
+        },
+        {
+          OR: [
+            { brokerId: null },
+            {
+              broker: {
+                isLocked: { not: true }
+              }
+            }
+          ]
         }
       ];
     } else {
@@ -391,6 +423,8 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
       if (role === 'agency') {
         const agencyStr = agencyName!.toLowerCase();
         whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
+        whereClauses.push('(c.`isFlagged` IS NULL OR c.`isFlagged` = 0)');
+        whereClauses.push('(b.`isLocked` IS NULL OR b.`isLocked` = 0)');
         sqlParams.push(agencyStr, `%${agencyStr}%`);
       } else {
         if (agency && agency !== 'all') {
@@ -516,10 +550,31 @@ router.post('/candidates/:id/select', async (req: Request, res: Response) => {
               }
             }
           }
-        }
+        },
+        include: { broker: true }
       });
       if (!candidate) {
         return res.status(403).json({ error: 'Forbidden: You do not have access to this candidate' });
+      }
+
+      // Check if candidate is flagged
+      if (candidate.isFlagged) {
+        return res.status(403).json({ error: 'Forbidden: Candidate is flagged' });
+      }
+
+      // Check candidate and broker lock states
+      let candidateIsLocked = false;
+      try {
+        const rawLocks: any[] = await prisma.$queryRawUnsafe(
+          `SELECT isLocked FROM \`Candidate\` WHERE id = ?`, id
+        );
+        if (rawLocks.length > 0) {
+          candidateIsLocked = rawLocks[0].isLocked === 1 || rawLocks[0].isLocked === true;
+        }
+      } catch (_) {}
+
+      if (candidate.broker?.isLocked || candidateIsLocked) {
+        return res.status(403).json({ error: 'Forbidden: Candidate is locked or their broker is locked' });
       }
     }
 

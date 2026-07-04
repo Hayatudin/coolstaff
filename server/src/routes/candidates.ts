@@ -853,6 +853,13 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     } catch (_) { /* columns may not exist yet */ }
 
+    if (role === 'agency') {
+      const isLocked = c.broker?.isLocked || candidateIsLocked;
+      if (c.isFlagged || isLocked) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this candidate' });
+      }
+    }
+
     let uploadedFacePhotoUrl: string | null = null;
     let uploadedFullBodyPhotoUrl: string | null = null;
     let uploadedVideoUrl: string | null = null;

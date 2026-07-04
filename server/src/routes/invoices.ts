@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { uploadToLocal } from '../lib/upload';
+import { getSession } from '../lib/auth-helper';
 
 const router = Router();
 
@@ -9,9 +10,28 @@ const router = Router();
 // GET /api/invoices
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const session = await getSession(req);
+    const role = session?.user?.role;
+
     // Attempt standard Prisma fetch first
     try {
+      const queryConditions: any = {};
+      if (role === 'agency') {
+        queryConditions.candidate = {
+          isFlagged: { not: true },
+          OR: [
+            { brokerId: null },
+            {
+              broker: {
+                isLocked: { not: true }
+              }
+            }
+          ]
+        };
+      }
+
       const invoices = await prisma.invoice.findMany({
+        where: queryConditions,
         include: {
           candidate: {
             include: {
@@ -28,18 +48,34 @@ router.get('/', async (req: Request, res: Response) => {
       console.warn('Prisma invoice fetch failed, falling back to raw SQL query:', prismaErr.message || prismaErr);
       
       // Fallback query to load invoices and candidate relationship directly from raw MySQL
-      const invoices = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT i.*, 
-                c.givenNames as candidate_givenNames, 
-                c.surname as candidate_surname, 
-                c.email as candidate_email, 
-                c.passportNumber as candidate_passportNumber,
-                c.registeredAt as candidate_registeredAt,
-                c.visaDate as candidate_visaDate
-         FROM \`Invoice\` i 
-         JOIN \`Candidate\` c ON i.candidateId = c.id
-         ORDER BY i.createdAt DESC`
-      );
+      let rawSqlQuery = `SELECT i.*, 
+                 c.givenNames as candidate_givenNames, 
+                 c.surname as candidate_surname, 
+                 c.email as candidate_email, 
+                 c.passportNumber as candidate_passportNumber,
+                 c.registeredAt as candidate_registeredAt,
+                 c.visaDate as candidate_visaDate
+          FROM \`Invoice\` i 
+          JOIN \`Candidate\` c ON i.candidateId = c.id
+          LEFT JOIN \`Broker\` b ON c.brokerId = b.id
+          ORDER BY i.createdAt DESC`;
+
+      if (role === 'agency') {
+        rawSqlQuery = `SELECT i.*, 
+                 c.givenNames as candidate_givenNames, 
+                 c.surname as candidate_surname, 
+                 c.email as candidate_email, 
+                 c.passportNumber as candidate_passportNumber,
+                 c.registeredAt as candidate_registeredAt,
+                 c.visaDate as candidate_visaDate
+          FROM \`Invoice\` i 
+          JOIN \`Candidate\` c ON i.candidateId = c.id
+          LEFT JOIN \`Broker\` b ON c.brokerId = b.id
+          WHERE (c.isFlagged IS NULL OR c.isFlagged = 0) AND (b.isLocked IS NULL OR b.isLocked = 0)
+          ORDER BY i.createdAt DESC`;
+      }
+
+      const invoices = await prisma.$queryRawUnsafe<any[]>(rawSqlQuery);
 
       // Fetch all generatedCVs to attach templateIds
       const allCVs = await prisma.$queryRawUnsafe<any[]>(
