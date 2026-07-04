@@ -41,6 +41,7 @@ export default function RequestedPage() {
 
   const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
   const [isSettingAgency, setIsSettingAgency] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const handleSetAgency = async (candidateId: string, templateId: string) => {
     setIsSettingAgency(true);
@@ -74,8 +75,12 @@ export default function RequestedPage() {
   };
 
   const handleGenerateReport = async () => {
-    if (candidates.length === 0) {
-      alert("No visa selected candidates to generate report.");
+    const targetCandidates = selectedIds.length > 0 
+      ? candidates.filter(c => selectedIds.includes(c.id))
+      : candidates;
+
+    if (targetCandidates.length === 0) {
+      alert("No candidates to generate report.");
       return;
     }
     setIsGenerating(true);
@@ -141,7 +146,7 @@ export default function RequestedPage() {
 
       // Table Body
       const tbody = document.createElement('tbody');
-      candidates.forEach((c, index) => {
+      targetCandidates.forEach((c, index) => {
         const row = document.createElement('tr');
         row.style.fontSize = '11px';
         row.style.borderBottom = '1px solid #cbd5e1';
@@ -385,6 +390,7 @@ export default function RequestedPage() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds([]);
   }, [searchQuery]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -415,7 +421,7 @@ export default function RequestedPage() {
           ) : (
             <>
               <ClipboardList size={18} />
-              <span>Generate Report</span>
+              <span>{selectedIds.length > 0 ? `Generate Report (${selectedIds.length})` : 'Generate Report'}</span>
             </>
           )}
         </button>
@@ -445,6 +451,20 @@ export default function RequestedPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-6 py-4 font-semibold text-center w-12">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(filtered.map(c => c.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                  />
+                </th>
                 <th className="px-6 py-4 font-semibold">No.</th>
                 <th className="px-6 py-4 font-semibold">Shelf ID</th>
                 <th className="px-6 py-4 font-semibold">Candidate</th>
@@ -459,7 +479,7 @@ export default function RequestedPage() {
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading candidates...</p>
@@ -491,6 +511,22 @@ export default function RequestedPage() {
 
                   return (
                     <tr key={c.id} className="hover:bg-gray-50/30 transition-colors">
+                      {/* Checkbox column */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(c.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds(prev => [...prev, c.id]);
+                            } else {
+                              setSelectedIds(prev => prev.filter(id => id !== c.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                        />
+                      </td>
+
                       {/* No. (Roll number) */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-text-secondary">
                         {rollNumber}
@@ -645,7 +681,7 @@ export default function RequestedPage() {
                   );
                 })
               ) : (
-                <tr><td colSpan={9} className="px-6 py-12 text-center text-text-tertiary text-sm">No Visa Selected candidates. Mark candidates as &quot;Visa Selected&quot; from the Candidates page.</td></tr>
+                <tr><td colSpan={10} className="px-6 py-12 text-center text-text-tertiary text-sm">No Visa Selected candidates. Mark candidates as &quot;Visa Selected&quot; from the Candidates page.</td></tr>
               )}
             </tbody>
           </table>

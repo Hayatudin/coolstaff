@@ -118,6 +118,7 @@ export default function AgencyContractsPage() {
   const [candidates, setCandidates] = useState<AgencyCandidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -334,6 +335,7 @@ export default function AgencyContractsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds([]);
   }, [searchQuery, activeTab, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency]);
 
   // Click outside listener for dropdowns
@@ -554,13 +556,17 @@ export default function AgencyContractsPage() {
 
   // CSV Exporter (Excel Compatible)
   const handleExportCSV = () => {
+    const targetCandidates = selectedIds.length > 0
+      ? filteredCandidates.filter(c => selectedIds.includes(c.id))
+      : filteredCandidates;
+
     const headers = [
       'Roll No', 'Given Names', 'Surname', 'Passport Number', 'Embassy Issue', 
       'Date Interval', 'Medical Status', 'Tasheer Status', 'Wakala Status', 
       'Selected Type', 'Travel Date', 'Status', 'Latest CV Template'
     ];
 
-    const rows = filteredCandidates.map((c, i) => {
+    const rows = targetCandidates.map((c, i) => {
       const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
       let daysAgoText = '—';
       if (targetDate) {
@@ -747,7 +753,7 @@ export default function AgencyContractsPage() {
             className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95"
           >
             <Download className="w-3.5 h-3.5" />
-            Export XLSX (CSV)
+            {selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : 'Export XLSX (CSV)'}
           </button>
         </div>
       </div>
@@ -791,6 +797,20 @@ export default function AgencyContractsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
+                <th className="px-5 py-4 font-semibold text-center w-12">
+                  <input
+                    type="checkbox"
+                    checked={filteredCandidates.length > 0 && selectedIds.length === filteredCandidates.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(filteredCandidates.map(c => c.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                  />
+                </th>
                 <th className="px-5 py-4 font-semibold text-center w-12">#</th>
                 <th className="px-5 py-4 font-semibold">Candidate</th>
                 {isSuperAdmin && <th className="px-5 py-4 font-semibold">Agency</th>}
@@ -808,7 +828,7 @@ export default function AgencyContractsPage() {
             <tbody className="divide-y divide-border/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-24 text-center">
+                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={36} className="text-[#464479] animate-spin" />
                       <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading contracts database...</p>
@@ -824,6 +844,22 @@ export default function AgencyContractsPage() {
                   return (
                     <tr key={c.id} className="hover:bg-gray-50/30 transition-colors group">
                       
+                      {/* Selection Checkbox */}
+                      <td className="px-5 py-4.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(c.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds(prev => [...prev, c.id]);
+                            } else {
+                              setSelectedIds(prev => prev.filter(id => id !== c.id));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                        />
+                      </td>
+
                       {/* Roll Number */}
                       <td className="px-5 py-4.5 text-center font-bold text-text-tertiary">
                         {rollNo}
@@ -1200,7 +1236,7 @@ export default function AgencyContractsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
+                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
                     No candidates found matching the selected filters.
                   </td>
                 </tr>
