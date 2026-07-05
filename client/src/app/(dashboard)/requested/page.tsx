@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag, CalendarDays } from 'lucide-react';
+import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag, CalendarDays, X } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
@@ -28,6 +28,8 @@ export default function RequestedPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -385,13 +387,34 @@ export default function RequestedPage() {
 
   const filtered = candidates.filter(c => {
     const name = `${c.passportData.givenNames} ${c.passportData.surname}`.toLowerCase();
-    return name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    let matchesDate = true;
+    const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+    
+    if (targetDate) {
+      targetDate.setHours(0, 0, 0, 0);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (targetDate < start) matchesDate = false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (targetDate > end) matchesDate = false;
+      }
+    } else {
+      if (startDate || endDate) matchesDate = false;
+    }
+    
+    return matchesSearch && matchesDate;
   });
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery]);
+  }, [searchQuery, startDate, endDate]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -442,8 +465,35 @@ export default function RequestedPage() {
         </div>
       )}
 
-      <div className="w-full md:w-96">
-        <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+      <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm">
+        <div className="flex-1">
+          <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-black text-text-secondary uppercase">From:</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          />
+          <span className="text-xs font-black text-text-secondary uppercase">To:</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          />
+          {(startDate || endDate) && (
+            <button
+              onClick={() => { setStartDate(''); setEndDate(''); }}
+              className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl border border-red-100 transition-colors cursor-pointer"
+              title="Clear date filters"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-surface rounded-[2rem] border border-border/30 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">

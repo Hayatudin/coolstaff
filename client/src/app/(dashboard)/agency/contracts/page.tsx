@@ -139,6 +139,8 @@ export default function AgencyContractsPage() {
   const [filterJob, setFilterJob] = useState<string>('all');
   const [filterMinAge, setFilterMinAge] = useState<string>('');
   const [filterMaxAge, setFilterMaxAge] = useState<string>('');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   // Dynamically compute unique jobs and religions from candidates list
   const uniqueJobs = useMemo(() => {
@@ -336,7 +338,7 @@ export default function AgencyContractsPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency]);
+  }, [searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency, filterStartDate, filterEndDate]);
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -451,6 +453,8 @@ export default function AgencyContractsPage() {
     setFilterJob('all');
     setFilterMinAge('');
     setFilterMaxAge('');
+    setFilterStartDate('');
+    setFilterEndDate('');
   };
 
   // Filter candidates based on Search + Active Tab + Agency Filters
@@ -536,8 +540,30 @@ export default function AgencyContractsPage() {
       }
     }
 
+    // Apply date range filter
+    list = list.filter(c => {
+      let matchesDate = true;
+      const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+      if (targetDate) {
+        targetDate.setHours(0, 0, 0, 0);
+        if (filterStartDate) {
+          const start = new Date(filterStartDate);
+          start.setHours(0, 0, 0, 0);
+          if (targetDate < start) matchesDate = false;
+        }
+        if (filterEndDate) {
+          const end = new Date(filterEndDate);
+          end.setHours(23, 59, 59, 999);
+          if (targetDate > end) matchesDate = false;
+        }
+      } else {
+        if (filterStartDate || filterEndDate) matchesDate = false;
+      }
+      return matchesDate;
+    });
+
     return list;
-  }, [candidates, searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin]);
+  }, [candidates, searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin, filterStartDate, filterEndDate]);
 
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE) || 1;
   const paginatedCandidates = useMemo(() => {
@@ -747,6 +773,24 @@ export default function AgencyContractsPage() {
             Search
           </button>
         </form>
+
+        {/* Date Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-black text-text-secondary uppercase">From:</span>
+          <input
+            type="date"
+            value={filterStartDate}
+            onChange={(e) => setFilterStartDate(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-gray-250 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          />
+          <span className="text-[10px] font-black text-text-secondary uppercase">To:</span>
+          <input
+            type="date"
+            value={filterEndDate}
+            onChange={(e) => setFilterEndDate(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-gray-250 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          />
+        </div>
         
         {/* Right side buttons */}
         <div className="flex items-center gap-3 shrink-0">
