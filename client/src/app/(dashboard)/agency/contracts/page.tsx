@@ -126,7 +126,7 @@ export default function AgencyContractsPage() {
   // Search and Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('All');
+  const [activeTabs, setActiveTabs] = useState<string[]>(['In Process']);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   const { data: session } = useSession();
@@ -336,7 +336,7 @@ export default function AgencyContractsPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, activeTab, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency]);
+  }, [searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency]);
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -429,7 +429,6 @@ export default function AgencyContractsPage() {
       all: candidates.length,
       inProcess: candidates.filter(c => c.agencyStatus === 'Under Process').length,
       arrived: candidates.filter(c => c.agencyStatus === 'Arrived').length,
-      returned: candidates.filter(c => c.agencyStatus === 'Returned').length,
       wakalaUnpaid: candidates.filter(c => c.wakalaStatus === 'Unpaid').length,
       company: candidates.filter(c => c.selectedType === 'Company').length,
       private: candidates.filter(c => c.selectedType === 'Private').length,
@@ -447,7 +446,7 @@ export default function AgencyContractsPage() {
   const handleResetFilters = () => {
     setSearchInput('');
     setSearchQuery('');
-    setActiveTab('All');
+    setActiveTabs(['In Process']);
     setFilterReligion('all');
     setFilterJob('all');
     setFilterMinAge('');
@@ -468,34 +467,45 @@ export default function AgencyContractsPage() {
       });
     }
 
-    // Apply active KPI tab filter
-    switch (activeTab) {
-      case 'In Process':
-        list = list.filter(c => c.agencyStatus === 'Under Process');
-        break;
-      case 'Arrived':
-        list = list.filter(c => c.agencyStatus === 'Arrived');
-        break;
-      case 'Returned':
-        list = list.filter(c => c.agencyStatus === 'Returned');
-        break;
-      case 'Wakala Unpaid':
+    // Apply active KPI tab filters
+    if (!activeTabs.includes('All') && activeTabs.length > 0) {
+      const statusSelected = activeTabs.filter(t => t === 'In Process' || t === 'Arrived');
+      const wakalaSelected = activeTabs.filter(t => t === 'Wakala Unpaid');
+      const typeSelected = activeTabs.filter(t => t === 'Company' || t === 'Private');
+      const travelSelected = activeTabs.filter(t => t === 'Travel Next 7 Days');
+      const medicalSelected = activeTabs.filter(t => t === 'Unfit');
+
+      if (statusSelected.length > 0) {
+        list = list.filter(c => {
+          return statusSelected.some(tab => {
+            if (tab === 'In Process') return c.agencyStatus === 'Under Process';
+            if (tab === 'Arrived') return c.agencyStatus === 'Arrived';
+            return false;
+          });
+        });
+      }
+
+      if (wakalaSelected.length > 0) {
         list = list.filter(c => c.wakalaStatus === 'Unpaid');
-        break;
-      case 'Company':
-        list = list.filter(c => c.selectedType === 'Company');
-        break;
-      case 'Private':
-        list = list.filter(c => c.selectedType === 'Private');
-        break;
-      case 'Travel Next 7 Days':
+      }
+
+      if (typeSelected.length > 0) {
+        list = list.filter(c => {
+          return typeSelected.some(tab => {
+            if (tab === 'Company') return c.selectedType === 'Company';
+            if (tab === 'Private') return c.selectedType === 'Private';
+            return false;
+          });
+        });
+      }
+
+      if (travelSelected.length > 0) {
         list = list.filter(c => isTravelNext7Days(c.travelDate));
-        break;
-      case 'Unfit':
+      }
+
+      if (medicalSelected.length > 0) {
         list = list.filter(c => c.medicalStatus?.toLowerCase() === 'unfit');
-        break;
-      default:
-        break;
+      }
     }
 
     // Apply Agency-specific filters if user is NOT a super_admin
@@ -527,7 +537,7 @@ export default function AgencyContractsPage() {
     }
 
     return list;
-  }, [candidates, searchQuery, activeTab, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin]);
+  }, [candidates, searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin]);
 
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE) || 1;
   const paginatedCandidates = useMemo(() => {
@@ -764,18 +774,32 @@ export default function AgencyContractsPage() {
           { key: 'All', count: tabCounts.all, color: 'border-gray-200 text-gray-700 hover:bg-gray-50', activeColor: 'bg-gray-900 border-gray-900 text-white' },
           { key: 'In Process', count: tabCounts.inProcess, color: 'border-amber-200 text-amber-700 hover:bg-amber-50/50', activeColor: 'bg-amber-500 border-amber-500 text-white' },
           { key: 'Arrived', count: tabCounts.arrived, color: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50/50', activeColor: 'bg-emerald-600 border-emerald-600 text-white' },
-          { key: 'Returned', count: tabCounts.returned, color: 'border-rose-200 text-rose-700 hover:bg-rose-50/50', activeColor: 'bg-rose-700 border-rose-700 text-white' },
           { key: 'Wakala Unpaid', count: tabCounts.wakalaUnpaid, color: 'border-orange-200 text-orange-700 hover:bg-orange-50/50', activeColor: 'bg-orange-500 border-orange-500 text-white' },
           { key: 'Company', count: tabCounts.company, color: 'border-blue-200 text-blue-700 hover:bg-blue-50/50', activeColor: 'bg-blue-600 border-blue-600 text-white' },
           { key: 'Private', count: tabCounts.private, color: 'border-indigo-200 text-indigo-700 hover:bg-indigo-50/50', activeColor: 'bg-indigo-600 border-indigo-600 text-white' },
           { key: 'Travel Next 7 Days', count: tabCounts.travelNext7, color: 'border-teal-200 text-teal-700 hover:bg-teal-50/50', activeColor: 'bg-teal-600 border-teal-600 text-white' },
           { key: 'Unfit', count: tabCounts.unfit, countColor: 'bg-red-100 text-red-700', color: 'border-red-200 text-red-700 hover:bg-red-50/50', activeColor: 'bg-red-600 border-red-600 text-white' },
         ].map((tab) => {
-          const isActive = activeTab === tab.key;
+          const isActive = activeTabs.includes(tab.key);
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                const key = tab.key;
+                if (key === 'All') {
+                  setActiveTabs(['All']);
+                  return;
+                }
+                setActiveTabs(prev => {
+                  const filtered = prev.filter(t => t !== 'All');
+                  if (filtered.includes(key)) {
+                    const next = filtered.filter(t => t !== key);
+                    return next.length === 0 ? ['All'] : next;
+                  } else {
+                    return [...filtered, key];
+                  }
+                });
+              }}
               className={`flex items-center gap-2 px-4.5 py-2 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
                 isActive ? tab.activeColor : tab.color
               }`}
@@ -822,13 +846,12 @@ export default function AgencyContractsPage() {
                 <th className="px-5 py-4 font-semibold text-center">Selected</th>
                 <th className="px-5 py-4 font-semibold">Travel Date</th>
                 <th className="px-5 py-4 font-semibold">Status</th>
-                <th className="px-5 py-4 font-semibold text-center">CV</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-24 text-center">
+                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={36} className="text-[#464479] animate-spin" />
                       <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading contracts database...</p>
@@ -1172,8 +1195,6 @@ export default function AgencyContractsPage() {
                               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border transition-all cursor-pointer select-none disabled:opacity-50 ${
                                 c.agencyStatus === 'Arrived' && 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               } ${
-                                c.agencyStatus === 'Returned' && 'bg-[#fdf4e7] text-[#854d0e] border-[#fef08a]'
-                              } ${
                                 (!c.agencyStatus || c.agencyStatus === 'Under Process') && 'bg-amber-50 text-amber-700 border-amber-200'
                               }`}
                             >
@@ -1189,7 +1210,7 @@ export default function AgencyContractsPage() {
 
                             {openDropdownId === `status-${c.id}` && (
                               <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden font-bold">
-                                {['Under Process', 'Arrived', 'Returned'].map((status) => (
+                                {['Under Process', 'Arrived'].map((status) => (
                                   <button
                                     key={status}
                                     onClick={() => handleUpdateCandidate(c.id, { agencyStatus: status })}
@@ -1206,7 +1227,6 @@ export default function AgencyContractsPage() {
                           <span
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border select-none ${
                               c.agencyStatus === 'Arrived' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              c.agencyStatus === 'Returned' ? 'bg-[#fdf4e7] text-[#854d0e] border-[#fef08a]' :
                               'bg-amber-50 text-amber-700 border-amber-200'
                             }`}
                           >
@@ -1215,28 +1235,12 @@ export default function AgencyContractsPage() {
                         )}
                       </td>
 
-                      {/* CV */}
-                      <td className="px-5 py-4.5 text-center">
-                        {c.latestCVTemplate ? (
-                          <button
-                            disabled={loadingCvId === c.id}
-                            onClick={() => handlePreviewCV(c.id, c.latestCVTemplate!)}
-                            className="px-3.5 py-1.5 rounded-xl border border-[#00A4EF]/35 hover:border-[#00A4EF] text-[#00A4EF] hover:bg-[#00A4EF]/5 text-xs font-extrabold shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                          >
-                            {loadingCvId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-xs font-semibold text-text-tertiary italic">No CV</span>
-                        )}
-                      </td>
-
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 13 : 12} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
+                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
                     No candidates found matching the selected filters.
                   </td>
                 </tr>
