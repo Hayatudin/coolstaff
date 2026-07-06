@@ -139,8 +139,7 @@ export default function AgencyContractsPage() {
   const [filterJob, setFilterJob] = useState<string>('all');
   const [filterMinAge, setFilterMinAge] = useState<string>('');
   const [filterMaxAge, setFilterMaxAge] = useState<string>('');
-  const [filterStartDate, setFilterStartDate] = useState<string>('');
-  const [filterEndDate, setFilterEndDate] = useState<string>('');
+  const [filterDate, setFilterDate] = useState<string>('all');
 
   // Dynamically compute unique jobs and religions from candidates list
   const uniqueJobs = useMemo(() => {
@@ -338,7 +337,7 @@ export default function AgencyContractsPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency, filterStartDate, filterEndDate]);
+  }, [searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency, filterDate]);
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -453,8 +452,7 @@ export default function AgencyContractsPage() {
     setFilterJob('all');
     setFilterMinAge('');
     setFilterMaxAge('');
-    setFilterStartDate('');
-    setFilterEndDate('');
+    setFilterDate('all');
   };
 
   // Filter candidates based on Search + Active Tab + Agency Filters
@@ -541,29 +539,25 @@ export default function AgencyContractsPage() {
     }
 
     // Apply date range filter
-    list = list.filter(c => {
-      let matchesDate = true;
-      const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
-      if (targetDate) {
-        targetDate.setHours(0, 0, 0, 0);
-        if (filterStartDate) {
-          const start = new Date(filterStartDate);
-          start.setHours(0, 0, 0, 0);
-          if (targetDate < start) matchesDate = false;
+    if (filterDate && filterDate !== 'all') {
+      list = list.filter(c => {
+        const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+        if (targetDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const diffTime = today.getTime() - targetDate.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          if (filterDate === '1week') return diffDays <= 7;
+          if (filterDate === '2weeks') return diffDays <= 14;
+          if (filterDate === '1month') return diffDays <= 30;
+          return true;
         }
-        if (filterEndDate) {
-          const end = new Date(filterEndDate);
-          end.setHours(23, 59, 59, 999);
-          if (targetDate > end) matchesDate = false;
-        }
-      } else {
-        if (filterStartDate || filterEndDate) matchesDate = false;
-      }
-      return matchesDate;
-    });
+        return false;
+      });
+    }
 
     return list;
-  }, [candidates, searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin, filterStartDate, filterEndDate]);
+  }, [candidates, searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin, filterDate]);
 
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE) || 1;
   const paginatedCandidates = useMemo(() => {
@@ -774,22 +768,19 @@ export default function AgencyContractsPage() {
           </button>
         </form>
 
-        {/* Date Filters */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-black text-text-secondary uppercase">From:</span>
-          <input
-            type="date"
-            value={filterStartDate}
-            onChange={(e) => setFilterStartDate(e.target.value)}
-            className="bg-white px-3 py-2 rounded-xl border border-gray-250 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          />
-          <span className="text-[10px] font-black text-text-secondary uppercase">To:</span>
-          <input
-            type="date"
-            value={filterEndDate}
-            onChange={(e) => setFilterEndDate(e.target.value)}
-            className="bg-white px-3 py-2 rounded-xl border border-gray-250 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          />
+        {/* Date Filter Dropdown */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black text-text-secondary uppercase shrink-0">Date Filter:</span>
+          <select
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="bg-white px-3 py-2.5 rounded-xl border border-gray-250 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+          >
+            <option value="all">All time</option>
+            <option value="1week">Week Ago</option>
+            <option value="2weeks">2 Weeks Ago</option>
+            <option value="1month">Month Ago</option>
+          </select>
         </div>
         
         {/* Right side buttons */}

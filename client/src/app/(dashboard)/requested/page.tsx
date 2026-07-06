@@ -28,8 +28,7 @@ export default function RequestedPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -390,22 +389,19 @@ export default function RequestedPage() {
     const matchesSearch = name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
     
     let matchesDate = true;
-    const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
-    
-    if (targetDate) {
-      targetDate.setHours(0, 0, 0, 0);
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        if (targetDate < start) matchesDate = false;
+    if (dateFilter && dateFilter !== 'all') {
+      const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
+      if (targetDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffTime = today.getTime() - targetDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        if (dateFilter === '1week' && diffDays > 7) matchesDate = false;
+        else if (dateFilter === '2weeks' && diffDays > 14) matchesDate = false;
+        else if (dateFilter === '1month' && diffDays > 30) matchesDate = false;
+      } else {
+        matchesDate = false;
       }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        if (targetDate > end) matchesDate = false;
-      }
-    } else {
-      if (startDate || endDate) matchesDate = false;
     }
     
     return matchesSearch && matchesDate;
@@ -414,7 +410,7 @@ export default function RequestedPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, startDate, endDate]);
+  }, [searchQuery, dateFilter]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -469,30 +465,18 @@ export default function RequestedPage() {
         <div className="flex-1">
           <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-black text-text-secondary uppercase">From:</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-text-secondary uppercase shrink-0">Date Filter:</span>
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
             className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          />
-          <span className="text-xs font-black text-text-secondary uppercase">To:</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          />
-          {(startDate || endDate) && (
-            <button
-              onClick={() => { setStartDate(''); setEndDate(''); }}
-              className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl border border-red-100 transition-colors cursor-pointer"
-              title="Clear date filters"
-            >
-              <X size={16} />
-            </button>
-          )}
+          >
+            <option value="all">All time</option>
+            <option value="1week">Week Ago</option>
+            <option value="2weeks">2 Weeks Ago</option>
+            <option value="1month">Month Ago</option>
+          </select>
         </div>
       </div>
 
