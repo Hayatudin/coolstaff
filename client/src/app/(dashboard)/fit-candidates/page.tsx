@@ -607,6 +607,9 @@ export default function FitCandidatesPage() {
         const zip = new JSZip();
 
         const CHUNK_SIZE = 5;
+        const failedCandidates: { name: string; reason: string }[] = [];
+        let renderedCount = 0;
+
         for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
           if (isCancelledRef.current) throw new Error('Cancelled');
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
@@ -615,60 +618,82 @@ export default function FitCandidatesPage() {
 
           await Promise.all(chunk.map(async (candidate: any) => {
             if (isCancelledRef.current) return;
-            const element = document.getElementById(`bulk-render-${candidate.id}`);
-            if (!element) return;
-
             const pData = candidate.passportData || {};
-            const pNo = pData.passportNumber || candidate.passportNumber || candidate.id.slice(-6);
             const givenNames = pData.givenNames || candidate.givenNames || '';
             const surname = pData.surname || candidate.surname || '';
-            const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
+            const candidateName = `${givenNames} ${surname}`.trim() || `Candidate ID ${candidate.id}`;
 
-            const rawTemplateId = candidate.latestCVTemplate || 'alm';
-            const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
-            const templateObj = TEMPLATES.find(t => t.id === templateId);
-            const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALAALAM';
-
-            const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
-
-            if (isCancelledRef.current) return;
-            const dataUrl = await htmlToImage.toJpeg(element, {
-              quality: 0.90,
-              backgroundColor: '#ffffff',
-              pixelRatio: 1.5,
-              fontEmbedCSS: '',
-              imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-            });
-
-            if (isCancelledRef.current) return;
-            if (format === 'jpg') {
-              const imgRes = await fetch(dataUrl);
-              const blob = await imgRes.blob();
-              zip.file(`${safeName}.jpg`, blob);
-            } else {
-              const pdf = new jsPDF('p', 'mm', 'a4');
-              const pdfW = pdf.internal.pageSize.getWidth();
-              const props = pdf.getImageProperties(dataUrl);
-              const totalH = props.height / (props.width / pdfW);
-              pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
-              if (totalH > pdf.internal.pageSize.getHeight() + 10) {
-                pdf.addPage();
-                pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
+            try {
+              const element = document.getElementById(`bulk-render-${candidate.id}`);
+              if (!element) {
+                throw new Error('CV template layout element not found in DOM.');
               }
-              zip.file(`${safeName}.pdf`, pdf.output('blob'));
-            }
 
-            setDownloadTask(prev => {
-              if (!prev) return null;
-              const nextProgress = Math.min(prev.progress + 1, prev.total);
-              return {
-                ...prev,
-                progress: nextProgress,
-                status: 'processing',
-                message: `Rendering CVs: ${nextProgress}/${prev.total}`
-              };
-            });
+              const pNo = pData.passportNumber || candidate.passportNumber || candidate.id.slice(-6);
+              const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
+
+              const rawTemplateId = candidate.latestCVTemplate || 'alm';
+              const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
+              const templateObj = TEMPLATES.find(t => t.id === templateId);
+              const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALAALAM';
+
+              const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+
+              if (isCancelledRef.current) return;
+              const dataUrl = await htmlToImage.toJpeg(element, {
+                quality: 0.90,
+                backgroundColor: '#ffffff',
+                pixelRatio: 1.0,
+                fontEmbedCSS: '',
+                cacheBust: false,
+                imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+              });
+
+              if (isCancelledRef.current) return;
+              if (format === 'jpg') {
+                const imgRes = await fetch(dataUrl);
+                const blob = await imgRes.blob();
+                zip.file(`${safeName}.jpg`, blob);
+              } else {
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfW = pdf.internal.pageSize.getWidth();
+                const props = pdf.getImageProperties(dataUrl);
+                const totalH = props.height / (props.width / pdfW);
+                pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, totalH);
+                if (totalH > pdf.internal.pageSize.getHeight() + 10) {
+                  pdf.addPage();
+                  pdf.addImage(dataUrl, 'JPEG', 0, -297, pdfW, totalH);
+                }
+                zip.file(`${safeName}.pdf`, pdf.output('blob'));
+              }
+            } catch (err: any) {
+              console.error(`Failed rendering CV for ${candidateName}:`, err);
+              let friendlyMessage = 'Unable to render the candidate CV layout.';
+              const errMsg = String(err.message || err);
+              if (errMsg.includes('CORS') || errMsg.includes('fetch') || errMsg.includes('Failed to fetch')) {
+                friendlyMessage = 'Unable to load candidate images from network due to connection security.';
+              } else if (errMsg.includes('element') || errMsg.includes('not found')) {
+                friendlyMessage = 'CV layout element was missing in the browser rendering container.';
+              }
+              failedCandidates.push({ name: candidateName, reason: friendlyMessage });
+            }
           }));
+
+          renderedCount += chunk.length;
+          setDownloadTask(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              progress: Math.min(renderedCount, prev.total),
+              status: 'processing',
+              message: `Rendering CVs: ${Math.min(renderedCount, prev.total)}/${prev.total}`
+            };
+          });
+        }
+
+        if (failedCandidates.length > 0) {
+          const names = failedCandidates.map(f => `• ${f.name}: ${f.reason}`).join('\n');
+          alert(`Some CVs failed to render, but the remaining CVs were processed successfully:\n\n${names}`);
         }
 
         if (isCancelledRef.current) throw new Error('Cancelled');
