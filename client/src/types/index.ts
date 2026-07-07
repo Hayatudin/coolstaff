@@ -94,6 +94,7 @@ export interface Candidate {
   isLocked?: boolean;
   allowVideo?: boolean;
   agencyStatus?: string;
+  gender?: string | null;
 }
 
 export interface Leader {

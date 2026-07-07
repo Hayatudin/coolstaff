@@ -88,6 +88,7 @@ interface AvailableCandidate {
   workExperience?: any;
   skills?: any;
   city?: string | null;
+  gender?: string | null;
 }
 
 const SKILL_TAGS = ['WASH & IRON', 'BABY SITTING', 'COOKING', 'CLEANING', 'DRIVING'];
@@ -202,6 +203,7 @@ export default function AvailableCandidatesPage() {
   const [inputCity, setInputCity] = useState('all');
   const [inputSkills, setInputSkills] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [inputGender, setInputGender] = useState('all');
 
   // Selection state
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
@@ -660,7 +662,7 @@ export default function AvailableCandidatesPage() {
   // Reset page number when any filter updates
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputCity, inputSkills, sortOrder]);
+  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputCity, inputSkills, sortOrder, inputGender]);
 
   const toggleSkillTag = (skill: string) => {
     setInputSkills(prev => {
@@ -681,6 +683,7 @@ export default function AvailableCandidatesPage() {
     setInputMaritalStatus('all');
     setInputCity('all');
     setInputSkills([]);
+    setInputGender('all');
     setSearchInput('');
     setSearchQuery('');
     setCurrentPage(1);
@@ -785,6 +788,17 @@ export default function AvailableCandidatesPage() {
         if (!matchesAllSkills) return false;
       }
 
+      // Gender Filter
+      if (inputGender !== 'all') {
+        const candGender = c.gender ? c.gender.trim().toLowerCase() : '';
+        const normalizedFilter = inputGender.toLowerCase();
+        if (normalizedFilter === 'male') {
+          if (candGender !== 'male' && candGender !== 'm') return false;
+        } else if (normalizedFilter === 'female') {
+          if (candGender !== 'female' && candGender !== 'f') return false;
+        }
+      }
+
       return true;
     }).sort((a, b) => {
       const dateA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
@@ -795,7 +809,7 @@ export default function AvailableCandidatesPage() {
         return dateA - dateB;
       }
     });
-  }, [candidates, searchQuery, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputSkills, sortOrder]);
+  }, [candidates, searchQuery, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputSkills, sortOrder, inputGender]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -939,6 +953,17 @@ export default function AvailableCandidatesPage() {
                 {r}
               </option>
             ))}
+          </select>
+
+          {/* Gender Select */}
+          <select
+            value={inputGender}
+            onChange={(e) => setInputGender(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
+          >
+            <option value="all">All genders</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
           </select>
 
           {/* Experience Select */}

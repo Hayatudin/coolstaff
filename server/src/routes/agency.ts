@@ -504,6 +504,7 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
         fullBodyPhotoUrl: encryptPath(fullBodyPhotoUrlVal) || null,
         passportImageUrl: encryptPath(c.passportImageUrl) || null,
         nationality: c.nationality,
+        gender: c.gender,
         educationLevel: c.educationLevel,
         maritalStatus: c.maritalStatus,
         workExperience: c.workExperience,
