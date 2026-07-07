@@ -29,6 +29,7 @@ export default function RequestedPage() {
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<'Available' | 'Arrived'>('Available');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -305,6 +306,11 @@ export default function RequestedPage() {
       return dateB - dateA;
     });
 
+  const tabCounts = {
+    available: candidates.filter(c => c.agencyStatus !== 'Arrived').length,
+    arrived: candidates.filter(c => c.agencyStatus === 'Arrived').length,
+  };
+
   const handleCancelVisaClick = (c: any) => {
     setOpenMenuId(null);
     if (c.isInvoiceDelivered) {
@@ -388,6 +394,9 @@ export default function RequestedPage() {
     const name = `${c.passportData.givenNames} ${c.passportData.surname}`.toLowerCase();
     const matchesSearch = name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
     
+    const isArrived = c.agencyStatus === 'Arrived';
+    const matchesTab = activeTab === 'Arrived' ? isArrived : !isArrived;
+
     let matchesDate = true;
     if (dateFilter && dateFilter !== 'all') {
       const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
@@ -404,13 +413,13 @@ export default function RequestedPage() {
       }
     }
     
-    return matchesSearch && matchesDate;
+    return matchesSearch && matchesTab && matchesDate;
   });
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, dateFilter]);
+  }, [searchQuery, dateFilter, activeTab]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -460,6 +469,32 @@ export default function RequestedPage() {
           </div>
         </div>
       )}
+
+      {/* KPI filter capsules */}
+      <div className="flex items-center gap-2">
+        {[
+          { key: 'Available', count: tabCounts.available, color: 'border-amber-200 text-amber-700 hover:bg-amber-50/50', activeColor: 'bg-amber-500 border-amber-500 text-white' },
+          { key: 'Arrived', count: tabCounts.arrived, color: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50/50', activeColor: 'bg-emerald-600 border-emerald-600 text-white' },
+        ].map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as 'Available' | 'Arrived')}
+              className={`flex items-center gap-2 px-4.5 py-2 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
+                isActive ? tab.activeColor : tab.color
+              }`}
+            >
+              <span>{tab.key}</span>
+              <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full ${
+                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm">
         <div className="flex-1">
@@ -594,22 +629,9 @@ export default function RequestedPage() {
 
                       {/* CV Agency */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <select
-                          value={c.latestCVTemplate ? c.latestCVTemplate.replace('tmpl-', '').toLowerCase() : ""}
-                          disabled={isSettingAgency}
-                          onChange={async (e) => {
-                            const val = e.target.value;
-                            if (val) {
-                              await handleSetAgency(c.id, val);
-                            }
-                          }}
-                          className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
-                        >
-                          <option value="" disabled>Select Agency...</option>
-                          {TEMPLATES.map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
-                        </select>
+                        <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-xl bg-cyan-50 text-cyan-700 border border-cyan-100 uppercase">
+                          {c.latestCVTemplate ? (TEMPLATES.find(t => t.id === c.latestCVTemplate?.replace('tmpl-', '').toLowerCase())?.name || c.latestCVTemplate?.replace('tmpl-', '').toUpperCase()) : '—'}
+                        </span>
                       </td>
 
                       {/* Selected Date (Days Ago) */}

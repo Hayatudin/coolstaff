@@ -1210,19 +1210,21 @@ export default function AvailableCandidatesPage() {
                 )}
 
                 {/* Green Select Button at the bottom of the card */}
-                <button
-                  type="button"
-                  disabled={isSelectingId !== null}
-                  onClick={() => handleSelectCandidate(c.id)}
-                  className="w-full mt-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
-                >
-                  {isSelectingId === c.id ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Check size={14} />
-                  )}
-                  Select
-                </button>
+                {userRole === 'agency' && (
+                  <button
+                    type="button"
+                    disabled={isSelectingId !== null}
+                    onClick={() => handleSelectCandidate(c.id)}
+                    className="w-full mt-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  >
+                    {isSelectingId === c.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Check size={14} />
+                    )}
+                    Select
+                  </button>
+                )}
               </div>
             );
           })}

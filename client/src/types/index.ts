@@ -93,6 +93,7 @@ export interface Candidate {
   cvDownloaded?: boolean;
   isLocked?: boolean;
   allowVideo?: boolean;
+  agencyStatus?: string;
 }
 
 export interface Leader {

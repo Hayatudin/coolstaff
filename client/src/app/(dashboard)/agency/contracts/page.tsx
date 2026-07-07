@@ -826,7 +826,14 @@ export default function AgencyContractsPage() {
                   return;
                 }
                 setActiveTabs(prev => {
-                  const filtered = prev.filter(t => t !== 'All');
+                  let filtered = prev.filter(t => t !== 'All');
+                  
+                  if (key === 'In Process') {
+                    filtered = filtered.filter(t => t !== 'Arrived');
+                  } else if (key === 'Arrived') {
+                    filtered = filtered.filter(t => t !== 'In Process');
+                  }
+
                   if (filtered.includes(key)) {
                     const next = filtered.filter(t => t !== key);
                     return next.length === 0 ? ['All'] : next;
