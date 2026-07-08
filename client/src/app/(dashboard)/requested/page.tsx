@@ -643,12 +643,35 @@ export default function RequestedPage() {
 
                       {/* Status */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Visa Selected
-                        </span>
+                        <select
+                          value={c.agencyStatus === 'Arrived' ? 'Arrived' : 'Under Process'}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            try {
+                              const res = await api(`/api/agency/${c.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ agencyStatus: newStatus }),
+                              });
+                              if (!res.ok) throw new Error();
+                              mutate((prev: any) => prev?.map((cand: any) => cand.id === c.id ? { ...cand, agencyStatus: newStatus } : cand));
+                            } catch (err) {
+                              console.error(err);
+                              alert('Failed to update agency status');
+                            }
+                          }}
+                          className={cn(
+                            "px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2",
+                            c.agencyStatus === 'Arrived' 
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-500" 
+                              : "bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500"
+                          )}
+                        >
+                          <option value="Under Process">On process</option>
+                          <option value="Arrived">Arrived</option>
+                        </select>
                         {c.visaOrContractNumber && (
-                          <p className="text-[10px] text-text-tertiary mt-1 max-w-[100px] truncate" title={c.visaOrContractNumber}>No: {c.visaOrContractNumber}</p>
+                          <p className="text-[10px] text-text-tertiary mt-1.5 max-w-[100px] truncate font-medium" title={c.visaOrContractNumber}>No: {c.visaOrContractNumber}</p>
                         )}
                       </td>
 

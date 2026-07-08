@@ -22,12 +22,35 @@ export async function api(path: string, options: RequestInit = {}) {
   };
 
   console.log(`[API] ${options.method || 'GET'} ${url}`);
-  const response = await fetch(url, defaultOptions);
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `API error: ${response.statusText}`);
-  }
 
-  return response;
+  const maxRetries = 3;
+  let delay = 500; // ms
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, defaultOptions);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${response.statusText}`);
+      }
+      
+      return response;
+    } catch (err: any) {
+      // Only retry on network errors (fetch throws TypeError on network issues)
+      // or if it's a 502/503/504 status code (bad gateway/timeout/server overload)
+      const isNetworkError = err instanceof TypeError || err.message?.includes('fetch') || err.message?.includes('NetworkError');
+      const isServerTemporarilyDown = err.message?.includes('502') || err.message?.includes('503') || err.message?.includes('504');
+      
+      if ((isNetworkError || isServerTemporarilyDown) && attempt < maxRetries) {
+        console.warn(`[API] Attempt ${attempt} failed. Retrying in ${delay}ms...`, err);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // exponential backoff
+        continue;
+      }
+      throw err;
+    }
+  }
+  
+  throw new Error('Failed after max retries');
 }

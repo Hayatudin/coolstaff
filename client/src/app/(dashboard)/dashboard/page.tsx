@@ -280,8 +280,13 @@ export default function DashboardPage() {
                         <p className="text-xs text-text-tertiary">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-text-primary font-medium truncate max-w-[200px]">{candidate.personalInfo.workExperience ? 'Experienced' : 'Fresher'}</p>
-                        <p className="text-xs text-text-tertiary truncate max-w-[200px]">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
+                        <p className="text-sm text-text-primary font-medium truncate max-w-[200px]">
+                          {Array.isArray(candidate.personalInfo?.workExperience) && candidate.personalInfo.workExperience.length > 0 ? 'Experienced' : (candidate.personalInfo?.workExperience ? 'Experienced' : 'Fresher')}
+                        </p>
+                        <p className="text-xs text-text-tertiary truncate max-w-[200px]">
+                          {Array.isArray(candidate.personalInfo?.skills) ? candidate.personalInfo.skills.slice(0, 3).join(', ') : ''}
+                          {Array.isArray(candidate.personalInfo?.skills) && candidate.personalInfo.skills.length > 3 ? '...' : ''}
+                        </p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {candidate.isRequested ? (
@@ -426,8 +431,13 @@ export default function DashboardPage() {
                         <p className="text-xs text-text-tertiary">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-text-primary font-medium truncate max-w-[200px]">{candidate.personalInfo.workExperience ? 'Experienced' : 'Fresher'}</p>
-                        <p className="text-xs text-text-tertiary truncate max-w-[200px]">{candidate.personalInfo.skills.slice(0, 3).join(', ')}{candidate.personalInfo.skills.length > 3 ? '...' : ''}</p>
+                        <p className="text-sm text-text-primary font-medium truncate max-w-[200px]">
+                          {Array.isArray(candidate.personalInfo?.workExperience) && candidate.personalInfo.workExperience.length > 0 ? 'Experienced' : (candidate.personalInfo?.workExperience ? 'Experienced' : 'Fresher')}
+                        </p>
+                        <p className="text-xs text-text-tertiary truncate max-w-[200px]">
+                          {Array.isArray(candidate.personalInfo?.skills) ? candidate.personalInfo.skills.slice(0, 3).join(', ') : ''}
+                          {Array.isArray(candidate.personalInfo?.skills) && candidate.personalInfo.skills.length > 3 ? '...' : ''}
+                        </p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">

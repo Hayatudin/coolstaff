@@ -143,6 +143,10 @@ router.get('/', async (req: Request, res: Response) => {
           passportImageUrl: true,
           facePhotoUrl: true,
           fullBodyPhotoUrl: true,
+          skills: true,
+          workExperience: true,
+          languages: true,
+          quickVideoUrl: true,
           isRequested: true,
           visaOrContractNumber: true,
           isFlagged: true,
@@ -209,6 +213,10 @@ router.get('/', async (req: Request, res: Response) => {
           passportImageUrl: true,
           facePhotoUrl: true,
           fullBodyPhotoUrl: true,
+          skills: true,
+          workExperience: true,
+          languages: true,
+          quickVideoUrl: true,
           isRequested: true,
           visaOrContractNumber: true,
           isFlagged: true,
@@ -372,6 +380,7 @@ router.get('/', async (req: Request, res: Response) => {
         isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
         agency: c.agency || 'daera',
         allowVideo: allowVideoVal,
+        quickVideoUrl: encryptPath(c.quickVideoUrl || null),
       };
     });
 
