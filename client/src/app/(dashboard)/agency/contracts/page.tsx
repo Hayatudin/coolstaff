@@ -330,29 +330,6 @@ export default function AgencyContractsPage() {
     }
   };
 
-  const [isClearing, setIsClearing] = useState(false);
-
-  const handleClearTestContracts = async () => {
-    if (!confirm('Are you sure you want to remove all candidates from the Contracts page? This will reset all current test candidate contracts.')) {
-      return;
-    }
-    setIsClearing(true);
-    try {
-      const res = await api('/api/agency/clear-test-contracts', {
-        method: 'POST'
-      });
-      if (!res.ok) throw new Error('Failed to clear test contracts');
-      const result = await res.json();
-      alert(`Successfully cleared ${result.count} test candidate contracts.`);
-      fetchCandidates(selectedAgency);
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Failed to clear test contracts.');
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
   useEffect(() => {
     fetchCandidates(selectedAgency);
   }, [selectedAgency]);
@@ -680,36 +657,20 @@ export default function AgencyContractsPage() {
           <p className="text-text-secondary text-sm font-medium mt-1">Manage and track candidate workflows, status metrics and travel dates.</p>
         </div>
         {isSuperAdmin && (
-          <div className="flex items-center gap-3">
-            {/* Clear Test Contracts Button */}
-            <button
-              onClick={handleClearTestContracts}
-              disabled={isClearing}
-              className="px-4 py-2.5 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/20 shadow-sm shrink-0">
+            <Building className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold text-text-secondary">Agency:</span>
+            <select
+              value={selectedAgency}
+              onChange={(e) => setSelectedAgency(e.target.value)}
+              className="bg-transparent text-xs font-black text-text-primary focus:outline-none cursor-pointer border-0 p-0 pr-8"
             >
-              {isClearing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <RotateCcw className="w-3.5 h-3.5" />
-              )}
-              Clear Test Data
-            </button>
-
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/20 shadow-sm shrink-0">
-              <Building className="w-4 h-4 text-primary" />
-              <span className="text-xs font-bold text-text-secondary">Agency:</span>
-              <select
-                value={selectedAgency}
-                onChange={(e) => setSelectedAgency(e.target.value)}
-                className="bg-transparent text-xs font-black text-text-primary focus:outline-none cursor-pointer border-0 p-0 pr-8"
-              >
-                {AGENCIES.map((agency) => (
-                  <option key={agency.id} value={agency.id}>
-                    {agency.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {AGENCIES.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>

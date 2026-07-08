@@ -789,37 +789,4 @@ router.patch('/candidates/:id', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/agency/clear-test-contracts
-router.post('/clear-test-contracts', async (req: Request, res: Response) => {
-  try {
-    const session = await getSession(req);
-    if (!session || !session.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const role = session.user.role;
-    if (role !== 'super_admin') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const result = await prisma.candidate.updateMany({
-      data: {
-        agencySelected: false,
-        embassyIssue: 'No',
-        cocStatus: 'No',
-        tasheerStatus: 'No',
-        wakalaStatus: 'Unpaid',
-        agencyStatus: 'Under Process',
-        selectedType: 'Private',
-        travelDate: null
-      }
-    });
-
-    console.log(`[AGENCY] Super Admin cleared ${result.count} test candidates from contracts.`);
-    res.json({ success: true, count: result.count });
-  } catch (err: any) {
-    console.error('[AGENCY] Failed to clear test contracts:', err);
-    res.status(500).json({ error: err.message || 'Internal server error' });
-  }
-});
-
 export default router;
