@@ -103,7 +103,7 @@ router.get('/', async (req: Request, res: Response) => {
     try {
       // Include registeredById in raw query to bypass any stale schema generator definitions
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo FROM \`QuickRegistration\``
+        `SELECT id, registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\``
       );
       const rawMap = new Map();
       for (const row of rawRows) {
@@ -114,6 +114,7 @@ router.get('/', async (req: Request, res: Response) => {
         if (raw) {
           reg.cocDocumentUrl = raw.cocDocumentUrl;
           reg.labourIdUrl = raw.labourIdUrl;
+          reg.laborID = raw.laborID;
           reg.candidateIdImageUrl = raw.candidateIdImageUrl;
           reg.relativeIdImageUrl = raw.relativeIdImageUrl;
           reg.videoUrl = raw.videoUrl;
@@ -220,7 +221,7 @@ router.post('/', async (req: Request, res: Response) => {
     ] = await Promise.all([
       uploadToLocal(body.passportImageUrl, 'passports'),
       uploadToLocal(body.cocDocumentUrl, 'coc'),
-      uploadToLocal(body.labourIdUrl, 'labour-id'),
+      body.labourIdUrl && body.labourIdUrl.startsWith('data:') ? uploadToLocal(body.labourIdUrl, 'labour-id') : Promise.resolve(body.labourIdUrl || null),
       uploadToLocal(body.candidateIdImageUrl, 'candidate-id'),
       uploadToLocal(body.relativeIdImageUrl, 'relative-id'),
       uploadToLocal(body.videoUrl, 'videos'),
@@ -270,7 +271,7 @@ router.post('/', async (req: Request, res: Response) => {
       const languagesString = body.languages ? JSON.stringify(body.languages) : null;
       await prisma.$executeRawUnsafe(
         `UPDATE \`QuickRegistration\` 
-         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?, \`languages\` = ?, \`allowVideo\` = ?
+         SET \`cocDocumentUrl\` = ?, \`labourIdUrl\` = ?, \`candidateIdImageUrl\` = ?, \`relativeIdImageUrl\` = ?, \`relativePhones\` = ?, \`videoUrl\` = ?, \`agency\` = ?, \`registeredById\` = ?, \`passportType\` = ?, \`languages\` = ?, \`allowVideo\` = ?, \`laborID\` = ?
          WHERE \`id\` = ?`,
         cocDocumentUrl || null,
         labourIdUrl || null,
@@ -283,6 +284,7 @@ router.post('/', async (req: Request, res: Response) => {
         body.passportType || 'original',
         languagesString,
         body.allowVideo ? 1 : 0,
+        body.laborID || null,
         registration.id
       );
 
@@ -297,6 +299,7 @@ router.post('/', async (req: Request, res: Response) => {
       registration.passportType = body.passportType || 'original';
       registration.languages = body.languages || null;
       registration.allowVideo = body.allowVideo ?? false;
+      registration.laborID = body.laborID || null;
     } catch (rawError) {
       console.error('Failed to run raw SQL update for QuickRegistration new fields:', rawError);
     }
@@ -398,7 +401,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       body.agency !== undefined ||
       body.passportType !== undefined ||
       body.languages !== undefined ||
-      body.allowVideo !== undefined
+      body.allowVideo !== undefined ||
+      body.laborID !== undefined
     ) {
       try {
         const setClauses: string[] = [];
@@ -453,6 +457,11 @@ router.put('/:id', async (req: Request, res: Response) => {
           setClauses.push('`allowVideo` = ?');
           queryParams.push(body.allowVideo ? 1 : 0);
           updated.allowVideo = body.allowVideo;
+        }
+        if (body.laborID !== undefined) {
+          setClauses.push('`laborID` = ?');
+          queryParams.push(body.laborID || null);
+          updated.laborID = body.laborID || null;
         }
 
         if (setClauses.length > 0) {
@@ -511,13 +520,14 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
         const raw = rawRows[0];
         registration.cocDocumentUrl = raw.cocDocumentUrl;
         registration.labourIdUrl = raw.labourIdUrl;
+        registration.laborID = raw.laborID;
         registration.candidateIdImageUrl = raw.candidateIdImageUrl;
         registration.relativeIdImageUrl = raw.relativeIdImageUrl;
         registration.videoUrl = raw.videoUrl;
@@ -563,13 +573,14 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
         const raw = rawRows[0];
         registration.cocDocumentUrl = raw.cocDocumentUrl;
         registration.labourIdUrl = raw.labourIdUrl;
+        registration.laborID = raw.laborID;
         registration.candidateIdImageUrl = raw.candidateIdImageUrl;
         registration.relativeIdImageUrl = raw.relativeIdImageUrl;
         registration.videoUrl = raw.videoUrl;

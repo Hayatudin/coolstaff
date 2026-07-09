@@ -46,6 +46,7 @@ interface QuickReg {
   agency?: string | null;
   passportType?: string | null;
   languages?: string[] | null;
+  laborID?: string | null;
 }
 
 function parseExperience(raw: string | null): string {
@@ -134,6 +135,7 @@ export default function QuickRegisteredPage() {
     agency: '',
     passportType: 'scan',
     languages: [] as string[],
+    laborID: '',
   });
 
   const handleFileChange = (field: string, file: File | null) => {
@@ -370,6 +372,7 @@ export default function QuickRegisteredPage() {
       agency: reg.agency || 'daera',
       passportType: reg.passportType || 'scan',
       languages: Array.isArray(reg.languages) ? reg.languages : [],
+      laborID: reg.laborID || '',
     });
   };
 
@@ -399,6 +402,7 @@ export default function QuickRegisteredPage() {
         agency: editForm.agency || 'daera',
         passportType: editForm.passportType || 'scan',
         languages: editForm.languages,
+        laborID: editForm.laborID || null,
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -991,6 +995,20 @@ export default function QuickRegisteredPage() {
                         <option value="Non muslim">Non muslim</option>
                       </select>
                     </div>
+
+                    {/* Labor ID */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Labor ID
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.laborID}
+                        onChange={e => setEditForm(prev => ({ ...prev, laborID: e.target.value }))}
+                        placeholder="Enter Labor ID"
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1157,7 +1175,6 @@ export default function QuickRegisteredPage() {
                     {[
                       { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/*' },
                       { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'application/pdf,image/*' },
-                      { label: 'Labour ID', field: 'labourIdUrl', current: editTarget?.labourIdUrl, accept: 'application/pdf,image/*' },
                       { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/*' },
                       { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/*' },
                       { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/*' },

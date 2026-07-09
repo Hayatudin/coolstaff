@@ -466,7 +466,8 @@ export async function ensureDatabaseSchema() {
     { name: 'travelDate', type: 'DATETIME(3) NULL' },
     { name: 'agencyStatus', type: "VARCHAR(191) NOT NULL DEFAULT 'Under Process'" },
     { name: 'agencySelected', type: 'TINYINT(1) NOT NULL DEFAULT 0' },
-    { name: 'price', type: 'VARCHAR(191) NULL' }
+    { name: 'price', type: 'VARCHAR(191) NULL' },
+    { name: 'laborID', type: 'VARCHAR(191) NULL' }
   ];
 
   for (const col of candidateColumns) {
@@ -498,7 +499,8 @@ export async function ensureDatabaseSchema() {
     { name: 'videoUrl', type: 'VARCHAR(500) NULL' },
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
     { name: 'languages', type: 'JSON NULL' },
-    { name: 'allowVideo', type: 'TINYINT(1) NOT NULL DEFAULT 0' }
+    { name: 'allowVideo', type: 'TINYINT(1) NOT NULL DEFAULT 0' },
+    { name: 'laborID', type: 'VARCHAR(191) NULL' }
   ];
 
   for (const col of quickRegColumns) {

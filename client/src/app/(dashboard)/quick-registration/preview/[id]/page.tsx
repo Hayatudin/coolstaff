@@ -34,6 +34,7 @@ interface QuickRegistration {
   agency?: string | null;
   passportType?: string | null;
   languages?: string[] | null;
+  laborID?: string | null;
 }
 
 function CopyField({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
@@ -114,6 +115,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     agency: '',
     passportType: 'scan',
     languages: [] as string[],
+    laborID: '',
   });
 
   const [customLanguage, setCustomLanguage] = useState('');
@@ -248,6 +250,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       agency: reg.agency || 'daera',
       passportType: reg.passportType || 'scan',
       languages: Array.isArray(reg.languages) ? reg.languages : [],
+      laborID: reg.laborID || '',
     });
   };
 
@@ -277,6 +280,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         agency: editForm.agency || 'daera',
         passportType: editForm.passportType || 'scan',
         languages: editForm.languages,
+        laborID: editForm.laborID || null,
       };
 
       if (editForm.passportImageUrl !== undefined) payload.passportImageUrl = editForm.passportImageUrl;
@@ -529,49 +533,27 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             </div>
           </div>
 
-          {/* Labour ID Image */}
+          {/* Labor ID Display */}
           <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Labour ID Image</p>
-                {labourId && (
-                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Check size={10} /> Uploaded
-                  </span>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Labor ID</p>
+              <div className="h-32 bg-slate-100/80 rounded-xl flex flex-col items-center justify-center p-4 text-center border border-dashed border-border/80">
+                <FileText className="text-primary/60 mb-2" size={28} />
+                <span className="text-sm font-bold text-text-primary select-all break-all">
+                  {data?.laborID || 'Not Assigned'}
+                </span>
+                {data?.laborID && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(data.laborID || '');
+                      alert('Labor ID copied to clipboard');
+                    }}
+                    className="mt-2 text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Copy size={12} /> Copy ID
+                  </button>
                 )}
               </div>
-              <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
-                {labourId ? (
-                  labourId.startsWith('data:image') || labourId.startsWith('http') || labourId.startsWith('/uploads') ? (
-                    <img src={getFileUrl(labourId)} alt="Labour ID" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
-                      <FileText className="text-primary/40" size={24} />
-                      <span>Document (PDF/Binary)</span>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
-                    <AlertCircle className="text-amber-500/80" size={20} />
-                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="mt-3">
-              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
-                <Upload size={14} />
-                {labourId ? 'Change File' : 'Upload Document'}
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileChange('labour', file);
-                  }}
-                />
-              </label>
             </div>
           </div>
 
@@ -839,6 +821,20 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                         <option value="Non muslim">Non muslim</option>
                       </select>
                     </div>
+
+                    {/* Labor ID */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Labor ID
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.laborID}
+                        onChange={e => setEditForm(prev => ({ ...prev, laborID: e.target.value }))}
+                        placeholder="Enter Labor ID"
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -969,7 +965,6 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                     {[
                       { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/*' },
                       { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'application/pdf,image/*' },
-                      { label: 'Labour ID', field: 'labourIdUrl', current: editTarget?.labourIdUrl, accept: 'application/pdf,image/*' },
                       { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/*' },
                       { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/*' },
                       { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/*' },

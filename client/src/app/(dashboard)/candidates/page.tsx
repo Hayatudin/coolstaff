@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -439,6 +439,7 @@ export default function CandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Shelf ID</th>
                 <th className="px-6 py-4 font-semibold">Candidate</th>
                 <th className="px-6 py-4 font-semibold">Passport No.</th>
+                <th className="px-6 py-4 font-semibold">Labor ID</th>
                 <th className="px-6 py-4 font-semibold">CV Agency</th>
                 <th className="px-6 py-4 font-semibold">Broker</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
@@ -450,9 +451,9 @@ export default function CandidatesPage() {
             </thead>
             <tbody className="divide-y divide-border/20">
               {isLoading ? (
-                <TableSkeleton rows={8} cols={10} />
+                <TableSkeleton rows={8} cols={11} />
               ) : error ? (
-                <tr><td colSpan={10} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
+                <tr><td colSpan={11} className="px-3 xl:px-6 py-10 text-center text-danger">Error: {error}</td></tr>
               ) : filtered.length > 0 ? (
                 paginatedCandidates.map((candidate) => (
                   <tr key={candidate.id} className="hover:bg-gray-50/30 transition-colors">
@@ -488,6 +489,30 @@ export default function CandidatesPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-sm font-medium text-text-primary">{candidate.passportData.passportNumber}</p>
                       <p className="text-xs text-text-tertiary">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
+                    </td>
+
+                    {/* Labor ID */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {candidate.laborID ? (
+                        <div className="flex items-center gap-1.5 group/copy">
+                          <span className="text-sm font-semibold text-text-primary font-mono select-all">
+                            {candidate.laborID}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(candidate.laborID || '');
+                              alert('Labor ID copied to clipboard');
+                            }}
+                            className="p-1 rounded text-text-tertiary hover:bg-gray-100 hover:text-primary transition-all cursor-pointer"
+                            title="Copy Labor ID"
+                          >
+                            <Copy size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-text-tertiary/60 font-semibold">—</span>
+                      )}
                     </td>
 
                     {/* CV Agency */}
@@ -657,7 +682,7 @@ export default function CandidatesPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={10} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No candidates found matching your search or filters.</td></tr>
+                <tr><td colSpan={11} className="px-3 xl:px-6 py-10 text-center text-text-tertiary">No candidates found matching your search or filters.</td></tr>
               )}
             </tbody>
           </table>

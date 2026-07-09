@@ -95,6 +95,7 @@ export interface Candidate {
   allowVideo?: boolean;
   agencyStatus?: string;
   gender?: string | null;
+  laborID?: string | null;
 }
 
 export interface Leader {

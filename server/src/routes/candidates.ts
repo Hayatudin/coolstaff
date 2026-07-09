@@ -147,6 +147,7 @@ router.get('/', async (req: Request, res: Response) => {
           workExperience: true,
           languages: true,
           quickVideoUrl: true,
+          laborID: true,
           isRequested: true,
           visaOrContractNumber: true,
           isFlagged: true,
@@ -217,6 +218,7 @@ router.get('/', async (req: Request, res: Response) => {
           workExperience: true,
           languages: true,
           quickVideoUrl: true,
+          laborID: true,
           isRequested: true,
           visaOrContractNumber: true,
           isFlagged: true,
@@ -381,6 +383,7 @@ router.get('/', async (req: Request, res: Response) => {
         agency: c.agency || 'daera',
         allowVideo: allowVideoVal,
         quickVideoUrl: encryptPath(c.quickVideoUrl || null),
+        laborID: c.laborID || null,
       };
     });
 
@@ -420,12 +423,13 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
     let allowVideo = qr.allowVideo ?? false;
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT \`videoUrl\`, \`allowVideo\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT \`videoUrl\`, \`allowVideo\`, \`laborID\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         quickRegistrationId
       );
       if (rawRows.length > 0) {
         if (rawRows[0].videoUrl) videoUrl = rawRows[0].videoUrl;
         allowVideo = rawRows[0].allowVideo === 1 || rawRows[0].allowVideo === true;
+        if (rawRows[0].laborID) qr.laborID = rawRows[0].laborID;
       }
     } catch (_) { /* column may not exist yet */ }
 
@@ -455,6 +459,10 @@ router.post('/promote-from-quick', async (req: Request, res: Response) => {
     if (qr.labourIdUrl) {
       setClauses.push('`labourIdUrl` = ?');
       params.push(qr.labourIdUrl);
+    }
+    if (qr.laborID) {
+      setClauses.push('`laborID` = ?');
+      params.push(qr.laborID);
     }
     if (qr.candidateIdImageUrl) {
       setClauses.push('`candidateIdImageUrl` = ?');
@@ -1077,6 +1085,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       agency: c.agency || 'daera',
       allowVideo: uploadedVideoUrl ? true : (c.allowVideo ?? false),
       price: isSuperAdmin ? candidatePrice : null,
+      laborID: (c as any).laborID || null,
     };
     res.json(candidate);
   } catch (error) {

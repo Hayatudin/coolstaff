@@ -102,6 +102,7 @@ model Candidate {
   travelDate               DateTime?
   agencyStatus             String    @default("Under Process")
   agencySelected           Boolean   @default(false)
+  laborID                  String?
 
   broker                   Broker?   @relation(fields: [brokerId], references: [id])
   brokerId                 String?
@@ -250,6 +251,7 @@ model QuickRegistration {
   videoUrl            String?  @db.VarChar(500)
   languages           Json?
   allowVideo          Boolean  @default(false)
+  laborID             String?
 
   broker           Broker?  @relation(fields: [brokerId], references: [id])
   brokerId         String?

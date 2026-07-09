@@ -646,8 +646,8 @@ router.patch('/candidates/:id', async (req: Request, res: Response) => {
     }
 
     const role = session.user.role;
-    // Allow super_admin, agency, processor, coordinator to update
-    if (!['super_admin', 'agency', 'processor', 'coordinator'].includes(role)) {
+    // Allow super_admin, agency, processor, coordinator, accountant, genaral to update
+    if (!['super_admin', 'agency', 'processor', 'coordinator', 'accountant', 'genaral'].includes(role)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

@@ -63,7 +63,7 @@ export default function RequestedPage() {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to set agency');
       }
-      
+
       // Optimistically update local state so the select reflects the change immediately
       mutate((prev: any) => prev?.map((c: any) => c.id === candidateId ? { ...c, latestCVTemplate: templateId } : c));
       setSelectedCandidateForAgency(null);
@@ -77,7 +77,7 @@ export default function RequestedPage() {
   };
 
   const handleGenerateReport = async () => {
-    const targetCandidates = selectedIds.length > 0 
+    const targetCandidates = selectedIds.length > 0
       ? candidates.filter(c => selectedIds.includes(c.id))
       : candidates;
 
@@ -88,7 +88,7 @@ export default function RequestedPage() {
     setIsGenerating(true);
     try {
       const html2pdf = (await import('html2pdf.js')).default;
-      
+
       // Create element container
       const element = document.createElement('div');
       element.style.padding = '20px';
@@ -170,7 +170,7 @@ export default function RequestedPage() {
         tdName.style.border = '1px solid #cbd5e1';
         tdName.style.fontWeight = '700';
         tdName.style.color = '#1e3a8a';
-        
+
         const medStatus = (c.personalInfo.medicalStatus || 'Pending').toUpperCase();
         if (medStatus === 'FIT') {
           tdName.style.backgroundColor = '#ecfdf5';
@@ -188,9 +188,9 @@ export default function RequestedPage() {
         tdDate.style.border = '1px solid #cbd5e1';
         tdDate.style.textAlign = 'center';
         tdDate.style.color = '#334155';
-        tdDate.innerText = c.visaDate 
+        tdDate.innerText = c.visaDate
           ? new Date(c.visaDate).toLocaleDateString()
-          : c.registeredAt 
+          : c.registeredAt
             ? new Date(c.registeredAt).toLocaleDateString()
             : '—';
         row.appendChild(tdDate);
@@ -330,18 +330,18 @@ export default function RequestedPage() {
       const res = await api(`/api/candidates/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          isRequested: false, 
-          visaSelected: false, 
+        body: JSON.stringify({
+          isRequested: false,
+          visaSelected: false,
           visaOrContractNumber: null,
           status: 'pending'
         }),
       });
       if (!res.ok) throw new Error();
-      mutate(prev => prev.map(cand => cand.id === id ? { 
-        ...cand, 
-        isRequested: false, 
-        visaSelected: false, 
+      mutate(prev => prev.map(cand => cand.id === id ? {
+        ...cand,
+        isRequested: false,
+        visaSelected: false,
         visaOrContractNumber: null,
         status: 'pending'
       } : cand));
@@ -393,7 +393,7 @@ export default function RequestedPage() {
   const filtered = candidates.filter(c => {
     const name = `${c.passportData.givenNames} ${c.passportData.surname}`.toLowerCase();
     const matchesSearch = name.includes(searchQuery.toLowerCase()) || c.passportData.passportNumber.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const isArrived = c.agencyStatus === 'Arrived';
     const matchesTab = activeTab === 'Arrived' ? isArrived : !isArrived;
 
@@ -412,7 +412,7 @@ export default function RequestedPage() {
         matchesDate = false;
       }
     }
-    
+
     return matchesSearch && matchesTab && matchesDate;
   });
 
@@ -432,7 +432,7 @@ export default function RequestedPage() {
             <div className="p-2 rounded-xl bg-green-50"><ClipboardList size={22} className="text-green-600" /></div>
             Requested Candidates
           </h1>
-          <p className="text-text-secondary mt-1 ml-12">Candidates marked as requested — remove to unrequest</p>
+          <p className="text-text-secondary mt-1 ml-12">Candidates marked as requested remove to unrequest</p>
         </div>
 
         {/* Generate Report Button */}
@@ -481,14 +481,12 @@ export default function RequestedPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as 'Available' | 'Arrived')}
-              className={`flex items-center gap-2 px-4.5 py-2 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${
-                isActive ? tab.activeColor : tab.color
-              }`}
+              className={`flex items-center gap-2 px-4.5 py-2 rounded-full border text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95 ${isActive ? tab.activeColor : tab.color
+                }`}
             >
               <span>{tab.key}</span>
-              <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full ${
-                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
-              }`}>
+              <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-black rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
                 {tab.count}
               </span>
             </button>
@@ -558,7 +556,7 @@ export default function RequestedPage() {
               ) : filtered.length > 0 ? (
                 paginated.map((c, index) => {
                   const rollNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
-                  
+
                   // Calculate days elapsed since visa selection
                   const targetDate = c.visaDate ? new Date(c.visaDate) : (c.registeredAt ? new Date(c.registeredAt) : null);
                   let daysAgoText = 'Pending';
@@ -648,7 +646,7 @@ export default function RequestedPage() {
                           onChange={async (e) => {
                             const newStatus = e.target.value;
                             try {
-                              const res = await api(`/api/agency/${c.id}`, {
+                              const res = await api(`/api/agency/candidates/${c.id}`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ agencyStatus: newStatus }),
@@ -662,8 +660,8 @@ export default function RequestedPage() {
                           }}
                           className={cn(
                             "px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2",
-                            c.agencyStatus === 'Arrived' 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-500" 
+                            c.agencyStatus === 'Arrived'
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 focus:ring-emerald-500"
                               : "bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500"
                           )}
                         >
@@ -688,9 +686,9 @@ export default function RequestedPage() {
                                 body: JSON.stringify({ medicalStatus: newStatus }),
                               });
                               if (!res.ok) throw new Error();
-                              mutate(prev => prev.map(cand => cand.id === c.id ? { 
-                                ...cand, 
-                                personalInfo: { ...cand.personalInfo, medicalStatus: newStatus } 
+                              mutate(prev => prev.map(cand => cand.id === c.id ? {
+                                ...cand,
+                                personalInfo: { ...cand.personalInfo, medicalStatus: newStatus }
                               } : cand));
                             } catch {
                               alert('Failed to update medical status');
@@ -739,7 +737,7 @@ export default function RequestedPage() {
                               className="fixed w-52 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
                               style={{
                                 top: menuCoords.top,
-                                  left: menuCoords.left,
+                                left: menuCoords.left,
                               }}
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -786,11 +784,10 @@ export default function RequestedPage() {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border ${
-                    page === currentPage
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all border ${page === currentPage
                       ? 'bg-primary text-white border-primary shadow-md'
                       : 'border-border text-text-secondary hover:bg-primary/10 hover:border-primary/30'
-                  }`}
+                    }`}
                 >
                   {page}
                 </button>
@@ -918,11 +915,11 @@ export default function RequestedPage() {
                   <label className="block text-sm font-semibold text-text-primary mb-2">
                     Please provide a reason for cancellation:
                   </label>
-                  <Input 
+                  <Input
                     autoFocus
-                    placeholder="Enter reason for cancellation" 
-                    value={cancelVisaReason} 
-                    onChange={(e) => setCancelVisaReason(e.target.value)} 
+                    placeholder="Enter reason for cancellation"
+                    value={cancelVisaReason}
+                    onChange={(e) => setCancelVisaReason(e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -931,7 +928,7 @@ export default function RequestedPage() {
                 <button onClick={() => setCancelVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
                   Cancel
                 </button>
-                <button 
+                <button
                   disabled={!cancelVisaReason.trim()}
                   onClick={() => cancelVisa(cancelVisaModalId)}
                   className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg"

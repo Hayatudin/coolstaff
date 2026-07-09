@@ -99,6 +99,7 @@ export default function QuickRegistrationPage() {
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [allowVideo, setAllowVideo] = useState(false);
+  const [laborID, setLaborID] = useState('');
   const [agency, setAgency] = useState('');
   const [office, setOffice] = useState('');
   const [passportType, setPassportType] = useState('original');
@@ -375,8 +376,8 @@ export default function QuickRegistrationPage() {
     }
 
     if (!isCalling) {
-      if (!cocDocumentUrl || !labourIdUrl || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
-        setError('All documents (COC, Labour ID, Candidate ID, Relative ID, and Video) are required.');
+      if (!cocDocumentUrl || !laborID || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
+        setError('All documents (COC, Labor ID, Candidate ID, Relative ID, and Video) are required.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
@@ -472,7 +473,8 @@ export default function QuickRegistrationPage() {
             brokerId: selectedBrokerId || null,
             relativePhones: null,
             cocDocumentUrl,
-            labourIdUrl,
+            labourIdUrl: null,
+            laborID,
             candidateIdImageUrl,
             relativeIdImageUrl,
             videoUrl,
@@ -901,16 +903,18 @@ export default function QuickRegistrationPage() {
               helperText="COC Document — Max 50MB"
               required={!isCalling}
             />
-            <FileUpload
-              label="Labour ID"
-              shape="rect"
-              compact
-              preview={labourIdUrl}
-              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setLabourIdUrl(base64))}
-              onClear={() => setLabourIdUrl(null)}
-              helperText="Labour ID Image — Max 50MB"
-              required={!isCalling}
-            />
+            <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm flex flex-col gap-2">
+              <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Labor ID</label>
+              <input
+                type="text"
+                value={laborID}
+                onChange={(e) => setLaborID(e.target.value)}
+                placeholder="Enter Labor ID"
+                className="px-4 py-3 rounded-xl border border-gray-200/80 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 w-full"
+                required={!isCalling}
+              />
+              <p className="text-[10px] text-text-tertiary font-bold tracking-tight">Labor ID of Candidate — Text Field</p>
+            </div>
             <FileUpload
               label="Candidate ID"
               shape="rect"
