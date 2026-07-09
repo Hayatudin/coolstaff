@@ -73,211 +73,67 @@ router.get('/', async (req: Request, res: Response) => {
     const session = await getSession(req);
     const role = (session?.user as any)?.role;
     const isSuperAdmin = role === 'super_admin';
-    // Fetch all brokers and their lock status safely
-    const lockMap = await getBrokerLockMap();
-    const brokerMap = new Map<string, any>();
+
+    // 1. Dynamic Column Discovery
+    let dbCols = new Set<string>();
     try {
-      const dbBrokers = await prisma.broker.findMany({
-        select: { id: true, name: true }
-      });
-      for (const b of dbBrokers) {
-        brokerMap.set(b.id, {
-          id: b.id,
-          name: b.name,
-          isLocked: lockMap[b.id] ?? false
-        });
+      const columnsInfo = await prisma.$queryRawUnsafe<any[]>('SHOW COLUMNS FROM `Candidate`');
+      for (const col of columnsInfo) {
+        dbCols.add(col.Field);
       }
-    } catch (err) {
-      console.warn('Could not fetch brokers for candidates mapping:', err);
+    } catch (e) {
+      console.warn('[DB] Could not dynamically check Candidate columns, falling back:', e);
     }
 
-    let dbCandidates;
-    try {
-      dbCandidates = await prisma.candidate.findMany({
-        orderBy: { registeredAt: 'desc' },
-        select: {
-          id: true,
-          shelfId: true,
-          cvDeadline: true,
-          passportNumber: true,
-          surname: true,
-          givenNames: true,
-          dateOfBirth: true,
-          gender: true,
-          nationality: true,
-          issuingCountry: true,
-          dateOfIssue: true,
-          dateOfExpiry: true,
-          placeOfBirth: true,
-          idNumber: true,
-          job: true,
-          maritalStatus: true,
-          numberOfChildren: true,
-          religion: true,
-          bloodType: true,
-          height: true,
-          weight: true,
-          phone: true,
-          email: true,
-          address: true,
-          city: true,
-          state: true,
-          country: true,
-          educationLevel: true,
-          medicalStatus: true,
-          biometricStatus: true,
-          medicalDate: true,
-          biometricDate: true,
-          knownConditions: true,
-          emergencyContactName: true,
-          emergencyContactRelation: true,
-          emergencyContactPhone: true,
-          emergencyContactAddress: true,
-          additionalPhones: true,
-          brokerId: true,
-          cocDocumentUrl: true,
-          medicalDocumentUrl: true,
-          candidateIdImageUrl: true,
-          relativeIdImageUrl: true,
-          labourIdUrl: true,
-          passportImageUrl: true,
-          facePhotoUrl: true,
-          fullBodyPhotoUrl: true,
-          skills: true,
-          workExperience: true,
-          languages: true,
-          quickVideoUrl: true,
-          isRequested: true,
-          visaOrContractNumber: true,
-          isFlagged: true,
-          registeredAt: true,
-          status: true,
-          visaSelected: true,
-          visaDate: true,
-          salary: true,
-          agency: true,
-          generatedCVs: { orderBy: { createdAt: 'desc' }, select: { id: true, templateId: true } },
-          registeredBy: { select: { name: true } },
-          invoices: { select: { isDelivered: true } }
-        }
-      });
-    } catch (schemaError: any) {
-      console.warn('Prisma schema out of sync. Falling back to basic fetch.');
-      dbCandidates = await prisma.candidate.findMany({
-        orderBy: { registeredAt: 'desc' },
-        select: {
-          id: true,
-          shelfId: true,
-          cvDeadline: true,
-          passportNumber: true,
-          surname: true,
-          givenNames: true,
-          dateOfBirth: true,
-          gender: true,
-          nationality: true,
-          issuingCountry: true,
-          dateOfIssue: true,
-          dateOfExpiry: true,
-          placeOfBirth: true,
-          idNumber: true,
-          job: true,
-          maritalStatus: true,
-          numberOfChildren: true,
-          religion: true,
-          bloodType: true,
-          height: true,
-          weight: true,
-          phone: true,
-          email: true,
-          address: true,
-          city: true,
-          state: true,
-          country: true,
-          educationLevel: true,
-          medicalStatus: true,
-          biometricStatus: true,
-          medicalDate: true,
-          biometricDate: true,
-          knownConditions: true,
-          emergencyContactName: true,
-          emergencyContactRelation: true,
-          emergencyContactPhone: true,
-          emergencyContactAddress: true,
-          additionalPhones: true,
-          brokerId: true,
-          cocDocumentUrl: true,
-          medicalDocumentUrl: true,
-          candidateIdImageUrl: true,
-          relativeIdImageUrl: true,
-          labourIdUrl: true,
-          passportImageUrl: true,
-          facePhotoUrl: true,
-          fullBodyPhotoUrl: true,
-          skills: true,
-          workExperience: true,
-          languages: true,
-          quickVideoUrl: true,
-          isRequested: true,
-          visaOrContractNumber: true,
-          isFlagged: true,
-          registeredAt: true,
-          status: true,
-          visaSelected: true,
-          visaDate: true,
-          salary: true,
-          agency: true,
-          generatedCVs: { orderBy: { createdAt: 'desc' }, select: { id: true, templateId: true } }
-        }
-      });
-      
-      // Fetch invoices safely
-      try {
-        const invoices = await prisma.$queryRawUnsafe<any[]>(`SELECT candidateId, isDelivered FROM \`Invoice\``);
-        const invoiceMap = new Map<string, any[]>();
-        for (const inv of invoices) {
-          const existing = invoiceMap.get(inv.candidateId) || [];
-          existing.push({ isDelivered: Boolean(inv.isDelivered) });
-          invoiceMap.set(inv.candidateId, existing);
-        }
-        for (const cand of dbCandidates) {
-          (cand as any).invoices = invoiceMap.get(cand.id) || [];
-        }
-      } catch (invErr) {
-        console.warn('Could not fetch invoices for candidates:', invErr);
-      }
+    const defaultCols = [
+      'id', 'shelfId', 'passportNumber', 'surname', 'givenNames', 'dateOfBirth', 'gender',
+      'nationality', 'issuingCountry', 'dateOfIssue', 'dateOfExpiry', 'placeOfBirth',
+      'maritalStatus', 'numberOfChildren', 'religion', 'bloodType', 'height', 'weight',
+      'phone', 'additionalPhones', 'email', 'address', 'city', 'state', 'country',
+      'idNumber', 'job', 'educationLevel', 'languages', 'workExperience', 'skills',
+      'medicalStatus', 'biometricStatus', 'medicalDate', 'biometricDate', 'knownConditions',
+      'cvDeadline', 'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone',
+      'emergencyContactAddress', 'passportImageUrl', 'facePhotoUrl', 'fullBodyPhotoUrl',
+      'cocDocumentUrl', 'medicalDocumentUrl', 'candidateIdImageUrl', 'relativeIdImageUrl',
+      'labourIdUrl', 'isRequested', 'visaOrContractNumber', 'isFlagged', 'Youtube_URL',
+      'registeredAt', 'status', 'brokerId', 'visaSelected', 'registeredById', 'salary',
+      'visaDate', 'agency', 'quickVideoUrl', 'deployedDate', 'isLocked', 'allowVideo', 'price',
+      'laborID', 'agencyStatus'
+    ];
+
+    // Filter down select list to columns that actually exist in the DB
+    const selectCols = defaultCols.filter(col => dbCols.size === 0 || dbCols.has(col));
+    const selectStr = selectCols.map(col => `\`${col}\``).join(', ');
+
+    // 2. Fetch Candidate Rows
+    const dbCandidates = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT ${selectStr} FROM \`Candidate\` ORDER BY \`registeredAt\` DESC`
+    );
+
+    // 3. Fetch Relations Safely
+    const users = await prisma.$queryRawUnsafe<any[]>('SELECT `id`, `name` FROM `User`').catch(() => []);
+    const userMap = new Map(users.map(u => [u.id, u.name]));
+
+    const brokers = await prisma.$queryRawUnsafe<any[]>('SELECT `id`, `name`, `isLocked` FROM `Broker`').catch(() => []);
+    const brokerMap = new Map(brokers.map(b => [b.id, { id: b.id, name: b.name, isLocked: b.isLocked === 1 || b.isLocked === true }]));
+
+    const invoices = await prisma.$queryRawUnsafe<any[]>('SELECT `candidateId`, `isDelivered` FROM `Invoice`').catch(() => []);
+    const invoiceMap = new Map<string, any[]>();
+    for (const inv of invoices) {
+      const list = invoiceMap.get(inv.candidateId) || [];
+      list.push({ isDelivered: inv.isDelivered === 1 || inv.isDelivered === true });
+      invoiceMap.set(inv.candidateId, list);
     }
 
-    // Read Youtube_URL, deployedDate, isLocked and laborID via raw SQL (before synchronous map)
-    let youtubeUrlMap: Record<string, string | null> = {};
-    let deployedDateMap: Record<string, string | null> = {};
-    let candidateLockMap: Record<string, boolean> = {};
-    let candidateCvDownloadedMap: Record<string, boolean> = {};
-    let candidatePriceMap: Record<string, string | null> = {};
-    let candidateLaborIdMap: Record<string, string | null> = {};
-    let registeredByMap: Record<string, string> = {};
-    try {
-      const users: any[] = await prisma.$queryRawUnsafe(`SELECT \`id\`, \`name\` FROM \`User\``);
-      const userMap = new Map<string, string>();
-      for (const u of users) {
-        userMap.set(u.id, u.name);
-      }
+    const cvs = await prisma.$queryRawUnsafe<any[]>('SELECT `id`, `candidateId`, `templateId` FROM `GeneratedCV` ORDER BY `createdAt` DESC').catch(() => []);
+    const cvMap = new Map<string, any[]>();
+    for (const cv of cvs) {
+      const list = cvMap.get(cv.candidateId) || [];
+      list.push({ id: cv.id, templateId: cv.templateId });
+      cvMap.set(cv.candidateId, list);
+    }
 
-      const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded, registeredById, price, laborID FROM \`Candidate\``
-      );
-      for (const row of rawRows) {
-        youtubeUrlMap[row.id] = row.Youtube_URL || null;
-        deployedDateMap[row.id] = row.deployedDate ? new Date(row.deployedDate).toISOString() : null;
-        candidateLockMap[row.id] = row.isLocked === 1 || row.isLocked === true;
-        candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
-        candidatePriceMap[row.id] = row.price || null;
-        candidateLaborIdMap[row.id] = row.laborID || null;
-        if (row.registeredById && userMap.has(row.registeredById)) {
-          registeredByMap[row.id] = userMap.get(row.registeredById)!;
-        }
-      }
-    } catch (_) { /* columns may not exist yet */ }
-
+    // Video profiles
     let videoProfileMap = new Map<string, any>();
     try {
       const profiles: any[] = await prisma.$queryRawUnsafe(
@@ -288,61 +144,80 @@ router.get('/', async (req: Request, res: Response) => {
       }
     } catch (_) {}
 
+    // 4. Map candidate records
+    const parseJsonField = (field: any) => {
+      if (!field) return [];
+      if (typeof field === 'object') return field;
+      try {
+        return JSON.parse(field);
+      } catch (_) {
+        return [];
+      }
+    };
+
+    const formatDate = (date: any) => {
+      if (!date) return null;
+      try {
+        return new Date(date).toISOString().split('T')[0];
+      } catch (_) {
+        return null;
+      }
+    };
+
     const candidates = dbCandidates.map((c: any) => {
-      const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
       const pNum = (c.passportNumber || '').trim().toUpperCase();
       const profile = videoProfileMap.get(pNum);
 
       const facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
       const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
-      const videoUrlVal = profile ? profile.videoUrl : (youtubeUrlMap[c.id] ?? (c as any).videoUrl ?? null);
-      const allowVideoVal = profile ? true : (c.allowVideo ?? false);
+      const videoUrlVal = profile ? profile.videoUrl : (c.Youtube_URL || c.videoUrl || null);
+      const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true);
 
       return {
         id: c.id,
-        shelfId: c.shelfId,
+        shelfId: c.shelfId || null,
         cvDeadline: formatDate(c.cvDeadline),
         passportData: {
-          passportNumber: c.passportNumber,
-          surname: c.surname,
-          givenNames: c.givenNames,
-          dateOfBirth: formatDate(c.dateOfBirth),
-          gender: c.gender,
-          nationality: c.nationality,
-          issuingCountry: c.issuingCountry,
+          passportNumber: c.passportNumber || '',
+          surname: c.surname || '',
+          givenNames: c.givenNames || '',
+          dateOfBirth: formatDate(c.dateOfBirth) || '',
+          gender: c.gender || '',
+          nationality: c.nationality || '',
+          issuingCountry: c.issuingCountry || '',
           dateOfIssue: formatDate(c.dateOfIssue),
           dateOfExpiry: formatDate(c.dateOfExpiry),
-          placeOfBirth: c.placeOfBirth,
+          placeOfBirth: c.placeOfBirth || '',
         },
         personalInfo: {
-          idNumber: c.idNumber || c.passportNumber,
+          idNumber: c.idNumber || c.passportNumber || '',
           job: c.job || '',
-          maritalStatus: c.maritalStatus,
-          numberOfChildren: c.numberOfChildren,
-          religion: c.religion,
-          bloodType: c.bloodType,
-          height: c.height,
-          weight: c.weight,
-          phone: c.phone,
-          email: c.email,
-          address: c.address,
-          city: c.city,
-          state: c.state,
-          country: c.country,
-          educationLevel: c.educationLevel,
-          languages: c.languages,
-          workExperience: c.workExperience || [],
-          skills: c.skills,
-          medicalStatus: c.medicalStatus,
-          biometricStatus: c.biometricStatus,
+          maritalStatus: c.maritalStatus || '',
+          numberOfChildren: c.numberOfChildren || 0,
+          religion: c.religion || '',
+          bloodType: c.bloodType || 'O+',
+          height: c.height || null,
+          weight: c.weight || null,
+          phone: c.phone || '',
+          email: c.email || '',
+          address: c.address || '',
+          city: c.city || '',
+          state: c.state || '',
+          country: c.country || '',
+          educationLevel: c.educationLevel || '',
+          languages: parseJsonField(c.languages),
+          workExperience: parseJsonField(c.workExperience),
+          skills: parseJsonField(c.skills),
+          medicalStatus: c.medicalStatus || 'Pending',
+          biometricStatus: c.biometricStatus || 'Pending',
           medicalDate: formatDate(c.medicalDate),
           biometricDate: formatDate(c.biometricDate),
-          knownConditions: c.knownConditions,
-          emergencyContactName: c.emergencyContactName,
-          emergencyContactRelation: c.emergencyContactRelation,
-          emergencyContactPhone: c.emergencyContactPhone,
-          emergencyContactAddress: c.emergencyContactAddress,
-          additionalPhones: c.additionalPhones,
+          knownConditions: c.knownConditions || null,
+          emergencyContactName: c.emergencyContactName || null,
+          emergencyContactRelation: c.emergencyContactRelation || null,
+          emergencyContactPhone: c.emergencyContactPhone || null,
+          emergencyContactAddress: c.emergencyContactAddress || null,
+          additionalPhones: parseJsonField(c.additionalPhones),
           brokerId: c.brokerId || '',
           cocDocumentUrl: encryptPath(c.cocDocumentUrl),
           medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
@@ -351,8 +226,6 @@ router.get('/', async (req: Request, res: Response) => {
           labourIdUrl: encryptPath(c.labourIdUrl),
           salary: c.salary || '1000SR',
         },
-        brokerId: c.brokerId,
-        broker: c.brokerId ? (brokerMap.get(c.brokerId) || null) : null,
         passportImageUrl: encryptPath(c.passportImageUrl),
         facePhotoUrl: encryptPath(facePhotoUrlVal),
         fullBodyPhotoUrl: encryptPath(fullBodyPhotoUrlVal),
@@ -361,29 +234,29 @@ router.get('/', async (req: Request, res: Response) => {
         candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
         relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
         labourIdUrl: encryptPath(c.labourIdUrl),
-        isRequested: c.isRequested || false,
+        status: c.status || 'pending',
+        isRequested: c.isRequested === 1 || c.isRequested === true,
         visaOrContractNumber: c.visaOrContractNumber || null,
-        isFlagged: c.isFlagged || false,
-        isLocked: candidateLockMap[c.id] ?? false,
-        cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
         videoUrl: encryptPath(videoUrlVal),
-        Youtube_URL: videoUrlVal,
-        deployedDate: deployedDateMap[c.id] ?? null,
-        registeredAt: c.registeredAt.toISOString(),
-        status: c.status,
-        visaSelected: c.visaSelected,
-        visaDate: c.visaDate ? c.visaDate.toISOString() : null,
+        isLocked: c.isLocked === 1 || c.isLocked === true || (brokerMap.get(c.brokerId)?.isLocked || false),
+        cvDownloaded: c.cvDownloaded === 1 || c.cvDownloaded === true,
+        deployedDate: c.deployedDate ? new Date(c.deployedDate).toISOString() : null,
+        registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : new Date().toISOString(),
+        broker: brokerMap.get(c.brokerId) || null,
+        visaSelected: c.visaSelected === 1 || c.visaSelected === true,
+        visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null,
         salary: c.salary || '1000SR',
-        price: isSuperAdmin ? (candidatePriceMap[c.id] ?? null) : null,
-        generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
-        latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
-        registeredBy: registeredByMap[c.id] || c.registeredBy?.name || 'Admin',
-        hasInvoice: c.invoices && c.invoices.length > 0,
-        isInvoiceDelivered: c.invoices?.some((i: any) => i.isDelivered) || false,
+        price: isSuperAdmin ? (c.price || null) : null,
+        generatedCVs: cvMap.get(c.id) || [],
+        latestCVTemplate: (cvMap.get(c.id)?.[0]?.templateId) || null,
+        registeredBy: userMap.get(c.registeredById) || 'Admin',
+        hasInvoice: (invoiceMap.get(c.id)?.length ?? 0) > 0,
+        isInvoiceDelivered: invoiceMap.get(c.id)?.some((i: any) => i.isDelivered) || false,
         agency: c.agency || 'daera',
+        agencyStatus: c.agencyStatus || 'On process',
         allowVideo: allowVideoVal,
         quickVideoUrl: encryptPath(c.quickVideoUrl || null),
-        laborID: candidateLaborIdMap[c.id] || null,
+        laborID: c.laborID || null,
       };
     });
 
@@ -935,51 +808,87 @@ router.get('/:id', async (req: Request, res: Response) => {
     const role = (session?.user as any)?.role;
     const isSuperAdmin = role === 'super_admin';
     const { id } = req.params;
-    let c;
+
+    // 1. Dynamic Column Discovery
+    let dbCols = new Set<string>();
     try {
-      c = await prisma.candidate.findUnique({ 
-        where: { id },
-        include: { 
-          broker: true,
-          generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 },
-          registeredBy: { select: { name: true } }
-        }
-      });
-    } catch (schemaError) {
-      console.warn('Prisma schema out of sync (registeredBy missing) in GET /:id. Falling back.');
-      c = await prisma.candidate.findUnique({ 
-        where: { id },
-        include: { 
-          broker: true,
-          generatedCVs: { orderBy: { createdAt: 'desc' }, take: 1 }
-        }
-      });
+      const columnsInfo = await prisma.$queryRawUnsafe<any[]>('SHOW COLUMNS FROM `Candidate`');
+      for (const col of columnsInfo) {
+        dbCols.add(col.Field);
+      }
+    } catch (e) {
+      console.warn('[DB] Could not dynamically check Candidate columns, falling back:', e);
     }
-    if (!c) return res.status(404).json({ error: 'Not found' });
+
+    const defaultCols = [
+      'id', 'shelfId', 'passportNumber', 'surname', 'givenNames', 'dateOfBirth', 'gender',
+      'nationality', 'issuingCountry', 'dateOfIssue', 'dateOfExpiry', 'placeOfBirth',
+      'maritalStatus', 'numberOfChildren', 'religion', 'bloodType', 'height', 'weight',
+      'phone', 'additionalPhones', 'email', 'address', 'city', 'state', 'country',
+      'idNumber', 'job', 'educationLevel', 'languages', 'workExperience', 'skills',
+      'medicalStatus', 'biometricStatus', 'medicalDate', 'biometricDate', 'knownConditions',
+      'cvDeadline', 'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone',
+      'emergencyContactAddress', 'passportImageUrl', 'facePhotoUrl', 'fullBodyPhotoUrl',
+      'cocDocumentUrl', 'medicalDocumentUrl', 'candidateIdImageUrl', 'relativeIdImageUrl',
+      'labourIdUrl', 'isRequested', 'visaOrContractNumber', 'isFlagged', 'Youtube_URL',
+      'registeredAt', 'status', 'brokerId', 'visaSelected', 'registeredById', 'salary',
+      'visaDate', 'agency', 'quickVideoUrl', 'deployedDate', 'isLocked', 'allowVideo', 'price',
+      'laborID', 'agencyStatus'
+    ];
+
+    const selectCols = defaultCols.filter(col => dbCols.size === 0 || dbCols.has(col));
+    const selectStr = selectCols.map(col => `\`${col}\``).join(', ');
+
+    const rows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT ${selectStr} FROM \`Candidate\` WHERE \`id\` = ? LIMIT 1`, id
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const c = rows[0];
+
+    // 2. Fetch Relations Safely
+    let broker = null;
+    if (c.brokerId) {
+      const brokerRows = await prisma.$queryRawUnsafe<any[]>(
+        'SELECT `id`, `name`, `isLocked` FROM `Broker` WHERE `id` = ? LIMIT 1', c.brokerId
+      ).catch(() => []);
+      if (brokerRows.length > 0) {
+        broker = {
+          id: brokerRows[0].id,
+          name: brokerRows[0].name,
+          isLocked: brokerRows[0].isLocked === 1 || brokerRows[0].isLocked === true
+        };
+      }
+    }
+
+    let generatedCVs: any[] = [];
+    try {
+      generatedCVs = await prisma.$queryRawUnsafe<any[]>(
+        'SELECT `id`, `templateId` FROM `GeneratedCV` WHERE `candidateId` = ? ORDER BY `createdAt` DESC LIMIT 1', id
+      );
+    } catch (_) {}
+
+    let registeredByName = 'Admin';
+    if (c.registeredById) {
+      try {
+        const userRows = await prisma.$queryRawUnsafe<any[]>(
+          'SELECT `name` FROM `User` WHERE `id` = ? LIMIT 1', c.registeredById
+        );
+        if (userRows.length > 0) {
+          registeredByName = userRows[0].name || 'Admin';
+        }
+      } catch (_) {}
+    }
 
     // Read Youtube_URL, deployedDate, isLocked, price and laborID via raw SQL
-    let youtubeUrl: string | null = null;
-    let candidateDeployedDate: string | null = null;
-    let candidateIsLocked = false;
-    let candidateCvDownloaded = false;
-    let candidatePrice: string | null = null;
-    let candidateLaborID: string | null = null;
-    try {
-      const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT Youtube_URL, deployedDate, isLocked, cvDownloaded, price, laborID FROM \`Candidate\` WHERE id = ?`, id
-      );
-      if (rawRows.length > 0) {
-        youtubeUrl = rawRows[0].Youtube_URL || null;
-        candidateDeployedDate = rawRows[0].deployedDate ? new Date(rawRows[0].deployedDate).toISOString() : null;
-        candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
-        candidateCvDownloaded = rawRows[0].cvDownloaded === 1 || rawRows[0].cvDownloaded === true;
-        candidatePrice = rawRows[0].price || null;
-        candidateLaborID = rawRows[0].laborID || null;
-      }
-    } catch (_) { /* columns may not exist yet */ }
+    const youtubeUrl = c.Youtube_URL || null;
+    const candidateDeployedDate = c.deployedDate ? new Date(c.deployedDate).toISOString() : null;
+    const candidateIsLocked = c.isLocked === 1 || c.isLocked === true;
+    const candidateCvDownloaded = c.cvDownloaded === 1 || c.cvDownloaded === true;
+    const candidatePrice = c.price || null;
+    const candidateLaborID = c.laborID || null;
 
     if (role === 'agency') {
-      const isLocked = c.broker?.isLocked || candidateIsLocked;
+      const isLocked = (broker?.isLocked) || candidateIsLocked;
       if (c.isFlagged || isLocked) {
         return res.status(403).json({ error: 'Forbidden: You do not have access to this candidate' });
       }
@@ -988,64 +897,85 @@ router.get('/:id', async (req: Request, res: Response) => {
     let uploadedFacePhotoUrl: string | null = null;
     let uploadedFullBodyPhotoUrl: string | null = null;
     let uploadedVideoUrl: string | null = null;
-    try {
-      const pNum = c.passportNumber.trim().toUpperCase();
-      const profileRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT facePhotoUrl, fullBodyPhotoUrl, videoUrl FROM \`UploadedVideoProfile\` WHERE UPPER(\`passportNumber\`) = ? LIMIT 1`,
-        pNum
-      );
-      if (profileRows.length > 0) {
-        uploadedFacePhotoUrl = profileRows[0].facePhotoUrl || null;
-        uploadedFullBodyPhotoUrl = profileRows[0].fullBodyPhotoUrl || null;
-        uploadedVideoUrl = profileRows[0].videoUrl || null;
+    if (c.passportNumber) {
+      try {
+        const pNum = c.passportNumber.trim().toUpperCase();
+        const profileRows: any[] = await prisma.$queryRawUnsafe(
+          `SELECT facePhotoUrl, fullBodyPhotoUrl, videoUrl FROM \`UploadedVideoProfile\` WHERE UPPER(\`passportNumber\`) = ? LIMIT 1`,
+          pNum
+        );
+        if (profileRows.length > 0) {
+          uploadedFacePhotoUrl = profileRows[0].facePhotoUrl || null;
+          uploadedFullBodyPhotoUrl = profileRows[0].fullBodyPhotoUrl || null;
+          uploadedVideoUrl = profileRows[0].videoUrl || null;
+        }
+      } catch (_) {}
+    }
+
+    const parseJsonField = (field: any) => {
+      if (!field) return [];
+      if (typeof field === 'object') return field;
+      try {
+        return JSON.parse(field);
+      } catch (_) {
+        return [];
       }
-    } catch (_) {}
+    };
+
+    const formatDate = (date: any) => {
+      if (!date) return null;
+      try {
+        return new Date(date).toISOString().split('T')[0];
+      } catch (_) {
+        return null;
+      }
+    };
 
     const candidate = {
       id: c.id,
-      shelfId: c.shelfId,
-      cvDeadline: c.cvDeadline?.toISOString().split('T')[0],
+      shelfId: c.shelfId || null,
+      cvDeadline: formatDate(c.cvDeadline),
       passportData: {
-        passportNumber: c.passportNumber,
-        surname: c.surname,
-        givenNames: c.givenNames,
-        dateOfBirth: c.dateOfBirth.toISOString().split('T')[0],
-        gender: c.gender,
-        nationality: c.nationality,
-        issuingCountry: c.issuingCountry,
-        dateOfIssue: c.dateOfIssue.toISOString().split('T')[0],
-        dateOfExpiry: c.dateOfExpiry.toISOString().split('T')[0],
-        placeOfBirth: c.placeOfBirth,
+        passportNumber: c.passportNumber || '',
+        surname: c.surname || '',
+        givenNames: c.givenNames || '',
+        dateOfBirth: formatDate(c.dateOfBirth) || '',
+        gender: c.gender || '',
+        nationality: c.nationality || '',
+        issuingCountry: c.issuingCountry || '',
+        dateOfIssue: formatDate(c.dateOfIssue),
+        dateOfExpiry: formatDate(c.dateOfExpiry),
+        placeOfBirth: c.placeOfBirth || '',
       },
       personalInfo: {
-        idNumber: c.idNumber || c.passportNumber,
+        idNumber: c.idNumber || c.passportNumber || '',
         job: c.job || '',
-        maritalStatus: c.maritalStatus,
-        numberOfChildren: c.numberOfChildren,
-        religion: c.religion,
-        bloodType: c.bloodType,
-        height: c.height,
-        weight: c.weight,
-        phone: c.phone,
-        email: c.email,
-        address: c.address,
-        city: c.city,
-        state: c.state,
-        country: c.country,
-        educationLevel: c.educationLevel,
-        languages: c.languages,
-        workExperience: c.workExperience ? (c.workExperience as any) : [],
-        skills: c.skills,
-        medicalStatus: c.medicalStatus,
-        biometricStatus: c.biometricStatus,
-        medicalDate: c.medicalDate?.toISOString().split('T')[0],
-        biometricDate: c.biometricDate?.toISOString().split('T')[0],
-        knownConditions: c.knownConditions,
-        emergencyContactName: c.emergencyContactName,
-        emergencyContactRelation: c.emergencyContactRelation,
-        emergencyContactPhone: c.emergencyContactPhone,
-        emergencyContactAddress: c.emergencyContactAddress,
-        additionalPhones: c.additionalPhones,
+        maritalStatus: c.maritalStatus || '',
+        numberOfChildren: c.numberOfChildren || 0,
+        religion: c.religion || '',
+        bloodType: c.bloodType || 'O+',
+        height: c.height || null,
+        weight: c.weight || null,
+        phone: c.phone || '',
+        email: c.email || '',
+        address: c.address || '',
+        city: c.city || '',
+        state: c.state || '',
+        country: c.country || '',
+        educationLevel: c.educationLevel || '',
+        languages: parseJsonField(c.languages),
+        workExperience: parseJsonField(c.workExperience),
+        skills: parseJsonField(c.skills),
+        medicalStatus: c.medicalStatus || 'Pending',
+        biometricStatus: c.biometricStatus || 'Pending',
+        medicalDate: formatDate(c.medicalDate),
+        biometricDate: formatDate(c.biometricDate),
+        knownConditions: c.knownConditions || null,
+        emergencyContactName: c.emergencyContactName || null,
+        emergencyContactRelation: c.emergencyContactRelation || null,
+        emergencyContactPhone: c.emergencyContactPhone || null,
+        emergencyContactAddress: c.emergencyContactAddress || null,
+        additionalPhones: parseJsonField(c.additionalPhones),
         brokerId: c.brokerId || '',
         cocDocumentUrl: encryptPath(c.cocDocumentUrl),
         medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
@@ -1062,24 +992,24 @@ router.get('/:id', async (req: Request, res: Response) => {
       candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
       relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
       labourIdUrl: encryptPath(c.labourIdUrl),
-      status: c.status,
-      isRequested: c.isRequested,
+      status: c.status || 'pending',
+      isRequested: c.isRequested === 1 || c.isRequested === true,
       visaOrContractNumber: c.visaOrContractNumber || null,
-      videoUrl: encryptPath(uploadedVideoUrl || youtubeUrl || (c as any).videoUrl || null),
-      Youtube_URL: uploadedVideoUrl || youtubeUrl,
-      quickVideoUrl: encryptPath((c as any).quickVideoUrl || null),
+      videoUrl: encryptPath(uploadedVideoUrl || youtubeUrl || c.videoUrl || null),
+      Youtube_URL: uploadedVideoUrl || youtubeUrl || null,
+      quickVideoUrl: encryptPath(c.quickVideoUrl || null),
       deployedDate: candidateDeployedDate,
-      registeredAt: c.registeredAt.toISOString(),
-      broker: c.broker,
-      visaSelected: c.visaSelected,
-      visaDate: c.visaDate ? c.visaDate.toISOString() : null,
+      registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : new Date().toISOString(),
+      broker: broker,
+      visaSelected: c.visaSelected === 1 || c.visaSelected === true,
+      visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null,
       salary: c.salary || '1000SR',
-      isLocked: candidateIsLocked,
+      isLocked: candidateIsLocked || (broker?.isLocked || false),
       cvDownloaded: candidateCvDownloaded,
-      latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
-      registeredBy: (c as any).registeredBy?.name || 'Admin',
+      latestCVTemplate: generatedCVs?.[0]?.templateId || null,
+      registeredBy: registeredByName,
       agency: c.agency || 'daera',
-      allowVideo: uploadedVideoUrl ? true : (c.allowVideo ?? false),
+      allowVideo: uploadedVideoUrl ? true : (c.allowVideo === 1 || c.allowVideo === true),
       price: isSuperAdmin ? candidatePrice : null,
       laborID: candidateLaborID || null,
     };
