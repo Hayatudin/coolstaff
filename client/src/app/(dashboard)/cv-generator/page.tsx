@@ -50,6 +50,27 @@ function CVGeneratorContent() {
   const [fullBodyPhotoB64, setFullBodyPhotoB64] = useState<string | null>(null);
   const [isPreloading, setIsPreloading] = useState(false);
 
+  const hasGeneratedCv = React.useMemo(() => {
+    if (!selectedCandidateId || generatedCvs.length === 0) return false;
+    return generatedCvs.some(cv => cv.candidateId === selectedCandidateId);
+  }, [selectedCandidateId, generatedCvs]);
+
+  const visibleTemplates = React.useMemo(() => {
+    if (!selectedCandidateId) {
+      return TEMPLATES;
+    }
+    if (hasGeneratedCv) {
+      return TEMPLATES;
+    }
+    return TEMPLATES.filter(t => t.id === 'al-shablan');
+  }, [selectedCandidateId, hasGeneratedCv]);
+
+  React.useEffect(() => {
+    if (selectedCandidateId && !hasGeneratedCv) {
+      setSelectedTemplateId('al-shablan');
+    }
+  }, [selectedCandidateId, hasGeneratedCv]);
+
   React.useEffect(() => {
     api('/api/generated-cvs')
       .then(res => res.json())
@@ -264,7 +285,7 @@ function CVGeneratorContent() {
           {/* Template Selection Card */}
           <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
             <TemplateGrid
-              templates={TEMPLATES}
+              templates={visibleTemplates}
               selectedId={selectedTemplateId}
               onSelect={setSelectedTemplateId}
             />

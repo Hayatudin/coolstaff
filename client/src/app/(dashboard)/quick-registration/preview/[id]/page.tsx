@@ -546,7 +546,6 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(data.laborID || '');
-                      alert('Labor ID copied to clipboard');
                     }}
                     className="mt-2 text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
                   >

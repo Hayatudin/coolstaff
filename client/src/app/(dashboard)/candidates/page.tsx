@@ -40,8 +40,10 @@ export default function CandidatesPage() {
   const [religionFilter, setReligionFilter] = useState('');
   const [missingFileFilter, setMissingFileFilter] = useState('');
   const [agencyFilter, setAgencyFilter] = useState('all');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [callingFilter, setCallingFilter] = useState(false);
+  const [regTabFilter, setRegTabFilter] = useState<'all' | 'new'>('all');
+  const REGISTRATION_CUTOFF = useMemo(() => new Date('2026-07-09T06:40:00.000Z'), []);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [viewDoc, setViewDoc] = useState<string | null>(null);
@@ -300,6 +302,9 @@ export default function CandidatesPage() {
       const matchesReligion = religionFilter ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase() : true;
       const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
       const matchesCalling = callingFilter ? c.broker?.name === 'Calling' : true;
+      const matchesRegistrationTab = regTabFilter === 'all' 
+        ? true 
+        : new Date(c.registeredAt) >= REGISTRATION_CUTOFF;
 
       let matchesMissingFile = true;
       if (missingFileFilter === 'COC') matchesMissingFile = !c.cocDocumentUrl;
@@ -308,17 +313,17 @@ export default function CandidatesPage() {
       else if (missingFileFilter === 'FacePhoto') matchesMissingFile = !c.facePhotoUrl;
       else if (missingFileFilter === 'FullBody') matchesMissingFile = !c.fullBodyPhotoUrl;
 
-      return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile && matchesAgency && matchesCalling;
+      return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile && matchesAgency && matchesCalling && matchesRegistrationTab;
     });
     result.sort((a, b) => {
       const dA = new Date(a.registeredAt).getTime(), dB = new Date(b.registeredAt).getTime();
       return sortOrder === 'new_to_old' ? dB - dA : dA - dB;
     });
     return result;
-  }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter, callingFilter]);
+  }, [candidates, searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter, callingFilter, regTabFilter, REGISTRATION_CUTOFF]);
 
   // Reset to page 1 whenever filters change
-  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter, callingFilter]);
+  React.useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter, sortOrder, customDate, jobFilter, genderFilter, religionFilter, missingFileFilter, agencyFilter, callingFilter, regTabFilter]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginatedCandidates = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -351,6 +356,33 @@ export default function CandidatesPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Category Tabs: All vs New */}
+      <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl border border-gray-250/20 self-start">
+        <button
+          onClick={() => setRegTabFilter('all')}
+          className={cn(
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-none active:scale-[0.98]",
+            regTabFilter === 'all'
+              ? "bg-white text-text-primary shadow-sm border border-black/5"
+              : "text-text-secondary hover:text-text-primary bg-transparent border border-transparent"
+          )}
+        >
+          All Candidates
+        </button>
+        <button
+          onClick={() => setRegTabFilter('new')}
+          className={cn(
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-none active:scale-[0.98]",
+            regTabFilter === 'new'
+              ? "bg-white text-primary shadow-sm border border-black/5"
+              : "text-text-secondary hover:text-primary bg-transparent border border-transparent"
+          )}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          New Candidates
+        </button>
       </div>
 
       {/* Agency & Calling filter capsules */}
@@ -536,7 +568,6 @@ export default function CandidatesPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigator.clipboard.writeText(candidate.laborID || '');
-                              alert('Labor ID copied to clipboard');
                             }}
                             className="p-1 rounded text-text-tertiary hover:bg-gray-100 hover:text-primary transition-all cursor-pointer"
                             title="Copy Labor ID"
