@@ -83,8 +83,10 @@ export default function QuickRegistrationPage() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Passport full name state
-  const [fullName, setFullName] = useState('');
+  // Passport name fields state
+  const [givenName, setGivenName] = useState('');
+  const [fatherName, setFatherName] = useState('');
+  const [surname, setSurname] = useState('');
 
   // Extra fields
   const [maritalStatus, setMaritalStatus] = useState('');
@@ -148,31 +150,6 @@ export default function QuickRegistrationPage() {
     return () => clearTimeout(delayDebounce);
   }, [passportData.passportNumber]);
 
-  // Sync passportData givenNames/surname into local fullName state
-  useEffect(() => {
-    const parts = [];
-    if (passportData.surname) parts.push(passportData.surname);
-    if (passportData.givenNames) parts.push(passportData.givenNames);
-
-    // Join Surname and GivenNames with a space
-    const combined = passportData.surname && passportData.givenNames
-      ? `${passportData.surname} ${passportData.givenNames}`
-      : parts.join(' ');
-
-    // Only update if it represents a different parsed state to avoid cursor jumping
-    const parsedParts = fullName.split(' ');
-    let parsedCombined = '';
-    if (parsedParts.length > 1) {
-      parsedCombined = fullName.trim();
-    } else {
-      parsedCombined = fullName.trim();
-    }
-
-    if (combined.toUpperCase() !== parsedCombined.toUpperCase()) {
-      setFullName(combined);
-    }
-  }, [passportData.givenNames, passportData.surname]);
-
   // Fetch brokers on mount
   useEffect(() => {
     const fetchBrokers = async () => {
@@ -209,49 +186,6 @@ export default function QuickRegistrationPage() {
     }
   };
 
-  // ── OCR Logic (exact copy from registration page) ──
-  const performOCR = useCallback(async (imageUrl: string) => {
-    setPassportImage(imageUrl);
-    setIsProcessing(true);
-    setProcessingComplete(false);
-    setError(null);
-    setOcrProgress(0);
-    try {
-      const preprocessedUrl = await preprocessImageForOcr(imageUrl);
-      setPassportImage(preprocessedUrl);
-
-      const Tesseract = await import('tesseract.js');
-      setOcrProgress(10);
-      const result = await Tesseract.recognize(preprocessedUrl, 'eng', {
-        logger: (m: { status: string; progress: number }) => {
-          if (m.status === 'recognizing text') setOcrProgress(10 + m.progress * 80);
-        },
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789< '
-      } as any);
-      setOcrProgress(90);
-      const ocrText = result.data.text;
-      const response = await api('/api/ocr/passport', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ocrText }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to parse passport data');
-      setOcrProgress(100);
-      setPassportData(prev => ({
-        ...prev,
-        ...data,
-        surname: data.surname ? data.surname.toUpperCase() : '',
-        givenNames: data.givenNames ? data.givenNames.toUpperCase() : ''
-      }));
-      setProcessingComplete(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to scan passport');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
-
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void, maxBytes = 50 * 1024 * 1024) => {
     if (file.size > maxBytes) {
       alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
@@ -271,34 +205,6 @@ export default function QuickRegistrationPage() {
     setPassportData(prev => ({ ...prev, [field]: uppercaseValue }));
   };
 
-  const onFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setFullName(val);
-
-    const parts = val.split(',');
-    let surname = '';
-    let givenNames = '';
-    if (parts.length > 1) {
-      surname = parts[0].trim();
-      givenNames = parts.slice(1).join(',').trim();
-    } else {
-      // fallback splitting by space
-      const spaceParts = val.trim().split(/\s+/);
-      if (spaceParts.length > 1) {
-        surname = spaceParts[0];
-        givenNames = spaceParts.slice(1).join(' ');
-      } else {
-        surname = spaceParts[0] || '';
-        givenNames = '';
-      }
-    }
-    setPassportData(prev => ({
-      ...prev,
-      givenNames: givenNames.toUpperCase(),
-      surname: surname.toUpperCase()
-    }));
-  };
-
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
   const handleSave = async () => {
@@ -308,8 +214,8 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    if (!fullName.trim() || !passportData.passportNumber || !passportData.surname) {
-      setError('Full Name and Passport Number are required.');
+    if (!givenName.trim() || !surname.trim() || !passportData.passportNumber) {
+      setError('Given Name, Surname and Passport Number are required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -404,8 +310,8 @@ export default function QuickRegistrationPage() {
         ? {
             passportData: {
               passportNumber: passportData.passportNumber,
-              surname: passportData.surname,
-              givenNames: passportData.givenNames,
+              surname: surname.toUpperCase().trim(),
+              givenNames: `${givenName.trim()} ${fatherName.trim()}`.toUpperCase().trim(),
               dateOfBirth: passportData.dateOfBirth,
               gender: passportData.gender,
               nationality: passportData.nationality,
@@ -456,8 +362,8 @@ export default function QuickRegistrationPage() {
           }
         : {
             passportNumber: passportData.passportNumber,
-            surname: passportData.surname,
-            givenNames: passportData.givenNames,
+            surname: surname.toUpperCase().trim(),
+            givenNames: `${givenName.trim()} ${fatherName.trim()}`.toUpperCase().trim(),
             dateOfBirth: passportData.dateOfBirth,
             gender: passportData.gender,
             nationality: passportData.nationality,
@@ -546,88 +452,45 @@ export default function QuickRegistrationPage() {
         </div>
       )}
 
-      {/* STEP 1: Scan Passport / Passport Information */}
+      {/* STEP 1: Passport Information */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
         <div className="bg-gray-50 border-b border-border px-5 py-3">
           <h2 className="text-base font-semibold text-text-primary">
-            {isCalling ? "1. Passport Information" : "1. Scan Passport"} <span className="text-red-500">*</span>
+            1. Passport Information <span className="text-red-500">*</span>
           </h2>
         </div>
         <div className="p-4 sm:p-6">
-          {!isCalling ? (
-            <>
-              <PassportUploader
-                onImageUploaded={performOCR}
-                isProcessing={isProcessing}
-                processingComplete={processingComplete}
-                passportImage={passportImage}
-                ocrProgress={ocrProgress}
+          <div className="animate-fade-in-up">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <Input
+                label="Given Name"
+                value={givenName}
+                onChange={(e) => setGivenName(e.target.value)}
+                placeholder="Enter given name"
+                required
               />
-              {passportImage && !processingComplete && !isProcessing && (
-                <div className="mt-4 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError(null);
-                      setProcessingComplete(true);
-                    }}
-                    className="text-xs font-bold text-primary hover:underline uppercase tracking-wider block"
-                  >
-                    Fill the form manually (keeps passport image)
-                  </button>
-                </div>
-              )}
-              <div className="mt-6 border-t border-border pt-6">
-                <div className="animate-fade-in-up">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-1 h-6 bg-primary rounded-full" />
-                    <h3 className="text-lg font-semibold text-text-primary">Extracted Passport Data</h3>
-                    {processingComplete && (
-                      <span className="px-2.5 py-0.5 bg-success-light text-green-700 text-xs font-medium rounded-full animate-scale-pop">
-                        Auto-filled
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <Input
-                      label="FULL NAME"
-                      value={fullName}
-                      onChange={onFullNameChange}
-                      placeholder="Enter full name"
-                      required
-                    />
-                    <Input
-                      label="Passport Number"
-                      value={passportData.passportNumber}
-                      onChange={(e) => handlePassportChange('passportNumber', e.target.value)}
-                      placeholder="Enter passport number"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="animate-fade-in-up">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <Input
-                  label="FULL NAME"
-                  value={fullName}
-                  onChange={onFullNameChange}
-                  placeholder="Enter full name"
-                  required
-                />
-                <Input
-                  label="Passport Number"
-                  value={passportData.passportNumber}
-                  onChange={(e) => handlePassportChange('passportNumber', e.target.value)}
-                  placeholder="Enter passport number"
-                  required
-                />
-              </div>
+              <Input
+                label="Father Name"
+                value={fatherName}
+                onChange={(e) => setFatherName(e.target.value)}
+                placeholder="Enter father name"
+              />
+              <Input
+                label="Surname"
+                value={surname}
+                onChange={(e) => setSurname(e.target.value)}
+                placeholder="Enter surname"
+                required
+              />
+              <Input
+                label="Passport Number"
+                value={passportData.passportNumber}
+                onChange={(e) => handlePassportChange('passportNumber', e.target.value)}
+                placeholder="Enter passport number"
+                required
+              />
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -871,18 +734,6 @@ export default function QuickRegistrationPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isCalling && (
               <FileUpload
-                label="Passport Scan"
-                shape="rect"
-                compact
-                preview={passportImage}
-                onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setPassportImage(base64))}
-                onClear={() => setPassportImage(null)}
-                helperText="Passport Scan Image — Max 50MB"
-                required
-              />
-            )}
-            {isCalling && (
-              <FileUpload
                 label="Face Photo"
                 shape="rect"
                 compact
@@ -982,6 +833,16 @@ export default function QuickRegistrationPage() {
                 )}
               </div>
             )}
+            <FileUpload
+              label="Passport Image"
+              shape="rect"
+              compact
+              preview={passportImage}
+              onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setPassportImage(base64))}
+              onClear={() => setPassportImage(null)}
+              helperText="Passport Image — Max 50MB"
+              required={!isCalling}
+            />
 
             {isCalling ? (
               <>
