@@ -49,10 +49,15 @@ export function useCandidates(initialForceRefresh = false) {
       if (!fetchPromise || forceRefresh) {
         setIsLoading(true);
         fetchPromise = api('/api/candidates').then(async (res) => {
-          if (!res.ok) throw new Error('Failed to fetch candidates');
+          if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            console.error('[CANDIDATES FETCH ERROR] Server returned:', res.status, errBody);
+            throw new Error('Failed to fetch candidates');
+          }
           return res.json();
         }).catch(err => {
           fetchPromise = null;
+          console.error('[CANDIDATES FETCH EXCEPTION] Network or Server Exception:', err);
           throw err;
         });
       }
@@ -67,7 +72,7 @@ export function useCandidates(initialForceRefresh = false) {
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Something went wrong');
+          setError('Failed to fetch candidates');
         }
       } finally {
         if (mounted) {

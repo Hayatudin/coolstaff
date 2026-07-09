@@ -147,7 +147,6 @@ router.get('/', async (req: Request, res: Response) => {
           workExperience: true,
           languages: true,
           quickVideoUrl: true,
-          laborID: true,
           isRequested: true,
           visaOrContractNumber: true,
           isFlagged: true,
@@ -218,7 +217,6 @@ router.get('/', async (req: Request, res: Response) => {
           workExperience: true,
           languages: true,
           quickVideoUrl: true,
-          laborID: true,
           isRequested: true,
           visaOrContractNumber: true,
           isFlagged: true,
@@ -249,12 +247,13 @@ router.get('/', async (req: Request, res: Response) => {
       }
     }
 
-    // Read Youtube_URL, deployedDate and isLocked via raw SQL (before synchronous map)
+    // Read Youtube_URL, deployedDate, isLocked and laborID via raw SQL (before synchronous map)
     let youtubeUrlMap: Record<string, string | null> = {};
     let deployedDateMap: Record<string, string | null> = {};
     let candidateLockMap: Record<string, boolean> = {};
     let candidateCvDownloadedMap: Record<string, boolean> = {};
     let candidatePriceMap: Record<string, string | null> = {};
+    let candidateLaborIdMap: Record<string, string | null> = {};
     let registeredByMap: Record<string, string> = {};
     try {
       const users: any[] = await prisma.$queryRawUnsafe(`SELECT \`id\`, \`name\` FROM \`User\``);
@@ -264,7 +263,7 @@ router.get('/', async (req: Request, res: Response) => {
       }
 
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded, registeredById, price FROM \`Candidate\``
+        `SELECT id, Youtube_URL, deployedDate, isLocked, cvDownloaded, registeredById, price, laborID FROM \`Candidate\``
       );
       for (const row of rawRows) {
         youtubeUrlMap[row.id] = row.Youtube_URL || null;
@@ -272,6 +271,7 @@ router.get('/', async (req: Request, res: Response) => {
         candidateLockMap[row.id] = row.isLocked === 1 || row.isLocked === true;
         candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
         candidatePriceMap[row.id] = row.price || null;
+        candidateLaborIdMap[row.id] = row.laborID || null;
         if (row.registeredById && userMap.has(row.registeredById)) {
           registeredByMap[row.id] = userMap.get(row.registeredById)!;
         }
@@ -383,20 +383,14 @@ router.get('/', async (req: Request, res: Response) => {
         agency: c.agency || 'daera',
         allowVideo: allowVideoVal,
         quickVideoUrl: encryptPath(c.quickVideoUrl || null),
-        laborID: c.laborID || null,
+        laborID: candidateLaborIdMap[c.id] || null,
       };
     });
 
     res.json(candidates);
   } catch (error: any) {
     console.error('Failed to fetch candidates:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch candidates', 
-      message: error?.message || String(error),
-      code: error?.code,
-      meta: error?.meta,
-      stack: error?.stack
-    });
+    res.status(500).json({ error: 'Failed to fetch candidates' });
   }
 });
 
@@ -963,15 +957,16 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     if (!c) return res.status(404).json({ error: 'Not found' });
 
-    // Read Youtube_URL, deployedDate, isLocked and price via raw SQL
+    // Read Youtube_URL, deployedDate, isLocked, price and laborID via raw SQL
     let youtubeUrl: string | null = null;
     let candidateDeployedDate: string | null = null;
     let candidateIsLocked = false;
     let candidateCvDownloaded = false;
     let candidatePrice: string | null = null;
+    let candidateLaborID: string | null = null;
     try {
       const rawRows: any[] = await prisma.$queryRawUnsafe(
-        `SELECT Youtube_URL, deployedDate, isLocked, cvDownloaded, price FROM \`Candidate\` WHERE id = ?`, id
+        `SELECT Youtube_URL, deployedDate, isLocked, cvDownloaded, price, laborID FROM \`Candidate\` WHERE id = ?`, id
       );
       if (rawRows.length > 0) {
         youtubeUrl = rawRows[0].Youtube_URL || null;
@@ -979,6 +974,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
         candidateCvDownloaded = rawRows[0].cvDownloaded === 1 || rawRows[0].cvDownloaded === true;
         candidatePrice = rawRows[0].price || null;
+        candidateLaborID = rawRows[0].laborID || null;
       }
     } catch (_) { /* columns may not exist yet */ }
 
@@ -1085,11 +1081,12 @@ router.get('/:id', async (req: Request, res: Response) => {
       agency: c.agency || 'daera',
       allowVideo: uploadedVideoUrl ? true : (c.allowVideo ?? false),
       price: isSuperAdmin ? candidatePrice : null,
-      laborID: (c as any).laborID || null,
+      laborID: candidateLaborID || null,
     };
     res.json(candidate);
   } catch (error) {
-    res.status(500).json({ error: 'Failed' });
+    console.error('Failed to fetch candidate details:', error);
+    res.status(500).json({ error: 'Failed to fetch candidate details' });
   }
 });
 
