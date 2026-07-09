@@ -478,7 +478,7 @@ export default function QuickRegistrationPage() {
                 label="FULL NAME"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Enter full name (e.g. Name FatherName Surname)"
+                placeholder="Enter full name"
                 required
               />
               <Input
