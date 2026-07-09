@@ -608,22 +608,13 @@ export default function CandidatesPage() {
 
                     {/* CV Agency */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={candidate.latestCVTemplate ? candidate.latestCVTemplate.replace('tmpl-', '').toLowerCase() : ""}
-                        disabled={isSettingAgency}
-                        onChange={async (e) => {
-                          const val = e.target.value;
-                          if (val) {
-                            await handleSetAgency(candidate.id, val);
-                          }
-                        }}
-                        className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
-                      >
-                        <option value="" disabled>Select Agency...</option>
-                        {TEMPLATES.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
+                      {candidate.latestCVTemplate ? (
+                        <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-black uppercase rounded-lg bg-gray-50 text-text-primary border border-border shadow-sm">
+                          {TEMPLATES.find(t => t.id === candidate.latestCVTemplate?.replace('tmpl-', '').toLowerCase())?.name || candidate.latestCVTemplate.replace('tmpl-', '').toUpperCase()}
+                        </span>
+                      ) : (
+                        <span className="text-text-tertiary font-medium text-xs">—</span>
+                      )}
                     </td>
 
                     {/* Broker */}
