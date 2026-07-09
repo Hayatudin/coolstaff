@@ -111,9 +111,7 @@ export default function QuickRegisteredPage() {
 
   const [editForm, setEditForm] = useState({
     passportNumber: '',
-    givenName: '',
-    fatherName: '',
-    surname: '',
+    fullName: '',
     nationality: '',
     religion: '',
     gender: '',
@@ -347,15 +345,11 @@ export default function QuickRegisteredPage() {
       }
     }
 
-    const nameParts = (reg.givenNames || '').trim().split(/\s+/);
-    const gName = nameParts[0] || '';
-    const fName = nameParts.slice(1).join(' ') || '';
+    const resolvedFullName = `${reg.givenNames || ''} ${reg.surname || ''}`.trim();
 
     setEditForm({
       passportNumber: reg.passportNumber || '',
-      givenName: gName,
-      fatherName: fName,
-      surname: reg.surname || '',
+      fullName: resolvedFullName,
       nationality: reg.nationality || '',
       religion: mapReligionForForm(reg.religion),
       gender: reg.gender || '',
@@ -388,10 +382,24 @@ export default function QuickRegisteredPage() {
 
     setIsSaving(true);
     try {
+      const nameParts = editForm.fullName.trim().split(/\s+/);
+      let payloadGivenNames = '';
+      let payloadSurname = '';
+      if (nameParts.length >= 3) {
+        payloadGivenNames = nameParts.slice(0, 2).join(' ');
+        payloadSurname = nameParts.slice(2).join(' ');
+      } else if (nameParts.length === 2) {
+        payloadGivenNames = nameParts[0];
+        payloadSurname = nameParts[1];
+      } else {
+        payloadGivenNames = nameParts[0] || '';
+        payloadSurname = '';
+      }
+
       const payload: any = {
         passportNumber: editForm.passportNumber,
-        givenNames: `${editForm.givenName.trim()} ${editForm.fatherName.trim()}`.toUpperCase().trim(),
-        surname: editForm.surname.toUpperCase().trim(),
+        givenNames: payloadGivenNames.toUpperCase().trim(),
+        surname: payloadSurname.toUpperCase().trim(),
         nationality: editForm.nationality || null,
         religion: editForm.religion || null,
         gender: editForm.gender || null,
@@ -944,43 +952,16 @@ export default function QuickRegisteredPage() {
                     <User size={14} /> Passport & Personal Details
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Given Name */}
+                    {/* Full Name */}
                     <div>
                       <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Given Name <span className="text-red-500">*</span>
+                        Full Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         required
-                        value={editForm.givenName}
-                        onChange={e => setEditForm(prev => ({ ...prev, givenName: e.target.value.toUpperCase() }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
-                      />
-                    </div>
-
-                    {/* Father Name */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Father Name
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.fatherName}
-                        onChange={e => setEditForm(prev => ({ ...prev, fatherName: e.target.value.toUpperCase() }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
-                      />
-                    </div>
-
-                    {/* Surname */}
-                    <div>
-                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
-                        Surname <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={editForm.surname}
-                        onChange={e => setEditForm(prev => ({ ...prev, surname: e.target.value.toUpperCase() }))}
+                        value={editForm.fullName}
+                        onChange={e => setEditForm(prev => ({ ...prev, fullName: e.target.value.toUpperCase() }))}
                         className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-text-primary placeholder:text-text-tertiary/40"
                       />
                     </div>

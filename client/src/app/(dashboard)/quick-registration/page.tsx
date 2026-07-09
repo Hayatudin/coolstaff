@@ -83,10 +83,8 @@ export default function QuickRegistrationPage() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Passport name fields state
-  const [givenName, setGivenName] = useState('');
-  const [fatherName, setFatherName] = useState('');
-  const [surname, setSurname] = useState('');
+  // Passport full name state
+  const [fullName, setFullName] = useState('');
 
   // Extra fields
   const [maritalStatus, setMaritalStatus] = useState('');
@@ -214,8 +212,8 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    if (!givenName.trim() || !surname.trim() || !passportData.passportNumber) {
-      setError('Given Name, Surname and Passport Number are required.');
+    if (!fullName.trim() || !passportData.passportNumber) {
+      setError('Full Name and Passport Number are required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -305,13 +303,27 @@ export default function QuickRegistrationPage() {
     setError(null);
 
     try {
+      const nameParts = fullName.trim().split(/\s+/);
+      let payloadGivenNames = '';
+      let payloadSurname = '';
+      if (nameParts.length >= 3) {
+        payloadGivenNames = nameParts.slice(0, 2).join(' ');
+        payloadSurname = nameParts.slice(2).join(' ');
+      } else if (nameParts.length === 2) {
+        payloadGivenNames = nameParts[0];
+        payloadSurname = nameParts[1];
+      } else {
+        payloadGivenNames = nameParts[0] || '';
+        payloadSurname = '';
+      }
+
       const url = isCalling ? '/api/candidates' : '/api/quick-registrations';
       const bodyPayload = isCalling
         ? {
             passportData: {
               passportNumber: passportData.passportNumber,
-              surname: surname.toUpperCase().trim(),
-              givenNames: `${givenName.trim()} ${fatherName.trim()}`.toUpperCase().trim(),
+              surname: payloadSurname.toUpperCase().trim(),
+              givenNames: payloadGivenNames.toUpperCase().trim(),
               dateOfBirth: passportData.dateOfBirth,
               gender: passportData.gender,
               nationality: passportData.nationality,
@@ -362,8 +374,8 @@ export default function QuickRegistrationPage() {
           }
         : {
             passportNumber: passportData.passportNumber,
-            surname: surname.toUpperCase().trim(),
-            givenNames: `${givenName.trim()} ${fatherName.trim()}`.toUpperCase().trim(),
+            surname: payloadSurname.toUpperCase().trim(),
+            givenNames: payloadGivenNames.toUpperCase().trim(),
             dateOfBirth: passportData.dateOfBirth,
             gender: passportData.gender,
             nationality: passportData.nationality,
@@ -463,23 +475,10 @@ export default function QuickRegistrationPage() {
           <div className="animate-fade-in-up">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <Input
-                label="Given Name"
-                value={givenName}
-                onChange={(e) => setGivenName(e.target.value)}
-                placeholder="Enter given name"
-                required
-              />
-              <Input
-                label="Father Name"
-                value={fatherName}
-                onChange={(e) => setFatherName(e.target.value)}
-                placeholder="Enter father name"
-              />
-              <Input
-                label="Surname"
-                value={surname}
-                onChange={(e) => setSurname(e.target.value)}
-                placeholder="Enter surname"
+                label="FULL NAME"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter full name (e.g. Name FatherName Surname)"
                 required
               />
               <Input
