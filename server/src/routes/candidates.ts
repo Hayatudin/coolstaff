@@ -236,6 +236,7 @@ router.get('/', async (req: Request, res: Response) => {
         labourIdUrl: encryptPath(c.labourIdUrl),
         status: c.status || 'pending',
         isRequested: c.isRequested === 1 || c.isRequested === true,
+        isFlagged: c.isFlagged === 1 || c.isFlagged === true,
         visaOrContractNumber: c.visaOrContractNumber || null,
         videoUrl: encryptPath(videoUrlVal),
         isLocked: c.isLocked === 1 || c.isLocked === true || (brokerMap.get(c.brokerId)?.isLocked || false),
@@ -1004,6 +1005,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       visaSelected: c.visaSelected === 1 || c.visaSelected === true,
       visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null,
       salary: c.salary || '1000SR',
+      isFlagged: c.isFlagged === 1 || c.isFlagged === true,
       isLocked: candidateIsLocked || (broker?.isLocked || false),
       cvDownloaded: candidateCvDownloaded,
       latestCVTemplate: generatedCVs?.[0]?.templateId || null,
@@ -1157,6 +1159,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
         agency: body.agency,
+        isFlagged: body.isFlagged !== undefined ? Boolean(body.isFlagged) : undefined,
       },
     });
 

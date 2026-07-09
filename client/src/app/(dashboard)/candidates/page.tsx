@@ -41,7 +41,7 @@ export default function CandidatesPage() {
   const [missingFileFilter, setMissingFileFilter] = useState('');
   const [agencyFilter, setAgencyFilter] = useState('all');
   const [callingFilter, setCallingFilter] = useState(false);
-  const [regTabFilter, setRegTabFilter] = useState<'all' | 'new'>('all');
+  const [regTabFilter, setRegTabFilter] = useState<'all' | 'new' | 'flagged'>('all');
   const REGISTRATION_CUTOFF = useMemo(() => new Date('2026-07-09T06:40:00.000Z'), []);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
@@ -302,9 +302,14 @@ export default function CandidatesPage() {
       const matchesReligion = religionFilter ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase() : true;
       const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
       const matchesCalling = callingFilter ? c.broker?.name === 'Calling' : true;
-      const matchesRegistrationTab = regTabFilter === 'all' 
-        ? true 
-        : new Date(c.registeredAt) >= REGISTRATION_CUTOFF;
+      let matchesRegistrationTab = false;
+      if (regTabFilter === 'flagged') {
+        matchesRegistrationTab = c.isFlagged === true;
+      } else if (regTabFilter === 'new') {
+        matchesRegistrationTab = c.isFlagged !== true && new Date(c.registeredAt) >= REGISTRATION_CUTOFF;
+      } else {
+        matchesRegistrationTab = c.isFlagged !== true;
+      }
 
       let matchesMissingFile = true;
       if (missingFileFilter === 'COC') matchesMissingFile = !c.cocDocumentUrl;
@@ -358,7 +363,7 @@ export default function CandidatesPage() {
         )}
       </div>
 
-      {/* Category Tabs: All vs New */}
+      {/* Category Tabs: All vs New vs Flagged */}
       <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl border border-gray-250/20 self-start">
         <button
           onClick={() => setRegTabFilter('all')}
@@ -382,6 +387,18 @@ export default function CandidatesPage() {
         >
           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
           New Candidates
+        </button>
+        <button
+          onClick={() => setRegTabFilter('flagged')}
+          className={cn(
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-none active:scale-[0.98]",
+            regTabFilter === 'flagged'
+              ? "bg-white text-red-600 shadow-sm border border-black/5"
+              : "text-text-secondary hover:text-red-600 bg-transparent border border-transparent"
+          )}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-red-650" />
+          Flagged Candidates
         </button>
       </div>
 
