@@ -55,6 +55,40 @@ export default function CandidatesPage() {
   const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
   const [isSettingAgency, setIsSettingAgency] = useState(false);
 
+  const [insertLaborIdModalId, setInsertLaborIdModalId] = useState<string | null>(null);
+  const [insertLaborIdInput, setInsertLaborIdInput] = useState('');
+  const [isSavingLaborId, setIsSavingLaborId] = useState(false);
+
+  const handleSaveLaborId = async () => {
+    if (!insertLaborIdModalId) return;
+    setIsSavingLaborId(true);
+    try {
+      const res = await api(`/api/candidates/${insertLaborIdModalId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          laborID: insertLaborIdInput.trim()
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save Labor ID');
+      }
+      setCandidates((prev: any) => prev.map((c: any) => c.id === insertLaborIdModalId ? {
+        ...c,
+        laborID: insertLaborIdInput.trim()
+      } : c));
+      setInsertLaborIdModalId(null);
+      setInsertLaborIdInput('');
+      // Trigger refresh
+      window.dispatchEvent(new Event('app-refresh'));
+    } catch (err: any) {
+      alert(err.message || 'Failed to save Labor ID');
+    } finally {
+      setIsSavingLaborId(false);
+    }
+  };
+
   const [insertVideoModalId, setInsertVideoModalId] = useState<string | null>(null);
   const [insertVideoInput, setInsertVideoInput] = useState('');
   const [isSavingVideo, setIsSavingVideo] = useState(false);
@@ -511,7 +545,16 @@ export default function CandidatesPage() {
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-text-tertiary/60 font-semibold">—</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInsertLaborIdModalId(candidate.id);
+                            setInsertLaborIdInput('');
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-primary/15 text-primary hover:bg-primary hover:text-white rounded-xl border border-primary/20 transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm active:scale-[0.98]"
+                        >
+                          + Add
+                        </button>
                       )}
                     </td>
 
@@ -882,6 +925,43 @@ export default function CandidatesPage() {
               >
                 {isSavingVideo ? <Loader2 size={13} className="animate-spin" /> : null}
                 Save Video
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Insert Labor ID Modal */}
+      {insertLaborIdModalId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setInsertLaborIdModalId(null)}>
+          <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+              <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                <FileText className="text-primary" size={20} /> Insert Labor ID
+              </h3>
+              <button onClick={() => setInsertLaborIdModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-semibold text-text-primary mb-2">Enter the candidate's Labor ID:</label>
+              <Input 
+                autoFocus
+                placeholder="e.g. LAB-123456" 
+                value={insertLaborIdInput} 
+                onChange={(e) => setInsertLaborIdInput(e.target.value)} 
+                className="w-full"
+              />
+            </div>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setInsertLaborIdModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                Cancel
+              </button>
+              <button 
+                disabled={isSavingLaborId || !insertLaborIdInput.trim()}
+                onClick={handleSaveLaborId}
+                className="px-6 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSavingLaborId ? <Loader2 size={13} className="animate-spin" /> : null}
+                Save Labor ID
               </button>
             </div>
           </div>

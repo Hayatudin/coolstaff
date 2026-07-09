@@ -1034,6 +1034,13 @@ router.put('/:id', async (req: Request, res: Response) => {
       delete body.personalInfo.price;
     }
 
+    // Extract and strip laborID field to bypass stale Prisma client static schema errors
+    const laborIdVal = body.laborID;
+    delete body.laborID;
+    if (body.personalInfo) {
+      delete body.personalInfo.laborID;
+    }
+
     // Ensure allowVideo columns exist in database (self-healing fallback)
     try {
       await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`allowVideo\` TINYINT(1) NOT NULL DEFAULT 0`);
@@ -1239,6 +1246,19 @@ router.put('/:id', async (req: Request, res: Response) => {
       }
     }
 
+    // Save laborID separately with graceful fallback (to prevent schema validation errors on stale cPanel instances)
+    if (laborIdVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`laborID\` = ? WHERE \`id\` = ?`,
+          laborIdVal || null,
+          candidate.id
+        );
+      } catch (e) {
+        console.error('Failed to save laborID via raw SQL in PUT:', e);
+      }
+    }
+
     res.json(candidate);
   } catch (error: any) {
     console.error('Failed to update candidate:', error);
@@ -1334,6 +1354,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
     delete body.price;
     if (body.personalInfo) {
       delete body.personalInfo.price;
+    }
+
+    // Handle laborID via raw SQL to bypass stale Prisma Client
+    const laborIdVal = body.laborID;
+    delete body.laborID;
+    if (body.personalInfo) {
+      delete body.personalInfo.laborID;
     }
 
     const videoUrlVal = body.videoUrl;
@@ -1562,6 +1589,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
         (updated as any).price = priceVal;
       } catch (e) {
         console.error('Failed to save price via raw SQL in PATCH:', e);
+      }
+    }
+
+    // Save laborID if passed
+    if (laborIdVal !== undefined) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`laborID\` = ? WHERE \`id\` = ?`,
+          laborIdVal || null,
+          id
+        );
+        (updated as any).laborID = laborIdVal || null;
+      } catch (e) {
+        console.error('Failed to save laborID via raw SQL in PATCH:', e);
       }
     }
 
