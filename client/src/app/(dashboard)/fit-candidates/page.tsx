@@ -15,7 +15,7 @@ import Select from '@/components/ui/Select';
 import { Candidate } from '@/types';
 
 import { useCandidates, clearCandidatesCache } from '@/hooks/useCandidates';
-import { cn, getFileUrl } from '@/lib/utils';
+import { cn, getFileUrl, convertImageToBase64 } from '@/lib/utils';
 
 // Import CV templates
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -131,6 +131,10 @@ export default function FitCandidatesPage() {
   const [downloadFormat, setDownloadFormat] = useState<'pdf' | 'jpg' | 'doc' | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const cvRenderRef = useRef<HTMLDivElement>(null);
+  const [dlFaceB64, setDlFaceB64] = useState<string | null>(null);
+  const [dlBodyB64, setDlBodyB64] = useState<string | null>(null);
+  const [isDlPreloading, setIsDlPreloading] = useState(false);
+  const [bulkB64Images, setBulkB64Images] = useState<Record<string, { face: string | null; body: string | null }>>({});
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [renderingCandidates, setRenderingCandidates] = useState<any[]>([]);
 
@@ -416,9 +420,41 @@ export default function FitCandidatesPage() {
     }
   };
 
+  // Pre-load images as Base64 for the single downloading CV
+  useEffect(() => {
+    if (!downloadingCv) {
+      setDlFaceB64(null);
+      setDlBodyB64(null);
+      setIsDlPreloading(false);
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      setIsDlPreloading(true);
+      const faceUrl = downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl;
+      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl;
+
+      const [face, body] = await Promise.all([
+        convertImageToBase64(faceUrl),
+        convertImageToBase64(bodyUrl)
+      ]);
+
+      if (active) {
+        setDlFaceB64(face);
+        setDlBodyB64(body);
+        setIsDlPreloading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [downloadingCv]);
+
   // Single CV download capturing handler
   useEffect(() => {
-    if (!downloadingCv || !downloadFormat || !cvRenderRef.current) return;
+    if (!downloadingCv || !downloadFormat || !cvRenderRef.current || isDlPreloading) return;
     const el = cvRenderRef.current;
     let cancelled = false;
 
@@ -501,7 +537,7 @@ export default function FitCandidatesPage() {
     })();
 
     return () => { cancelled = true; };
-  }, [downloadingCv, downloadFormat]);
+  }, [downloadingCv, downloadFormat, isDlPreloading]);
 
   // Bulk ZIP CV download handler
   const handleBulkDownload = async (format: 'pdf' | 'jpg' | 'doc') => {
@@ -613,8 +649,23 @@ export default function FitCandidatesPage() {
         for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
           if (isCancelledRef.current) throw new Error('Cancelled');
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
+
+          // Preload face and body photos to Base64 for this chunk
+          const preloadedForChunk: Record<string, { face: string | null; body: string | null }> = {};
+          await Promise.all(chunk.map(async (candidate: any) => {
+            const correspondingCv = candidate.generatedCVs?.[0] || {};
+            const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
+            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
+            const [face, body] = await Promise.all([
+              convertImageToBase64(faceUrl),
+              convertImageToBase64(bodyUrl)
+            ]);
+            preloadedForChunk[candidate.id] = { face, body };
+          }));
+          setBulkB64Images(prev => ({ ...prev, ...preloadedForChunk }));
+
           setRenderingCandidates(chunk);
-          await bgWait(60);
+          await bgWait(150);
 
           await Promise.all(chunk.map(async (candidate: any) => {
             if (isCancelledRef.current) return;
@@ -758,8 +809,8 @@ export default function FitCandidatesPage() {
             <div key={c.id} id={`bulk-render-${c.id}`} style={{ width: '210mm', backgroundColor: '#ffffff' }}>
               <FolderTemplate
                 candidate={c}
-                facePhoto={getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
-                fullBodyPhoto={getFileUrl(c.fullBodyPhotoUrl)}
+                facePhoto={bulkB64Images[c.id]?.face || getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
+                fullBodyPhoto={bulkB64Images[c.id]?.body || getFileUrl(c.fullBodyPhotoUrl)}
               />
             </div>
           );
@@ -1194,8 +1245,8 @@ export default function FitCandidatesPage() {
             <div ref={cvRenderRef}>
               <DlTemplate
                 candidate={downloadingCv.candidate}
-                facePhoto={getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
-                fullBodyPhoto={getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
+                facePhoto={dlFaceB64 || getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
+                fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
               />
             </div>
           </div>

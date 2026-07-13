@@ -18,7 +18,7 @@ import {
   FileDown
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { getFileUrl } from '@/lib/utils';
+import { getFileUrl, convertImageToBase64 } from '@/lib/utils';
 import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
 
@@ -236,6 +236,10 @@ export default function AvailableCandidatesPage() {
   const [loadingCvId, setLoadingCvId] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const cvRenderRef = useRef<HTMLDivElement>(null);
+  const [dlFaceB64, setDlFaceB64] = useState<string | null>(null);
+  const [dlBodyB64, setDlBodyB64] = useState<string | null>(null);
+  const [isDlPreloading, setIsDlPreloading] = useState(false);
+  const [bulkB64Images, setBulkB64Images] = useState<Record<string, { face: string | null; body: string | null }>>({});
 
   // Dynamically compute unique filters from candidates list
   const uniqueReligions = useMemo(() => {
@@ -321,6 +325,10 @@ export default function AvailableCandidatesPage() {
 
   const handleDownloadCV = async (format: 'pdf' | 'jpg' | 'doc') => {
     if (!previewCv) return;
+    if (isDlPreloading) {
+      alert("Preloading CV images... Please try again in a moment.");
+      return;
+    }
     const candidateId = previewCv.candidate.id;
     const safeName = `${previewCv.candidate.passportData?.givenNames || 'candidate'}_${previewCv.candidate.passportData?.surname || 'cv'}`.replace(/\s+/g, '_');
     
@@ -502,8 +510,23 @@ export default function AvailableCandidatesPage() {
         for (let i = 0; i < candidatesData.length; i += CHUNK_SIZE) {
           if (isCancelledRef.current) throw new Error('Cancelled');
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
+
+          // Preload face and body photos to Base64 for this chunk
+          const preloadedForChunk: Record<string, { face: string | null; body: string | null }> = {};
+          await Promise.all(chunk.map(async (candidate: any) => {
+            const correspondingCv = candidate.generatedCVs?.[0] || {};
+            const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
+            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
+            const [face, body] = await Promise.all([
+              convertImageToBase64(faceUrl),
+              convertImageToBase64(bodyUrl)
+            ]);
+            preloadedForChunk[candidate.id] = { face, body };
+          }));
+          setBulkB64Images(prev => ({ ...prev, ...preloadedForChunk }));
+
           setRenderingCandidates(chunk);
-          await bgWait(60);
+          await bgWait(150);
 
           await Promise.all(chunk.map(async (candidate: any) => {
             if (isCancelledRef.current) return;
@@ -627,6 +650,37 @@ export default function AvailableCandidatesPage() {
   useEffect(() => {
     fetchCandidates();
   }, [selectedAgency, isSuperAdmin]);
+  // Pre-load images as Base64 for the single previewing/downloading CV
+  useEffect(() => {
+    if (!previewCv) {
+      setDlFaceB64(null);
+      setDlBodyB64(null);
+      setIsDlPreloading(false);
+      return;
+    }
+
+    let active = true;
+    (async () => {
+      setIsDlPreloading(true);
+      const faceUrl = previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl;
+      const bodyUrl = previewCv.candidate.fullBodyPhotoUrl;
+
+      const [face, body] = await Promise.all([
+        convertImageToBase64(faceUrl),
+        convertImageToBase64(bodyUrl)
+      ]);
+
+      if (active) {
+        setDlFaceB64(face);
+        setDlBodyB64(body);
+        setIsDlPreloading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [previewCv]);
 
   // Handle Select Candidate
   const handleSelectCandidate = async (id: string) => {
@@ -832,8 +886,8 @@ export default function AvailableCandidatesPage() {
             <div key={c.id} id={`bulk-render-${c.id}`} style={{ width: '210mm', backgroundColor: '#ffffff' }}>
               <FolderTemplate
                 candidate={c}
-                facePhoto={getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
-                fullBodyPhoto={getFileUrl(c.fullBodyPhotoUrl)}
+                facePhoto={bulkB64Images[c.id]?.face || getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
+                fullBodyPhoto={bulkB64Images[c.id]?.body || getFileUrl(c.fullBodyPhotoUrl)}
               />
             </div>
           );
@@ -1370,8 +1424,8 @@ export default function AvailableCandidatesPage() {
                 <div className="w-[800px] shrink-0 bg-white shadow-lg relative border border-border" ref={cvRenderRef}>
                   <PrevTemplate
                     candidate={previewCv.candidate}
-                    facePhoto={getFileUrl(previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
-                    fullBodyPhoto={getFileUrl(previewCv.candidate.fullBodyPhotoUrl)}
+                    facePhoto={dlFaceB64 || getFileUrl(previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
+                    fullBodyPhoto={dlBodyB64 || getFileUrl(previewCv.candidate.fullBodyPhotoUrl)}
                   />
                 </div>
               </div>

@@ -77,3 +77,22 @@ export async function compressImage(dataUrl: string, maxWidth = 1200, quality = 
     img.src = dataUrl;
   });
 }
+
+export async function convertImageToBase64(url?: string): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const absoluteUrl = getFileUrl(url);
+    const res = await fetch(absoluteUrl);
+    if (!res.ok) throw new Error('Fetch failed');
+    const blob = await res.blob();
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn('Failed to convert image to B64:', url, e);
+    return getFileUrl(url); // Fallback to raw URL
+  }
+}
+
