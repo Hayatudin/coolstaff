@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
   Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink,
-  Lock, Video, Upload, ArrowRightLeft
+  Lock, Video, Upload, ArrowRightLeft, CheckCircle
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
@@ -33,6 +33,7 @@ export default function CandidateDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [insertVideoModalOpen, setInsertVideoModalOpen] = useState(false);
   const [insertVideoInput, setInsertVideoInput] = useState('');
@@ -41,6 +42,60 @@ export default function CandidateDetailPage() {
   const [editLaborIdModalOpen, setEditLaborIdModalOpen] = useState(false);
   const [editLaborIdInput, setEditLaborIdInput] = useState('');
   const [isSavingLaborId, setIsSavingLaborId] = useState(false);
+
+  const fetchCandidate = useCallback(async () => {
+    try {
+      const res = await api(`/api/candidates/${params.id}`);
+      if (!res.ok) throw new Error('Not found');
+      const data = await res.json();
+      setCandidate(data);
+    } catch {
+      setCandidate(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.id]);
+
+  const mergeAndFetchCandidate = useCallback((updatedCandidate: any) => {
+    setCandidate((prev: any) => {
+      if (!prev) return null;
+      const nextCandidate = { ...prev, ...updatedCandidate };
+      if (updatedCandidate.personalInfo || prev.personalInfo) {
+        nextCandidate.personalInfo = {
+          ...prev.personalInfo,
+          ...(updatedCandidate.personalInfo || {})
+        };
+      }
+      if (updatedCandidate.passportData || prev.passportData) {
+        nextCandidate.passportData = {
+          ...prev.passportData,
+          ...(updatedCandidate.passportData || {})
+        };
+      }
+      return nextCandidate;
+    });
+    fetchCandidate();
+  }, [fetchCandidate]);
+
+  const handleDownloadFile = async (url: string, filename: string) => {
+    try {
+      const fileUrl = getFileUrl(url);
+      const res = await fetch(fileUrl);
+      if (!res.ok) throw new Error('Fetch failed');
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Instant download failed:', err);
+      window.open(getFileUrl(url), '_blank');
+    }
+  };
 
   const handleSaveLaborId = async () => {
     setIsSavingLaborId(true);
@@ -57,10 +112,11 @@ export default function CandidateDetailPage() {
         throw new Error(errorData.error || 'Failed to save Labor ID');
       }
       const updatedCandidate = await res.json();
-      setCandidate(updatedCandidate);
+      mergeAndFetchCandidate(updatedCandidate);
       setEditLaborIdModalOpen(false);
       setEditLaborIdInput('');
-      alert('Labor ID successfully updated!');
+      setSuccessMessage('Labor ID successfully updated!');
+      setTimeout(() => setSuccessMessage(null), 3000);
       window.dispatchEvent(new Event('app-refresh'));
     } catch (err: any) {
       alert(err.message || 'Failed to save Labor ID');
@@ -85,10 +141,11 @@ export default function CandidateDetailPage() {
         throw new Error(errorData.error || 'Failed to save video path');
       }
       const updatedCandidate = await res.json();
-      setCandidate(updatedCandidate);
+      mergeAndFetchCandidate(updatedCandidate);
       setInsertVideoModalOpen(false);
       setInsertVideoInput('');
-      alert('Video path successfully updated!');
+      setSuccessMessage('Video path successfully updated!');
+      setTimeout(() => setSuccessMessage(null), 3000);
       window.dispatchEvent(new Event('app-refresh'));
     } catch (err: any) {
       alert(err.message || 'Failed to save video path');
@@ -114,8 +171,9 @@ export default function CandidateDetailPage() {
         throw new Error(errorData.error || 'Failed to delete video');
       }
       const updatedCandidate = await res.json();
-      setCandidate(updatedCandidate);
-      alert('Video successfully deleted!');
+      mergeAndFetchCandidate(updatedCandidate);
+      setSuccessMessage('Video successfully deleted!');
+      setTimeout(() => setSuccessMessage(null), 3000);
       window.dispatchEvent(new Event('app-refresh'));
     } catch (err: any) {
       alert(err.message || 'Failed to delete video');
@@ -141,8 +199,9 @@ export default function CandidateDetailPage() {
           });
           if (!res.ok) throw new Error('Failed to upload');
           const updatedCandidate = await res.json();
-          setCandidate(updatedCandidate);
-          alert('Document successfully imported!');
+          mergeAndFetchCandidate(updatedCandidate);
+          setSuccessMessage('Document successfully imported!');
+          setTimeout(() => setSuccessMessage(null), 3000);
         } catch (err) {
           alert('Failed to import document.');
         } finally {
@@ -154,20 +213,8 @@ export default function CandidateDetailPage() {
   };
 
   useEffect(() => {
-    async function fetchCandidate() {
-      try {
-        const res = await api(`/api/candidates/${params.id}`);
-        if (!res.ok) throw new Error('Not found');
-        const data = await res.json();
-        setCandidate(data);
-      } catch {
-        setCandidate(null);
-      } finally {
-        setIsLoading(false);
-      }
-    }
     if (params.id) fetchCandidate();
-  }, [params.id]);
+  }, [params.id, fetchCandidate]);
 
   const handleDelete = async () => {
     if (!candidate) return;
@@ -627,16 +674,14 @@ export default function CandidateDetailPage() {
                         >
                           <Eye size={16} />
                         </button>
-                        {(doc.url.startsWith('http') || doc.url.startsWith('/') || doc.url.startsWith('data:')) && (
-                          <a
-                            href={getDownloadUrl(doc.url!)}
-                            download
-                            rel="noreferrer"
-                            className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center"
-                            title={`Save ${doc.label}`}
+                        {doc.field !== 'quickVideoUrl' && !doc.url.toLowerCase().endsWith('.pdf') && !doc.url.startsWith('data:application/pdf') && (
+                          <button
+                            onClick={() => handleDownloadFile(doc.url!, `${c.passportData.passportNumber || 'document'}_${doc.label.replace(/\s+/g, '_')}`)}
+                            className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-605 rounded-xl transition-colors cursor-pointer flex items-center justify-center"
+                            title={`Download ${doc.label}`}
                           >
                             <Download size={16} />
-                          </a>
+                          </button>
                         )}
                         <label
                           className="p-2 bg-gray-100 hover:bg-gray-200 text-primary rounded-xl transition-colors cursor-pointer flex items-center justify-center"
@@ -807,6 +852,13 @@ export default function CandidateDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Floating Success Toast */}
+      {successMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm tracking-wider px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-emerald-500/20 select-none animate-fade-in-up transition-all duration-300">
+          <CheckCircle size={18} className="text-white animate-pulse" />
+          {successMessage}
         </div>
       )}
     </div>
