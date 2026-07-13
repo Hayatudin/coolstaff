@@ -6,7 +6,7 @@ import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
   Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink,
-  Lock, Video
+  Lock, Video, Upload, ArrowRightLeft
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
@@ -37,6 +37,37 @@ export default function CandidateDetailPage() {
   const [insertVideoModalOpen, setInsertVideoModalOpen] = useState(false);
   const [insertVideoInput, setInsertVideoInput] = useState('');
   const [isSavingVideo, setIsSavingVideo] = useState(false);
+
+  const [editLaborIdModalOpen, setEditLaborIdModalOpen] = useState(false);
+  const [editLaborIdInput, setEditLaborIdInput] = useState('');
+  const [isSavingLaborId, setIsSavingLaborId] = useState(false);
+
+  const handleSaveLaborId = async () => {
+    setIsSavingLaborId(true);
+    try {
+      const res = await api(`/api/candidates/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          laborID: editLaborIdInput.trim()
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save Labor ID');
+      }
+      const updatedCandidate = await res.json();
+      setCandidate(updatedCandidate);
+      setEditLaborIdModalOpen(false);
+      setEditLaborIdInput('');
+      alert('Labor ID successfully updated!');
+      window.dispatchEvent(new Event('app-refresh'));
+    } catch (err: any) {
+      alert(err.message || 'Failed to save Labor ID');
+    } finally {
+      setIsSavingLaborId(false);
+    }
+  };
 
   const handleSaveVideoPath = async () => {
     setIsSavingVideo(true);
@@ -420,7 +451,27 @@ export default function CandidateDetailPage() {
               <InfoItem icon={GraduationCap} label="Education" value={pi.educationLevel} />
               <InfoItem icon={Briefcase} label="Job" value={pi.job} />
               <InfoItem icon={FileText} label="ID Number" value={pi.idNumber} />
-              <InfoItem icon={FileText} label="Labor ID" value={c.laborID || '—'} />
+              <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10 min-w-0 bg-gray-50 border-gray-200">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <FileText size={14} className="text-primary/60" />
+                    <p className="text-[10px] text-text-tertiary uppercase tracking-[0.15em] font-bold">Labor ID</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setEditLaborIdInput(c.laborID || '');
+                      setEditLaborIdModalOpen(true);
+                    }} 
+                    className="p-1.5 bg-gray-100 hover:bg-gray-200/80 rounded-lg text-primary hover:text-primary-dark transition-all cursor-pointer flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    title="Edit Labor ID"
+                  >
+                    <Edit3 size={11} />
+                  </button>
+                </div>
+                <p className="text-[15px] text-text-primary font-semibold pl-5 break-all whitespace-normal">
+                  {c.laborID || '—'}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -555,26 +606,82 @@ export default function CandidateDetailPage() {
                 { label: 'Passport Scan', url: c.passportImageUrl, field: 'passportImageUrl', color: 'primary', accept: 'image/*,application/pdf' },
                 { label: 'Candidate ID', url: c.candidateIdImageUrl, field: 'candidateIdImageUrl', color: 'blue', accept: 'image/*,application/pdf' },
                 { label: 'Relative ID', url: c.relativeIdImageUrl, field: 'relativeIdImageUrl', color: 'amber', accept: 'image/*,application/pdf' },
-                { label: 'Labour ID', url: c.labourIdUrl, field: 'labourIdUrl', color: 'violet', accept: 'image/*,application/pdf' },
+                { label: 'Labour ID', url: c.labourIdUrl || c.laborID || undefined, field: 'labourIdUrl', color: 'violet', accept: 'image/*,application/pdf' },
                 { label: 'Candidate Video', url: c.quickVideoUrl, field: 'quickVideoUrl', color: 'pink', accept: 'video/*' },
               ].map((doc) => (
                 <div key={doc.field} className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                   <span className="text-[14px] font-bold text-text-primary">{doc.label}</span>
-                  {doc.url ? (
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => setViewDoc(getFileUrl(doc.url!))} className={`text-[11px] uppercase tracking-[0.1em] text-${doc.color}-600 hover:text-${doc.color}-800 font-black px-3 py-1.5 bg-${doc.color}-100 hover:bg-${doc.color}-200 rounded-lg transition-colors flex items-center gap-1.5`}><Eye size={12} /> View</button>
-                      <a href={getDownloadUrl(doc.url!)} download rel="noreferrer" className="text-[11px] uppercase tracking-[0.1em] text-gray-600 hover:text-gray-800 font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"><Download size={12} /> Save</a>
-                      <label className="text-[11px] uppercase tracking-[0.1em] text-primary/75 hover:text-primary font-black px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                        {isImporting === doc.field ? 'Importing...' : 'Replace'}
-                        <input type="file" accept={doc.accept} className="hidden" disabled={isImporting !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImportFile(doc.field, file); }} />
+                  <div className="flex items-center gap-2">
+                    {doc.url ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            if (doc.field === 'labourIdUrl' && doc.url && !(doc.url.startsWith('http') || doc.url.startsWith('/') || doc.url.startsWith('data:'))) {
+                              setViewDoc(doc.url);
+                            } else {
+                              setViewDoc(getFileUrl(doc.url!));
+                            }
+                          }}
+                          className={`p-2 bg-${doc.color}-100 hover:bg-${doc.color}-200 text-${doc.color}-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center`}
+                          title={`View ${doc.label}`}
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {(doc.url.startsWith('http') || doc.url.startsWith('/') || doc.url.startsWith('data:')) && (
+                          <a
+                            href={getDownloadUrl(doc.url!)}
+                            download
+                            rel="noreferrer"
+                            className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center"
+                            title={`Save ${doc.label}`}
+                          >
+                            <Download size={16} />
+                          </a>
+                        )}
+                        <label
+                          className="p-2 bg-gray-100 hover:bg-gray-200 text-primary rounded-xl transition-colors cursor-pointer flex items-center justify-center"
+                          title={`Replace ${doc.label}`}
+                        >
+                          {isImporting === doc.field ? (
+                            <Loader2 size={16} className="animate-spin text-primary" />
+                          ) : (
+                            <ArrowRightLeft size={16} />
+                          )}
+                          <input
+                            type="file"
+                            accept={doc.accept}
+                            className="hidden"
+                            disabled={isImporting !== null}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImportFile(doc.field, file);
+                            }}
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <label
+                        className="p-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center"
+                        title={`Import ${doc.label}`}
+                      >
+                        {isImporting === doc.field ? (
+                          <Loader2 size={16} className="animate-spin text-emerald-600" />
+                        ) : (
+                          <Upload size={16} />
+                        )}
+                        <input
+                          type="file"
+                          accept={doc.accept}
+                          className="hidden"
+                          disabled={isImporting !== null}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImportFile(doc.field, file);
+                          }}
+                        />
                       </label>
-                    </div>
-                  ) : (
-                    <label className="text-[11px] uppercase tracking-[0.1em] text-emerald-600 hover:text-emerald-800 font-black px-3 py-1.5 bg-emerald-100/70 hover:bg-emerald-200/70 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer">
-                      {isImporting === doc.field ? 'Importing...' : 'Import'}
-                      <input type="file" accept={doc.accept} className="hidden" disabled={isImporting !== null} onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImportFile(doc.field, file); }} />
-                    </label>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -598,8 +705,17 @@ export default function CandidateDetailPage() {
               <h3 className="font-semibold text-text-primary">Document Preview</h3>
               <button onClick={() => setViewDoc(null)} className="text-text-tertiary hover:text-text-primary text-xl font-bold px-2">✕</button>
             </div>
-            <div className="p-4 flex items-center justify-center overflow-auto max-h-[80vh]">
-              {viewDoc.startsWith('data:image') || (viewDoc.startsWith('http') && !viewDoc.toLowerCase().endsWith('.pdf')) ? (
+            <div className="p-4 flex items-center justify-center overflow-auto max-h-[80vh] w-full">
+              {!(viewDoc.startsWith('http') || viewDoc.startsWith('/') || viewDoc.startsWith('data:')) ? (
+                <div className="text-center py-12 px-6 bg-gray-50 rounded-2xl border border-gray-250 max-w-md w-full">
+                  <FileText className="mx-auto text-primary mb-3" size={48} />
+                  <h4 className="text-lg font-bold text-text-primary mb-1">Labour ID (Text Value)</h4>
+                  <p className="text-2xl font-mono font-black text-primary tracking-wider my-4 bg-white py-3 px-4 rounded-xl border border-gray-200/60 shadow-sm select-all">
+                    {viewDoc}
+                  </p>
+                  <p className="text-xs text-text-tertiary">This is a text-only Labour ID entered during registration. You can view or copy it above.</p>
+                </div>
+              ) : viewDoc.startsWith('data:image') || (viewDoc.startsWith('http') && !viewDoc.toLowerCase().endsWith('.pdf')) ? (
                 <img src={viewDoc} alt="Document" className="max-w-full max-h-[70vh] object-contain rounded-lg" />
               ) : viewDoc.startsWith('data:application/pdf') ? (
                 <iframe src={viewDoc} className="w-full h-[70vh] rounded-lg" />
@@ -652,6 +768,42 @@ export default function CandidateDetailPage() {
               >
                 {isSavingVideo ? <Loader2 size={13} className="animate-spin" /> : null}
                 Save Video
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Labor ID Modal */}
+      {editLaborIdModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setEditLaborIdModalOpen(false)}>
+          <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
+              <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                <FileText className="text-primary" size={20} /> Edit Labor ID
+              </h3>
+              <button onClick={() => setEditLaborIdModalOpen(false)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-semibold text-text-primary mb-2">Update the candidate's Labor ID:</label>
+              <Input 
+                autoFocus
+                placeholder="Enter Labor ID" 
+                value={editLaborIdInput} 
+                onChange={(e) => setEditLaborIdInput(e.target.value)} 
+                className="w-full"
+              />
+            </div>
+            <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setEditLaborIdModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
+                Cancel
+              </button>
+              <button 
+                disabled={isSavingLaborId}
+                onClick={handleSaveLaborId}
+                className="px-6 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSavingLaborId ? <Loader2 size={13} className="animate-spin" /> : null}
+                Save Changes
               </button>
             </div>
           </div>
