@@ -107,7 +107,8 @@ function ChangeTemplateModal({
   const [selected, setSelected] = useState<string | null>(null);
   const [dlOpen, setDlOpen] = useState(false);
   const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-  const isNewCandidate = cv?.candidate && cv.candidate.registeredAt && new Date(cv.candidate.registeredAt) >= REGISTRATION_CUTOFF;
+  const isCallingCandidate = cv?.candidate && (cv.candidate.broker?.name === 'Calling' || cv.candidate.job === 'Calling');
+  const isNewCandidate = cv?.candidate && cv.candidate.registeredAt && new Date(cv.candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
   const others = isNewCandidate ? [] : TEMPLATES.filter(t => t.id !== currentTemplateId);
 
   // Add Enter key trigger

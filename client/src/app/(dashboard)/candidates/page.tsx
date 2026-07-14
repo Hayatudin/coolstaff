@@ -303,10 +303,11 @@ export default function CandidatesPage() {
       const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
       const matchesCalling = callingFilter ? c.broker?.name === 'Calling' : true;
       let matchesRegistrationTab = false;
+      const isCallingCandidate = c.broker?.name === 'Calling' || c.personalInfo?.job === 'Calling';
       if (regTabFilter === 'flagged') {
         matchesRegistrationTab = c.isFlagged === true;
       } else if (regTabFilter === 'new') {
-        matchesRegistrationTab = c.isFlagged !== true && new Date(c.registeredAt) >= REGISTRATION_CUTOFF;
+        matchesRegistrationTab = c.isFlagged !== true && !isCallingCandidate && new Date(c.registeredAt) >= REGISTRATION_CUTOFF;
       } else {
         matchesRegistrationTab = c.isFlagged !== true;
       }

@@ -172,7 +172,8 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-    const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF;
+    const isCallingCandidate = candidate.broker?.name === 'Calling' || candidate.job === 'Calling';
+    const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
     if (isNewCandidate) {
       const cleanReqTmpl = templateId.replace('tmpl-', '').toLowerCase();
       if (cleanReqTmpl !== 'al-shablan') {
@@ -253,7 +254,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     
     const existingCV = await prisma.generatedCV.findUnique({
       where: { id },
-      include: { candidate: true }
+      include: { candidate: { include: { broker: true } } }
     });
     
     if (!existingCV) {
@@ -262,7 +263,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     if (existingCV.candidate) {
       const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-      const isNewCandidate = existingCV.candidate.registeredAt && new Date(existingCV.candidate.registeredAt) >= REGISTRATION_CUTOFF;
+      const isCallingCandidate = existingCV.candidate.broker?.name === 'Calling' || existingCV.candidate.job === 'Calling';
+      const isNewCandidate = existingCV.candidate.registeredAt && new Date(existingCV.candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
       if (isNewCandidate) {
         const cleanReqTmpl = templateId.replace('tmpl-', '').toLowerCase();
         if (cleanReqTmpl !== 'al-shablan') {

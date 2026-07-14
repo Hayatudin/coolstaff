@@ -1652,7 +1652,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // 4. Update QuickRegistration entries to null out promotedCandidateId
     try {
       await prisma.$executeRawUnsafe(
-        `UPDATE \`QuickRegistration\` SET \`promotedCandidateId\` = NULL, \`verificationStatus\` = 'verified' WHERE \`promotedCandidateId\` = ?`,
+        `UPDATE \`QuickRegistration\` SET \`promotedCandidateId\` = NULL, \`verificationStatus\` = 'pending' WHERE \`promotedCandidateId\` = ?`,
         id
       );
     } catch (e) {

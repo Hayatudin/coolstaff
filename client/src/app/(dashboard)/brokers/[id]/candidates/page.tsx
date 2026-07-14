@@ -388,7 +388,8 @@ export default function BrokerCandidatesPage() {
           const candidate = candidates.find(c => c.id === candidateId);
           if (!candidate) continue;
 
-          const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF;
+          const isCallingCandidate = broker?.name === 'Calling' || candidate.job === 'Calling';
+          const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
           if (isNewCandidate) {
             skippedCount++;
             continue;
@@ -424,7 +425,8 @@ export default function BrokerCandidatesPage() {
         setSelectedIds([]);
       } else {
         const candidate = templateChangeTarget;
-        const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF;
+        const isCallingCandidate = broker?.name === 'Calling' || candidate.job === 'Calling';
+        const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
         if (isNewCandidate && newTemplateId !== 'al-shablan') {
           showToast('Newly registered candidates are locked to the AL-SHABLAN template only.', 'error');
           setTemplateChangeTarget(null);
@@ -2171,7 +2173,8 @@ function ChangeTemplateModal({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-  const isNewCandidate = candidate && candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF;
+  const isCallingCandidate = candidate?.broker?.name === 'Calling' || candidate?.personalInfo?.job === 'Calling';
+  const isNewCandidate = candidate && candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
   const others = isNewCandidate ? [] : TEMPLATES;
 
   // Add Enter key trigger
