@@ -59,17 +59,33 @@ function CVGeneratorContent() {
     if (!selectedCandidateId) {
       return TEMPLATES;
     }
+    const cand = nonCallingCandidates.find((c: any) => c.id === selectedCandidateId);
+    const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
+    const isNewCandidate = cand && cand.registeredAt && new Date(cand.registeredAt) >= REGISTRATION_CUTOFF;
+
+    if (isNewCandidate) {
+      return TEMPLATES.filter(t => t.id === 'al-shablan');
+    }
+
     if (hasGeneratedCv) {
       return TEMPLATES;
     }
     return TEMPLATES.filter(t => t.id === 'al-shablan');
-  }, [selectedCandidateId, hasGeneratedCv]);
+  }, [selectedCandidateId, hasGeneratedCv, nonCallingCandidates]);
 
   React.useEffect(() => {
-    if (selectedCandidateId && !hasGeneratedCv) {
-      setSelectedTemplateId('al-shablan');
+    if (selectedCandidateId) {
+      const cand = nonCallingCandidates.find((c: any) => c.id === selectedCandidateId);
+      const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
+      const isNewCandidate = cand && cand.registeredAt && new Date(cand.registeredAt) >= REGISTRATION_CUTOFF;
+
+      if (isNewCandidate) {
+        setSelectedTemplateId('al-shablan');
+      } else if (!hasGeneratedCv) {
+        setSelectedTemplateId('al-shablan');
+      }
     }
-  }, [selectedCandidateId, hasGeneratedCv]);
+  }, [selectedCandidateId, hasGeneratedCv, nonCallingCandidates]);
 
   React.useEffect(() => {
     api('/api/generated-cvs')

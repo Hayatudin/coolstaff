@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, UserCheck,
   Download, ChevronDown, FileText, Image as ImageIcon, FileDown, X, AlertCircle,
-  Flag, LayoutTemplate, Check, AlertTriangle
+  Flag, LayoutTemplate, Check, AlertTriangle, Lock
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
@@ -1416,9 +1416,13 @@ function ChangeTemplateModal({
   isLoading: boolean;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
+  const isNewCandidate = candidate && candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF;
+  const others = isNewCandidate ? [] : TEMPLATES;
 
   // Add Enter key trigger
   useEffect(() => {
+    if (isNewCandidate) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && selected && !isLoading) {
         onChange(selected);
@@ -1426,7 +1430,7 @@ function ChangeTemplateModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selected, isLoading, onChange]);
+  }, [selected, isLoading, onChange, isNewCandidate]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
@@ -1449,55 +1453,67 @@ function ChangeTemplateModal({
 
         {/* Template Grid */}
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {TEMPLATES.map(template => {
-              const TC = template.component;
-              const isSelected = selected === template.id;
-              const isCurrent = template.id === currentTemplateId;
+          {isNewCandidate ? (
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mb-4 animate-bounce">
+                <Lock size={30} />
+              </div>
+              <h3 className="text-lg font-bold text-text-primary mb-2">Template Locked</h3>
+              <p className="text-sm text-text-secondary max-w-md">
+                This candidate was recently registered and is in the <strong>New Candidates</strong> category. Under system rules, their CV is locked to the <strong>AL-SHABLAN</strong> template and cannot be changed.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {others.map(template => {
+                const TC = template.component;
+                const isSelected = selected === template.id;
+                const isCurrent = template.id === currentTemplateId;
 
-              return (
-                <button
-                  key={template.id}
-                  onClick={() => setSelected(template.id)}
-                  disabled={isCurrent}
-                  className={cn(
-                    'relative rounded-2xl border-2 overflow-hidden transition-all text-left flex flex-col cursor-pointer bg-white group',
-                    isCurrent && 'opacity-65 cursor-not-allowed border-gray-200 bg-gray-50',
-                    isSelected
-                      ? 'border-primary shadow-lg shadow-primary/10 scale-[1.02]'
-                      : 'border-border/60 hover:border-primary/40'
-                  )}
-                >
-                  <div className="h-44 bg-gray-100 overflow-hidden relative border-b border-border/40 shrink-0">
-                    <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
-                      <TC
-                        candidate={candidate.id ? candidate : {
-                          passportData: { givenNames: 'FIRSTNAME', surname: 'LASTNAME', passportNumber: 'AB123456', nationality: 'NATIONALITY', gender: 'F', placeOfBirth: 'BIRTHPLACE', dateOfBirth: '1995-01-01', dateOfIssue: '2020-01-01', dateOfExpiry: '2030-01-01', issuingCountry: 'COUNTRY' },
-                          personalInfo: { idNumber: '1234567890', job: 'HOUSEMAID', maritalStatus: 'Single', numberOfChildren: 0, religion: 'Christian', phone: '0501234567', languages: ['English', 'Somali'], workExperience: [], skills: [] }
-                        }}
-                        facePhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                        fullBodyPhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                      />
+                return (
+                  <button
+                    key={template.id}
+                    onClick={() => setSelected(template.id)}
+                    disabled={isCurrent}
+                    className={cn(
+                      'relative rounded-2xl border-2 overflow-hidden transition-all text-left flex flex-col cursor-pointer bg-white group',
+                      isCurrent && 'opacity-65 cursor-not-allowed border-gray-200 bg-gray-50',
+                      isSelected
+                        ? 'border-primary shadow-lg shadow-primary/10 scale-[1.02]'
+                        : 'border-border/60 hover:border-primary/40'
+                    )}
+                  >
+                    <div className="h-44 bg-gray-100 overflow-hidden relative border-b border-border/40 shrink-0">
+                      <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
+                        <TC
+                          candidate={candidate.id ? candidate : {
+                            passportData: { givenNames: 'FIRSTNAME', surname: 'LASTNAME', passportNumber: 'AB123456', nationality: 'NATIONALITY', gender: 'F', placeOfBirth: 'BIRTHPLACE', dateOfBirth: '1995-01-01', dateOfIssue: '2020-01-01', dateOfExpiry: '2030-01-01', issuingCountry: 'COUNTRY' },
+                            personalInfo: { idNumber: '1234567890', job: 'HOUSEMAID', maritalStatus: 'Single', numberOfChildren: 0, religion: 'Christian', phone: '0501234567', languages: ['English', 'Somali'], workExperience: [], skills: [] }
+                          }}
+                          facePhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                          fullBodyPhoto="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                        />
+                      </div>
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow z-10">
+                          <Check size={12} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                      {isCurrent && (
+                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+                          <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Active</span>
+                        </div>
+                      )}
                     </div>
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow z-10">
-                        <Check size={12} className="text-white" strokeWidth={3} />
-                      </div>
-                    )}
-                    {isCurrent && (
-                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
-                        <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Active</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="px-3 py-2 flex items-center gap-2 mt-auto">
-                    <span className={cn('w-2 h-2 rounded-full shrink-0', template.color)} />
-                    <span className="text-xs font-bold text-text-primary truncate">{template.name}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    <div className="px-3 py-2 flex items-center gap-2 mt-auto">
+                      <span className={cn('w-2 h-2 rounded-full shrink-0', template.color)} />
+                      <span className="text-xs font-bold text-text-primary truncate">{template.name}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -1507,7 +1523,7 @@ function ChangeTemplateModal({
           </button>
           <button
             onClick={() => selected && onChange(selected)}
-            disabled={!selected || isLoading}
+            disabled={isNewCandidate || !selected || isLoading}
             className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-colors disabled:opacity-50 rounded-xl cursor-pointer shadow-md hover:shadow-lg"
           >
             {isLoading ? (
