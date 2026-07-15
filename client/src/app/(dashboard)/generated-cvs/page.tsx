@@ -989,9 +989,10 @@ function GeneratedCVsContent() {
     if (!matchesCvStatus) return false;
 
     if (religionFilter) {
-      const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase();
-      if (religionFilter === 'muslim' && rel !== 'muslim') return false;
-      if (religionFilter === 'non-muslim' && (rel === 'muslim' || rel === '')) return false;
+      const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase().trim().replace('-', ' ');
+      const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
+      if (filterVal === 'muslim' && rel !== 'muslim' && rel !== 'islam') return false;
+      if (filterVal === 'non muslim' && rel !== 'non muslim') return false;
     }
     if (flagFilter === 'flagged' && !cv.candidate.isFlagged) return false;
     if (flagFilter === 'unflagged' && cv.candidate.isFlagged) return false;

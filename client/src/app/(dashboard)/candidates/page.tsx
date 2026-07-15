@@ -299,7 +299,16 @@ export default function CandidatesPage() {
 
       const matchesJob = jobFilter ? c.personalInfo.job === jobFilter : true;
       const matchesGender = genderFilter ? c.passportData.gender?.toLowerCase() === genderFilter.toLowerCase() : true;
-      const matchesReligion = religionFilter ? c.personalInfo.religion?.toLowerCase() === religionFilter.toLowerCase() : true;
+      let matchesReligion = true;
+      if (religionFilter) {
+        const rel = (c.personalInfo.religion || '').toLowerCase().trim().replace('-', ' ');
+        const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
+        if (filterVal === 'non muslim') {
+          matchesReligion = rel === 'non muslim';
+        } else {
+          matchesReligion = rel === filterVal;
+        }
+      }
       const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
       const matchesCalling = callingFilter ? c.broker?.name === 'Calling' : true;
       let matchesRegistrationTab = false;

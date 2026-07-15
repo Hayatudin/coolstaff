@@ -653,9 +653,10 @@ export default function BackupPage() {
   const activeCVs = allFolderCVs.filter(cv => {
     // Religion filter
     if (religionFilter) {
-      const rel = (cv.candidate.religion || '').toLowerCase();
-      if (religionFilter === 'muslim' && rel !== 'muslim') return false;
-      if (religionFilter === 'non-muslim' && (rel === 'muslim' || rel === '')) return false;
+      const rel = (cv.candidate.religion || '').toLowerCase().trim().replace('-', ' ');
+      const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
+      if (filterVal === 'muslim' && rel !== 'muslim' && rel !== 'islam') return false;
+      if (filterVal === 'non muslim' && rel !== 'non muslim') return false;
     }
     // Search + status filters
     if (!matchesSearch(cv)) return false;

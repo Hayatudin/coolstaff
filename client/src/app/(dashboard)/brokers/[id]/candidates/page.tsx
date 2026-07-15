@@ -1094,11 +1094,18 @@ export default function BrokerCandidatesPage() {
         : c.visaSelected !== true;
 
       // 3. Religion Filter
-      const matchesReligion = !religionFilter
-        ? true
-        : religionFilter === 'muslim'
-          ? (c.religion?.toLowerCase() === 'muslim' || c.religion?.toLowerCase() === 'islam')
-          : (c.religion?.toLowerCase() !== 'muslim' && c.religion?.toLowerCase() !== 'islam');
+      let matchesReligion = true;
+      if (religionFilter) {
+        const rel = (c.religion || '').toLowerCase().trim().replace('-', ' ');
+        const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
+        if (filterVal === 'muslim') {
+          matchesReligion = rel === 'muslim' || rel === 'islam';
+        } else if (filterVal === 'non muslim') {
+          matchesReligion = rel === 'non muslim';
+        } else {
+          matchesReligion = rel === filterVal;
+        }
+      }
 
       // 4. Flagged Filter
       const matchesFlagged = flaggedFilter

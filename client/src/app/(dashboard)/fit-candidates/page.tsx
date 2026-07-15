@@ -223,11 +223,18 @@ export default function FitCandidatesPage() {
       const matchesSearch = name.includes(query) || passport.includes(query) || shelfId.includes(query);
 
       // 2. Language Filter
-      const matchesLanguage = !languageFilter
-        ? true
-        : languageFilter === 'muslim'
-          ? (c.personalInfo.religion?.toLowerCase() === 'muslim' || c.personalInfo.religion?.toLowerCase() === 'islam')
-          : (c.personalInfo.religion?.toLowerCase() !== 'muslim' && c.personalInfo.religion?.toLowerCase() !== 'islam');
+      let matchesLanguage = true;
+      if (languageFilter) {
+        const rel = (c.personalInfo.religion || '').toLowerCase().trim().replace('-', ' ');
+        const filterVal = languageFilter.toLowerCase().trim().replace('-', ' ');
+        if (filterVal === 'muslim') {
+          matchesLanguage = rel === 'muslim' || rel === 'islam';
+        } else if (filterVal === 'non muslim') {
+          matchesLanguage = rel === 'non muslim';
+        } else {
+          matchesLanguage = rel === filterVal;
+        }
+      }
 
       // 3. Flagged Filter
       const matchesFlagged = flaggedFilter
