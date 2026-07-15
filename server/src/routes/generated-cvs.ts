@@ -116,6 +116,38 @@ router.get('/', async (req: Request, res: Response) => {
         createdAt: 'desc'
       }
     });
+
+    // Dynamically fetch and include candidates who have a template/agency assigned but no GeneratedCV record
+    try {
+      const candidatesWithAgency = await prisma.candidate.findMany({
+        where: {
+          agency: {
+            in: ['ussus', 'al-shablan', 'alm', 'ka7', 'ku2', 'ma', 'ra', 'vision']
+          }
+        },
+        include: {
+          broker: true
+        }
+      });
+
+      const existingCandidateIds = new Set(generatedCVs.map(cv => cv.candidateId));
+      for (const cand of candidatesWithAgency) {
+        if (!existingCandidateIds.has(cand.id)) {
+          generatedCVs.push({
+            id: `dummy-${cand.id}`,
+            candidateId: cand.id,
+            templateId: cand.agency!.toLowerCase(),
+            facePhotoUrl: cand.facePhotoUrl || cand.passportImageUrl || null,
+            fullBodyPhotoUrl: cand.fullBodyPhotoUrl || null,
+            createdAt: cand.registeredAt || new Date(),
+            updatedAt: cand.registeredAt || new Date(),
+            candidate: cand
+          } as any);
+        }
+      }
+    } catch (err) {
+      console.warn('[GENERATED-CVS] Could not fetch missing candidates dynamically:', err);
+    }
     
     const lockMap = await getBrokerLockMap();
     let cvDownloadedMap: Record<string, boolean> = {};
@@ -252,6 +284,51 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing templateId' });
     }
     
+    if (id.startsWith('dummy-')) {
+      const candidateId = id.replace('dummy-', '');
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: candidateId },
+        include: { broker: true }
+      });
+      if (!candidate) {
+        return res.status(404).json({ error: 'Candidate not found' });
+      }
+
+      // Check template locking rules
+      const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
+      const isCallingCandidate = candidate.broker?.name === 'Calling' || candidate.job === 'Calling';
+      const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
+      if (isNewCandidate) {
+        const cleanReqTmpl = templateId.replace('tmpl-', '').toLowerCase();
+        if (cleanReqTmpl !== 'al-shablan') {
+          return res.status(400).json({ error: 'Newly registered candidates are locked to the AL-SHABLAN template only.' });
+        }
+      }
+
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + 30);
+      const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
+
+      const [newCV] = await prisma.$transaction([
+        prisma.generatedCV.create({
+          data: {
+            candidateId,
+            templateId,
+            facePhotoUrl: candidate.facePhotoUrl || candidate.passportImageUrl || null,
+            fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || null
+          }
+        }),
+        prisma.candidate.update({
+          where: { id: candidateId },
+          data: {
+            cvDeadline: deadline,
+            agency: cleanTemplateId
+          }
+        })
+      ]);
+      return res.json(newCV);
+    }
+
     const existingCV = await prisma.generatedCV.findUnique({
       where: { id },
       include: { candidate: { include: { broker: true } } }
@@ -312,6 +389,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
+    if (id.startsWith('dummy-')) {
+      const candidateId = id.replace('dummy-', '');
+      await prisma.candidate.update({
+        where: { id: candidateId },
+        data: { agency: 'daera' }
+      });
+      return res.json({ success: true });
+    }
+
     const existingCV = await prisma.generatedCV.findUnique({
       where: { id }
     });
