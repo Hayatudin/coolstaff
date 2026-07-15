@@ -11,6 +11,17 @@ import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { cn } from '@/lib/utils';
 import { useCandidates } from '@/hooks/useCandidates';
 
+const TEMPLATES = [
+  { id: 'ussus', name: 'USSUS' },
+  { id: 'al-shablan', name: 'AL-Shablan' },
+  { id: 'alm', name: 'ALAALAM' },
+  { id: 'ka7', name: 'KAAFAAT' },
+  { id: 'ku2', name: 'KHUZAM' },
+  { id: 'ma', name: 'MA Standard' },
+  { id: 'ra', name: 'RAYAAT' },
+  { id: 'vision', name: 'Vision Layout' },
+];
+
 const getFileUrl = (path: string | null | undefined): string => {
   if (!path) return '';
   if (path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('http')) return path;
@@ -160,8 +171,8 @@ export default function FlaggedCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Candidate Name</th>
                 <th className="px-6 py-4 font-semibold">Passport Number</th>
                 <th className="px-6 py-4 font-semibold">Religion</th>
-                <th className="px-6 py-4 font-semibold text-center w-28">Face Photo</th>
-                <th className="px-6 py-4 font-semibold text-center w-28">Full Body</th>
+                <th className="px-6 py-4 font-semibold">Agency</th>
+                <th className="px-6 py-4 font-semibold">Broker</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-center w-20">Actions</th>
               </tr>
@@ -193,29 +204,17 @@ export default function FlaggedCandidatesPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-secondary">
                         {c.personalInfo?.religion || '—'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {c.facePhotoUrl ? (
-                          <button
-                            onClick={() => setViewDoc(getFileUrl(c.facePhotoUrl))}
-                            className="inline-flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden border border-border/80 shadow-sm hover:border-primary/50 transition-all cursor-pointer"
-                          >
-                            <img src={getFileUrl(c.facePhotoUrl)} alt="Face" className="w-full h-full object-cover" />
-                          </button>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {c.agency ? (
+                          <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-black uppercase rounded-lg bg-gray-50 text-text-primary border border-border shadow-sm">
+                            {TEMPLATES.find(t => t.id === c.agency?.toLowerCase())?.name || c.agency.toUpperCase()}
+                          </span>
                         ) : (
-                          <span className="text-text-tertiary text-xs">—</span>
+                          <span className="text-text-tertiary font-medium text-xs">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {c.fullBodyPhotoUrl ? (
-                          <button
-                            onClick={() => setViewDoc(getFileUrl(c.fullBodyPhotoUrl))}
-                            className="inline-flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden border border-border/80 shadow-sm hover:border-primary/50 transition-all cursor-pointer"
-                          >
-                            <img src={getFileUrl(c.fullBodyPhotoUrl)} alt="Full Body" className="w-full h-full object-cover" />
-                          </button>
-                        ) : (
-                          <span className="text-text-tertiary text-xs">—</span>
-                        )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-secondary">
+                        {c.broker?.name || '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge variant="danger" className="font-extrabold uppercase text-[10px]">
