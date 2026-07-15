@@ -459,7 +459,8 @@ function GeneratedCVsContent() {
         !c.candidate.isRequested && 
         c.candidate.personalInfo?.medicalStatus !== 'Unfit' && 
         c.candidate.medicalStatus !== 'Unfit' && 
-        !c.candidate.visaSelected
+        !c.candidate.visaSelected &&
+        !c.candidate.isFlagged
       ));
       setSelectedCVIds(new Set()); // clear selection on refresh
     } catch {

@@ -21,6 +21,7 @@ import {
   Loader2,
   X,
   Video,
+  Flag,
 } from 'lucide-react';
 
 // All possible nav items with their route paths
@@ -36,6 +37,7 @@ const allNavItems = [
   { label: 'Generated CVs', href: '/generated-cvs', icon: FolderOpen },
   { label: 'Fit Candidates', href: '/fit-candidates', icon: UserCheck },
   { label: 'Visa Selected', href: '/requested', icon: ClipboardList },
+  { label: 'Flagged Candidates', href: '/flagged', icon: Flag },
   { label: 'Available Candidates', href: '/agency/available-candidates', icon: Users },
   { label: 'Contracts', href: '/agency/contracts', icon: ClipboardList },
   { label: 'Invoice', href: '/invoice', icon: FileText },

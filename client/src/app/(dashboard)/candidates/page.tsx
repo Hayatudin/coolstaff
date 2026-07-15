@@ -375,7 +375,7 @@ export default function CandidatesPage() {
         )}
       </div>
 
-      {/* Category Tabs: All vs New vs Flagged */}
+      {/* Category Tabs: All vs New */}
       <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl border border-gray-250/20 self-start">
         <button
           onClick={() => setRegTabFilter('all')}
@@ -399,18 +399,6 @@ export default function CandidatesPage() {
         >
           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
           New Candidates
-        </button>
-        <button
-          onClick={() => setRegTabFilter('flagged')}
-          className={cn(
-            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-none active:scale-[0.98]",
-            regTabFilter === 'flagged'
-              ? "bg-white text-red-600 shadow-sm border border-black/5"
-              : "text-text-secondary hover:text-red-600 bg-transparent border border-transparent"
-          )}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-red-650" />
-          Flagged Candidates
         </button>
       </div>
 
