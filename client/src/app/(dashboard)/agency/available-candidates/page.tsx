@@ -790,10 +790,10 @@ export default function AvailableCandidatesPage() {
       // 3. Religion Filter (merges non-muslim variants)
       if (inputReligion !== 'all') {
         const candRel = c.religion ? c.religion.trim().toLowerCase() : '';
-        const filterRel = inputReligion.toLowerCase();
+        const filterRel = inputReligion.toLowerCase().trim().replace('-', ' ');
         
         if (filterRel === 'non muslim') {
-          if (candRel !== 'non muslim' && candRel !== 'non-muslim') {
+          if (candRel === 'muslim' || candRel === 'islam' || candRel === '') {
             return false;
           }
         } else {

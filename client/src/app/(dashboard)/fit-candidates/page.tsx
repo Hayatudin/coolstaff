@@ -230,7 +230,7 @@ export default function FitCandidatesPage() {
         if (filterVal === 'muslim') {
           matchesLanguage = rel === 'muslim' || rel === 'islam';
         } else if (filterVal === 'non muslim') {
-          matchesLanguage = rel === 'non muslim';
+          matchesLanguage = rel !== 'muslim' && rel !== 'islam' && rel !== '';
         } else {
           matchesLanguage = rel === filterVal;
         }

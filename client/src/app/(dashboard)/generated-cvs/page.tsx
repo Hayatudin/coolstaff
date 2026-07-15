@@ -992,7 +992,7 @@ function GeneratedCVsContent() {
       const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase().trim().replace('-', ' ');
       const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
       if (filterVal === 'muslim' && rel !== 'muslim' && rel !== 'islam') return false;
-      if (filterVal === 'non muslim' && rel !== 'non muslim') return false;
+      if (filterVal === 'non muslim' && (rel === 'muslim' || rel === 'islam' || rel === '')) return false;
     }
     if (flagFilter === 'flagged' && !cv.candidate.isFlagged) return false;
     if (flagFilter === 'unflagged' && cv.candidate.isFlagged) return false;

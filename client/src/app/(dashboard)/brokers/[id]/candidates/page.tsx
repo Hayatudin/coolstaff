@@ -1101,7 +1101,7 @@ export default function BrokerCandidatesPage() {
         if (filterVal === 'muslim') {
           matchesReligion = rel === 'muslim' || rel === 'islam';
         } else if (filterVal === 'non muslim') {
-          matchesReligion = rel === 'non muslim';
+          matchesReligion = rel !== 'muslim' && rel !== 'islam' && rel !== '';
         } else {
           matchesReligion = rel === filterVal;
         }

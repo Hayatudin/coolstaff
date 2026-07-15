@@ -656,7 +656,7 @@ export default function BackupPage() {
       const rel = (cv.candidate.religion || '').toLowerCase().trim().replace('-', ' ');
       const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
       if (filterVal === 'muslim' && rel !== 'muslim' && rel !== 'islam') return false;
-      if (filterVal === 'non muslim' && rel !== 'non muslim') return false;
+      if (filterVal === 'non muslim' && (rel === 'muslim' || rel === 'islam' || rel === '')) return false;
     }
     // Search + status filters
     if (!matchesSearch(cv)) return false;

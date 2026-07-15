@@ -303,8 +303,10 @@ export default function CandidatesPage() {
       if (religionFilter) {
         const rel = (c.personalInfo.religion || '').toLowerCase().trim().replace('-', ' ');
         const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
-        if (filterVal === 'non muslim') {
-          matchesReligion = rel === 'non muslim';
+        if (filterVal === 'muslim') {
+          matchesReligion = rel === 'muslim' || rel === 'islam';
+        } else if (filterVal === 'non muslim') {
+          matchesReligion = rel !== 'muslim' && rel !== 'islam' && rel !== '';
         } else {
           matchesReligion = rel === filterVal;
         }
