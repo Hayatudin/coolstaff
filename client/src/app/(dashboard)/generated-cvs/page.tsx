@@ -449,9 +449,9 @@ function GeneratedCVsContent() {
     }
   }, []);
 
-  const fetchCVs = async () => {
+  const fetchCVs = async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const res = await api('/api/generated-cvs', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
@@ -462,15 +462,21 @@ function GeneratedCVsContent() {
         !c.candidate.visaSelected &&
         !c.candidate.isFlagged
       ));
-      setSelectedCVIds(new Set()); // clear selection on refresh
+      if (showLoading) setSelectedCVIds(new Set()); // only clear selection on hard refresh
     } catch {
-      showToast('Failed to load CVs', 'error');
+      if (showLoading) showToast('Failed to load CVs', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { fetchCVs(); }, []);
+  useEffect(() => { 
+    fetchCVs(true);
+    const interval = setInterval(() => {
+      fetchCVs(false);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setSelectedCVIds(new Set());

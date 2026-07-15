@@ -151,8 +151,9 @@ export default function QuickRegisteredPage() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (showLoading = true) => {
       try {
+        if (showLoading) setLoading(true);
         const [regRes, brokerRes] = await Promise.all([
           api('/api/quick-registrations'),
           api('/api/brokers')
@@ -167,7 +168,13 @@ export default function QuickRegisteredPage() {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchData(true);
+
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = registrations.filter(r => {

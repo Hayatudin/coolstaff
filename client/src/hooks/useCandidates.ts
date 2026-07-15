@@ -4,93 +4,66 @@ import { api } from '@/lib/api';
 
 // Global cache variables outside the component
 let cachedCandidates: Candidate[] | null = null;
-let fetchPromise: Promise<Candidate[]> | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL = 30000; // 30 seconds
 
 export function clearCandidatesCache() {
   cachedCandidates = null;
-  fetchPromise = null;
   lastFetchTime = 0;
 }
 
-export function useCandidates(initialForceRefresh = false) {
+export function useCandidates() {
   const [candidates, setCandidates] = useState<Candidate[]>(cachedCandidates || []);
   const [isLoading, setIsLoading] = useState(!cachedCandidates);
   const [error, setError] = useState<string | null>(null);
-  const [refreshToggle, setRefreshToggle] = useState(0);
 
-  useEffect(() => {
-    function handleGlobalRefresh() {
-      clearCandidatesCache();
-      setRefreshToggle(prev => prev + 1);
+  const fetchCandidates = async (showLoading = false) => {
+    if (showLoading && !cachedCandidates) {
+      setIsLoading(true);
     }
+    try {
+      const res = await api('/api/candidates', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to fetch candidates');
+      }
+      const data = await res.json();
+      const freshData = Array.isArray(data) ? data : [];
+      cachedCandidates = freshData;
+      lastFetchTime = Date.now();
+      setCandidates(freshData);
+      setError(null);
+    } catch (err) {
+      console.error('[CANDIDATES FETCH ERROR]', err);
+      setError('Failed to fetch candidates');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Immediate fetch on mount and setup polling
+  useEffect(() => {
+    fetchCandidates(true);
+
+    // Setup polling every 3 seconds
+    const interval = setInterval(() => {
+      fetchCandidates(false);
+    }, 3000);
+
+    // Listen for global app-refresh event to refresh instantly
+    const handleGlobalRefresh = () => {
+      fetchCandidates(false);
+    };
     window.addEventListener('app-refresh', handleGlobalRefresh);
+
     return () => {
+      clearInterval(interval);
       window.removeEventListener('app-refresh', handleGlobalRefresh);
     };
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    const forceRefresh = initialForceRefresh || refreshToggle > 0;
-
-    async function loadCandidates() {
-      // Use cache if valid and not forcing a refresh
-      if (!forceRefresh && cachedCandidates && (Date.now() - lastFetchTime < CACHE_TTL)) {
-        if (mounted) {
-          setCandidates(cachedCandidates);
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      // Start a new fetch if one isn't already in progress, or if forcing refresh
-      if (!fetchPromise || forceRefresh) {
-        setIsLoading(true);
-        fetchPromise = api('/api/candidates').then(async (res) => {
-          if (!res.ok) {
-            const errBody = await res.text().catch(() => '');
-            console.error('[CANDIDATES FETCH ERROR] Server returned:', res.status, errBody);
-            throw new Error('Failed to fetch candidates');
-          }
-          return res.json();
-        }).catch(err => {
-          fetchPromise = null;
-          console.error('[CANDIDATES FETCH EXCEPTION] Network or Server Exception:', err);
-          throw err;
-        });
-      }
-
-      try {
-        const data = await fetchPromise;
-        cachedCandidates = Array.isArray(data) ? data : [];
-        lastFetchTime = Date.now();
-        if (mounted) {
-          setCandidates(Array.isArray(data) ? data : []);
-          setError(null);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError('Failed to fetch candidates');
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadCandidates();
-
-    return () => { mounted = false; };
-  }, [initialForceRefresh, refreshToggle]);
-
   // Method to update cache and local state optimistically
   const mutate = (updater?: Candidate[] | ((prev: Candidate[]) => Candidate[])) => {
     if (updater === undefined) {
-      // No argument: trigger a re-fetch
-      setRefreshToggle(prev => prev + 1);
+      fetchCandidates(false);
       return;
     }
 

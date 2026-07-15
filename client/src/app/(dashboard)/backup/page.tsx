@@ -344,9 +344,9 @@ export default function BackupPage() {
     }
   }, []);
 
-  const fetchCVs = async () => {
+  const fetchCVs = async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const res = await api('/api/generated-cvs', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
@@ -358,13 +358,19 @@ export default function BackupPage() {
         c.candidate?.broker?.isLocked === true
       ));
     } catch {
-      showToast('Failed to load CVs', 'error');
+      if (showLoading) showToast('Failed to load CVs', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { fetchCVs(); }, []);
+  useEffect(() => { 
+    fetchCVs(true); 
+    const interval = setInterval(() => {
+      fetchCVs(false);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── Restore ─────────────────────────────────────────────────────────────────
   const handleRestore = async (cv: any) => {
