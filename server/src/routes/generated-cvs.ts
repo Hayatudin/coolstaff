@@ -203,15 +203,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-    const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-    const isCallingCandidate = candidate.broker?.name === 'Calling' || candidate.job === 'Calling';
-    const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
-    if (isNewCandidate) {
-      const cleanReqTmpl = templateId.replace('tmpl-', '').toLowerCase();
-      if (cleanReqTmpl !== 'al-shablan') {
-        return res.status(400).json({ error: 'Newly registered candidates are locked to the AL-SHABLAN template only.' });
-      }
-    }
+
 
     // Calling candidates CAN have an agency saved, but actual CV generation/download is blocked in cv.ts
 
@@ -294,16 +286,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'Candidate not found' });
       }
 
-      // Check template locking rules
-      const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-      const isCallingCandidate = candidate.broker?.name === 'Calling' || candidate.job === 'Calling';
-      const isNewCandidate = candidate.registeredAt && new Date(candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
-      if (isNewCandidate) {
-        const cleanReqTmpl = templateId.replace('tmpl-', '').toLowerCase();
-        if (cleanReqTmpl !== 'al-shablan') {
-          return res.status(400).json({ error: 'Newly registered candidates are locked to the AL-SHABLAN template only.' });
-        }
-      }
+
 
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 30);
@@ -338,17 +321,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Generated CV not found' });
     }
 
-    if (existingCV.candidate) {
-      const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-      const isCallingCandidate = existingCV.candidate.broker?.name === 'Calling' || existingCV.candidate.job === 'Calling';
-      const isNewCandidate = existingCV.candidate.registeredAt && new Date(existingCV.candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
-      if (isNewCandidate) {
-        const cleanReqTmpl = templateId.replace('tmpl-', '').toLowerCase();
-        if (cleanReqTmpl !== 'al-shablan') {
-          return res.status(400).json({ error: 'Newly registered candidates are locked to the AL-SHABLAN template only.' });
-        }
-      }
-    }
+
 
 
 

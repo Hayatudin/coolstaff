@@ -106,14 +106,10 @@ function ChangeTemplateModal({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [dlOpen, setDlOpen] = useState(false);
-  const REGISTRATION_CUTOFF = new Date('2026-07-09T06:40:00.000Z');
-  const isCallingCandidate = cv?.candidate && (cv.candidate.broker?.name === 'Calling' || cv.candidate.job === 'Calling');
-  const isNewCandidate = cv?.candidate && cv.candidate.registeredAt && new Date(cv.candidate.registeredAt) >= REGISTRATION_CUTOFF && !isCallingCandidate;
-  const others = isNewCandidate ? [] : TEMPLATES.filter(t => t.id !== currentTemplateId);
+  const others = TEMPLATES.filter(t => t.id !== currentTemplateId);
 
   // Add Enter key trigger
   useEffect(() => {
-    if (isNewCandidate) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && selected && !isLoading) {
         onDownload(selected, 'pdf');
@@ -121,7 +117,7 @@ function ChangeTemplateModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selected, isLoading, onDownload, isNewCandidate]);
+  }, [selected, isLoading, onDownload]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose}>
@@ -144,55 +140,43 @@ function ChangeTemplateModal({
 
         {/* Template grid with live previews */}
         <div className="flex-1 overflow-y-auto p-6">
-          {isNewCandidate ? (
-            <div className="flex flex-col items-center justify-center py-12 px-6 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mb-4 animate-bounce">
-                <Lock size={30} />
-              </div>
-              <h3 className="text-lg font-bold text-text-primary mb-2">Template Locked</h3>
-              <p className="text-sm text-text-secondary max-w-md">
-                This candidate was recently registered and is in the <strong>New Candidates</strong> category. Under system rules, their CV is locked to the <strong>AL-SHABLAN</strong> template and cannot be changed.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {others.map(template => {
-                const TC = template.component;
-                const isSelected = selected === template.id;
-                return (
-                  <button
-                    key={template.id}
-                    onClick={() => setSelected(template.id)}
-                    className={cn(
-                      'relative rounded-xl border-2 overflow-hidden transition-all text-left group cursor-pointer',
-                      isSelected
-                        ? 'border-primary shadow-lg shadow-primary/20 scale-[1.02]'
-                        : 'border-border hover:border-primary/40 hover:shadow-md'
-                    )}
-                  >
-                    <div className="h-44 bg-gray-100 overflow-hidden relative">
-                      <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
-                        <TC
-                          candidate={cv.candidate}
-                          facePhoto={cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
-                          fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl}
-                        />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {others.map(template => {
+              const TC = template.component;
+              const isSelected = selected === template.id;
+              return (
+                <button
+                  key={template.id}
+                  onClick={() => setSelected(template.id)}
+                  className={cn(
+                    'relative rounded-xl border-2 overflow-hidden transition-all text-left group cursor-pointer',
+                    isSelected
+                      ? 'border-primary shadow-lg shadow-primary/20 scale-[1.02]'
+                      : 'border-border hover:border-primary/40 hover:shadow-md'
+                  )}
+                >
+                  <div className="h-44 bg-gray-100 overflow-hidden relative">
+                    <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
+                      <TC
+                        candidate={cv.candidate}
+                        facePhoto={cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
+                        fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl}
+                      />
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow z-10">
+                        <Check size={12} className="text-white" strokeWidth={3} />
                       </div>
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow z-10">
-                          <Check size={12} className="text-white" strokeWidth={3} />
-                        </div>
-                      )}
-                    </div>
-                    <div className={cn('px-3 py-2 flex items-center gap-2', isSelected ? 'bg-primary/5' : 'bg-white')}>
-                      <span className={cn('w-2 h-2 rounded-full shrink-0', template.color)} />
-                      <span className="text-sm font-medium text-text-primary truncate">{template.name}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                    )}
+                  </div>
+                  <div className={cn('px-3 py-2 flex items-center gap-2', isSelected ? 'bg-primary/5' : 'bg-white')}>
+                    <span className={cn('w-2 h-2 rounded-full shrink-0', template.color)} />
+                    <span className="text-sm font-medium text-text-primary truncate">{template.name}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Footer — Download dropdown like CV Generator */}
@@ -202,17 +186,15 @@ function ChangeTemplateModal({
           </button>
 
           <div className="relative">
-            <div className={cn('flex rounded-xl overflow-hidden border', (selected || isNewCandidate) ? 'border-primary' : 'border-border opacity-50 pointer-events-none')}>
+            <div className={cn('flex rounded-xl overflow-hidden border', selected ? 'border-primary' : 'border-border opacity-50 pointer-events-none')}>
               {/* Main download button */}
               <button
                 onClick={() => {
-                  if (isNewCandidate) {
-                    onDownload('al-shablan', 'pdf');
-                  } else if (selected) {
+                  if (selected) {
                     onDownload(selected, 'pdf');
                   }
                 }}
-                disabled={(isNewCandidate ? false : !selected) || isLoading}
+                disabled={!selected || isLoading}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isLoading
@@ -223,7 +205,7 @@ function ChangeTemplateModal({
               {/* Dropdown arrow */}
               <button
                 onClick={() => setDlOpen(p => !p)}
-                disabled={(isNewCandidate ? false : !selected) || isLoading}
+                disabled={!selected || isLoading}
                 className="px-2 py-2 bg-primary/90 text-white border-l border-white/20 hover:bg-primary/80 transition-colors cursor-pointer"
               >
                 <Check size={12} className="hidden" /> {/* keep hook alignment */}
@@ -232,17 +214,17 @@ function ChangeTemplateModal({
             </div>
 
             {/* Format dropdown */}
-            {dlOpen && (selected || isNewCandidate) && (
+            {dlOpen && selected && (
               <div className="absolute right-0 bottom-full mb-2 w-44 bg-white border border-border rounded-xl shadow-xl overflow-hidden z-10">
-                <button onClick={() => { setDlOpen(false); onDownload(isNewCandidate ? 'al-shablan' : selected!, 'pdf'); }}
+                <button onClick={() => { setDlOpen(false); onDownload(selected, 'pdf'); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors cursor-pointer">
                   <FileDown size={14} className="text-red-500" /> Download as PDF
                 </button>
-                <button onClick={() => { setDlOpen(false); onDownload(isNewCandidate ? 'al-shablan' : selected!, 'jpg'); }}
+                <button onClick={() => { setDlOpen(false); onDownload(selected, 'jpg'); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border cursor-pointer">
                   <ImageIcon size={14} className="text-emerald-500" /> Download as JPG
                 </button>
-                <button onClick={() => { setDlOpen(false); onDownload(isNewCandidate ? 'al-shablan' : selected!, 'doc'); }}
+                <button onClick={() => { setDlOpen(false); onDownload(selected, 'doc'); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border cursor-pointer">
                   <FileText size={14} className="text-blue-500" /> Download as DOCX
                 </button>
