@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PassportData, CandidatePersonalInfo, RegistrationStep, Broker } from '@/types';
 import { cn, compressImage } from '@/lib/utils';
@@ -247,8 +247,11 @@ function RegistrationContent() {
     }
   };
 
+  const initializedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!editId || candidates.length === 0) return;
+    if (initializedRef.current === editId) return;
     const c = candidates.find((x: any) => x.id === editId);
     if (c) {
       setPassportData(c.passportData);
@@ -259,6 +262,7 @@ function RegistrationContent() {
       setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
       setAllowVideo(c.allowVideo || false);
       setProcessingComplete(true);
+      initializedRef.current = editId;
     }
   }, [editId, candidates]);
 
