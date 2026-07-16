@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { 
   Users, Search, Folder, ArrowLeft,
   Award, Clock, ArrowUpRight, 
-  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, ChevronRight, Edit3, ArrowRight, LayoutTemplate, Check, Loader2
+  Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, ChevronRight, Edit3, ArrowRight, LayoutTemplate, Check, Loader2, Plus, TrendingUp
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -32,6 +32,11 @@ export default function LeaderBrokersPage() {
   const [isChangingTemplate, setIsChangingTemplate] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Add broker state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newBrokerName, setNewBrokerName] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
   // Edit leader name state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -199,6 +204,31 @@ export default function LeaderBrokersPage() {
       alert(err.message || 'Failed to change template');
     } finally {
       setIsChangingTemplate(false);
+    }
+  };
+
+  const handleAddBroker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBrokerName.trim()) return;
+    try {
+      setIsAdding(true);
+      const res = await api('/api/brokers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newBrokerName.trim(), leaderId }),
+      });
+      if (res.ok) {
+        setNewBrokerName('');
+        setShowAddForm(false);
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to add broker');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to add broker');
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -601,7 +631,51 @@ export default function LeaderBrokersPage() {
             className="w-full pl-12 pr-4 h-12 bg-surface border border-border/50 rounded-2xl text-text-primary focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
           />
         </div>
+
+        {canManageBrokers && (
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            variant={showAddForm ? "outline" : "primary"}
+            className="w-full md:w-auto h-12 px-6 rounded-2xl shadow-lg shadow-primary/10 group shrink-0"
+          >
+            {showAddForm ? 'Cancel' : (
+              <span className="flex items-center gap-2">
+                <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+                Add Broker
+              </span>
+            )}
+          </Button>
+        )}
       </div>
+
+      {/* ───── Add Broker Form ───── */}
+      {showAddForm && (
+        <div className="bg-surface rounded-3xl border border-primary/20 shadow-xl p-8 animate-fade-in">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <TrendingUp size={20} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-text-primary">Source Registration</h2>
+              <p className="text-sm text-text-tertiary">Add a new recruitment broker under this leader.</p>
+            </div>
+          </div>
+          <form onSubmit={handleAddBroker} className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Partner or Broker Name..."
+                value={newBrokerName}
+                onChange={e => setNewBrokerName(e.target.value)}
+                required
+                className="h-12 rounded-xl"
+              />
+            </div>
+            <Button type="submit" loading={isAdding} className="h-12 px-10 rounded-xl">
+              Initialize Partner
+            </Button>
+          </form>
+        </div>
+      )}
 
       {/* ───── Brokers Grid ───── */}
       <div className="space-y-12 animate-fade-in">

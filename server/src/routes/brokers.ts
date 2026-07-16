@@ -118,12 +118,15 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/brokers
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, leaderId } = req.body;
     
     if (!name) return res.status(400).json({ error: 'Broker name is required' });
 
     const broker = await prisma.broker.create({
-      data: { name: name.trim() },
+      data: { 
+        name: name.trim(),
+        leaderId: leaderId || null
+      },
       include: {
         _count: {
           select: { candidates: true }
@@ -131,32 +134,34 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
-    // Auto-assign new broker to 'DAERA OFFICE' leader group
-    try {
-      const leaderRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
-        "SELECT id FROM Leader WHERE name = 'DAERA OFFICE' LIMIT 1"
-      );
-      let daeraLeaderId = null;
-      if (leaderRows.length > 0) {
-        daeraLeaderId = leaderRows[0].id;
-      } else {
-        // Auto-create leader "DAERA OFFICE" if missing
-        const newLeader = await prisma.leader.create({
-          data: { name: 'DAERA OFFICE' }
-        });
-        daeraLeaderId = newLeader.id;
-      }
-      
-      if (daeraLeaderId) {
-        await prisma.$executeRawUnsafe(
-          'UPDATE Broker SET leaderId = ? WHERE id = ?',
-          daeraLeaderId,
-          broker.id
+    // Auto-assign new broker to 'DAERA OFFICE' leader group if not explicitly assigned
+    if (!leaderId) {
+      try {
+        const leaderRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+          "SELECT id FROM Leader WHERE name = 'DAERA OFFICE' LIMIT 1"
         );
-        console.log(`[BROKER-CREATE] Automatically assigned new broker "${broker.name}" to Leader "DAERA OFFICE"`);
+        let daeraLeaderId = null;
+        if (leaderRows.length > 0) {
+          daeraLeaderId = leaderRows[0].id;
+        } else {
+          // Auto-create leader "DAERA OFFICE" if missing
+          const newLeader = await prisma.leader.create({
+            data: { name: 'DAERA OFFICE' }
+          });
+          daeraLeaderId = newLeader.id;
+        }
+        
+        if (daeraLeaderId) {
+          await prisma.$executeRawUnsafe(
+            'UPDATE Broker SET leaderId = ? WHERE id = ?',
+            daeraLeaderId,
+            broker.id
+          );
+          console.log(`[BROKER-CREATE] Automatically assigned new broker "${broker.name}" to Leader "DAERA OFFICE"`);
+        }
+      } catch (e) {
+        console.warn('[BROKER-CREATE] Failed to auto-assign/create DAERA OFFICE leader:', e);
       }
-    } catch (e) {
-      console.warn('[BROKER-CREATE] Failed to auto-assign/create DAERA OFFICE leader:', e);
     }
     
     res.json(broker);
