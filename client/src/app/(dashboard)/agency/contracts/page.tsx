@@ -429,8 +429,14 @@ export default function AgencyContractsPage() {
       alert('Candidate successfully returned to Available Candidates.');
       window.dispatchEvent(new Event('app-refresh'));
     } catch (err: any) {
-      console.error(err);
-      alert('Failed to remove candidate. Please try again.');
+      console.error('[REMOVE CANDIDATE FAILED ERROR DETAIL]:', {
+        candidateId: id,
+        errorName: err.name,
+        errorMessage: err.message,
+        errorStack: err.stack,
+        fullError: err
+      });
+      alert(`Failed to remove candidate: ${err.message || 'Unknown error occurred. Please check console.'}`);
     } finally {
       setUpdatingField(null);
     }

@@ -544,13 +544,22 @@ router.post('/candidates/:id/select', async (req: Request, res: Response) => {
       const candidate = await prisma.candidate.findFirst({
         where: {
           id,
-          generatedCVs: {
-            some: {
-              templateId: {
-                contains: agencyName!.toLowerCase()
+          OR: [
+            {
+              agency: {
+                equals: agencyName
+              }
+            },
+            {
+              generatedCVs: {
+                some: {
+                  templateId: {
+                    contains: agencyName!.toLowerCase()
+                  }
+                }
               }
             }
-          }
+          ]
         },
         include: { broker: true }
       });
@@ -661,13 +670,22 @@ router.post('/candidates/:id/deselect', async (req: Request, res: Response) => {
       const candidate = await prisma.candidate.findFirst({
         where: {
           id,
-          generatedCVs: {
-            some: {
-              templateId: {
-                contains: agencyName!.toLowerCase()
+          OR: [
+            {
+              agency: {
+                equals: agencyName
+              }
+            },
+            {
+              generatedCVs: {
+                some: {
+                  templateId: {
+                    contains: agencyName!.toLowerCase()
+                  }
+                }
               }
             }
-          }
+          ]
         }
       });
       if (!candidate) {
@@ -770,13 +788,22 @@ router.patch('/candidates/:id', async (req: Request, res: Response) => {
       const candidate = await prisma.candidate.findFirst({
         where: {
           id,
-          generatedCVs: {
-            some: {
-              templateId: {
-                contains: agencyName.toLowerCase()
+          OR: [
+            {
+              agency: {
+                equals: agencyName
+              }
+            },
+            {
+              generatedCVs: {
+                some: {
+                  templateId: {
+                    contains: agencyName.toLowerCase()
+                  }
+                }
               }
             }
-          }
+          ]
         }
       });
       if (!candidate) {
