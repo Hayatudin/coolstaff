@@ -637,6 +637,102 @@ router.post('/candidates/:id/select', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/agency/candidates/:id/deselect
+router.post('/candidates/:id/deselect', async (req: Request, res: Response) => {
+  try {
+    const session = await getSession(req);
+    if (!session || !session.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const role = session.user.role;
+    if (role !== 'agency' && role !== 'super_admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { id } = req.params;
+    const agencyName = await resolveAndHealAgency(session.user);
+    if (role === 'agency' && !agencyName) {
+      return res.status(400).json({ error: 'User is not assigned to any agency' });
+    }
+
+    // Verify candidate belongs to agency if updating as agency
+    if (role === 'agency') {
+      const candidate = await prisma.candidate.findFirst({
+        where: {
+          id,
+          generatedCVs: {
+            some: {
+              templateId: {
+                contains: agencyName!.toLowerCase()
+              }
+            }
+          }
+        }
+      });
+      if (!candidate) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this candidate' });
+      }
+    }
+
+    const candidate = await prisma.candidate.findUnique({
+      where: { id }
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    const agencyLabel = agencyName ? agencyName.toUpperCase() : 'AGENCY';
+
+    try {
+      const updated = await prisma.candidate.update({
+        where: { id },
+        data: {
+          agencySelected: false
+        }
+      });
+      
+      await prisma.notification.create({
+        data: {
+          title: 'Candidate Deselected',
+          message: `Candidate ${candidate.givenNames} ${candidate.surname} (${candidate.passportNumber}) has been deselected by agency ${agencyLabel} and returned to available candidates.`,
+          candidateId: candidate.id
+        }
+      });
+      
+      res.json(updated);
+    } catch (updateErr: any) {
+      console.warn('[AGENCY] Deselect candidate update failed, trying raw SQL fallback:', updateErr.message || updateErr);
+      
+      await prisma.$executeRawUnsafe(
+        'UPDATE `Candidate` SET `agencySelected` = 0 WHERE `id` = ?',
+        id
+      );
+
+      // Create notification
+      await prisma.notification.create({
+        data: {
+          title: 'Candidate Deselected',
+          message: `Candidate ${candidate.givenNames} ${candidate.surname} (${candidate.passportNumber}) has been deselected by agency ${agencyLabel} and returned to available candidates.`,
+          candidateId: candidate.id
+        }
+      });
+
+      // Fetch the updated candidate to return
+      const rawCands: any[] = await prisma.$queryRawUnsafe(
+        'SELECT * FROM `Candidate` WHERE `id` = ? LIMIT 1',
+        id
+      );
+      res.json(rawCands[0]);
+    }
+
+  } catch (err) {
+    console.error('[AGENCY] Failed to deselect candidate', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // PATCH /api/agency/candidates/:id
 router.patch('/candidates/:id', async (req: Request, res: Response) => {
   try {

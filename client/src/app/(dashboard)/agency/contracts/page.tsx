@@ -25,7 +25,8 @@ import {
   Clock,
   Video,
   FileCheck,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Trash2
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
@@ -132,6 +133,7 @@ export default function AgencyContractsPage() {
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
   const isSuperAdmin = userRole === 'super_admin';
+  const canDeselect = userRole === 'super_admin' || userRole === 'agency';
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
   // Agency Filter States
@@ -409,6 +411,28 @@ export default function AgencyContractsPage() {
     } finally {
       setUpdatingField(null);
       setOpenDropdownId(null);
+    }
+  };
+
+  const handleRemoveCandidate = async (id: string) => {
+    if (!window.confirm("Are you sure you want to remove this candidate from Contracts and return them to Available Candidates?")) {
+      return;
+    }
+    setUpdatingField({ candidateId: id, fieldName: 'deselect' });
+    try {
+      const res = await api(`/api/agency/candidates/${id}/deselect`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Failed to deselect candidate');
+      
+      setCandidates(prev => prev.filter(c => c.id !== id));
+      alert('Candidate successfully returned to Available Candidates.');
+      window.dispatchEvent(new Event('app-refresh'));
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to remove candidate. Please try again.');
+    } finally {
+      setUpdatingField(null);
     }
   };
 
@@ -888,12 +912,13 @@ export default function AgencyContractsPage() {
                 <th className="px-5 py-4 font-semibold text-center">Selected</th>
                 <th className="px-5 py-4 font-semibold">Travel Date</th>
                 <th className="px-5 py-4 font-semibold">Status</th>
+                {canDeselect && <th className="px-5 py-4 font-semibold text-center w-16">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-24 text-center">
+                  <td colSpan={isSuperAdmin ? (canDeselect ? 13 : 12) : (canDeselect ? 12 : 11)} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={36} className="text-[#464479] animate-spin" />
                       <p className="text-sm font-semibold text-text-tertiary animate-pulse">Loading contracts database...</p>
@@ -1277,12 +1302,30 @@ export default function AgencyContractsPage() {
                         )}
                       </td>
 
+                      {/* Remove/Deselect Actions Column */}
+                      {canDeselect && (
+                        <td className="px-5 py-4.5 text-center">
+                          <button
+                            disabled={updatingField !== null}
+                            onClick={() => handleRemoveCandidate(c.id)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded-lg hover:text-red-700 transition-all cursor-pointer inline-flex items-center justify-center disabled:opacity-50"
+                            title="Remove Candidate (Return to Available)"
+                          >
+                            {updatingField?.candidateId === c.id && updatingField?.fieldName === 'deselect' ? (
+                              <Loader2 size={16} className="animate-spin text-red-500" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </button>
+                        </td>
+                      )}
+
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
+                  <td colSpan={isSuperAdmin ? (canDeselect ? 13 : 12) : (canDeselect ? 12 : 11)} className="px-6 py-20 text-center text-text-tertiary text-sm font-semibold">
                     No candidates found matching the selected filters.
                   </td>
                 </tr>
