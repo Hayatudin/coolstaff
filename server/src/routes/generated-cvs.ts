@@ -122,7 +122,7 @@ router.get('/', async (req: Request, res: Response) => {
       const candidatesWithAgency = await prisma.candidate.findMany({
         where: {
           agency: {
-            in: ['ussus', 'al-shablan', 'alm', 'ka7', 'ku2', 'ma', 'ra', 'vision']
+            in: ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision']
           }
         },
         include: {

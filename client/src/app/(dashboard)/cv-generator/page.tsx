@@ -9,6 +9,7 @@ import { cn, getFileUrl } from '@/lib/utils';
 import { FileText, CheckCircle2, User, Download, ChevronDown, FileDown, Image as ImageIcon, Camera, ArrowLeft } from 'lucide-react';
 import TemplateGrid from '@/components/cv-generator/TemplateGrid';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
+import AlmalaTemplate from '@/components/cv/templates/AlmalaTemplate';
 import KA7Template from '@/components/cv/templates/KA7Template';
 import KU2Template from '@/components/cv/templates/KU2Template';
 import MATemplate from '@/components/cv/templates/MATemplate';
@@ -22,7 +23,8 @@ import Button from '@/components/ui/Button';
 const TEMPLATES: any[] = [
   { id: 'ussus', name: 'USSUS', category: 'minimal', description: 'USSUS template layout', thumbnail: '/Ussus.png' },
   { id: 'al-shablan', name: 'AL-Shablan', category: 'elegant', description: 'AL-Shablan template layout', thumbnail: '/Al-shablan.png' },
-  { id: 'alm', name: 'ALM Agency', category: 'classic', description: 'Standard ALM CV layout', thumbnail: '/header.png' },
+  { id: 'alm', name: 'ALMERSAH', category: 'classic', description: 'Standard ALMERSAH CV layout', thumbnail: '/header.png' },
+  { id: 'almala', name: 'ALMALA', category: 'classic', description: 'Standard ALMALA CV layout', thumbnail: '/almala-header.png' },
   { id: 'ka7', name: 'KA-7 Layout', category: 'professional', description: 'KA-7 template format', thumbnail: '/KA-7.png' },
   { id: 'ku2', name: 'KU-2 Format', category: 'minimal', description: 'Clean KU-2 design', thumbnail: '/KU2.png' },
   { id: 'ma', name: 'MA Standard', category: 'modern', description: 'Modern MA CV style', thumbnail: '/MA.png' },
@@ -320,6 +322,7 @@ function CVGeneratorContent() {
                           {selectedTemplateId === 'ussus' && <UssusTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'al-shablan' && <AlShablanTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'alm' && <ALMTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
+                          {selectedTemplateId === 'almala' && <AlmalaTemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'ka7' && <KA7Template candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'ku2' && <KU2Template candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}
                           {selectedTemplateId === 'ma' && <MATemplate candidate={candidateWithFullUrls as any} facePhoto={facePhotoB64} fullBodyPhoto={fullBodyPhotoB64} />}

@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { api } from '@/lib/api';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
+import AlmalaTemplate from '@/components/cv/templates/AlmalaTemplate';
 import AlShablanTemplate from '@/components/cv/templates/AlShablanTemplate';
 import KA7Template from '@/components/cv/templates/KA7Template';
 import KU2Template from '@/components/cv/templates/KU2Template';
@@ -13,6 +14,7 @@ import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 
 const TEMPLATE_COMPONENTS: Record<string, any> = {
   'alm': ALMTemplate,
+  'almala': AlmalaTemplate,
   'al-shablan': AlShablanTemplate,
   'ka7': KA7Template,
   'ku2': KU2Template,

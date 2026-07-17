@@ -655,7 +655,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Automatically create a GeneratedCV record for Calling candidates with the selected Office (template ID)
     if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
       const templateId = body.office || body.templateId || body.agency || '';
-      const validTemplates = ['ussus', 'al-shablan', 'alm', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+      const validTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
       if (validTemplates.includes(templateId.toLowerCase())) {
         try {
           const existingCV = await prisma.generatedCV.findFirst({

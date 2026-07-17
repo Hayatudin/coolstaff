@@ -23,7 +23,8 @@ interface UserRow {
 const AGENCIES = [
   { id: 'ussus', name: 'USSUS' },
   { id: 'al-shablan', name: 'AL-Shablan' },
-  { id: 'alm', name: 'ALAALAM' },
+  { id: 'alm', name: 'ALMERSAH' },
+  { id: 'almala', name: 'ALMALA' },
   { id: 'ka7', name: 'KAAFAAT' },
   { id: 'ku2', name: 'KHUZAM' },
   { id: 'ma', name: 'MA Standard' },

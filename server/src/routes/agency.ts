@@ -42,7 +42,8 @@ function inferAgencyFromEmail(email: string): string | null {
   if (e.includes('ussus')) return 'ussus';
   if (e.includes('khuzam') || e.includes('ku2')) return 'ku2';
   if (e.includes('kafaat') || e.includes('ka7')) return 'ka7';
-  if (e.includes('alaalam') || e.includes('alm')) return 'alm';
+  if (e.includes('almersah') || e.includes('alaalam') || e.includes('alm')) return 'alm';
+  if (e.includes('almala')) return 'almala';
   if (e.includes('rayaat') || e.includes('ra')) return 'ra';
   if (e.includes('shablan')) return 'al-shablan';
   if (e.includes('vision')) return 'vision';

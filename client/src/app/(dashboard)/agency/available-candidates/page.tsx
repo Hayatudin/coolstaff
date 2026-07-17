@@ -23,6 +23,7 @@ import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
 
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
+import AlmalaTemplate from '@/components/cv/templates/AlmalaTemplate';
 import KA7Template from '@/components/cv/templates/KA7Template';
 import KU2Template from '@/components/cv/templates/KU2Template';
 import MATemplate from '@/components/cv/templates/MATemplate';
@@ -34,7 +35,8 @@ import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 const TEMPLATES = [
   { id: 'ussus', name: 'USSUS', component: UssusTemplate },
   { id: 'al-shablan', name: 'AL-Shablan', component: AlShablanTemplate },
-  { id: 'alm', name: 'ALAALAM', component: ALMTemplate },
+  { id: 'alm', name: 'ALMERSAH', component: ALMTemplate },
+  { id: 'almala', name: 'ALMALA', component: AlmalaTemplate },
   { id: 'ka7', name: 'KAAFAAT', component: KA7Template },
   { id: 'ku2', name: 'KHUZAM', component: KU2Template },
   { id: 'ma', name: 'MA Standard', component: MATemplate },
@@ -46,7 +48,8 @@ const AGENCIES = [
   { id: 'all', name: 'All Agencies' },
   { id: 'ussus', name: 'USSUS' },
   { id: 'al-shablan', name: 'AL-Shablan' },
-  { id: 'alm', name: 'ALAALAM' },
+  { id: 'alm', name: 'ALMERSAH' },
+  { id: 'almala', name: 'ALMALA' },
   { id: 'ka7', name: 'KAAFAAT' },
   { id: 'ku2', name: 'KHUZAM' },
   { id: 'ma', name: 'MA Standard' },
@@ -57,7 +60,8 @@ const AGENCIES = [
 const AGENCY_MAP: Record<string, string> = {
   'ussus': 'USSUS',
   'al-shablan': 'AL-Shablan',
-  'alm': 'ALAALAM',
+  'alm': 'ALMERSAH',
+  'almala': 'ALMALA',
   'ka7': 'KAAFAAT',
   'ku2': 'KHUZAM',
   'ma': 'MA Standard',
@@ -542,7 +546,7 @@ export default function AvailableCandidatesPage() {
             const rawTemplateId = candidate.latestCVTemplate || 'alm';
             const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
             const templateObj = TEMPLATES.find(t => t.id === templateId);
-            const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALAALAM';
+            const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALMERSAH';
 
             const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 

@@ -99,6 +99,7 @@ const calculateAge = (dob: Date | null | undefined) => {
 
 const TEMPLATE_MAP: Record<string, string> = {
   'tmpl-alm': 'CV ALM.docx',
+  'tmpl-almala': 'CV Almala.docx',
   'tmpl-ka7': 'CV KA-7-v3.docx',
   'tmpl-ku2': 'CV KU2.docx',
   'tmpl-ma': 'CV MA.docx',

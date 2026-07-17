@@ -14,6 +14,7 @@ import { cn, getFileUrl, convertImageToBase64 } from '@/lib/utils';
 import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
+import AlmalaTemplate from '@/components/cv/templates/AlmalaTemplate';
 import KA7Template from '@/components/cv/templates/KA7Template';
 import KU2Template from '@/components/cv/templates/KU2Template';
 import MATemplate from '@/components/cv/templates/MATemplate';
@@ -26,7 +27,8 @@ import { clearCandidatesCache } from '@/hooks/useCandidates';
 const TEMPLATES = [
   { id: 'ussus', name: 'USSUS', category: 'Minimal', color: 'bg-cyan-500', textColor: 'text-cyan-600', bgLight: 'bg-cyan-50', component: UssusTemplate },
   { id: 'al-shablan', name: 'AL-Shablan', category: 'Classic', color: 'bg-yellow-500', textColor: 'text-yellow-600', bgLight: 'bg-yellow-50', component: AlShablanTemplate },
-  { id: 'alm', name: 'ALAALAM', category: 'Classic', color: 'bg-blue-500', textColor: 'text-blue-600', bgLight: 'bg-blue-50', component: ALMTemplate },
+  { id: 'alm', name: 'ALMERSAH', category: 'Classic', color: 'bg-blue-500', textColor: 'text-blue-600', bgLight: 'bg-blue-50', component: ALMTemplate },
+  { id: 'almala', name: 'ALMALA', category: 'Classic', color: 'bg-teal-500', textColor: 'text-teal-600', bgLight: 'bg-teal-50', component: AlmalaTemplate },
   { id: 'ka7', name: 'KAAFAAT', category: 'Professional', color: 'bg-emerald-500', textColor: 'text-emerald-600', bgLight: 'bg-emerald-50', component: KA7Template },
   { id: 'ku2', name: 'KHUZAM', category: 'Minimal', color: 'bg-indigo-500', textColor: 'text-indigo-600', bgLight: 'bg-indigo-50', component: KU2Template },
   { id: 'ma', name: 'MA Standard', category: 'Modern', color: 'bg-orange-500', textColor: 'text-orange-600', bgLight: 'bg-orange-50', component: MATemplate },
@@ -1153,7 +1155,7 @@ function GeneratedCVsContent() {
               const rawTemplateId = candidate.latestCVTemplate || 'alm';
               const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
               const templateObj = TEMPLATES.find(t => t.id === templateId);
-              const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALAALAM';
+              const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALMERSAH';
 
               const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
 
