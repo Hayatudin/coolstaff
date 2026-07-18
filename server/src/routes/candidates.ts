@@ -534,9 +534,26 @@ router.post('/', async (req: Request, res: Response) => {
           where: { name: 'Calling' }
         });
         if (!callingBroker) {
-          callingBroker = await prisma.broker.create({
-            data: { name: 'Calling' }
-          });
+          const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+          let randomPart = '';
+          for (let i = 0; i < 23; i++) {
+            randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          const brokerId = 'cb' + randomPart;
+
+          await prisma.$executeRawUnsafe(
+            'INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, NULL, NOW(3), 0)',
+            brokerId,
+            'Calling'
+          );
+
+          callingBroker = {
+            id: brokerId,
+            name: 'Calling',
+            leaderId: null,
+            createdAt: new Date(),
+            isLocked: false
+          };
         }
         finalBrokerId = callingBroker.id;
       } catch (brokerErr) {
