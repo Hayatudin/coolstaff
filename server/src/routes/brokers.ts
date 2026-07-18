@@ -122,17 +122,37 @@ router.post('/', async (req: Request, res: Response) => {
     
     if (!name) return res.status(400).json({ error: 'Broker name is required' });
 
-    const broker = await prisma.broker.create({
-      data: { 
-        name: name.trim(),
-        leaderId: leaderId || null
-      },
-      include: {
-        _count: {
-          select: { candidates: true }
-        }
-      }
-    });
+    // Generate CUID-like ID: cb + 23 alphanumeric characters = 25 chars
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let randomPart = '';
+    for (let i = 0; i < 23; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const brokerId = 'cb' + randomPart;
+
+    // Use raw SQL insert to bypass any out-of-sync Prisma Client on the production server
+    await prisma.$executeRawUnsafe(
+      'INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), 0)',
+      brokerId,
+      name.trim(),
+      leaderId || null
+    );
+
+    // Fetch back the created broker using raw SQL
+    const brokerRows = await prisma.$queryRawUnsafe<{ id: string; name: string; leaderId: string | null; createdAt: string | Date; isLocked: number }[]>(
+      'SELECT id, name, leaderId, createdAt, isLocked FROM Broker WHERE id = ?',
+      brokerId
+    );
+
+    if (brokerRows.length === 0) {
+      throw new Error('Failed to retrieve newly created broker.');
+    }
+
+    const broker = {
+      ...brokerRows[0],
+      isLocked: Boolean(brokerRows[0].isLocked),
+      _count: { candidates: 0 }
+    };
 
     // Auto-assign new broker to 'DAERA OFFICE' leader group if not explicitly assigned
     if (!leaderId) {
@@ -144,11 +164,19 @@ router.post('/', async (req: Request, res: Response) => {
         if (leaderRows.length > 0) {
           daeraLeaderId = leaderRows[0].id;
         } else {
-          // Auto-create leader "DAERA OFFICE" if missing
-          const newLeader = await prisma.leader.create({
-            data: { name: 'DAERA OFFICE' }
-          });
-          daeraLeaderId = newLeader.id;
+          // Auto-create leader "DAERA OFFICE" if missing using raw SQL
+          const leaderChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+          let leaderRandom = '';
+          for (let i = 0; i < 23; i++) {
+            leaderRandom += leaderChars.charAt(Math.floor(Math.random() * leaderChars.length));
+          }
+          const generatedLeaderId = 'cl' + leaderRandom;
+          await prisma.$executeRawUnsafe(
+            'INSERT INTO Leader (id, name, createdAt) VALUES (?, ?, NOW(3))',
+            generatedLeaderId,
+            'DAERA OFFICE'
+          );
+          daeraLeaderId = generatedLeaderId;
         }
         
         if (daeraLeaderId) {
@@ -157,6 +185,7 @@ router.post('/', async (req: Request, res: Response) => {
             daeraLeaderId,
             broker.id
           );
+          broker.leaderId = daeraLeaderId;
           console.log(`[BROKER-CREATE] Automatically assigned new broker "${broker.name}" to Leader "DAERA OFFICE"`);
         }
       } catch (e) {
@@ -167,7 +196,7 @@ router.post('/', async (req: Request, res: Response) => {
     res.json(broker);
   } catch (error: any) {
     console.error('Error creating broker:', error);
-    if (error.code === 'P2002') {
+    if (error.code === 'P2002' || error.message?.includes('Duplicate entry')) {
       return res.status(400).json({ error: 'A broker with this name already exists' });
     }
     res.status(500).json({ 
