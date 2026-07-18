@@ -223,10 +223,12 @@ export default function LeaderBrokersPage() {
         fetchData();
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to add broker');
+        console.error('[ADD LEADER BROKER FAILED ERROR DETAIL]:', data);
+        alert(`Failed to add broker: ${data.details || data.error || 'Failed to add broker'}`);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to add broker');
+      console.error('[ADD LEADER BROKER EXCEPTION ERROR DETAIL]:', err);
+      alert(`Failed to add broker: ${err.message || 'Failed to add broker'}`);
     } finally {
       setIsAdding(false);
     }
@@ -656,7 +658,7 @@ export default function LeaderBrokersPage() {
               <TrendingUp size={20} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-text-primary">Source Registration</h2>
+              <h2 className="text-xl font-bold text-text-primary">Broker Registration</h2>
               <p className="text-sm text-text-tertiary">Add a new recruitment broker under this leader.</p>
             </div>
           </div>
@@ -671,7 +673,7 @@ export default function LeaderBrokersPage() {
               />
             </div>
             <Button type="submit" loading={isAdding} className="h-12 px-10 rounded-xl">
-              Initialize Partner
+              Register Broker
             </Button>
           </form>
         </div>

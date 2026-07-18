@@ -170,7 +170,12 @@ router.post('/', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'A broker with this name already exists' });
     }
-    res.status(500).json({ error: 'Failed to create broker. Please try again.' });
+    res.status(500).json({ 
+      error: 'Failed to create broker. Please try again.',
+      details: error.message || String(error),
+      code: error.code,
+      stack: error.stack
+    });
   }
 });
 

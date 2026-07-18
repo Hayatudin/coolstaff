@@ -4,9 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { 
+import {
   Users, Plus, Search, Folder, FolderOpen,
-  TrendingUp, Award, Clock, ArrowUpRight, 
+  TrendingUp, Award, Clock, ArrowUpRight,
   Lock, Unlock, MoreVertical, ArrowRightLeft, Trash2, X, Loader2, Edit3, ArrowRight, LayoutTemplate, Check
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -74,14 +74,14 @@ export default function BrokersPage() {
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLeadersLoading, setIsLeadersLoading] = useState(true);
-  
+
   // Create forms visibility states
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddLeaderForm, setShowAddLeaderForm] = useState(false);
-  
+
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingLeader, setIsAddingLeader] = useState(false);
-  
+
   const [newBrokerName, setNewBrokerName] = useState('');
   const [newLeaderName, setNewLeaderName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,8 +220,8 @@ export default function BrokersPage() {
         const char = e.key.toLowerCase();
         const targetBroker = brokers.find(b => b.name.trim().toLowerCase().startsWith(char));
         if (targetBroker) {
-          const el = document.getElementById(`broker-card-${targetBroker.id}`) || 
-                     document.getElementById(`broker-item-${targetBroker.id}`);
+          const el = document.getElementById(`broker-card-${targetBroker.id}`) ||
+            document.getElementById(`broker-item-${targetBroker.id}`);
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             el.classList.add('ring-4', 'ring-primary/40');
@@ -253,10 +253,12 @@ export default function BrokersPage() {
         fetchData();
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to add broker');
+        console.error('[ADD NEW BROKER FAILED ERROR DETAIL]:', data);
+        alert(`Failed to add broker: ${data.details || data.error || 'Failed to add broker'}`);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to add broker');
+      console.error('[ADD NEW BROKER EXCEPTION ERROR DETAIL]:', err);
+      alert(`Failed to add broker: ${err.message || 'Failed to add broker'}`);
     } finally {
       setIsAdding(false);
     }
@@ -465,7 +467,7 @@ export default function BrokersPage() {
   const filteredBrokers = safeBrokers.filter(b =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   // Filter leaders depending on matching brokers search
   const filteredLeaders = leaders.filter(l => {
     const nameMatches = l.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -717,7 +719,7 @@ export default function BrokersPage() {
 
   const renderNestedBrokersList = (leaderBrokers: Broker[], leaderId: string | null) => {
     return (
-      <div 
+      <div
         className="mt-6 border-t border-border/40 pt-4 space-y-4 w-full animate-fade-in relative z-20"
         onClick={e => e.stopPropagation()}
       >
@@ -785,7 +787,7 @@ export default function BrokersPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Actions */}
                 <div className="flex items-center gap-2 ml-2 shrink-0 relative-z-menu" onClick={(e) => e.stopPropagation()}>
                   {canChangeTemplate && broker.candidates && broker.candidates.length > 0 && (
@@ -998,7 +1000,7 @@ export default function BrokersPage() {
               <TrendingUp size={20} className="text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-text-primary">Source Registration</h2>
+              <h2 className="text-xl font-bold text-text-primary">Broker Registration</h2>
               <p className="text-sm text-text-tertiary">Expand your network by adding a new recruitment partner.</p>
             </div>
           </div>
@@ -1013,7 +1015,7 @@ export default function BrokersPage() {
               />
             </div>
             <Button type="submit" loading={isAdding} className="h-12 px-10 rounded-xl">
-              Initialize Partner
+              Register Broker
             </Button>
           </form>
         </div>
@@ -1037,12 +1039,12 @@ export default function BrokersPage() {
                 return (
                   <div key={leader.id} className="relative pt-10 group/folder flex flex-col">
                     {/* Folder Tab shape */}
-                    <div 
+                    <div
                       className="absolute top-0 left-0 text-black rounded-t-[1.25rem] px-5 py-2.5 font-extrabold text-xs flex items-center gap-3 shadow-md z-10 transition-all duration-300 bg-gray-100 border border-b-0 border-gray-300"
                     >
                       <Folder size={14} className="text-gray-700 shrink-0" />
                       <span className="truncate max-w-[120px]">{leader.name}</span>
-                      
+
                       {isAuthorized && (
                         <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
                           <button
@@ -1259,9 +1261,9 @@ export default function BrokersPage() {
                 <p className="text-sm text-text-tertiary text-center py-4">No other brokers available. Create another broker first.</p>
               )}
               {safeBrokers.filter(b => b.id !== moveTarget.id).length > 0 &&
-               safeBrokers.filter(b => b.id !== moveTarget.id && b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase())).length === 0 && (
-                <p className="text-sm text-text-tertiary text-center py-4">No matching brokers found.</p>
-              )}
+                safeBrokers.filter(b => b.id !== moveTarget.id && b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase())).length === 0 && (
+                  <p className="text-sm text-text-tertiary text-center py-4">No matching brokers found.</p>
+                )}
             </div>
 
             <div className="flex gap-4">
