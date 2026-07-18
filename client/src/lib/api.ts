@@ -4,6 +4,18 @@
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
 
+export class ApiError extends Error {
+  status: number;
+  data: any;
+
+  constructor(message: string, status: number, data: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 export async function api(path: string, options: RequestInit = {}) {
   // Ensure path starts with a slash
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -32,17 +44,21 @@ export async function api(path: string, options: RequestInit = {}) {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `API error: ${response.statusText}`);
+        throw new ApiError(
+          errorData.error || `API error: ${response.statusText}`,
+          response.status,
+          errorData
+        );
       }
       
       return response;
     } catch (err: any) {
       // Only retry on network errors (fetch throws TypeError on network issues)
       // or if it's a 502/503/504 status code (bad gateway/timeout/server overload)
-      const isNetworkError = err instanceof TypeError || err.message?.includes('fetch') || err.message?.includes('NetworkError');
+      const isNetworkError = err instanceof TypeError || err.message?.includes('fetch') || err.message?.includes('NetworkError') || err.name === 'TypeError';
       const isServerTemporarilyDown = err.message?.includes('502') || err.message?.includes('503') || err.message?.includes('504');
       
-      if ((isNetworkError || isServerTemporarilyDown) && attempt < maxRetries) {
+      if (!(err instanceof ApiError) && (isNetworkError || isServerTemporarilyDown) && attempt < maxRetries) {
         console.warn(`[API] Attempt ${attempt} failed. Retrying in ${delay}ms...`, err);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // exponential backoff

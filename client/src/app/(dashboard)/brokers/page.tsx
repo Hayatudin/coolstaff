@@ -258,7 +258,8 @@ export default function BrokersPage() {
       }
     } catch (err: any) {
       console.error('[ADD NEW BROKER EXCEPTION ERROR DETAIL]:', err);
-      alert(`Failed to add broker: ${err.message || 'Failed to add broker'}`);
+      const detailedMsg = err.data?.details || err.data?.error || err.message || 'Failed to add broker';
+      alert(`Failed to add broker: ${detailedMsg}`);
     } finally {
       setIsAdding(false);
     }
