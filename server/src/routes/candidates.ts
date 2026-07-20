@@ -93,11 +93,10 @@ router.get('/', async (req: Request, res: Response) => {
       'idNumber', 'job', 'educationLevel', 'languages', 'workExperience', 'skills',
       'medicalStatus', 'biometricStatus', 'medicalDate', 'biometricDate', 'knownConditions',
       'cvDeadline', 'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone',
-      'emergencyContactAddress', 'passportImageUrl', 'facePhotoUrl', 'fullBodyPhotoUrl',
-      'cocDocumentUrl', 'medicalDocumentUrl', 'candidateIdImageUrl', 'relativeIdImageUrl',
-      'labourIdUrl', 'isRequested', 'visaOrContractNumber', 'isFlagged', 'flaggedAt', 'Youtube_URL',
+      'emergencyContactAddress', 'facePhotoUrl',
+      'isRequested', 'visaOrContractNumber', 'isFlagged', 'flaggedAt', 'Youtube_URL',
       'registeredAt', 'status', 'brokerId', 'visaSelected', 'registeredById', 'salary',
-      'visaDate', 'agency', 'quickVideoUrl', 'deployedDate', 'isLocked', 'allowVideo', 'price',
+      'visaDate', 'agency', 'deployedDate', 'isLocked', 'allowVideo', 'price',
       'laborID', 'agencyStatus'
     ];
 
@@ -168,7 +167,12 @@ router.get('/', async (req: Request, res: Response) => {
       const pNum = (c.passportNumber || '').trim().toUpperCase();
       const profile = videoProfileMap.get(pNum);
 
-      const facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
+      let facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
+      // CRITICAL: Prevent massive base64 strings from crashing the response via NGINX truncation
+      if (facePhotoUrlVal && facePhotoUrlVal.startsWith('data:') && facePhotoUrlVal.length > 50000) {
+        facePhotoUrlVal = ''; 
+      }
+      
       const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
       const videoUrlVal = profile ? profile.videoUrl : (c.Youtube_URL || c.videoUrl || null);
       const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true);
