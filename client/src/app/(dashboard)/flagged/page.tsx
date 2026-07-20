@@ -174,6 +174,8 @@ export default function FlaggedCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Religion</th>
                 <th className="px-6 py-4 font-semibold">Agency</th>
                 <th className="px-6 py-4 font-semibold">Broker</th>
+                <th className="px-6 py-4 font-semibold text-center text-[#ff3333]">Date Flagged</th>
+                <th className="px-6 py-4 font-semibold text-center text-[#ff3333]">Days Flagged</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-center w-20">Actions</th>
               </tr>
@@ -217,6 +219,37 @@ export default function FlaggedCandidatesPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-secondary">
                         {c.broker?.name || '—'}
                       </td>
+
+                      {(() => {
+                        const targetDate = c.flaggedAt ? new Date(c.flaggedAt) : null;
+                        let daysAgoText = '-';
+                        if (targetDate) {
+                          const now = new Date();
+                          now.setHours(0, 0, 0, 0);
+                          const selected = new Date(targetDate);
+                          selected.setHours(0, 0, 0, 0);
+                          const diffTime = now.getTime() - selected.getTime();
+                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                          if (diffDays <= 0) daysAgoText = 'Today';
+                          else if (diffDays === 1) daysAgoText = '1 day ago';
+                          else daysAgoText = `${diffDays} days ago`;
+                        }
+                        return (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-text-secondary">
+                              {targetDate ? targetDate.toLocaleDateString() : '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                              {targetDate ? (
+                                <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-md text-xs font-semibold">
+                                  {daysAgoText}
+                                </span>
+                              ) : '-'}
+                            </td>
+                          </>
+                        );
+                      })()}
+
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge variant="danger" className="font-extrabold uppercase text-[10px]">
                           Flagged

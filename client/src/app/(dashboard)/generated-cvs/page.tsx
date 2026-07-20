@@ -1661,6 +1661,33 @@ function GeneratedCVsContent() {
                       <span className="font-extrabold text-slate-800">{cv.candidate.personalInfo?.city || '—'}</span>
                     </div>
                   </div>
+                  {flagFilter === 'flagged' && (() => {
+                    const targetDate = cv.candidate.flaggedAt ? new Date(cv.candidate.flaggedAt) : null;
+                    let daysAgoText = '-';
+                    if (targetDate) {
+                      const now = new Date();
+                      now.setHours(0, 0, 0, 0);
+                      const selected = new Date(targetDate);
+                      selected.setHours(0, 0, 0, 0);
+                      const diffTime = now.getTime() - selected.getTime();
+                      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                      if (diffDays <= 0) daysAgoText = 'Today';
+                      else if (diffDays === 1) daysAgoText = '1 day ago';
+                      else daysAgoText = `${diffDays} days ago`;
+                    }
+                    return (
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1 truncate">
+                          <span className="text-red-400 font-medium">Flagged : </span>
+                          <span className="font-extrabold text-red-600">{targetDate ? targetDate.toLocaleDateString() : '—'}</span>
+                        </div>
+                        <div className="flex-1 truncate">
+                          <span className="text-red-400 font-medium">Duration : </span>
+                          <span className="font-extrabold text-red-600 bg-red-50 px-1 py-0.5 rounded">{daysAgoText}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Watch Video / Preview CV and download format picker */}
