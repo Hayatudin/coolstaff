@@ -74,6 +74,7 @@ interface BrokerCandidate {
   visaSelected?: boolean;
   religion?: string | null;
   isFlagged?: boolean;
+  flaggedAt?: string | null;
   medicalStatus?: string;
   visaOrContractNumber?: string | null;
   cvDownloaded?: boolean;

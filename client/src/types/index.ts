@@ -74,6 +74,7 @@ export interface Candidate {
   salary?: string;
   visaOrContractNumber?: string | null;
   isFlagged?: boolean;
+  flaggedAt?: string | null;
   videoUrl?: string | null;
   Youtube_URL?: string | null;
   quickVideoUrl?: string | null;

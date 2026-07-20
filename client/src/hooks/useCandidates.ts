@@ -31,9 +31,9 @@ export function useCandidates() {
       lastFetchTime = Date.now();
       setCandidates(freshData);
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[CANDIDATES FETCH ERROR]', err);
-      setError('Failed to fetch candidates');
+      setError(err.message || 'Failed to fetch candidates');
     } finally {
       setIsLoading(false);
     }
