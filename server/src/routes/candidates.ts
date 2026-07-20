@@ -237,7 +237,7 @@ router.get('/', async (req: Request, res: Response) => {
         status: c.status || 'pending',
         isRequested: c.isRequested === 1 || c.isRequested === true,
         isFlagged: c.isFlagged === 1 || c.isFlagged === true,
-        flaggedAt: c.flaggedAt ? new Date(c.flaggedAt).toISOString() : null,
+        flaggedAt: formatDate(c.flaggedAt) ? new Date(c.flaggedAt).toISOString() : null,
         visaOrContractNumber: c.visaOrContractNumber || null,
         videoUrl: encryptPath(videoUrlVal),
         isLocked: c.isLocked === 1 || c.isLocked === true || (brokerMap.get(c.brokerId)?.isLocked || false),
