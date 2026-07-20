@@ -43,10 +43,10 @@ export function useCandidates() {
   useEffect(() => {
     fetchCandidates(true);
 
-    // Setup polling every 3 seconds
+    // Setup polling every 15 seconds
     const interval = setInterval(() => {
       fetchCandidates(false);
-    }, 3000);
+    }, 15000);
 
     // Listen for global app-refresh event to refresh instantly
     const handleGlobalRefresh = () => {

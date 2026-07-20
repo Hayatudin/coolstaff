@@ -1459,10 +1459,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
       }
     }
 
-    const updated = await prisma.candidate.update({
-      where: { id },
-      data: body,
-    });
+    let updated: any = null;
+    if (Object.keys(body).length > 0) {
+      updated = await prisma.candidate.update({
+        where: { id },
+        data: body,
+      });
+    } else {
+      updated = await prisma.candidate.findUnique({ where: { id } });
+    }
 
     // Save quickVideoUrl separately via raw SQL to bypass stale Prisma client static schema check
     if (quickVideoUrlVal !== undefined) {
