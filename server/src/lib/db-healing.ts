@@ -129,8 +129,11 @@ export async function ensureDatabaseSchema() {
         \`name\` VARCHAR(191) NOT NULL,
         \`isLocked\` TINYINT(1) NOT NULL DEFAULT 0,
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`leaderId\` VARCHAR(191) NULL,
         PRIMARY KEY (\`id\`),
-        UNIQUE KEY \`Broker_name_key\` (\`name\`)
+        UNIQUE KEY \`Broker_name_key\` (\`name\`),
+        KEY \`Broker_leaderId_fkey\` (\`leaderId\`),
+        CONSTRAINT \`Broker_leaderId_fkey\` FOREIGN KEY (\`leaderId\`) REFERENCES \`Leader\` (\`id\`) ON DELETE SET NULL ON UPDATE CASCADE
       ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     `);
     console.log(`✅ Verified/Created 'Broker' table.`);

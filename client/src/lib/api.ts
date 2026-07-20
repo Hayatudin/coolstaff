@@ -44,8 +44,12 @@ export async function api(path: string, options: RequestInit = {}) {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        let message = errorData.error || `API error: ${response.statusText}`;
+        if (errorData.details) {
+          message += ` | Details: ${errorData.details}`;
+        }
         throw new ApiError(
-          errorData.error || `API error: ${response.statusText}`,
+          message,
           response.status,
           errorData
         );
