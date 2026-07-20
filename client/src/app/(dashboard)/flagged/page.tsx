@@ -175,7 +175,6 @@ export default function FlaggedCandidatesPage() {
                 <th className="px-6 py-4 font-semibold">Agency</th>
                 <th className="px-6 py-4 font-semibold">Broker</th>
                 <th className="px-6 py-4 font-semibold text-center text-[#ff3333]">Date Flagged</th>
-                <th className="px-6 py-4 font-semibold text-center text-[#ff3333]">Days Flagged</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-center w-20">Actions</th>
               </tr>
@@ -235,18 +234,18 @@ export default function FlaggedCandidatesPage() {
                           else daysAgoText = `${diffDays} days ago`;
                         }
                         return (
-                          <>
-                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium text-text-secondary">
-                              {targetDate ? targetDate.toLocaleDateString() : '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                              {targetDate ? (
-                                <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-md text-xs font-semibold">
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            {targetDate ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="text-text-secondary">{targetDate.toLocaleDateString()}</span>
+                                <span className="inline-flex items-center px-2 py-0.5 bg-red-50 text-red-700 border border-red-100 rounded text-[10px] font-bold">
                                   {daysAgoText}
                                 </span>
-                              ) : '-'}
-                            </td>
-                          </>
+                              </div>
+                            ) : (
+                              <span className="text-text-tertiary">—</span>
+                            )}
+                          </td>
                         );
                       })()}
 

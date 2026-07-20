@@ -141,6 +141,17 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Broker table check warning:', e.message || e);
   }
 
+  // 3. Add flaggedAt to Candidate Table if it doesn't exist
+  try {
+    const columns: any[] = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`Candidate\` LIKE 'flaggedAt'`);
+    if (columns.length === 0) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`flaggedAt\` DATETIME(3) NULL`);
+      console.log(`✅ Added 'flaggedAt' column to 'Candidate' table.`);
+    }
+  } catch (e: any) {
+    console.warn('⚠️ Candidate table check warning (flaggedAt):', e.message || e);
+  }
+
   // 3. Create Candidate Table
   try {
     await prisma.$executeRawUnsafe(`
@@ -197,6 +208,7 @@ export async function ensureDatabaseSchema() {
         \`isRequested\` TINYINT(1) NOT NULL DEFAULT 0,
         \`visaOrContractNumber\` VARCHAR(191) NULL,
         \`isFlagged\` TINYINT(1) NOT NULL DEFAULT 0,
+        \`flaggedAt\` DATETIME(3) NULL,
         \`Youtube_URL\` VARCHAR(191) NULL,
         \`quickVideoUrl\` LONGTEXT NULL,
         \`registeredAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

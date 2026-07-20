@@ -95,7 +95,7 @@ router.get('/', async (req: Request, res: Response) => {
       'cvDeadline', 'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone',
       'emergencyContactAddress', 'passportImageUrl', 'facePhotoUrl', 'fullBodyPhotoUrl',
       'cocDocumentUrl', 'medicalDocumentUrl', 'candidateIdImageUrl', 'relativeIdImageUrl',
-      'labourIdUrl', 'isRequested', 'visaOrContractNumber', 'isFlagged', 'Youtube_URL',
+      'labourIdUrl', 'isRequested', 'visaOrContractNumber', 'isFlagged', 'flaggedAt', 'Youtube_URL',
       'registeredAt', 'status', 'brokerId', 'visaSelected', 'registeredById', 'salary',
       'visaDate', 'agency', 'quickVideoUrl', 'deployedDate', 'isLocked', 'allowVideo', 'price',
       'laborID', 'agencyStatus'
@@ -1176,7 +1176,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         isRequested: body.isRequested,
         visaSelected: body.visaSelected,
         agency: body.agency,
-        isFlagged: body.isFlagged !== undefined ? Boolean(body.isFlagged) : undefined,
+        // isFlagged is handled via raw SQL below
       },
     });
 
@@ -1191,6 +1191,22 @@ router.put('/:id', async (req: Request, res: Response) => {
       console.log(`[DEBUG] Saved allowVideo (${allowVideoVal}) via raw SQL in PUT`);
     } catch (e) {
       console.error('Failed to save allowVideo via raw SQL in PUT:', e);
+    }
+
+    // Save isFlagged and flaggedAt separately via raw SQL to bypass stale Prisma client static schema errors
+    try {
+      if (body.isFlagged !== undefined) {
+        const isFlaggedVal = Boolean(body.isFlagged);
+        const flaggedAtVal = isFlaggedVal ? new Date() : null;
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`isFlagged\` = ?, \`flaggedAt\` = ? WHERE \`id\` = ?`,
+          isFlaggedVal ? 1 : 0,
+          flaggedAtVal,
+          candidate.id
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to save isFlagged/flaggedAt:', e);
     }
 
     // Save YouTube URL separately via raw SQL
@@ -1356,9 +1372,11 @@ router.patch('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    // Ensure isFlagged is handled correctly if passed
+    // Ensure isFlagged is handled correctly via raw SQL
+    let isFlaggedVal: boolean | undefined = undefined;
     if (body.isFlagged !== undefined) {
-      body.isFlagged = Boolean(body.isFlagged);
+      isFlaggedVal = Boolean(body.isFlagged);
+      delete body.isFlagged;
     }
 
     // Handle isLocked via raw SQL to bypass stale Prisma Client
@@ -1457,6 +1475,23 @@ router.patch('/:id', async (req: Request, res: Response) => {
         (updated as any).quickVideoUrl = quickVideoUrlVal;
       } catch (err) {
         console.error('Failed to save quickVideoUrl via raw SQL in PATCH:', err);
+      }
+    }
+
+    // Save isFlagged and flaggedAt separately via raw SQL
+    if (isFlaggedVal !== undefined) {
+      try {
+        const flaggedAtVal = isFlaggedVal ? new Date() : null;
+        await prisma.$executeRawUnsafe(
+          `UPDATE \`Candidate\` SET \`isFlagged\` = ?, \`flaggedAt\` = ? WHERE \`id\` = ?`,
+          isFlaggedVal ? 1 : 0,
+          flaggedAtVal,
+          id
+        );
+        (updated as any).isFlagged = isFlaggedVal;
+        (updated as any).flaggedAt = flaggedAtVal;
+      } catch (err) {
+        console.error('Failed to save isFlagged/flaggedAt via raw SQL in PATCH:', err);
       }
     }
 

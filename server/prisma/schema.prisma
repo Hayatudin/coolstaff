@@ -81,6 +81,7 @@ model Candidate {
   isRequested              Boolean   @default(false)
   visaOrContractNumber     String?
   isFlagged                Boolean   @default(false)
+  flaggedAt                DateTime?
   videoUrl                 String?   @map("Youtube_URL")
   quickVideoUrl            String?   @db.LongText
   registeredAt             DateTime  @default(now())

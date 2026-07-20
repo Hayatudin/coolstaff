@@ -1679,11 +1679,9 @@ function GeneratedCVsContent() {
                       <div className="flex justify-between items-start gap-4">
                         <div className="flex-1 truncate">
                           <span className="text-red-400 font-medium">Flagged : </span>
-                          <span className="font-extrabold text-red-600">{targetDate ? targetDate.toLocaleDateString() : '—'}</span>
-                        </div>
-                        <div className="flex-1 truncate">
-                          <span className="text-red-400 font-medium">Duration : </span>
-                          <span className="font-extrabold text-red-600 bg-red-50 px-1 py-0.5 rounded">{daysAgoText}</span>
+                          <span className="font-extrabold text-red-600">
+                            {targetDate ? `${targetDate.toLocaleDateString()} (${daysAgoText})` : '—'}
+                          </span>
                         </div>
                       </div>
                     );
