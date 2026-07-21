@@ -173,8 +173,18 @@ router.get('/', async (req: Request, res: Response) => {
         facePhotoUrlVal = ''; 
       }
       
-      const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
-      let videoUrlVal = profile ? profile.videoUrl : (c.Youtube_URL || c.videoUrl || null);
+      let fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
+      let videoUrlVal = profile ? profile.videoUrl : (c.videoUrl || (c as any).Youtube_URL);
+      
+      let laborIdText = c.laborID;
+      let actualLabourIdUrl = null;
+      if (c.labourIdUrl) {
+        if (c.labourIdUrl.includes('/') || c.labourIdUrl.includes('.')) {
+          actualLabourIdUrl = c.labourIdUrl;
+        } else if (!laborIdText) {
+          laborIdText = c.labourIdUrl;
+        }
+      }
       if (videoUrlVal && videoUrlVal.startsWith('data:') && videoUrlVal.length > 50000) {
         videoUrlVal = '';
       }
@@ -230,7 +240,7 @@ router.get('/', async (req: Request, res: Response) => {
           medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
           candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
           relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
-          labourIdUrl: encryptPath(c.labourIdUrl),
+          labourIdUrl: encryptPath(actualLabourIdUrl),
           salary: c.salary || '1000SR',
         },
         passportImageUrl: encryptPath(c.passportImageUrl),
@@ -240,8 +250,8 @@ router.get('/', async (req: Request, res: Response) => {
         medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
         candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
         relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
-        labourIdUrl: encryptPath(c.labourIdUrl),
-        laborID: c.laborID || null,
+        labourIdUrl: encryptPath(actualLabourIdUrl),
+        laborID: laborIdText || null,
         status: c.status || 'pending',
         isRequested: c.isRequested === 1 || c.isRequested === true,
         isFlagged: c.isFlagged === 1 || c.isFlagged === true,
@@ -957,6 +967,16 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     };
 
+    let laborIdText = c.laborID;
+    let actualLabourIdUrl = null;
+    if (c.labourIdUrl) {
+      if (c.labourIdUrl.includes('/') || c.labourIdUrl.includes('.')) {
+        actualLabourIdUrl = c.labourIdUrl;
+      } else if (!laborIdText) {
+        laborIdText = c.labourIdUrl;
+      }
+    }
+
     const candidate = {
       id: c.id,
       shelfId: c.shelfId || null,
@@ -1007,7 +1027,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
         candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
         relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
-        labourIdUrl: encryptPath(c.labourIdUrl),
+        labourIdUrl: encryptPath(actualLabourIdUrl),
         salary: c.salary || '1000SR',
       },
       passportImageUrl: encryptPath(c.passportImageUrl),
@@ -1017,7 +1037,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
       candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
       relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
-      labourIdUrl: encryptPath(c.labourIdUrl),
+      labourIdUrl: encryptPath(actualLabourIdUrl),
+      laborID: laborIdText || null,
       status: c.status || 'pending',
       isRequested: c.isRequested === 1 || c.isRequested === true,
       visaOrContractNumber: c.visaOrContractNumber || null,
@@ -1038,7 +1059,6 @@ router.get('/:id', async (req: Request, res: Response) => {
       agency: c.agency || 'daera',
       allowVideo: uploadedVideoUrl ? true : (c.allowVideo === 1 || c.allowVideo === true),
       price: isSuperAdmin ? candidatePrice : null,
-      laborID: candidateLaborID || null,
     };
     res.json(candidate);
   } catch (error) {
