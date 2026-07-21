@@ -773,7 +773,9 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Document Viewer Modal */}
-      {viewDoc && (
+      {viewDoc && (() => {
+        const displayDoc = viewDoc.startsWith('ENC-') ? getFileUrl(viewDoc) : viewDoc;
+        return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setViewDoc(null)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl max-h-[90vh] w-full overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">
@@ -781,23 +783,23 @@ export default function CandidateDetailPage() {
               <button onClick={() => setViewDoc(null)} className="text-text-tertiary hover:text-text-primary text-xl font-bold px-2">✕</button>
             </div>
             <div className="p-4 flex items-center justify-center overflow-auto max-h-[80vh] w-full">
-              {!(viewDoc.startsWith('http') || viewDoc.startsWith('/') || viewDoc.startsWith('data:')) ? (
+              {!(displayDoc.startsWith('http') || displayDoc.startsWith('/') || displayDoc.startsWith('data:')) ? (
                 <div className="text-center py-12 px-6 bg-gray-50 rounded-2xl border border-gray-250 max-w-md w-full">
                   <FileText className="mx-auto text-primary mb-3" size={48} />
                   <h4 className="text-lg font-bold text-text-primary mb-1">Labour ID (Text Value)</h4>
                   <p className="text-2xl font-mono font-black text-primary tracking-wider my-4 bg-white py-3 px-4 rounded-xl border border-gray-200/60 shadow-sm select-all">
-                    {viewDoc}
+                    {displayDoc}
                   </p>
                   <p className="text-xs text-text-tertiary">This is a text-only Labour ID entered during registration. You can view or copy it above.</p>
                 </div>
-              ) : viewDoc.startsWith('data:image') || (viewDoc.startsWith('http') && !viewDoc.toLowerCase().endsWith('.pdf')) ? (
-                <img src={viewDoc} alt="Document" className="max-w-full max-h-[70vh] object-contain rounded-lg" />
-              ) : viewDoc.startsWith('data:application/pdf') ? (
-                <iframe src={viewDoc} className="w-full h-[70vh] rounded-lg" />
-              ) : viewDoc.startsWith('http') && viewDoc.toLowerCase().endsWith('.pdf') ? (
+              ) : displayDoc.startsWith('data:image') || (displayDoc.startsWith('http') && !displayDoc.toLowerCase().endsWith('.pdf')) ? (
+                <img src={displayDoc} alt="Document" className="max-w-full max-h-[70vh] object-contain rounded-lg" />
+              ) : displayDoc.startsWith('data:application/pdf') ? (
+                <iframe src={displayDoc} className="w-full h-[70vh] rounded-lg" />
+              ) : displayDoc.startsWith('http') && displayDoc.toLowerCase().endsWith('.pdf') ? (
                 <div className="flex flex-col items-center w-full">
-                  <img src={viewDoc.replace(/\.pdf$/i, '.jpg')} alt="Document Preview" className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm border border-border mb-3" />
-                  <a href={viewDoc} target="_blank" rel="noreferrer" className="text-primary hover:underline text-sm font-medium flex items-center gap-2 bg-primary-50 px-4 py-2 rounded-lg">
+                  <img src={displayDoc.replace(/\.pdf$/i, '.jpg')} alt="Document Preview" className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-sm border border-border mb-3" />
+                  <a href={displayDoc} target="_blank" rel="noreferrer" className="text-primary hover:underline text-sm font-medium flex items-center gap-2 bg-primary-50 px-4 py-2 rounded-lg">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                     Open Original PDF
                   </a>
@@ -805,13 +807,14 @@ export default function CandidateDetailPage() {
               ) : (
                 <div className="text-center">
                   <p className="text-text-tertiary mb-2">Cannot preview this document type.</p>
-                  <a href={viewDoc} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in new tab</a>
+                  <a href={displayDoc} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in new tab</a>
                 </div>
               )}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* Insert/Replace Video Modal */}
       {insertVideoModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setInsertVideoModalOpen(false)}>

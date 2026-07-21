@@ -6,6 +6,7 @@ import { FileText, Loader2, CheckCircle2, Eye, Download, AlertCircle, FileCheck,
 import Input from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { generateInvoicePdf } from '@/lib/invoicePdfGenerator';
+import { getFileUrl } from '@/lib/utils';
 
 const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'all': { name: 'ALL', fullName: '' },
@@ -550,7 +551,9 @@ export default function InvoicePage() {
       )}
 
       {/* Document Viewer Modal */}
-      {viewDoc && (
+      {viewDoc && (() => {
+        const displayDoc = viewDoc.startsWith('ENC-') ? getFileUrl(viewDoc) : viewDoc;
+        return (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={() => setViewDoc(null)}
@@ -572,29 +575,29 @@ export default function InvoicePage() {
               </button>
             </div>
             <div className="flex-1 p-4 flex items-center justify-center overflow-auto bg-gray-100 max-h-[80vh]">
-              {viewDoc.toLowerCase().endsWith('.pdf') ? (
-                <iframe src={viewDoc} className="w-full h-[70vh] rounded-lg border shadow-sm bg-white" />
-              ) : viewDoc.match(/\.(jpg|jpeg|png|webp|gif)$/i) || viewDoc.startsWith('data:image') ? (
-                <img src={viewDoc} alt="Document" className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md" />
+              {displayDoc.toLowerCase().endsWith('.pdf') ? (
+                <iframe src={displayDoc} className="w-full h-[70vh] rounded-lg border shadow-sm bg-white" />
+              ) : displayDoc.match(/\.(jpg|jpeg|png|webp|gif)$/i) || displayDoc.startsWith('data:image') ? (
+                <img src={displayDoc} alt="Document" className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md" />
               ) : (
                 <div className="text-center p-8 bg-white rounded-2xl shadow border border-border">
                   <AlertCircle size={32} className="text-amber-500 mx-auto mb-2" />
                   <p className="text-text-secondary font-medium mb-4">Cannot direct preview this document type.</p>
                   <a
-                    href={viewDoc}
+                    href={displayDoc}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 bg-primary text-white font-bold px-5 py-2.5 rounded-xl shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm"
+                    className="inline-flex items-center gap-2 text-white bg-primary hover:bg-primary-hover px-6 py-3 rounded-xl font-medium transition-colors"
                   >
-                    <Download size={16} />
-                    Open in new tab
+                    Open Document Externally
                   </a>
                 </div>
               )}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Edit Invoice Modal */}
       {editingInvoice && (
