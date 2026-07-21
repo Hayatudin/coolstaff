@@ -314,15 +314,7 @@ export default function CandidatesPage() {
       }
       const matchesAgency = agencyFilter === 'all' ? true : (c.agency?.toLowerCase() === agencyFilter.toLowerCase());
       const matchesCalling = callingFilter ? c.broker?.name === 'Calling' : true;
-      let matchesRegistrationTab = false;
-      const isCallingCandidate = c.broker?.name === 'Calling' || c.personalInfo?.job === 'Calling';
-      if (regTabFilter === 'flagged') {
-        matchesRegistrationTab = c.isFlagged === true;
-      } else if (regTabFilter === 'new') {
-        matchesRegistrationTab = c.isFlagged !== true && !isCallingCandidate && new Date(c.registeredAt) >= REGISTRATION_CUTOFF;
-      } else {
-        matchesRegistrationTab = c.isFlagged !== true;
-      }
+      const matchesRegistrationTab = true;
 
       let matchesMissingFile = true;
       if (missingFileFilter === 'COC') matchesMissingFile = !c.cocDocumentUrl;
@@ -376,32 +368,6 @@ export default function CandidatesPage() {
         )}
       </div>
 
-      {/* Category Tabs: All vs New */}
-      <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl border border-gray-250/20 self-start">
-        <button
-          onClick={() => setRegTabFilter('all')}
-          className={cn(
-            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-none active:scale-[0.98]",
-            regTabFilter === 'all'
-              ? "bg-white text-text-primary shadow-sm border border-black/5"
-              : "text-text-secondary hover:text-text-primary bg-transparent border border-transparent"
-          )}
-        >
-          All Candidates
-        </button>
-        <button
-          onClick={() => setRegTabFilter('new')}
-          className={cn(
-            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 shadow-none active:scale-[0.98]",
-            regTabFilter === 'new'
-              ? "bg-white text-primary shadow-sm border border-black/5"
-              : "text-text-secondary hover:text-primary bg-transparent border border-transparent"
-          )}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          New Candidates
-        </button>
-      </div>
 
       {/* Agency & Calling filter capsules */}
       <div className="flex flex-wrap items-center gap-3">
@@ -593,6 +559,17 @@ export default function CandidatesPage() {
                             <Copy size={13} />
                           </button>
                         </div>
+                      ) : candidate.labourIdUrl ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewDoc(candidate.labourIdUrl!);
+                          }}
+                          className="p-1.5 rounded-lg text-primary bg-primary/10 hover:bg-primary hover:text-white transition-all cursor-pointer border border-primary/20 shadow-sm inline-flex items-center"
+                          title="View Labor ID Image"
+                        >
+                          <Eye size={16} />
+                        </button>
                       ) : (
                         <button
                           onClick={(e) => {

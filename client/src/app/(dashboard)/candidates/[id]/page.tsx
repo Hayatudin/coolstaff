@@ -515,9 +515,39 @@ export default function CandidateDetailPage() {
                     <Edit3 size={11} />
                   </button>
                 </div>
-                <p className="text-[15px] text-text-primary font-semibold pl-5 break-all whitespace-normal">
-                  {c.laborID || '—'}
-                </p>
+                <div className="pl-5 pt-1">
+                  {c.laborID ? (
+                    <div className="flex items-center gap-2 group/copy">
+                      <p className="text-[15px] text-text-primary font-semibold break-all whitespace-normal select-all">
+                        {c.laborID}
+                      </p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(c.laborID || '');
+                        }}
+                        className="p-1 rounded text-text-tertiary hover:bg-gray-200 hover:text-primary transition-all cursor-pointer opacity-0 group-hover/copy:opacity-100 focus:opacity-100"
+                        title="Copy Labor ID"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      </button>
+                    </div>
+                  ) : (c.labourIdUrl || pi.labourIdUrl) ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewDoc((c.labourIdUrl || pi.labourIdUrl)!);
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all border border-primary/20 shadow-sm font-semibold text-xs cursor-pointer"
+                    >
+                      <Eye size={14} /> View Labor ID Image
+                    </button>
+                  ) : (
+                    <p className="text-[15px] text-text-tertiary font-semibold">
+                      —
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

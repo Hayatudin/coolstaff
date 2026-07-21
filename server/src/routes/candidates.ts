@@ -174,7 +174,10 @@ router.get('/', async (req: Request, res: Response) => {
       }
       
       const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
-      const videoUrlVal = profile ? profile.videoUrl : (c.Youtube_URL || c.videoUrl || null);
+      let videoUrlVal = profile ? profile.videoUrl : (c.Youtube_URL || c.videoUrl || null);
+      if (videoUrlVal && videoUrlVal.startsWith('data:') && videoUrlVal.length > 50000) {
+        videoUrlVal = '';
+      }
       const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true);
 
       return {
@@ -238,6 +241,7 @@ router.get('/', async (req: Request, res: Response) => {
         candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
         relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
         labourIdUrl: encryptPath(c.labourIdUrl),
+        laborID: c.laborID || null,
         status: c.status || 'pending',
         isRequested: c.isRequested === 1 || c.isRequested === true,
         isFlagged: c.isFlagged === 1 || c.isFlagged === true,
@@ -261,8 +265,7 @@ router.get('/', async (req: Request, res: Response) => {
         agency: c.agency || 'daera',
         agencyStatus: c.agencyStatus || 'On process',
         allowVideo: allowVideoVal,
-        quickVideoUrl: encryptPath(c.quickVideoUrl || null),
-        laborID: c.laborID || null,
+        quickVideoUrl: encryptPath(c.quickVideoUrl || null)
       };
     });
 
