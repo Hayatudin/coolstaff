@@ -177,14 +177,7 @@ router.get('/', async (req: Request, res: Response) => {
       let videoUrlVal = profile ? profile.videoUrl : (c.videoUrl || (c as any).Youtube_URL);
       
       let laborIdText = c.laborID;
-      let actualLabourIdUrl = null;
-      if (c.labourIdUrl) {
-        if (c.labourIdUrl.includes('/') || c.labourIdUrl.includes('.')) {
-          actualLabourIdUrl = c.labourIdUrl;
-        } else if (!laborIdText) {
-          laborIdText = c.labourIdUrl;
-        }
-      }
+      let actualLabourIdUrl = c.labourIdUrl || null;
       if (videoUrlVal && videoUrlVal.startsWith('data:') && videoUrlVal.length > 50000) {
         videoUrlVal = '';
       }
@@ -968,14 +961,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     };
 
     let laborIdText = c.laborID;
-    let actualLabourIdUrl = null;
-    if (c.labourIdUrl) {
-      if (c.labourIdUrl.includes('/') || c.labourIdUrl.includes('.')) {
-        actualLabourIdUrl = c.labourIdUrl;
-      } else if (!laborIdText) {
-        laborIdText = c.labourIdUrl;
-      }
-    }
+    let actualLabourIdUrl = c.labourIdUrl || null;
 
     const candidate = {
       id: c.id,

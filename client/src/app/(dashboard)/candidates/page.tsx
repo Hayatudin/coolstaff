@@ -559,27 +559,24 @@ export default function CandidatesPage() {
                             <Copy size={13} />
                           </button>
                         </div>
-                      ) : candidate.labourIdUrl ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewDoc(candidate.labourIdUrl!);
-                          }}
-                          className="p-1.5 rounded-lg text-primary bg-primary/10 hover:bg-primary hover:text-white transition-all cursor-pointer border border-primary/20 shadow-sm inline-flex items-center"
-                          title="View Labor ID Image"
-                        >
-                          <Eye size={16} />
-                        </button>
                       ) : (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setInsertLaborIdModalId(candidate.id);
-                            setInsertLaborIdInput('');
+                            if (candidate.labourIdUrl) {
+                              setViewDoc(candidate.labourIdUrl);
+                            }
                           }}
-                          className="px-2.5 py-1 text-[11px] font-bold bg-primary/15 text-primary hover:bg-primary hover:text-white rounded-xl border border-primary/20 transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm active:scale-[0.98]"
+                          disabled={!candidate.labourIdUrl}
+                          className={cn(
+                            "p-1.5 rounded-lg border shadow-sm inline-flex items-center transition-all",
+                            candidate.labourIdUrl 
+                              ? "text-primary bg-primary/10 hover:bg-primary hover:text-white border-primary/20 cursor-pointer" 
+                              : "text-gray-300 bg-gray-50 border-gray-100 cursor-not-allowed opacity-60"
+                          )}
+                          title={candidate.labourIdUrl ? "View Labor ID Image" : "No Labor ID Image"}
                         >
-                          + Add
+                          <Eye size={16} />
                         </button>
                       )}
                     </td>

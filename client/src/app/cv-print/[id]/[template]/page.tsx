@@ -24,17 +24,36 @@ const TEMPLATE_COMPONENTS: Record<string, any> = {
   'vision': VisionTemplate,
 };
 
+import { getFileUrl, convertImageToBase64 } from '@/lib/utils';
+
 export default function CVPrintPage({ params }: { params: Promise<{ id: string; template: string }> }) {
   const { id, template } = use(params);
   const [candidate, setCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [images, setImages] = useState<{ face: string | null; body: string | null; passport: string | null }>({ face: null, body: null, passport: null });
 
   useEffect(() => {
     async function fetchData() {
       try {
         const res = await api(`/api/candidates/${id}`);
         const data = await res.json();
-        setCandidate(data);
+        
+        // Preload images to Base64 to ensure they are fully loaded before rendering
+        const faceUrl = getFileUrl(data.facePhotoUrl || data.passportImageUrl);
+        const bodyUrl = getFileUrl(data.fullBodyPhotoUrl);
+        const passportUrl = getFileUrl(data.passportImageUrl);
+
+        const [face, body, passport] = await Promise.all([
+          convertImageToBase64(faceUrl),
+          convertImageToBase64(bodyUrl),
+          convertImageToBase64(passportUrl)
+        ]);
+
+        setImages({ face, body, passport });
+        setCandidate({
+          ...data,
+          passportImageUrl: passport || getFileUrl(data.passportImageUrl)
+        });
       } catch (err) {
         console.error('Failed to fetch candidate:', err);
       } finally {
@@ -44,7 +63,7 @@ export default function CVPrintPage({ params }: { params: Promise<{ id: string; 
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="p-10">Loading template...</div>;
+  if (loading) return <div className="p-10 flex items-center justify-center min-h-screen text-gray-500">Loading CV images...</div>;
   if (!candidate) return <div className="p-10">Candidate not found</div>;
 
   const TemplateComponent = TEMPLATE_COMPONENTS[template] || ALMTemplate;
@@ -71,8 +90,8 @@ export default function CVPrintPage({ params }: { params: Promise<{ id: string; 
       <div id="cv-container">
         <TemplateComponent 
           candidate={candidate} 
-          facePhoto={candidate.passportImageUrl} 
-          fullBodyPhoto={candidate.fullBodyPhotoUrl} 
+          facePhoto={images.face || getFileUrl(candidate.facePhotoUrl || candidate.passportImageUrl)} 
+          fullBodyPhoto={images.body || getFileUrl(candidate.fullBodyPhotoUrl)} 
         />
       </div>
     </div>

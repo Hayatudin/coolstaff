@@ -113,11 +113,14 @@ function CVGeneratorContent() {
 
   const selectedCandidate = nonCallingCandidates.find(c => c.id === selectedCandidateId) || null;
 
+  const [passportPhotoB64, setPassportPhotoB64] = useState<string | null>(null);
+
   // Pre-load images as Base64 to avoid CORS issues with html-to-image
   React.useEffect(() => {
     if (!selectedCandidate) {
       setFacePhotoB64(null);
       setFullBodyPhotoB64(null);
+      setPassportPhotoB64(null);
       return;
     }
 
@@ -141,12 +144,14 @@ function CVGeneratorContent() {
         }
       };
 
-      const [face, body] = await Promise.all([
+      const [face, body, passport] = await Promise.all([
         convert(selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl),
-        convert(selectedCandidate.fullBodyPhotoUrl)
+        convert(selectedCandidate.fullBodyPhotoUrl),
+        convert(selectedCandidate.passportImageUrl)
       ]);
       setFacePhotoB64(face);
       setFullBodyPhotoB64(body);
+      setPassportPhotoB64(passport);
       setIsPreloading(false);
     };
 
@@ -160,7 +165,7 @@ function CVGeneratorContent() {
   // We should also update the candidate object passed to templates to have full URLs
   const candidateWithFullUrls = selectedCandidate ? {
     ...selectedCandidate,
-    passportImageUrl: getFileUrl(selectedCandidate.passportImageUrl),
+    passportImageUrl: passportPhotoB64 || getFileUrl(selectedCandidate.passportImageUrl),
     facePhotoUrl: getFileUrl(selectedCandidate.facePhotoUrl),
     fullBodyPhotoUrl: getFileUrl(selectedCandidate.fullBodyPhotoUrl),
     cocDocumentUrl: getFileUrl(selectedCandidate.cocDocumentUrl),

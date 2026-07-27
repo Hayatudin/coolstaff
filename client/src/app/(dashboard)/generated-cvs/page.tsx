@@ -424,8 +424,9 @@ function GeneratedCVsContent() {
   // States for preloading download images as Base64 data URLs
   const [dlFaceB64, setDlFaceB64] = useState<string | null>(null);
   const [dlBodyB64, setDlBodyB64] = useState<string | null>(null);
+  const [dlPassportB64, setDlPassportB64] = useState<string | null>(null);
   const [isDlPreloading, setIsDlPreloading] = useState(false);
-  const [bulkB64Images, setBulkB64Images] = useState<Record<string, { face: string | null; body: string | null }>>({});
+  const [bulkB64Images, setBulkB64Images] = useState<Record<string, { face: string | null; body: string | null; passport: string | null }>>({});
 
   // Download task progress control
   const [downloadTask, setDownloadTask] = useState<{
@@ -684,6 +685,7 @@ function GeneratedCVsContent() {
     if (!downloadingCv) {
       setDlFaceB64(null);
       setDlBodyB64(null);
+      setDlPassportB64(null);
       setIsDlPreloading(false);
       return;
     }
@@ -693,15 +695,18 @@ function GeneratedCVsContent() {
       setIsDlPreloading(true);
       const faceUrl = downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl;
       const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl;
+      const passportUrl = downloadingCv.candidate?.passportImageUrl;
 
-      const [face, body] = await Promise.all([
+      const [face, body, passport] = await Promise.all([
         convertImageToBase64(faceUrl),
-        convertImageToBase64(bodyUrl)
+        convertImageToBase64(bodyUrl),
+        convertImageToBase64(passportUrl)
       ]);
 
       if (active) {
         setDlFaceB64(face);
         setDlBodyB64(body);
+        setDlPassportB64(passport);
         setIsDlPreloading(false);
       }
     })();
@@ -1119,17 +1124,19 @@ function GeneratedCVsContent() {
           if (isCancelledRef.current) throw new Error('Cancelled');
           const chunk = candidatesData.slice(i, i + CHUNK_SIZE);
 
-          // Preload face and body photos to Base64 for this chunk
-          const preloadedForChunk: Record<string, { face: string | null; body: string | null }> = {};
+          // Preload face, body, and passport photos to Base64 for this chunk
+          const preloadedForChunk: Record<string, { face: string | null; body: string | null; passport: string | null }> = {};
           await Promise.all(chunk.map(async (candidate: any) => {
             const correspondingCv = cvs.find(cv => cv.candidateId === candidate.id);
             const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
             const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
-            const [face, body] = await Promise.all([
+            const passportUrl = candidate.passportImageUrl;
+            const [face, body, passport] = await Promise.all([
               convertImageToBase64(faceUrl),
-              convertImageToBase64(bodyUrl)
+              convertImageToBase64(bodyUrl),
+              convertImageToBase64(passportUrl)
             ]);
-            preloadedForChunk[candidate.id] = { face, body };
+            preloadedForChunk[candidate.id] = { face, body, passport };
           }));
           setBulkB64Images(prev => ({ ...prev, ...preloadedForChunk }));
 
@@ -1272,11 +1279,15 @@ function GeneratedCVsContent() {
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
           const facePhoto = bulkB64Images[c.id]?.face || getFileUrl(correspondingCv?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl);
           const fullBodyPhoto = bulkB64Images[c.id]?.body || getFileUrl(correspondingCv?.fullBodyPhotoUrl || c.fullBodyPhotoUrl);
+          const candidateWithPassport = {
+            ...c,
+            passportImageUrl: bulkB64Images[c.id]?.passport || getFileUrl(c.passportImageUrl)
+          };
 
           return (
             <div key={c.id} id={`bulk-render-${c.id}`} style={{ width: '210mm', backgroundColor: '#ffffff' }}>
               <FolderTemplate
-                candidate={c}
+                candidate={candidateWithPassport}
                 facePhoto={facePhoto}
                 fullBodyPhoto={fullBodyPhoto}
               />
@@ -1783,11 +1794,15 @@ function GeneratedCVsContent() {
         {/* Hidden full-resolution CV render for download capture */}
         {downloadingCv && (() => {
           const DlTemplate = TEMPLATES.find(t => t.id === downloadingCv.templateId)?.component || ALMTemplate;
+          const candidateWithB64Passport = {
+            ...downloadingCv.candidate,
+            passportImageUrl: dlPassportB64 || getFileUrl(downloadingCv.candidate.passportImageUrl)
+          };
           return (
             <div style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: 800, zIndex: -1 }}>
               <div ref={cvRenderRef}>
                 <DlTemplate
-                  candidate={downloadingCv.candidate}
+                  candidate={candidateWithB64Passport}
                   facePhoto={dlFaceB64 || getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
                   fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
                 />

@@ -683,7 +683,7 @@ export default function CandidateDetailPage() {
                 { label: 'Passport Scan', url: c.passportImageUrl, field: 'passportImageUrl', color: 'primary', accept: 'image/*,application/pdf' },
                 { label: 'Candidate ID', url: c.candidateIdImageUrl, field: 'candidateIdImageUrl', color: 'blue', accept: 'image/*,application/pdf' },
                 { label: 'Relative ID', url: c.relativeIdImageUrl, field: 'relativeIdImageUrl', color: 'amber', accept: 'image/*,application/pdf' },
-                { label: 'Labour ID', url: c.labourIdUrl || c.laborID || undefined, field: 'labourIdUrl', color: 'violet', accept: 'image/*,application/pdf' },
+                { label: 'Labour ID', url: c.labourIdUrl || undefined, field: 'labourIdUrl', color: 'violet', accept: 'image/*,application/pdf' },
                 { label: 'Candidate Video', url: c.quickVideoUrl, field: 'quickVideoUrl', color: 'pink', accept: 'video/*' },
               ].map((doc) => (
                 <div key={doc.field} className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
@@ -704,7 +704,7 @@ export default function CandidateDetailPage() {
                         >
                           <Eye size={16} />
                         </button>
-                        {doc.field !== 'quickVideoUrl' && !doc.url.toLowerCase().endsWith('.pdf') && !doc.url.startsWith('data:application/pdf') && (
+                        {!doc.url.toLowerCase().endsWith('.pdf') && !doc.url.startsWith('data:application/pdf') && (
                           <button
                             onClick={() => handleDownloadFile(doc.url!, `${c.passportData.passportNumber || 'document'}_${doc.label.replace(/\s+/g, '_')}`)}
                             className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-605 rounded-xl transition-colors cursor-pointer flex items-center justify-center"
