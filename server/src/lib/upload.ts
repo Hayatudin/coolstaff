@@ -12,6 +12,8 @@ cloudinary.config({
 
 // Set STORAGE_MODE=local in .env for cPanel (local NVMe storage)
 // Set STORAGE_MODE=cloudinary in .env for Vercel (cloud storage)
+import { sanitizeIncomingPath } from './crypto';
+
 const isLocal = process.env.STORAGE_MODE === 'local';
 
 /**
@@ -21,14 +23,17 @@ const isLocal = process.env.STORAGE_MODE === 'local';
 export async function uploadToLocal(fileString: string | null | undefined, folder: string) {
   if (!fileString) return null;
 
-  // If it's already a URL, just return it
-  if (fileString.startsWith('http') || fileString.startsWith('/uploads')) return fileString;
+  const sanitized = sanitizeIncomingPath(fileString);
+  if (!sanitized) return null;
+
+  // If it's already a URL or local uploads path, just return it
+  if (sanitized.startsWith('http') || sanitized.startsWith('/uploads')) return sanitized;
 
   // Route to the correct storage backend
   if (isLocal) {
-    return uploadToLocalDisk(fileString, folder);
+    return uploadToLocalDisk(sanitized, folder);
   } else {
-    return uploadToCloudinary(fileString, folder);
+    return uploadToCloudinary(sanitized, folder);
   }
 }
 

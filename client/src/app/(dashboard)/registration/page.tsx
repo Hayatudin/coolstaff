@@ -11,7 +11,7 @@ import PassportDataFields from '@/components/registration/PassportDataFields';
 import PersonalInfoForm from '@/components/registration/PersonalInfoForm';
 import Button from '@/components/ui/Button';
 import { ArrowRight, ArrowLeft, CheckCircle2, UserPlus, ScanLine, Upload, FileText, UploadCloud, Loader2 } from 'lucide-react';
-import { useCandidates } from '@/hooks/useCandidates';
+import { useCandidates, clearCandidatesCache } from '@/hooks/useCandidates';
 import { authClient } from '@/lib/auth-client';
 
 const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
@@ -250,20 +250,49 @@ function RegistrationContent() {
   const initializedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!editId || candidates.length === 0) return;
+    if (!editId) return;
     if (initializedRef.current === editId) return;
-    const c = candidates.find((x: any) => x.id === editId);
-    if (c) {
-      setPassportData(c.passportData);
-      setPersonalInfo(c.personalInfo);
-      setPassportImage(c.passportImageUrl || null);
-      setFacePhoto(c.facePhotoUrl || null);
-      setFullBodyPhoto(c.fullBodyPhotoUrl || null);
-      setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
-      setAllowVideo(c.allowVideo || false);
-      setProcessingComplete(true);
-      initializedRef.current = editId;
+
+    let isMounted = true;
+    async function loadCandidateToEdit() {
+      try {
+        const res = await api(`/api/candidates/${editId}`);
+        if (!res.ok) throw new Error('Failed to load candidate details');
+        const c = await res.json();
+        if (c && isMounted) {
+          setPassportData(c.passportData || emptyPassportData);
+          setPersonalInfo(c.personalInfo || emptyPersonalInfo);
+          setPassportImage(c.passportImageUrl || null);
+          setFacePhoto(c.facePhotoUrl || null);
+          setFullBodyPhoto(c.fullBodyPhotoUrl || null);
+          setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
+          setAllowVideo(c.allowVideo || false);
+          setProcessingComplete(true);
+          initializedRef.current = editId;
+          return;
+        }
+      } catch (err) {
+        console.warn('[EDIT CANDIDATE] Could not fetch directly, trying candidates list:', err);
+      }
+
+      if (candidates.length > 0 && isMounted) {
+        const c = candidates.find((x: any) => x.id === editId);
+        if (c) {
+          setPassportData(c.passportData);
+          setPersonalInfo(c.personalInfo);
+          setPassportImage(c.passportImageUrl || null);
+          setFacePhoto(c.facePhotoUrl || null);
+          setFullBodyPhoto(c.fullBodyPhotoUrl || null);
+          setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
+          setAllowVideo(c.allowVideo || false);
+          setProcessingComplete(true);
+          initializedRef.current = editId;
+        }
+      }
     }
+
+    loadCandidateToEdit();
+    return () => { isMounted = false; };
   }, [editId, candidates]);
 
   const quickRegId = searchParams.get('quick_reg_id');
@@ -612,6 +641,8 @@ function RegistrationContent() {
       }
 
       const data = await response.json();
+      clearCandidatesCache();
+      window.dispatchEvent(new Event('app-refresh'));
       setRegisteredCandidateId(data.id);
       setSubmitted(true);
     } catch (err) {

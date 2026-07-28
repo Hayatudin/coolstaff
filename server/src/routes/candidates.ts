@@ -93,7 +93,7 @@ router.get('/', async (req: Request, res: Response) => {
       'idNumber', 'job', 'educationLevel', 'languages', 'workExperience', 'skills',
       'medicalStatus', 'biometricStatus', 'medicalDate', 'biometricDate', 'knownConditions',
       'cvDeadline', 'emergencyContactName', 'emergencyContactRelation', 'emergencyContactPhone',
-      'emergencyContactAddress', 'facePhotoUrl',
+      'emergencyContactAddress', 'facePhotoUrl', 'fullBodyPhotoUrl',
       'isRequested', 'visaOrContractNumber', 'isFlagged', 'flaggedAt', 'Youtube_URL',
       'registeredAt', 'status', 'brokerId', 'visaSelected', 'registeredById', 'salary',
       'visaDate', 'agency', 'deployedDate', 'isLocked', 'allowVideo', 'price',
@@ -1306,6 +1306,21 @@ router.put('/:id', async (req: Request, res: Response) => {
         );
       } catch (e) {
         console.error('Failed to save laborID via raw SQL in PUT:', e);
+      }
+    }
+
+    // Synchronize photos with any associated GeneratedCV records so CVs immediately reflect updated images
+    if (facePhotoUrl || fullBodyPhotoUrl) {
+      try {
+        await prisma.generatedCV.updateMany({
+          where: { candidateId: candidate.id },
+          data: {
+            ...(facePhotoUrl && { facePhotoUrl }),
+            ...(fullBodyPhotoUrl && { fullBodyPhotoUrl }),
+          }
+        });
+      } catch (cvErr) {
+        console.warn('[CANDIDATES] Could not sync photos to GeneratedCV records:', cvErr);
       }
     }
 
