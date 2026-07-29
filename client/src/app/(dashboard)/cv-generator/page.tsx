@@ -33,14 +33,19 @@ const TEMPLATES: any[] = [
 ];
 
 import { useCandidates } from '@/hooks/useCandidates';
+import { authClient } from '@/lib/auth-client';
 
 function CVGeneratorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlCandidateId = searchParams.get('candidateId');
 
+  const { data: session } = authClient.useSession();
+  const userRole = (session?.user as any)?.role;
+  const isSuperAdmin = userRole === 'super_admin';
+
   const { candidates, isLoading, mutate: setCandidates } = useCandidates();
-  const nonCallingCandidates = React.useMemo(() => candidates.filter((c: Candidate) => c.broker?.name !== 'Calling'), [candidates]);
+  const nonCallingCandidates = React.useMemo(() => candidates.filter((c: Candidate) => c.broker?.name !== 'Calling' && !c.broker?.isLocked && !c.isLocked && c.personalInfo?.job !== 'Calling'), [candidates]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(urlCandidateId);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('alm');
   const [toast, setToast] = useState<string | null>(null);
@@ -257,19 +262,25 @@ function CVGeneratorContent() {
         </div>
         {isReady && (
           <div className="relative print:hidden">
-            <Button
-              onClick={handleSave}
-              className="flex items-center gap-2"
-              disabled={isDownloading || !!alreadyGeneratedTemplate}
-              title={alreadyGeneratedTemplate ? `Already saved in ${alreadyGeneratedTemplate}` : ''}
-            >
-              {isDownloading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <CheckCircle2 size={18} />
-              )}
-              {isDownloading ? 'Saving...' : 'Save'}
-            </Button>
+            {isSuperAdmin ? (
+              <Button
+                onClick={handleSave}
+                className="flex items-center gap-2"
+                disabled={isDownloading || !!alreadyGeneratedTemplate}
+                title={alreadyGeneratedTemplate ? `Already saved in ${alreadyGeneratedTemplate}` : ''}
+              >
+                {isDownloading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <CheckCircle2 size={18} />
+                )}
+                {isDownloading ? 'Saving...' : 'Save Template'}
+              </Button>
+            ) : (
+              <span className="text-xs font-semibold text-text-tertiary bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
+                Template Change (Super Admin Only)
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -292,10 +303,15 @@ function CVGeneratorContent() {
 
           {/* Template Selection Card */}
           <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
+            {!isSuperAdmin && (
+              <p className="text-xs text-amber-700 font-medium mb-3 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                Note: Template layout changes are restricted to Super Admin.
+              </p>
+            )}
             <TemplateGrid
               templates={visibleTemplates}
               selectedId={selectedTemplateId}
-              onSelect={setSelectedTemplateId}
+              onSelect={isSuperAdmin ? setSelectedTemplateId : () => {}}
             />
           </div>
         </div>

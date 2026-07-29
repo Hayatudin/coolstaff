@@ -278,15 +278,23 @@ export default function FitCandidatesPage() {
     }
   };
 
+  const isCallingCandidate = (c: any) => {
+    if (!c) return false;
+    return c.broker?.name === 'Calling' || c.broker?.isLocked === true || c.isLocked === true || c.personalInfo?.job === 'Calling' || c.job === 'Calling';
+  };
+
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(filtered.map(c => c.id));
+      setSelectedIds(filtered.filter(c => !isCallingCandidate(c)).map(c => c.id));
     } else {
       setSelectedIds([]);
     }
   };
 
-  const handleSelect = (id: string, checked: boolean) => {
+  const handleSelect = (candidateOrId: any, checked: boolean) => {
+    const cand = typeof candidateOrId === 'string' ? fitCandidates.find(c => c.id === candidateOrId) : candidateOrId;
+    if (cand && isCallingCandidate(cand)) return;
+    const id = typeof candidateOrId === 'string' ? candidateOrId : candidateOrId?.id;
     if (checked) {
       setSelectedIds(prev => [...prev, id]);
     } else {
@@ -998,9 +1006,11 @@ export default function FitCandidatesPage() {
                       <td className="px-6 py-4 text-center">
                         <input
                           type="checkbox"
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                          disabled={isCallingCandidate(c)}
+                          title={isCallingCandidate(c) ? "Calling candidate - cannot be downloaded" : ""}
+                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                           checked={selectedIds.includes(c.id)}
-                          onChange={(e) => handleSelect(c.id, e.target.checked)}
+                          onChange={(e) => handleSelect(c, e.target.checked)}
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1304,31 +1314,33 @@ export default function FitCandidatesPage() {
           <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto" onClick={() => setPreviewCv(null)}>
             <div className="relative my-8 bg-white rounded-xl shadow-2xl flex flex-col items-center max-w-full" onClick={e => e.stopPropagation()}>
               <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-black/50 p-1.5 rounded-xl backdrop-blur-md">
-                  <button
-                    onClick={() => startDownload(previewCv, 'pdf')}
-                    disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
-                  >
-                    <FileDown size={14} className="text-red-400" /> PDF
-                  </button>
-                  <span className="text-white/30 font-light">|</span>
-                  <button
-                    onClick={() => startDownload(previewCv, 'jpg')}
-                    disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
-                  >
-                    <ImageIcon size={14} className="text-emerald-400" /> JPG
-                  </button>
-                  <span className="text-white/30 font-light">|</span>
-                  <button
-                    onClick={() => startDownload(previewCv, 'doc')}
-                    disabled={isDownloading}
-                    className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
-                  >
-                    <FileText size={14} className="text-blue-400" /> DOCX
-                  </button>
-                </div>
+                {!isCallingCandidate(previewCv.candidate) && (
+                  <div className="flex items-center gap-1 bg-black/50 p-1.5 rounded-xl backdrop-blur-md">
+                    <button
+                      onClick={() => startDownload(previewCv, 'pdf')}
+                      disabled={isDownloading}
+                      className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
+                    >
+                      <FileDown size={14} className="text-red-400" /> PDF
+                    </button>
+                    <span className="text-white/30 font-light">|</span>
+                    <button
+                      onClick={() => startDownload(previewCv, 'jpg')}
+                      disabled={isDownloading}
+                      className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
+                    >
+                      <ImageIcon size={14} className="text-emerald-400" /> JPG
+                    </button>
+                    <span className="text-white/30 font-light">|</span>
+                    <button
+                      onClick={() => startDownload(previewCv, 'doc')}
+                      disabled={isDownloading}
+                      className="text-xs font-semibold text-white flex items-center gap-1 hover:bg-white/20 px-2.5 py-1.5 rounded-lg disabled:opacity-50 cursor-pointer"
+                    >
+                      <FileText size={14} className="text-blue-400" /> DOCX
+                    </button>
+                  </div>
+                )}
 
                 <button onClick={() => setPreviewCv(null)} className="w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black transition-colors backdrop-blur-md cursor-pointer">
                   <X size={20} />

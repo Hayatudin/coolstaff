@@ -23,6 +23,7 @@ import AlShablanTemplate from '@/components/cv/templates/AlShablanTemplate';
 import UssusTemplate from '@/components/cv/templates/UssusTemplate';
 import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 import { clearCandidatesCache } from '@/hooks/useCandidates';
+import { authClient } from '@/lib/auth-client';
 
 const TEMPLATES = [
   { id: 'ussus', name: 'USSUS', category: 'Minimal', color: 'bg-cyan-500', textColor: 'text-cyan-600', bgLight: 'bg-cyan-50', component: UssusTemplate },
@@ -56,6 +57,7 @@ function ActionMenu({
   onToggleFlag,
   cvDownloaded,
   onMarkAsCvAvailable,
+  isSuperAdmin = true,
 }: {
   cvId: string;
   currentTemplateId: string;
@@ -65,6 +67,7 @@ function ActionMenu({
   onToggleFlag: () => void;
   cvDownloaded?: boolean;
   onMarkAsCvAvailable?: () => void;
+  isSuperAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -92,11 +95,13 @@ function ActionMenu({
       className="w-48 bg-white border border-border rounded-xl shadow-2xl overflow-hidden"
       onMouseDown={e => e.stopPropagation()}
     >
-      <button onClick={() => { setOpen(false); onChangeTemplate(); }}
-        className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-primary hover:bg-surface transition-colors"
-      >
-        <LayoutTemplate size={14} className="text-primary" /> Change Template
-      </button>
+      {isSuperAdmin && (
+        <button onClick={() => { setOpen(false); onChangeTemplate(); }}
+          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-primary hover:bg-surface transition-colors"
+        >
+          <LayoutTemplate size={14} className="text-primary" /> Change Template
+        </button>
+      )}
       <button onClick={() => { setOpen(false); onToggleFlag(); }}
         className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-primary hover:bg-red-50 transition-colors"
       >
@@ -321,6 +326,10 @@ function DeleteModal({
 function GeneratedCVsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = authClient.useSession();
+  const userRole = (session?.user as any)?.role;
+  const isSuperAdmin = userRole === 'super_admin';
+
   const [cvs, setCvs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -1634,6 +1643,7 @@ function GeneratedCVsContent() {
                       onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
                       cvDownloaded={cv.candidate?.cvDownloaded}
                       onMarkAsCvAvailable={() => markAsCvAvailable(cv.candidateId)}
+                      isSuperAdmin={isSuperAdmin}
                     />
                   )}
                 </div>

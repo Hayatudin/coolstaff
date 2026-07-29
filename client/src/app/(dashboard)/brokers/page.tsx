@@ -21,7 +21,7 @@ export default function BrokersPage() {
   const role = (session?.user as any)?.role;
   const isSuperAdmin = role === 'super_admin';
   const isAuthorized = role === 'super_admin' || role === 'accountant';
-  const canChangeTemplate = role === 'super_admin' || role === 'processor' || role === 'coordinator' || role === 'genaral';
+  const canChangeTemplate = role === 'super_admin';
   const canManageBrokers = role === 'super_admin' || role === 'accountant' || role === 'genaral';
 
   const [brokers, setBrokers] = useState<Broker[]>([]);

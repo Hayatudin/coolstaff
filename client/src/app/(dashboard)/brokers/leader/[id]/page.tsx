@@ -22,7 +22,7 @@ export default function LeaderBrokersPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isAuthorized = role === 'super_admin' || role === 'accountant';
-  const canChangeTemplate = role === 'super_admin' || role === 'processor' || role === 'coordinator' || role === 'genaral';
+  const canChangeTemplate = role === 'super_admin';
   const canManageBrokers = role === 'super_admin' || role === 'accountant' || role === 'genaral';
 
   const [leader, setLeader] = useState<Leader | null>(null);
