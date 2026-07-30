@@ -154,6 +154,7 @@ model User {
   image         String?
   role          String    @default("user") // user | super_admin | agency | registrar | processor | coordinator | accountant
   agency        String?
+  majorAgency   String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

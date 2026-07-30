@@ -1,6 +1,7 @@
 /**
  * Central API helper for the frontend to communicate with the standalone backend.
  */
+import { authClient } from './auth-client';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
 
@@ -16,19 +17,52 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Reads session token from document cookies or cached localStorage session payload.
+ */
+function getSessionToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  // 1. Try reading from cookie
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'better-auth.session_token' || name === '__Secure-better-auth.session_token') {
+      return decodeURIComponent(value);
+    }
+  }
+
+  // 2. Try reading from cached session in localStorage
+  try {
+    const cached = localStorage.getItem('coolstaff_session_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.session?.token) {
+        return parsed.session.token;
+      }
+    }
+  } catch (_) {}
+
+  return null;
+}
+
 export async function api(path: string, options: RequestInit = {}) {
   // Ensure path starts with a slash
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const url = `${API_BASE_URL}${cleanPath}`;
   
   const isFormData = options.body instanceof FormData;
+  const token = getSessionToken();
+
+  const headers: Record<string, string> = {
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers as Record<string, string>),
+  };
   
-  const defaultOptions: RequestInit = {
+  const requestOptions: RequestInit = {
     ...options,
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...options.headers,
-    },
+    headers,
     // Ensure cookies are sent for authentication across domains
     credentials: 'include',
   };
@@ -37,11 +71,35 @@ export async function api(path: string, options: RequestInit = {}) {
 
   const maxRetries = 3;
   let delay = 500; // ms
+  let retried401 = false;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(url, defaultOptions);
+      const response = await fetch(url, requestOptions);
       
+      // Handle 401 Unauthorized with single auto-retry after live session refresh
+      if (response.status === 401 && !retried401) {
+        retried401 = true;
+        console.warn('[API] Received 401 Unauthorized. Attempting live session refresh...');
+        try {
+          const freshSession = await authClient.getSession({
+            fetchOptions: { cache: 'no-store' },
+          });
+          if (freshSession?.data?.session?.token) {
+            const newToken = freshSession.data.session.token;
+            (requestOptions.headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
+            localStorage.setItem('coolstaff_session_cache', JSON.stringify(freshSession.data));
+            console.log('[API] Session refreshed successfully. Retrying API request...');
+            const retryResponse = await fetch(url, requestOptions);
+            if (retryResponse.ok) {
+              return retryResponse;
+            }
+          }
+        } catch (refreshErr) {
+          console.warn('[API] Live session refresh failed:', refreshErr);
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let message = errorData.error || `API error: ${response.statusText}`;

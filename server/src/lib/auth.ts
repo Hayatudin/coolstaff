@@ -13,11 +13,11 @@ export const auth = betterAuth({
   },
 
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24,      // refresh if older than 1 day
+    expiresIn: 18000, // 5 hours session lifetime
+    updateAge: 3600,  // refresh session after 1 hour of activity
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 5,             // 5 min client-side cache
+      maxAge: 3600,   // 1 hour client-side caching
     },
   },
 
@@ -26,7 +26,7 @@ export const auth = betterAuth({
     'https://coolstaffagency.com',
     'https://www.coolstaffagency.com',
     'https://coolstaffagencyyy.vercel.app',
-    'https://daera-agency.vercel.app', // Added common alternative
+    'https://daera-agency.vercel.app',
   ],
 
   advanced: {
@@ -45,6 +45,10 @@ export const auth = betterAuth({
         defaultValue: 'user',
       },
       agency: {
+        type: 'string',
+        required: false,
+      },
+      majorAgency: {
         type: 'string',
         required: false,
       },

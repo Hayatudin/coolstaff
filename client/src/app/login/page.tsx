@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, Home, LogIn } from 'lucide-react';
 import { signIn, signUp } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
@@ -19,7 +20,6 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Animated background orbs
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -51,9 +51,6 @@ function LoginForm() {
         return;
       }
 
-      // 2. If Sign In failed, attempt Sign Up (Seamless Flow)
-      // Note: We only try Sign Up if Sign In failed.
-      // Better Auth by default returns "Invalid email or password" for security.
       console.log("Sign in failed with:", signInError.message, ". Attempting auto-registration...");
 
       const namePrefix = email.split('@')[0];
@@ -66,18 +63,14 @@ function LoginForm() {
       });
 
       if (!signUpError) {
-        // Sign up success! New users are always "user" role, so go to home
         console.log("Auto-registration successful for new user.");
         router.push('/');
         return;
       }
 
-      // 3. If both failed
-      // If signUpError is "User already exists", then the real error is the password from signIn
       if (signUpError.message?.toLowerCase().includes('already exists') || signUpError.code === 'USER_ALREADY_EXISTS') {
         setError('Invalid email or password');
       } else {
-        // Show the actual error from the server to help debugging
         const errorMessage = signUpError.message || signInError.message || 'Authentication failed';
         setError(errorMessage);
         console.error("Auth Fail Details:", { signInError, signUpError });
@@ -96,102 +89,111 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0f]">
-      {/* Animated background orbs */}
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-[#bce3fa] p-4">
+      {/* Concentric circle rings in background */}
       {mounted && (
-        <>
-          <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-600/20 blur-[120px] animate-pulse" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-violet-600/20 blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-[40%] left-[60%] w-[300px] h-[300px] rounded-full bg-cyan-600/10 blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
-        </>
+        <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
+          <div className="w-[1200px] h-[1200px] rounded-full border border-white/20 absolute" />
+          <div className="w-[950px] h-[950px] rounded-full border border-white/30 absolute" />
+          <div className="w-[700px] h-[700px] rounded-full border border-white/40 absolute" />
+          <div className="w-[450px] h-[450px] rounded-full border border-white/50 absolute" />
+        </div>
       )}
 
-      {/* Glass card */}
-      <div className="relative z-10 w-full max-w-md px-4">
-        <div
-          className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-2xl shadow-[0_32px_64px_rgba(0,0,0,0.5)] p-8"
+      <div className="relative z-10 flex flex-col items-center w-full max-w-md">
+        {/* Back to Home Button */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 hover:bg-white border border-white/60 text-sky-800 text-xs font-semibold shadow-sm transition-all mb-6 cursor-pointer hover:scale-105"
         >
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-[0_8px_32px_rgba(99,102,241,0.4)] mb-4">
-              <span className="text-white font-black text-2xl tracking-tight">C</span>
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">COOLSTAFF</h1>
-            <p className="text-white/40 text-sm mt-1 tracking-widest uppercase text-[10px]">
-              Employment Agency
-            </p>
+          <div className="w-5 h-5 rounded-full bg-sky-100 flex items-center justify-center text-sky-600">
+            <Home size={12} />
+          </div>
+          <span>Back to Home</span>
+        </Link>
+
+        {/* Main Login Card */}
+        <div className="w-full bg-white rounded-[2rem] shadow-xl border border-white/70 p-8 sm:p-10">
+          {/* Card Icon */}
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <LogIn size={20} />
           </div>
 
-          <div className="mb-6 text-center">
-            <h2 className="text-lg font-semibold text-white">Welcome to Coolstaff</h2>
-
+          {/* Title & Subtitle */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in with email</h1>
+            <p className="text-slate-400 text-xs font-medium mt-1.5">Welcome back to the SKY agency portal.</p>
           </div>
 
-          {/* Error banner */}
+          {/* Error Banner */}
           {error && (
-            <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm mb-5">
+            <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-xs mb-5">
               <AlertCircle size={16} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div>
-              <label className="block text-white/60 text-xs font-medium mb-1.5 uppercase tracking-wider">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30"
-                />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  disabled={isLoading}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 text-sm focus:outline-none focus:border-indigo-500/60 focus:bg-white/8 transition-all disabled:opacity-50"
-                />
-              </div>
+            {/* Email Field */}
+            <div className="relative">
+              <Mail
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+                disabled={isLoading}
+                className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/10 transition-all disabled:opacity-50 font-medium"
+              />
             </div>
 
-            {/* Password */}
+            {/* Password Field */}
             <div>
-              <label className="block text-white/60 text-xs font-medium mb-1.5 uppercase tracking-wider">
-                Password
-              </label>
               <div className="relative">
                 <Lock
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   type={showPwd ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Password"
                   required
                   disabled={isLoading}
-                  className="w-full pl-10 pr-11 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 text-sm focus:outline-none focus:border-indigo-500/60 focus:bg-white/8 transition-all disabled:opacity-50"
+                  className="w-full pl-11 pr-11 py-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/10 transition-all disabled:opacity-50 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPwd((p) => !p)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
                   {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+
+              {/* Forgot password link */}
+              <div className="text-right mt-2">
+                <button
+                  type="button"
+                  onClick={() => alert("Please contact administrator to reset your password.")}
+                  className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors cursor-pointer"
+                >
+                  Forgot password?
+                </button>
+              </div>
             </div>
 
-            {/* Submit */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading || !email || !password}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-sm hover:from-indigo-500 hover:to-violet-500 transition-all shadow-[0_4px_24px_rgba(99,102,241,0.35)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+              className="w-full py-3.5 mt-2 rounded-2xl bg-slate-500 hover:bg-slate-600 disabled:bg-slate-300 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -199,15 +201,28 @@ function LoginForm() {
                   Signing in…
                 </>
               ) : (
-                'Sign In'
+                'Get Started'
               )}
             </button>
           </form>
 
-          <p className="text-center text-white/20 text-xs mt-8">
-            COOLSTAFF — Foreign Employment Agency System
-          </p>
+          {/* Sign Up Footer inside Card */}
+          <div className="text-center text-xs text-slate-500 mt-6 font-medium">
+            <span>Don't have an account? </span>
+            <button
+              type="button"
+              onClick={() => alert("Please contact administrator for account registration.")}
+              className="text-blue-600 hover:underline font-semibold cursor-pointer"
+            >
+              Sign up
+            </button>
+          </div>
         </div>
+
+        {/* System Footer Text below card */}
+        <p className="text-center text-sky-700/60 text-xs font-semibold mt-6 tracking-wide">
+          SKY Foreign Employment Agency System
+        </p>
       </div>
     </div>
   );
@@ -215,7 +230,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#bce3fa] flex items-center justify-center"><Loader2 className="animate-spin text-sky-600" /></div>}>
       <LoginForm />
     </Suspense>
   );
