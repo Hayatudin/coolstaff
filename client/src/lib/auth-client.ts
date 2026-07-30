@@ -21,16 +21,30 @@ export const authClient = createAuthClient({
 
 export const {
   signIn,
-  signOut,
   signUp,
   getSession,
   changePassword,
   updateUser,
 } = authClient;
 
-// Custom robust wrapper for useSession that caches the last successful session in localStorage.
-// If the network drops or the server goes down temporarily, it falls back to the cache
-// so the layout, role access guards, and sidebar navigation do not collapse.
+/**
+ * Custom signOut wrapper that clears session cache from localStorage and cookies before calling authClient.signOut().
+ */
+export async function signOut(options?: Parameters<typeof authClient.signOut>[0]) {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('coolstaff_session_cache');
+    document.cookie = 'better-auth.session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = '__Secure-better-auth.session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+  try {
+    await authClient.signOut(options);
+  } catch (err) {
+    console.warn('[AUTH] signOut call warning:', err);
+  }
+}
+
+// Custom wrapper for useSession that uses localStorage caching ONLY for temporary network drops.
+// If the server explicitly confirms no session (data === null and !isPending), cache is cleared.
 export function useSession() {
   const result = authClient.useSession();
   const [cachedData, setCachedData] = React.useState<any>(null);
@@ -50,12 +64,17 @@ export function useSession() {
     if (result.data) {
       localStorage.setItem('coolstaff_session_cache', JSON.stringify(result.data));
       setCachedData(result.data);
+    } else if (!result.isPending && result.data === null && !result.error) {
+      // Server explicitly returned null session (logged out or session expired)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('coolstaff_session_cache');
+      }
+      setCachedData(null);
     }
-  }, [result.data]);
+  }, [result.data, result.isPending, result.error]);
 
-  // If session is undefined/null (e.g. loading, network timeout or error),
-  // and we have a cached version, merge and return the cached data to prevent layout disruption.
-  if (!result.data && cachedData) {
+  // Only fallback to cache during network errors when offline
+  if (!result.data && result.error && cachedData) {
     return {
       ...result,
       data: cachedData,

@@ -183,7 +183,7 @@ function CVGeneratorContent() {
       setToast(`Template already saved as ${alreadyGeneratedTemplate}`);
       return;
     }
-    
+
     setIsDownloading(true);
 
     try {
@@ -303,15 +303,10 @@ function CVGeneratorContent() {
 
           {/* Template Selection Card */}
           <div className="bg-surface rounded-[1.5rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
-            {!isSuperAdmin && (
-              <p className="text-xs text-amber-700 font-medium mb-3 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
-                Note: Template layout changes are restricted to Super Admin.
-              </p>
-            )}
             <TemplateGrid
               templates={visibleTemplates}
               selectedId={selectedTemplateId}
-              onSelect={isSuperAdmin ? setSelectedTemplateId : () => {}}
+              onSelect={isSuperAdmin ? setSelectedTemplateId : () => { }}
             />
           </div>
         </div>
@@ -335,8 +330,8 @@ function CVGeneratorContent() {
                     <>
                       {isPreloading ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center bg-white min-h-[700px]">
-                           <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
-                           <p className="text-sm text-text-secondary">Loading high-res photos...</p>
+                          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
+                          <p className="text-sm text-text-secondary">Loading high-res photos...</p>
                         </div>
                       ) : (
                         <>
