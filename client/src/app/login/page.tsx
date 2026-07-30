@@ -40,7 +40,7 @@ function LoginForm() {
         const user = signInData.user as any;
         const role = user?.role;
         console.log("Sign in successful. User role:", role);
-        
+
         if (role === 'agency') {
           router.push('/agency/contracts');
         } else if (DASHBOARD_ROLES.includes(role)) {
@@ -75,7 +75,7 @@ function LoginForm() {
         setError(errorMessage);
         console.error("Auth Fail Details:", { signInError, signUpError });
       }
-      
+
     } catch (err: any) {
       console.error("Critical Auth Error:", err);
       if (err.message === 'Failed to fetch') {
@@ -221,7 +221,7 @@ function LoginForm() {
 
         {/* System Footer Text below card */}
         <p className="text-center text-sky-700/60 text-xs font-semibold mt-6 tracking-wide">
-          SKY Foreign Employment Agency System
+          Coolstaff Foreign Employment Agency System
         </p>
       </div>
     </div>
