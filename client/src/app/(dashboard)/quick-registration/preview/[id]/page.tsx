@@ -704,60 +704,22 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary flex items-center gap-1.5"><Video size={12} /> Candidate Video</p>
-                <div className="flex items-center gap-2">
-                  {videoFile && (
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
-                      className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white px-2.5 py-1 rounded-full flex items-center gap-1 transition-all cursor-pointer border border-primary/20"
-                    >
-                      <Download size={11} /> Download Video
-                    </button>
-                  )}
-                  {videoFile && (
-                    <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Check size={10} /> Uploaded
-                    </span>
-                  )}
-                </div>
+                {videoFile && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
               </div>
               <div className="h-48 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {videoFile ? (
                   videoFile.startsWith('data:video/') || videoFile.match(/\.(mp4|webm|mov|avi|ogg)/i) || videoFile.includes('/videos/') ? (
-                    <div className="w-full h-full relative group/vid">
-                      <video src={getFileUrl(videoFile)} controls className="w-full h-full object-contain" />
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
-                        className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black text-white rounded-lg opacity-90 group-hover/vid:opacity-100 transition-all shadow-md flex items-center gap-1 text-xs font-bold cursor-pointer"
-                        title="Download Video"
-                      >
-                        <Download size={14} /> Download
-                      </button>
-                    </div>
+                    <video src={getFileUrl(videoFile)} controls className="w-full h-full object-contain" />
                   ) : videoFile.startsWith('data:image') || videoFile.startsWith('http') || videoFile.startsWith('/uploads') ? (
-                    <div className="w-full h-full relative group/vid">
-                      <img src={getFileUrl(videoFile)} alt="Video thumbnail" className="w-full h-full object-contain" />
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
-                        className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black text-white rounded-lg opacity-90 group-hover/vid:opacity-100 transition-all shadow-md flex items-center gap-1 text-xs font-bold cursor-pointer"
-                        title="Download Video"
-                      >
-                        <Download size={14} /> Download
-                      </button>
-                    </div>
+                    <img src={getFileUrl(videoFile)} alt="Video thumbnail" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <Video className="text-primary/40" size={24} />
                       <span>Video file</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
-                        className="mt-2 px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm"
-                      >
-                        <Download size={12} /> Download Video
-                      </button>
                     </div>
                   )
                 ) : (
