@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2 } from 'lucide-react';
+import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2, Download } from 'lucide-react';
 import { getFileUrl } from '@/lib/utils';
 
 interface QuickRegistration {
@@ -84,6 +84,43 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   const [videoFile, setVideoFile] = useState<string | null>(null);
   const [isSavingDocs, setIsSavingDocs] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleDownloadVideo = async (url: string, filename: string) => {
+    if (!url) return;
+    const targetUrl = getFileUrl(url);
+    try {
+      if (targetUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = targetUrl;
+        a.download = filename || 'candidate_video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      const res = await fetch(targetUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || 'candidate_video.mp4';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    } catch {
+      const a = document.createElement('a');
+      a.href = targetUrl;
+      a.download = filename || 'candidate_video.mp4';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 100);
+    }
+  };
 
   // Edit target and form states
   const [brokers, setBrokers] = useState<{ id: string; name: string }[]>([]);
@@ -667,22 +704,60 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary flex items-center gap-1.5"><Video size={12} /> Candidate Video</p>
-                {videoFile && (
-                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Check size={10} /> Uploaded
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {videoFile && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
+                      className="text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white px-2.5 py-1 rounded-full flex items-center gap-1 transition-all cursor-pointer border border-primary/20"
+                    >
+                      <Download size={11} /> Download Video
+                    </button>
+                  )}
+                  {videoFile && (
+                    <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Check size={10} /> Uploaded
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="h-48 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
                 {videoFile ? (
                   videoFile.startsWith('data:video/') || videoFile.match(/\.(mp4|webm|mov|avi|ogg)/i) || videoFile.includes('/videos/') ? (
-                    <video src={getFileUrl(videoFile)} controls className="w-full h-full object-contain" />
+                    <div className="w-full h-full relative group/vid">
+                      <video src={getFileUrl(videoFile)} controls className="w-full h-full object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
+                        className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black text-white rounded-lg opacity-90 group-hover/vid:opacity-100 transition-all shadow-md flex items-center gap-1 text-xs font-bold cursor-pointer"
+                        title="Download Video"
+                      >
+                        <Download size={14} /> Download
+                      </button>
+                    </div>
                   ) : videoFile.startsWith('data:image') || videoFile.startsWith('http') || videoFile.startsWith('/uploads') ? (
-                    <img src={getFileUrl(videoFile)} alt="Video thumbnail" className="w-full h-full object-contain" />
+                    <div className="w-full h-full relative group/vid">
+                      <img src={getFileUrl(videoFile)} alt="Video thumbnail" className="w-full h-full object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
+                        className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black text-white rounded-lg opacity-90 group-hover/vid:opacity-100 transition-all shadow-md flex items-center gap-1 text-xs font-bold cursor-pointer"
+                        title="Download Video"
+                      >
+                        <Download size={14} /> Download
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <Video className="text-primary/40" size={24} />
                       <span>Video file</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
+                        className="mt-2 px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-sm"
+                      >
+                        <Download size={12} /> Download Video
+                      </button>
                     </div>
                   )
                 ) : (
@@ -693,8 +768,8 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 )}
               </div>
             </div>
-            <div className="mt-3">
-              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+            <div className="mt-3 flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
                 <Upload size={14} />
                 {videoFile ? 'Change Video' : 'Upload Video'}
                 <input
@@ -707,6 +782,16 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   }}
                 />
               </label>
+              {videoFile && (
+                <button
+                  type="button"
+                  onClick={() => handleDownloadVideo(videoFile, `${data.passportNumber || data.givenNames}_video.mp4`)}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
+                >
+                  <Download size={14} />
+                  Download Video
+                </button>
+              )}
             </div>
           </div>
         </div>

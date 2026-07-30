@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { getFileUrl } from '@/lib/utils';
-import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2, MoreVertical, Edit2, Plus, Phone, Briefcase, GraduationCap, Heart, Baby, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2, MoreVertical, Edit2, Plus, Phone, Briefcase, GraduationCap, Heart, Baby, Globe, ChevronLeft, ChevronRight, Download, Video } from 'lucide-react';
 
 const getVisiblePages = (current: number, total: number) => {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
@@ -89,6 +89,43 @@ export default function QuickRegisteredPage() {
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<QuickReg | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleDownloadVideo = async (url: string, filename: string) => {
+    if (!url) return;
+    const targetUrl = getFileUrl(url);
+    try {
+      if (targetUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = targetUrl;
+        a.download = filename || 'candidate_video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      const res = await fetch(targetUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || 'candidate_video.mp4';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    } catch {
+      const a = document.createElement('a');
+      a.href = targetUrl;
+      a.download = filename || 'candidate_video.mp4';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 100);
+    }
+  };
 
   const [customLanguage, setCustomLanguage] = useState('');
   const [selectedLang, setSelectedLang] = useState('');
