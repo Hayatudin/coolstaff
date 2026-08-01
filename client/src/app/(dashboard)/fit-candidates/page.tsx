@@ -12,6 +12,7 @@ import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import MultiSelect from '@/components/ui/MultiSelect';
 import { Candidate } from '@/types';
 
 import { useCandidates, clearCandidatesCache } from '@/hooks/useCandidates';
@@ -57,10 +58,36 @@ export default function FitCandidatesPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
-  const [languageFilter, setLanguageFilter] = useState('');
+  const [religionFilter, setReligionFilter] = useState('');
+  const [experienceFilter, setExperienceFilter] = useState('');
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [flaggedFilter, setFlaggedFilter] = useState('unflagged');
   const [agencyFilter, setAgencyFilter] = useState('all');
   const [visaFilter, setVisaFilter] = useState<'visa-selected' | 'pending'>('pending');
+
+  const availableLanguages = useMemo(() => {
+    const langSet = new Set<string>();
+    allCandidates.filter(c => c.personalInfo.medicalStatus === 'Fit').forEach(c => {
+      const langs = c.personalInfo?.languages || (c as any).languages;
+      if (Array.isArray(langs)) {
+        langs.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
+      } else if (typeof langs === 'string') {
+        try {
+          const parsed = JSON.parse(langs);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
+          } else {
+            langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+          }
+        } catch {
+          langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+        }
+      }
+    });
+    const defaults = ['English', 'Arabic', 'Amharic', 'Oromiffa', 'Tigrinya'];
+    defaults.forEach(d => langSet.add(d));
+    return Array.from(langSet).sort().map(l => ({ value: l, label: l }));
+  }, [allCandidates]);
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -225,38 +252,83 @@ export default function FitCandidatesPage() {
       const query = searchQuery.toLowerCase();
       const matchesSearch = name.includes(query) || passport.includes(query) || shelfId.includes(query);
 
-      // 2. Language Filter
-      let matchesLanguage = true;
-      if (languageFilter) {
+      // 2. Religion Filter
+      let matchesReligion = true;
+      if (religionFilter) {
         const rel = (c.personalInfo.religion || '').toLowerCase().trim().replace('-', ' ');
-        const filterVal = languageFilter.toLowerCase().trim().replace('-', ' ');
+        const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
         if (filterVal === 'muslim') {
-          matchesLanguage = rel === 'muslim' || rel === 'islam';
+          matchesReligion = rel === 'muslim' || rel === 'islam';
         } else if (filterVal === 'non muslim') {
-          matchesLanguage = rel !== 'muslim' && rel !== 'islam' && rel !== '';
+          matchesReligion = rel !== 'muslim' && rel !== 'islam' && rel !== '';
         } else {
-          matchesLanguage = rel === filterVal;
+          matchesReligion = rel === filterVal;
         }
       }
 
-      // 3. Flagged Filter
+      // 3. Experience Filter
+      let matchesExperience = true;
+      if (experienceFilter) {
+        const exps = c.personalInfo?.workExperience || (c as any).workExperience;
+        let hasExp = false;
+        if (Array.isArray(exps) && exps.length > 0) {
+          hasExp = exps.some((e: any) => {
+            if (typeof e === 'string') return e.trim().length > 0 && !e.toLowerCase().includes('no exp') && !e.toLowerCase().includes('first') && !e.toLowerCase().includes('new');
+            if (typeof e === 'object' && e !== null) {
+              if (e.experienceStatus === 'Have experience' || e.experienceStatus === 'Experienced') return true;
+              if (e.experienceStatus === 'No experience' || e.experienceStatus === 'New' || e.experienceStatus === 'First-Timer') return false;
+              if (e.country && e.country.trim().length > 0) return true;
+              if (e.yearsOfExperience && String(e.yearsOfExperience).trim() !== '0' && String(e.yearsOfExperience).trim() !== '') return true;
+            }
+            return false;
+          });
+        } else if (typeof exps === 'string') {
+          const s = exps.trim().toLowerCase();
+          hasExp = Boolean(s && s !== 'no' && !s.includes('no exp') && !s.includes('first') && s !== 'new');
+        }
+        matchesExperience = experienceFilter === 'experienced' ? hasExp : !hasExp;
+      }
+
+      // 4. Multi-Select Language Filter
+      let matchesLanguage = true;
+      if (selectedLanguages.length > 0) {
+        const raw = c.personalInfo?.languages || (c as any).languages;
+        let candidateLangs: string[] = [];
+        if (Array.isArray(raw)) {
+          candidateLangs = raw.map((l: any) => String(l).toLowerCase().trim());
+        } else if (typeof raw === 'string') {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              candidateLangs = parsed.map((l: any) => String(l).toLowerCase().trim());
+            } else {
+              candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+            }
+          } catch {
+            candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+          }
+        }
+        matchesLanguage = selectedLanguages.some((sl) => candidateLangs.includes(sl.toLowerCase().trim()));
+      }
+
+      // 5. Flagged Filter
       const matchesFlagged = flaggedFilter
         ? flaggedFilter === 'flagged' ? c.isFlagged === true : c.isFlagged === false
         : true;
 
-      // 4. Agency (template) Filter
+      // 6. Agency (template) Filter
       const matchesAgency = agencyFilter === 'all'
         ? true
         : getNormalizedTemplateId(c) === agencyFilter.toLowerCase();
 
-      // 5. Visa Status Filter
+      // 7. Visa Status Filter
       const matchesVisa = visaFilter === 'visa-selected'
         ? c.visaSelected === true
         : c.visaSelected !== true;
 
-      return matchesSearch && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa;
+      return matchesSearch && matchesReligion && matchesExperience && matchesLanguage && matchesFlagged && matchesAgency && matchesVisa;
     });
-  }, [fitCandidates, searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
+  }, [fitCandidates, searchQuery, religionFilter, experienceFilter, selectedLanguages, flaggedFilter, agencyFilter, visaFilter]);
 
   // Reset to page 1 on filter changes
   useEffect(() => {
@@ -899,13 +971,13 @@ export default function FitCandidatesPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between border-t border-border pt-4">
-          <div className="flex w-full sm:w-auto items-center gap-3">
-            <div className="w-full sm:w-44">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-center justify-between border-t border-border pt-4">
+          <div className="flex flex-wrap w-full sm:w-auto items-center gap-3">
+            <div className="w-full sm:w-36">
               <Select
                 placeholder="All Religion"
-                value={languageFilter}
-                onChange={setLanguageFilter}
+                value={religionFilter}
+                onChange={setReligionFilter}
                 options={[
                   { value: '', label: 'All Religions' },
                   { value: 'muslim', label: 'Muslim' },
@@ -913,7 +985,28 @@ export default function FitCandidatesPage() {
                 ]}
               />
             </div>
-            <div className="w-full sm:w-44">
+            <div className="w-full sm:w-40">
+              <Select
+                placeholder="All Experience"
+                value={experienceFilter}
+                onChange={setExperienceFilter}
+                options={[
+                  { value: '', label: 'All Experience' },
+                  { value: 'experienced', label: 'Experienced' },
+                  { value: 'no_experience', label: 'No Experience' }
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-52">
+              <MultiSelect
+                placeholder="Select Languages"
+                options={availableLanguages}
+                value={selectedLanguages}
+                onChange={setSelectedLanguages}
+                searchable={true}
+              />
+            </div>
+            <div className="w-full sm:w-40">
               <Select
                 placeholder="All Candidates"
                 value={flaggedFilter}
@@ -927,9 +1020,9 @@ export default function FitCandidatesPage() {
             </div>
           </div>
 
-          {(searchQuery || languageFilter || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
+          {(searchQuery || religionFilter || experienceFilter || selectedLanguages.length > 0 || flaggedFilter !== 'unflagged' || agencyFilter !== 'all') && (
             <button
-              onClick={() => { setSearchQuery(''); setLanguageFilter(''); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
+              onClick={() => { setSearchQuery(''); setReligionFilter(''); setExperienceFilter(''); setSelectedLanguages([]); setFlaggedFilter('unflagged'); setAgencyFilter('all'); }}
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center justify-center gap-2 border border-red-200 cursor-pointer"
             >
               <Trash2 size={12} /> Clear All Filters

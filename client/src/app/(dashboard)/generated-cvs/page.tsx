@@ -13,6 +13,7 @@ import {
 import { cn, getFileUrl, convertImageToBase64 } from '@/lib/utils';
 import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
+import MultiSelect from '@/components/ui/MultiSelect';
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
 import AlmalaTemplate from '@/components/cv/templates/AlmalaTemplate';
 import KA7Template from '@/components/cv/templates/KA7Template';
@@ -334,9 +335,35 @@ function GeneratedCVsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [religionFilter, setReligionFilter] = useState<string>('');
+  const [experienceFilter, setExperienceFilter] = useState<string>('');
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [flagFilter, setFlagFilter] = useState<'all' | 'flagged' | 'unflagged'>('all');
   const [minAgeFilter, setMinAgeFilter] = useState<string>('');
   const [maxAgeFilter, setMaxAgeFilter] = useState<string>('');
+
+  const availableLanguages = useMemo(() => {
+    const langSet = new Set<string>();
+    cvs.forEach(c => {
+      const langs = c.candidate?.personalInfo?.languages || c.candidate?.languages;
+      if (Array.isArray(langs)) {
+        langs.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
+      } else if (typeof langs === 'string') {
+        try {
+          const parsed = JSON.parse(langs);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
+          } else {
+            langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+          }
+        } catch {
+          langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+        }
+      }
+    });
+    const defaults = ['English', 'Arabic', 'Amharic', 'Oromiffa', 'Tigrinya'];
+    defaults.forEach(d => langSet.add(d));
+    return Array.from(langSet).sort().map(l => ({ value: l, label: l }));
+  }, [cvs]);
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
@@ -978,10 +1005,53 @@ function GeneratedCVsContent() {
     if (!matchesCvStatus) return false;
 
     if (religionFilter) {
-      const rel = (cv.candidate.personalInfo?.religion || '').toLowerCase().trim().replace('-', ' ');
+      const rel = (cv.candidate?.personalInfo?.religion || cv.candidate?.religion || '').toLowerCase().trim().replace('-', ' ');
       const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
       if (filterVal === 'muslim' && rel !== 'muslim' && rel !== 'islam') return false;
       if (filterVal === 'non muslim' && (rel === 'muslim' || rel === 'islam' || rel === '')) return false;
+    }
+
+    if (experienceFilter) {
+      const exps = cv.candidate?.personalInfo?.workExperience || cv.candidate?.workExperience;
+      let hasExp = false;
+      if (Array.isArray(exps) && exps.length > 0) {
+        hasExp = exps.some((e: any) => {
+          if (typeof e === 'string') return e.trim().length > 0 && !e.toLowerCase().includes('no exp') && !e.toLowerCase().includes('first') && !e.toLowerCase().includes('new');
+          if (typeof e === 'object' && e !== null) {
+            if (e.experienceStatus === 'Have experience' || e.experienceStatus === 'Experienced') return true;
+            if (e.experienceStatus === 'No experience' || e.experienceStatus === 'New' || e.experienceStatus === 'First-Timer') return false;
+            if (e.country && e.country.trim().length > 0) return true;
+            if (e.yearsOfExperience && String(e.yearsOfExperience).trim() !== '0' && String(e.yearsOfExperience).trim() !== '') return true;
+          }
+          return false;
+        });
+      } else if (typeof exps === 'string') {
+        const s = exps.trim().toLowerCase();
+        hasExp = Boolean(s && s !== 'no' && !s.includes('no exp') && !s.includes('first') && s !== 'new');
+      }
+      const matchesExp = experienceFilter === 'experienced' ? hasExp : !hasExp;
+      if (!matchesExp) return false;
+    }
+
+    if (selectedLanguages.length > 0) {
+      const raw = cv.candidate?.personalInfo?.languages || cv.candidate?.languages;
+      let candidateLangs: string[] = [];
+      if (Array.isArray(raw)) {
+        candidateLangs = raw.map((l: any) => String(l).toLowerCase().trim());
+      } else if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            candidateLangs = parsed.map((l: any) => String(l).toLowerCase().trim());
+          } else {
+            candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+          }
+        } catch {
+          candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+        }
+      }
+      const matchesLang = selectedLanguages.some((sl) => candidateLangs.includes(sl.toLowerCase().trim()));
+      if (!matchesLang) return false;
     }
     if (flagFilter === 'flagged' && !cv.candidate.isFlagged) return false;
     if (flagFilter === 'unflagged' && cv.candidate.isFlagged) return false;
@@ -1308,12 +1378,12 @@ function GeneratedCVsContent() {
         {/* Breadcrumb + Actions */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
-            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setFlagFilter('all'); setSearchQuery(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
+            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setExperienceFilter(''); setSelectedLanguages([]); setFlagFilter('all'); setSearchQuery(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
               <ArrowLeft size={18} />
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-text-tertiary mb-0.5">
-                <span className="hover:text-primary cursor-pointer" onClick={() => { setSelectedFolder(null); setReligionFilter(''); setFlagFilter('all'); }}>Folders</span>
+                <span className="hover:text-primary cursor-pointer" onClick={() => { setSelectedFolder(null); setReligionFilter(''); setExperienceFilter(''); setSelectedLanguages([]); setFlagFilter('all'); }}>Folders</span>
                 <ChevronRight size={12} />
                 <span className="text-text-primary font-medium">{activeTemplate.name}</span>
               </div>
@@ -1415,6 +1485,30 @@ function GeneratedCVsContent() {
                 <option value="muslim">Muslim</option>
                 <option value="non-muslim">Non-Muslim</option>
               </select>
+            </div>
+
+            {/* Experience Filter */}
+            <div className="w-36">
+              <select
+                value={experienceFilter}
+                onChange={e => setExperienceFilter(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
+              >
+                <option value="">All Experience</option>
+                <option value="experienced">Experienced</option>
+                <option value="no_experience">No Experience</option>
+              </select>
+            </div>
+
+            {/* Language MultiSelect Filter */}
+            <div className="w-48">
+              <MultiSelect
+                placeholder="Languages"
+                options={availableLanguages}
+                value={selectedLanguages}
+                onChange={setSelectedLanguages}
+                searchable={true}
+              />
             </div>
 
             {/* Flag Filter */}
