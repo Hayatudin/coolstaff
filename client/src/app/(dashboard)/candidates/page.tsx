@@ -47,12 +47,28 @@ export default function CandidatesPage() {
   const [callingFilter, setCallingFilter] = useState(false);
   const [regTabFilter, setRegTabFilter] = useState<'all' | 'new' | 'flagged'>('all');
 
+const normalizeLanguageName = (lang: string): string => {
+  if (!lang) return '';
+  const upper = lang.trim().toUpperCase();
+  if (
+    upper === 'AFAN OROMO' ||
+    upper === 'AFAAN OROMO' ||
+    upper === 'OROMIFFA' ||
+    upper === 'OROMIFA' ||
+    upper === 'OROMOO' ||
+    upper === 'OROMO'
+  ) {
+    return 'AFAN OROMO';
+  }
+  return upper;
+};
+
   const availableLanguages = useMemo(() => {
     const langSet = new Set<string>();
 
     const addLang = (val: any) => {
       if (typeof val !== 'string') return;
-      const clean = val.trim().toUpperCase();
+      let clean = val.trim().toUpperCase();
       if (!clean) return;
       if (
         clean.includes('CHILD') ||
@@ -67,6 +83,7 @@ export default function CandidatesPage() {
       ) {
         return;
       }
+      clean = normalizeLanguageName(clean);
       langSet.add(clean);
     };
 
@@ -89,7 +106,7 @@ export default function CandidatesPage() {
       }
     });
 
-    const defaults = ['ENGLISH', 'ARABIC', 'AMHARIC', 'OROMIFFA', 'TIGRINYA'];
+    const defaults = ['ENGLISH', 'ARABIC', 'AMHARIC', 'AFAN OROMO', 'TIGRINYA'];
     defaults.forEach(d => langSet.add(d));
 
     return Array.from(langSet).sort().map(l => ({ value: l, label: l }));
@@ -403,21 +420,22 @@ export default function CandidatesPage() {
         const raw = c.personalInfo?.languages || (c as any).languages;
         let candidateLangs: string[] = [];
         if (Array.isArray(raw)) {
-          candidateLangs = raw.map((l: any) => String(l).toUpperCase().trim());
+          candidateLangs = raw.map((l: any) => normalizeLanguageName(String(l)));
         } else if (raw) {
           const s = String(raw);
           try {
             const parsed = JSON.parse(s);
             if (Array.isArray(parsed)) {
-              candidateLangs = parsed.map((l: any) => String(l).toUpperCase().trim());
+              candidateLangs = parsed.map((l: any) => normalizeLanguageName(String(l)));
             } else {
-              candidateLangs = s.split(',').map((l) => l.toUpperCase().trim());
+              candidateLangs = s.split(',').map((l) => normalizeLanguageName(l));
             }
           } catch {
-            candidateLangs = s.split(',').map((l) => l.toUpperCase().trim());
+            candidateLangs = s.split(',').map((l) => normalizeLanguageName(l));
           }
         }
-        matchesLanguage = selectedLanguages.some((sl) => candidateLangs.includes(sl.toUpperCase().trim()));
+        const normSelected = selectedLanguages.map(normalizeLanguageName);
+        matchesLanguage = normSelected.some((sl) => candidateLangs.includes(sl));
       }
 
       return matchesSearch && matchesStatus && matchesDate && matchesJob && matchesGender && matchesReligion && matchesMissingFile && matchesAgency && matchesCalling && matchesRegistrationTab && matchesExperience && matchesLanguage;

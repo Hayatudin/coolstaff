@@ -341,12 +341,28 @@ function GeneratedCVsContent() {
   const [minAgeFilter, setMinAgeFilter] = useState<string>('');
   const [maxAgeFilter, setMaxAgeFilter] = useState<string>('');
 
+const normalizeLanguageName = (lang: string): string => {
+  if (!lang) return '';
+  const upper = lang.trim().toUpperCase();
+  if (
+    upper === 'AFAN OROMO' ||
+    upper === 'AFAAN OROMO' ||
+    upper === 'OROMIFFA' ||
+    upper === 'OROMIFA' ||
+    upper === 'OROMOO' ||
+    upper === 'OROMO'
+  ) {
+    return 'AFAN OROMO';
+  }
+  return upper;
+};
+
   const availableLanguages = useMemo(() => {
     const langSet = new Set<string>();
 
     const addLang = (val: any) => {
       if (typeof val !== 'string') return;
-      const clean = val.trim().toUpperCase();
+      let clean = val.trim().toUpperCase();
       if (!clean) return;
       if (
         clean.includes('CHILD') ||
@@ -361,6 +377,7 @@ function GeneratedCVsContent() {
       ) {
         return;
       }
+      clean = normalizeLanguageName(clean);
       langSet.add(clean);
     };
 
@@ -383,7 +400,7 @@ function GeneratedCVsContent() {
       }
     });
 
-    const defaults = ['ENGLISH', 'ARABIC', 'AMHARIC', 'OROMIFFA', 'TIGRINYA'];
+    const defaults = ['ENGLISH', 'ARABIC', 'AMHARIC', 'AFAN OROMO', 'TIGRINYA'];
     defaults.forEach(d => langSet.add(d));
 
     return Array.from(langSet).sort().map(l => ({ value: l, label: l }));
@@ -1061,21 +1078,22 @@ function GeneratedCVsContent() {
       const raw = cv.candidate?.personalInfo?.languages || cv.candidate?.languages;
       let candidateLangs: string[] = [];
       if (Array.isArray(raw)) {
-        candidateLangs = raw.map((l: any) => String(l).toUpperCase().trim());
+        candidateLangs = raw.map((l: any) => normalizeLanguageName(String(l)));
       } else if (raw) {
         const s = String(raw);
         try {
           const parsed = JSON.parse(s);
           if (Array.isArray(parsed)) {
-            candidateLangs = parsed.map((l: any) => String(l).toUpperCase().trim());
+            candidateLangs = parsed.map((l: any) => normalizeLanguageName(String(l)));
           } else {
-            candidateLangs = s.split(',').map((l) => l.toUpperCase().trim());
+            candidateLangs = s.split(',').map((l) => normalizeLanguageName(l));
           }
         } catch {
-          candidateLangs = s.split(',').map((l) => l.toUpperCase().trim());
+          candidateLangs = s.split(',').map((l) => normalizeLanguageName(l));
         }
       }
-      const matchesLang = selectedLanguages.some((sl) => candidateLangs.includes(sl.toUpperCase().trim()));
+      const normSelected = selectedLanguages.map(normalizeLanguageName);
+      const matchesLang = normSelected.some((sl) => candidateLangs.includes(sl));
       if (!matchesLang) return false;
     }
     if (flagFilter === 'flagged' && !cv.candidate.isFlagged) return false;
