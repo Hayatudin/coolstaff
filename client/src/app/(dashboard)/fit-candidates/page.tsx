@@ -71,16 +71,17 @@ export default function FitCandidatesPage() {
       const langs = c.personalInfo?.languages || (c as any).languages;
       if (Array.isArray(langs)) {
         langs.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
-      } else if (typeof langs === 'string') {
+      } else if (langs) {
+        const s = String(langs);
         try {
-          const parsed = JSON.parse(langs);
+          const parsed = JSON.parse(s);
           if (Array.isArray(parsed)) {
             parsed.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
           } else {
-            langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+            s.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
           }
         } catch {
-          langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+          s.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
         }
       }
     });
@@ -282,8 +283,8 @@ export default function FitCandidatesPage() {
             }
             return false;
           });
-        } else if (typeof exps === 'string') {
-          const s = exps.trim().toLowerCase();
+        } else if (exps) {
+          const s = String(exps).trim().toLowerCase();
           hasExp = Boolean(s && s !== 'no' && !s.includes('no exp') && !s.includes('first') && s !== 'new');
         }
         matchesExperience = experienceFilter === 'experienced' ? hasExp : !hasExp;
@@ -296,16 +297,17 @@ export default function FitCandidatesPage() {
         let candidateLangs: string[] = [];
         if (Array.isArray(raw)) {
           candidateLangs = raw.map((l: any) => String(l).toLowerCase().trim());
-        } else if (typeof raw === 'string') {
+        } else if (raw) {
+          const s = String(raw);
           try {
-            const parsed = JSON.parse(raw);
+            const parsed = JSON.parse(s);
             if (Array.isArray(parsed)) {
               candidateLangs = parsed.map((l: any) => String(l).toLowerCase().trim());
             } else {
-              candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+              candidateLangs = s.split(',').map((l) => l.toLowerCase().trim());
             }
           } catch {
-            candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+            candidateLangs = s.split(',').map((l) => l.toLowerCase().trim());
           }
         }
         matchesLanguage = selectedLanguages.some((sl) => candidateLangs.includes(sl.toLowerCase().trim()));
@@ -334,7 +336,7 @@ export default function FitCandidatesPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, languageFilter, flaggedFilter, agencyFilter, visaFilter]);
+  }, [searchQuery, religionFilter, experienceFilter, selectedLanguages, flaggedFilter, agencyFilter, visaFilter]);
 
   const deleteCandidate = async (id: string) => {
     setOpenMenuId(null);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -347,16 +347,17 @@ function GeneratedCVsContent() {
       const langs = c.candidate?.personalInfo?.languages || c.candidate?.languages;
       if (Array.isArray(langs)) {
         langs.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
-      } else if (typeof langs === 'string') {
+      } else if (langs) {
+        const s = String(langs);
         try {
-          const parsed = JSON.parse(langs);
+          const parsed = JSON.parse(s);
           if (Array.isArray(parsed)) {
             parsed.forEach((l: any) => { if (typeof l === 'string' && l.trim()) langSet.add(l.trim()); });
           } else {
-            langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+            s.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
           }
         } catch {
-          langs.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
+          s.split(',').forEach(l => { if (l.trim()) langSet.add(l.trim()); });
         }
       }
     });
@@ -1025,8 +1026,8 @@ function GeneratedCVsContent() {
           }
           return false;
         });
-      } else if (typeof exps === 'string') {
-        const s = exps.trim().toLowerCase();
+      } else if (exps) {
+        const s = String(exps).trim().toLowerCase();
         hasExp = Boolean(s && s !== 'no' && !s.includes('no exp') && !s.includes('first') && s !== 'new');
       }
       const matchesExp = experienceFilter === 'experienced' ? hasExp : !hasExp;
@@ -1038,16 +1039,17 @@ function GeneratedCVsContent() {
       let candidateLangs: string[] = [];
       if (Array.isArray(raw)) {
         candidateLangs = raw.map((l: any) => String(l).toLowerCase().trim());
-      } else if (typeof raw === 'string') {
+      } else if (raw) {
+        const s = String(raw);
         try {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(s);
           if (Array.isArray(parsed)) {
             candidateLangs = parsed.map((l: any) => String(l).toLowerCase().trim());
           } else {
-            candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+            candidateLangs = s.split(',').map((l) => l.toLowerCase().trim());
           }
         } catch {
-          candidateLangs = raw.split(',').map((l) => l.toLowerCase().trim());
+          candidateLangs = s.split(',').map((l) => l.toLowerCase().trim());
         }
       }
       const matchesLang = selectedLanguages.some((sl) => candidateLangs.includes(sl.toLowerCase().trim()));
