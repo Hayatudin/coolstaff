@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -60,28 +60,9 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, isPending, error } = useSession();
-  const [isOnline, setIsOnline] = useState(true);
+  const { data: session, isPending } = useSession();
 
-  // Monitor network online/offline status
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsOnline(navigator.onLine);
-      const handleOnline = () => setIsOnline(true);
-      const handleOffline = () => setIsOnline(false);
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
-  }, []);
-
-  // Is session successfully loaded live from database table?
-  const isDbLive = Boolean(session?.user && !error && isOnline);
-
-  // Determine effective role: use logged in user's role if available, otherwise fallback to 'super_admin' to ensure mock navigation
+  // Determine effective role: use logged in user's role if available, otherwise fallback to 'super_admin' to ensure sidebar items always display
   const sessionRole = (session?.user as any)?.role as string | undefined;
   const effectiveRole = sessionRole || 'super_admin';
 
@@ -109,7 +90,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
   // Display user & role label
   const role = sessionRole || 'super_admin';
   const roleConfig = ROLE_CONFIG[role as Role];
-  const roleLabel = isDbLive ? (roleConfig?.label || role.replace('_', ' ')) : 'Mock Admin';
+  const roleLabel = roleConfig?.label || role.replace('_', ' ');
 
   const isStaffRole = role !== 'user' && role !== 'agency';
 
@@ -150,21 +131,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
         )}
       </div>
 
-      {/* Database / Mock Data & Network Connection Status Indicator */}
-      {(!isCollapsed || isMobile) ? (
-       
-        <div className="flex justify-center mt-3 shrink-0" title={isDbLive ? "Connected to Live Database" : "Running on Mock Data / Offline"}>
-          <span
-            className={cn(
-              "w-3 h-3 rounded-full animate-pulse",
-              isPending ? "bg-amber-400" : (isDbLive ? "bg-emerald-400" : "bg-orange-400")
-            )}
-          />
-        </div>
-      )}
-
       {/* Navigation */}
-      <nav className="flex-1 px-3 mt-3 space-y-1 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 px-3 mt-4 space-y-1 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href));
@@ -213,7 +181,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
               </span>
             </div>
             <p className="text-white/30 text-[10px] truncate font-medium">
-              {session?.user?.email || (isDbLive ? "authenticated@system" : "mock@coolstaff.local")}
+              {session?.user?.email || "authenticated@system"}
             </p>
           </div>
         )}
