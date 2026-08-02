@@ -1,17 +1,35 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { ClipboardList, Loader2, MoreVertical, CheckCircle, Trash2, Edit3, Eye, Search, Flag, CalendarDays, X } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import MultiSelect from '@/components/ui/MultiSelect';
 import { Candidate } from '@/types';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { cn, getFileUrl } from '@/lib/utils';
 
 import { useCandidates } from '@/hooks/useCandidates';
+
+const normalizeLanguageName = (lang: string): string => {
+  if (!lang) return '';
+  const upper = lang.trim().toUpperCase();
+  if (
+    upper === 'AFAN OROMO' ||
+    upper === 'AFAAN OROMO' ||
+    upper === 'OROMIFFA' ||
+    upper === 'OROMIFA' ||
+    upper === 'OROMOO' ||
+    upper === 'OROMO'
+  ) {
+    return 'AFAN OROMO';
+  }
+  return upper;
+};
 
 const TEMPLATES = [
   { id: 'ussus', name: 'USSUS' },
@@ -45,6 +63,60 @@ export default function RequestedPage() {
   const [selectedCandidateForAgency, setSelectedCandidateForAgency] = useState<string | null>(null);
   const [isSettingAgency, setIsSettingAgency] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [religionFilter, setReligionFilter] = useState('');
+  const [minAgeFilter, setMinAgeFilter] = useState('');
+  const [maxAgeFilter, setMaxAgeFilter] = useState('');
+  const [experienceFilter, setExperienceFilter] = useState('');
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+
+  const availableLanguages = useMemo(() => {
+    const langSet = new Set<string>();
+
+    const addLang = (val: any) => {
+      if (typeof val !== 'string') return;
+      let clean = val.trim().toUpperCase();
+      if (!clean) return;
+      if (
+        clean.includes('CHILD') ||
+        clean.includes('NUMBER') ||
+        clean.includes('NONE') ||
+        clean.includes('N/A') ||
+        clean.includes('NULL') ||
+        clean.includes('UNDEFINED') ||
+        clean.includes('STATUS') ||
+        clean.includes(':') ||
+        /^\d+$/.test(clean)
+      ) {
+        return;
+      }
+      clean = normalizeLanguageName(clean);
+      langSet.add(clean);
+    };
+
+    allCandidates.filter(c => c.isRequested).forEach(c => {
+      const langs = c.personalInfo?.languages || (c as any).languages;
+      if (Array.isArray(langs)) {
+        langs.forEach(addLang);
+      } else if (langs) {
+        const s = String(langs);
+        try {
+          const parsed = JSON.parse(s);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(addLang);
+          } else {
+            s.split(',').forEach(addLang);
+          }
+        } catch {
+          s.split(',').forEach(addLang);
+        }
+      }
+    });
+
+    const defaults = ['ENGLISH', 'ARABIC', 'AMHARIC', 'AFAN OROMO', 'TIGRINYA'];
+    defaults.forEach(d => langSet.add(d));
+
+    return Array.from(langSet).sort().map(l => ({ value: l, label: l }));
+  }, [allCandidates]);
 
   const handleSetAgency = async (candidateId: string, templateId: string) => {
     setIsSettingAgency(true);
@@ -414,13 +486,88 @@ export default function RequestedPage() {
       }
     }
 
-    return matchesSearch && matchesTab && matchesDate;
+    // Religion Filter: Muslim vs Non-Muslim
+    let matchesReligion = true;
+    if (religionFilter) {
+      const rel = (c.personalInfo?.religion || '').toLowerCase().trim().replace('-', ' ').replace('_', ' ');
+      const isMuslim = rel.includes('islam') || rel.includes('muslim');
+      const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ').replace('_', ' ');
+      if (filterVal === 'muslim') {
+        matchesReligion = isMuslim;
+      } else if (filterVal === 'non muslim') {
+        matchesReligion = !isMuslim;
+      }
+    }
+
+    // Age Interval Filter
+    let matchesAge = true;
+    const minAge = minAgeFilter ? parseInt(minAgeFilter, 10) : null;
+    const maxAge = maxAgeFilter ? parseInt(maxAgeFilter, 10) : null;
+    if (minAge !== null || maxAge !== null) {
+      if (!c.passportData?.dateOfBirth) {
+        matchesAge = false;
+      } else {
+        const dob = new Date(c.passportData.dateOfBirth);
+        const age = new Date().getFullYear() - dob.getFullYear();
+        if (minAge !== null && age < minAge) matchesAge = false;
+        if (maxAge !== null && age > maxAge) matchesAge = false;
+      }
+    }
+
+    // Experience Filter
+    let matchesExperience = true;
+    if (experienceFilter) {
+      const exps = c.personalInfo?.workExperience || (c as any).workExperience;
+      let hasExp = false;
+      if (Array.isArray(exps) && exps.length > 0) {
+        hasExp = exps.some((e: any) => {
+          if (typeof e === 'string') return e.trim().length > 0 && !e.toLowerCase().includes('no exp') && !e.toLowerCase().includes('first') && !e.toLowerCase().includes('new');
+          if (typeof e === 'object' && e !== null) {
+            if (e.experienceStatus === 'Have experience' || e.experienceStatus === 'Experienced') return true;
+            if (e.experienceStatus === 'No experience' || e.experienceStatus === 'New' || e.experienceStatus === 'First-Timer') return false;
+            if (e.country && e.country.trim().length > 0) return true;
+            if (e.years && String(e.years).trim().length > 0) return true;
+          }
+          return false;
+        });
+      } else if (exps) {
+        const s = String(exps).trim().toLowerCase();
+        hasExp = Boolean(s && s !== 'no' && !s.includes('no exp') && !s.includes('first') && s !== 'new');
+      }
+      matchesExperience = experienceFilter === 'experienced' ? hasExp : !hasExp;
+    }
+
+    // Multi-Select Language Filter
+    let matchesLanguage = true;
+    if (selectedLanguages.length > 0) {
+      const raw = c.personalInfo?.languages || (c as any).languages;
+      let candidateLangs: string[] = [];
+      if (Array.isArray(raw)) {
+        candidateLangs = raw.map((l: any) => normalizeLanguageName(String(l)));
+      } else if (raw) {
+        const s = String(raw);
+        try {
+          const parsed = JSON.parse(s);
+          if (Array.isArray(parsed)) {
+            candidateLangs = parsed.map((l: any) => normalizeLanguageName(String(l)));
+          } else {
+            candidateLangs = s.split(',').map((l) => normalizeLanguageName(l));
+          }
+        } catch {
+          candidateLangs = s.split(',').map((l) => normalizeLanguageName(l));
+        }
+      }
+      const normSelected = selectedLanguages.map(normalizeLanguageName);
+      matchesLanguage = normSelected.some((sl) => candidateLangs.includes(sl));
+    }
+
+    return matchesSearch && matchesTab && matchesDate && matchesReligion && matchesAge && matchesExperience && matchesLanguage;
   });
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, dateFilter, activeTab]);
+  }, [searchQuery, dateFilter, activeTab, religionFilter, minAgeFilter, maxAgeFilter, experienceFilter, selectedLanguages]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -495,22 +642,104 @@ export default function RequestedPage() {
         })}
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm">
-        <div className="flex-1">
-          <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+      <div className="flex flex-col gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex-1">
+            <Input placeholder="Search by name or passport..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-text-secondary uppercase shrink-0">Date Filter:</span>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            >
+              <option value="all">All time</option>
+              <option value="1week">Week Ago</option>
+              <option value="2weeks">2 Weeks Ago</option>
+              <option value="1month">Month Ago</option>
+            </select>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-black text-text-secondary uppercase shrink-0">Date Filter:</span>
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-          >
-            <option value="all">All time</option>
-            <option value="1week">Week Ago</option>
-            <option value="2weeks">2 Weeks Ago</option>
-            <option value="1month">Month Ago</option>
-          </select>
+
+        {/* Bottom Row: Advanced Filters */}
+        <div className="flex flex-col md:flex-row flex-wrap gap-3 items-center justify-start border-t border-border pt-4">
+          {/* Religion Filter */}
+          <div className="w-full md:w-36">
+            <Select
+              placeholder="All Religion"
+              value={religionFilter}
+              onChange={setReligionFilter}
+              options={[
+                { value: '', label: 'All Religions' },
+                { value: 'muslim', label: 'Muslim' },
+                { value: 'non_muslim', label: 'Non-Muslim' }
+              ]}
+            />
+          </div>
+
+          {/* Age Interval Filter */}
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-2xl border border-gray-200/80 w-full md:w-auto">
+            <span className="text-xs font-bold text-text-tertiary uppercase shrink-0">Age:</span>
+            <input
+              type="number"
+              placeholder="Min"
+              value={minAgeFilter}
+              onChange={(e) => setMinAgeFilter(e.target.value)}
+              className="w-14 px-2 py-1 text-xs font-bold rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <span className="text-xs text-text-tertiary">-</span>
+            <input
+              type="number"
+              placeholder="Max"
+              value={maxAgeFilter}
+              onChange={(e) => setMaxAgeFilter(e.target.value)}
+              className="w-14 px-2 py-1 text-xs font-bold rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {/* Experience Filter */}
+          <div className="w-full md:w-40">
+            <Select
+              placeholder="All Experience"
+              value={experienceFilter}
+              onChange={setExperienceFilter}
+              options={[
+                { value: '', label: 'All Experience' },
+                { value: 'experienced', label: 'Experienced' },
+                { value: 'no_experience', label: 'No Experience' }
+              ]}
+            />
+          </div>
+
+          {/* MultiSelect Language Filter */}
+          <div className="w-full md:w-52">
+            <MultiSelect
+              placeholder="Select Languages"
+              options={availableLanguages}
+              value={selectedLanguages}
+              onChange={setSelectedLanguages}
+              searchable={true}
+            />
+          </div>
+
+          {/* Clear Filters Button */}
+          {(religionFilter || minAgeFilter || maxAgeFilter || experienceFilter || selectedLanguages.length > 0 || dateFilter !== 'all' || searchQuery) && (
+            <button
+              onClick={() => {
+                setReligionFilter('');
+                setMinAgeFilter('');
+                setMaxAgeFilter('');
+                setExperienceFilter('');
+                setSelectedLanguages([]);
+                setDateFilter('all');
+                setSearchQuery('');
+              }}
+              className="text-xs font-bold text-red-500 hover:text-red-700 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors flex items-center gap-1 cursor-pointer border border-red-200"
+            >
+              <Trash2 size={12} /> Clear Filters
+            </button>
+          )}
         </div>
       </div>
 

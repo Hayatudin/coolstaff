@@ -370,12 +370,13 @@ const normalizeLanguageName = (lang: string): string => {
       const matchesGender = genderFilter ? c.passportData.gender?.toLowerCase() === genderFilter.toLowerCase() : true;
       let matchesReligion = true;
       if (religionFilter) {
-        const rel = (c.personalInfo.religion || '').toLowerCase().trim().replace('-', ' ');
-        const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ');
+        const rel = (c.personalInfo.religion || '').toLowerCase().trim().replace('-', ' ').replace('_', ' ');
+        const filterVal = religionFilter.toLowerCase().trim().replace('-', ' ').replace('_', ' ');
+        const isMuslim = rel.includes('islam') || rel.includes('muslim');
         if (filterVal === 'muslim') {
-          matchesReligion = rel === 'muslim' || rel === 'islam';
+          matchesReligion = isMuslim;
         } else if (filterVal === 'non muslim') {
-          matchesReligion = rel !== 'muslim' && rel !== 'islam' && rel !== '';
+          matchesReligion = !isMuslim;
         } else {
           matchesReligion = rel === filterVal;
         }
@@ -570,7 +571,7 @@ const normalizeLanguageName = (lang: string): string => {
             <Select placeholder="All Genders" value={genderFilter} onChange={setGenderFilter} options={[{ value: '', label: 'All Genders' }, { value: 'female', label: 'Female' }, { value: 'male', label: 'Male' }]} />
           </div>
           <div className="w-full md:w-36">
-            <Select placeholder="All Religions" value={religionFilter} onChange={setReligionFilter} options={[{ value: '', label: 'All Religions' }, { value: 'muslim', label: 'Muslim' }, { value: 'christian', label: 'Christian' }, { value: 'other', label: 'Other' }]} />
+            <Select placeholder="All Religions" value={religionFilter} onChange={setReligionFilter} options={[{ value: '', label: 'All Religions' }, { value: 'muslim', label: 'Muslim' }, { value: 'non_muslim', label: 'Non-Muslim' }]} />
           </div>
           <div className="w-full md:w-40">
             <Select
