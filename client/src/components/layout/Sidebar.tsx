@@ -152,29 +152,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
 
       {/* Database / Mock Data & Network Connection Status Indicator */}
       {(!isCollapsed || isMobile) ? (
-        <div className="px-3 py-2 mx-3 mt-3 rounded-lg bg-white/10 border border-white/10 flex items-center justify-between text-xs shrink-0">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <span
-              className={cn(
-                "w-2 h-2 rounded-full shrink-0 animate-pulse",
-                isPending ? "bg-amber-400" : (isDbLive ? "bg-emerald-400" : "bg-orange-400")
-              )}
-            />
-            <span className="text-white/90 font-medium text-[11px] truncate">
-              {isPending
-                ? "Connecting DB..."
-                : (isDbLive ? "Database Connected" : (isOnline ? "Mock Mode Active" : "Offline Mode"))
-              }
-            </span>
-          </div>
-          <span className={cn(
-            "text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ml-1",
-            isDbLive ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-          )}>
-            {isDbLive ? "LIVE DB" : "MOCK DATA"}
-          </span>
-        </div>
-      ) : (
+       
         <div className="flex justify-center mt-3 shrink-0" title={isDbLive ? "Connected to Live Database" : "Running on Mock Data / Offline"}>
           <span
             className={cn(
