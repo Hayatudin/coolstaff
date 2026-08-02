@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -60,20 +60,45 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, error } = useSession();
+  const [isOnline, setIsOnline] = useState(true);
 
-  const role = ((session?.user as any)?.role ?? 'user') as string;
+  // Monitor network online/offline status
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
 
-  // Filter nav items based on role
-  const navItems = allNavItems.filter(item => {
+  // Is session successfully loaded live from database table?
+  const isDbLive = Boolean(session?.user && !error && isOnline);
+
+  // Determine effective role: use logged in user's role if available, otherwise fallback to 'super_admin' to ensure mock navigation
+  const sessionRole = (session?.user as any)?.role as string | undefined;
+  const effectiveRole = sessionRole || 'super_admin';
+
+  // Filter nav items based on effective role
+  let navItems = allNavItems.filter(item => {
     const allowedRoles = ROUTE_ACCESS[item.href];
     if (!allowedRoles) return false;
-    return allowedRoles.includes(role as Role);
+    return allowedRoles.includes(effectiveRole as Role);
   });
+
+  // Safety Fallback: If navItems is empty for any reason, use allNavItems (Mock Navigation Mode)
+  if (navItems.length === 0) {
+    navItems = allNavItems;
+  }
 
   const handleLogout = async () => {
     await signOut();
-    // Force a full reload to clear all caches and states
     window.location.href = '/login';
   };
 
@@ -81,14 +106,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     if (onNavigate) onNavigate();
   };
 
-  // Get sidebar badge color for role
-  const badgeColor = SIDEBAR_BADGE_COLORS[role] || SIDEBAR_BADGE_COLORS.user;
-
-  // Get role label for display
+  // Display user & role label
+  const role = sessionRole || 'super_admin';
   const roleConfig = ROLE_CONFIG[role as Role];
-  const roleLabel = roleConfig?.label || role.replace('_', ' ');
+  const roleLabel = isDbLive ? (roleConfig?.label || role.replace('_', ' ')) : 'Mock Admin';
 
-  // Role badge color in the bottom user info section
   const isStaffRole = role !== 'user' && role !== 'agency';
 
   return (
@@ -128,8 +150,43 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
         )}
       </div>
 
+      {/* Database / Mock Data & Network Connection Status Indicator */}
+      {(!isCollapsed || isMobile) ? (
+        <div className="px-3 py-2 mx-3 mt-3 rounded-lg bg-white/10 border border-white/10 flex items-center justify-between text-xs shrink-0">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span
+              className={cn(
+                "w-2 h-2 rounded-full shrink-0 animate-pulse",
+                isPending ? "bg-amber-400" : (isDbLive ? "bg-emerald-400" : "bg-orange-400")
+              )}
+            />
+            <span className="text-white/90 font-medium text-[11px] truncate">
+              {isPending
+                ? "Connecting DB..."
+                : (isDbLive ? "Database Connected" : (isOnline ? "Mock Mode Active" : "Offline Mode"))
+              }
+            </span>
+          </div>
+          <span className={cn(
+            "text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 ml-1",
+            isDbLive ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+          )}>
+            {isDbLive ? "LIVE DB" : "MOCK DATA"}
+          </span>
+        </div>
+      ) : (
+        <div className="flex justify-center mt-3 shrink-0" title={isDbLive ? "Connected to Live Database" : "Running on Mock Data / Offline"}>
+          <span
+            className={cn(
+              "w-3 h-3 rounded-full animate-pulse",
+              isPending ? "bg-amber-400" : (isDbLive ? "bg-emerald-400" : "bg-orange-400")
+            )}
+          />
+        </div>
+      )}
+
       {/* Navigation */}
-      <nav className="flex-1 px-3 mt-4 space-y-1 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 px-3 mt-3 space-y-1 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href));
@@ -164,10 +221,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       {/* Bottom section — user info + logout */}
       <div className="px-3 pb-6 space-y-1 border-t border-white/10 pt-3 mt-2 shrink-0">
         {/* User info */}
-        {(!isCollapsed || isMobile) && session?.user && (
+        {(!isCollapsed || isMobile) && (
           <div className="px-4 py-3 mb-2 bg-white/5 rounded-xl border border-white/5 mx-1">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-white/90 text-sm font-bold truncate leading-none">{session.user.name}</p>
+              <p className="text-white/90 text-sm font-bold truncate leading-none">
+                {session?.user?.name || "CoolStaff User"}
+              </p>
               <span className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter",
                 isStaffRole ? "bg-amber-500/20 text-amber-500 border border-amber-500/30" : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
@@ -175,7 +234,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
                 {roleLabel}
               </span>
             </div>
-            <p className="text-white/30 text-[10px] truncate font-medium">{session.user.email}</p>
+            <p className="text-white/30 text-[10px] truncate font-medium">
+              {session?.user?.email || (isDbLive ? "authenticated@system" : "mock@coolstaff.local")}
+            </p>
           </div>
         )}
 
