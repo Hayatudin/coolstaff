@@ -17,6 +17,7 @@ import { Candidate } from '@/types';
 
 import { useCandidates, clearCandidatesCache } from '@/hooks/useCandidates';
 import { cn, getFileUrl, convertImageToBase64 } from '@/lib/utils';
+import { authClient } from '@/lib/auth-client';
 
 // Import CV templates
 import ALMTemplate from '@/components/cv/templates/ALMTemplate';
@@ -56,6 +57,8 @@ const AGENCIES = [
 
 export default function FitCandidatesPage() {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const isSuperAdmin = (session?.user as any)?.role === 'super_admin';
   const { candidates: allCandidates, isLoading, mutate } = useCandidates();
   const [searchQuery, setSearchQuery] = useState('');
   const [religionFilter, setReligionFilter] = useState('');
@@ -1263,13 +1266,15 @@ const normalizeLanguageName = (lang: string): string => {
                               }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <button
-                                onClick={() => { setOpenMenuId(null); setMenuCoords(null); setChangeTarget(c); }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold cursor-pointer"
-                              >
-                                <LayoutTemplate size={16} className="text-text-secondary" />
-                                <span>Change Template</span>
-                              </button>
+                              {isSuperAdmin && (
+                                <button
+                                  onClick={() => { setOpenMenuId(null); setMenuCoords(null); setChangeTarget(c); }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left text-text-primary font-semibold cursor-pointer"
+                                >
+                                  <LayoutTemplate size={16} className="text-text-secondary" />
+                                  <span>Change Template</span>
+                                </button>
+                              )}
 
                               <button
                                 onClick={() => { setOpenMenuId(null); setMenuCoords(null); toggleFlag(c.id, c.isFlagged || false); }}

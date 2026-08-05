@@ -1313,18 +1313,20 @@ export default function BrokerCandidatesPage() {
             </span>
 
             {/* Change Template Button */}
-            <button
-              onClick={() => setTemplateChangeTarget('bulk')}
-              disabled={isChangingTemplate}
-              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
-            >
-              {isChangingTemplate ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <LayoutTemplate size={14} />
-              )}
-              Change Template
-            </button>
+            {role === 'super_admin' && (
+              <button
+                onClick={() => setTemplateChangeTarget('bulk')}
+                disabled={isChangingTemplate}
+                className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                {isChangingTemplate ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <LayoutTemplate size={14} />
+                )}
+                Change Template
+              </button>
+            )}
 
             {/* Move Candidates Button */}
             <button
@@ -1581,14 +1583,15 @@ export default function BrokerCandidatesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
                           value={activeTmplId || ""}
-                          disabled={isSettingAgency}
+                          disabled={isSettingAgency || (Boolean(activeTmplId) && role !== 'super_admin')}
                           onChange={async (e) => {
                             const val = e.target.value;
                             if (val) {
                               await handleSetAgency(candidate.id, val);
                             }
                           }}
-                          className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer"
+                          className="px-2.5 py-1 text-[10px] uppercase font-bold bg-white text-text-primary border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                          title={Boolean(activeTmplId) && role !== 'super_admin' ? "Template Change (Super Admin Only)" : undefined}
                         >
                           <option value="" disabled>Select Agency...</option>
                           {TEMPLATES.map(t => (

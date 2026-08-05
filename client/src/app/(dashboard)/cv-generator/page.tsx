@@ -179,8 +179,8 @@ function CVGeneratorContent() {
 
   const handleSave = async () => {
     if (!selectedCandidate) return;
-    if (alreadyGeneratedTemplate) {
-      setToast(`Template already saved as ${alreadyGeneratedTemplate}`);
+    if (alreadyGeneratedTemplate && !isSuperAdmin) {
+      setToast(`Template already saved as ${alreadyGeneratedTemplate}. Changing template is restricted to Super Admin.`);
       return;
     }
 
@@ -224,6 +224,8 @@ function CVGeneratorContent() {
 
   const isReady = selectedCandidate !== null;
 
+  const canSaveOrChangeTemplate = isSuperAdmin || !alreadyGeneratedTemplate;
+
   return (
     <div className="print:bg-white print:m-0 print:p-0">
       {/* Hide everything except CV when printing */}
@@ -262,12 +264,12 @@ function CVGeneratorContent() {
         </div>
         {isReady && (
           <div className="relative print:hidden">
-            {isSuperAdmin ? (
+            {canSaveOrChangeTemplate ? (
               <Button
                 onClick={handleSave}
                 className="flex items-center gap-2"
-                disabled={isDownloading || !!alreadyGeneratedTemplate}
-                title={alreadyGeneratedTemplate ? `Already saved in ${alreadyGeneratedTemplate}` : ''}
+                disabled={isDownloading || (!!alreadyGeneratedTemplate && !isSuperAdmin)}
+                title={alreadyGeneratedTemplate && !isSuperAdmin ? `Template Change (Super Admin Only)` : alreadyGeneratedTemplate ? `Already saved in ${alreadyGeneratedTemplate}` : ''}
               >
                 {isDownloading ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -306,7 +308,7 @@ function CVGeneratorContent() {
             <TemplateGrid
               templates={visibleTemplates}
               selectedId={selectedTemplateId}
-              onSelect={isSuperAdmin ? setSelectedTemplateId : () => { }}
+              onSelect={canSaveOrChangeTemplate ? setSelectedTemplateId : () => { }}
             />
           </div>
         </div>
