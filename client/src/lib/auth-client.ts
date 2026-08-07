@@ -73,8 +73,8 @@ export function useSession() {
     }
   }, [result.data, result.isPending, result.error]);
 
-  // Only fallback to cache during network errors when offline
-  if (!result.data && result.error && cachedData) {
+  // Return cachedData if result.data is not yet available and cachedData exists
+  if (!result.data && cachedData) {
     return {
       ...result,
       data: cachedData,

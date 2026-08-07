@@ -520,11 +520,12 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
         const raw = rawRows[0];
+        if (raw.registeredById) registration.registeredById = raw.registeredById;
         registration.cocDocumentUrl = raw.cocDocumentUrl;
         registration.labourIdUrl = raw.labourIdUrl;
         registration.laborID = raw.laborID;
@@ -540,7 +541,17 @@ router.get('/by-passport/:passportNumber', async (req: Request, res: Response) =
       }
     } catch (_) { /* ignore */ }
 
-    registration.registeredBy = registration.registeredBy?.name || 'Walk-in';
+    let registrarName543 = registration.registeredBy?.name;
+    const targetUserId543 = registration.registeredById;
+    if (targetUserId543 && (!registrarName543 || registrarName543 === 'Walk-in')) {
+      try {
+        const userRows = await prisma.$queryRawUnsafe<any[]>('SELECT `name` FROM `User` WHERE `id` = ?', targetUserId543);
+        if (userRows.length > 0 && userRows[0].name) {
+          registrarName543 = userRows[0].name;
+        }
+      } catch (_) {}
+    }
+    registration.registeredBy = registrarName543 || 'Registrar';
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration by passport:', error);
@@ -573,11 +584,12 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     try {
       const rawRows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+        `SELECT registeredById, cocDocumentUrl, labourIdUrl, candidateIdImageUrl, relativeIdImageUrl, videoUrl, relativePhones, verificationStatus, promotedCandidateId, agency, languages, allowVideo, laborID FROM \`QuickRegistration\` WHERE \`id\` = ?`,
         registration.id
       );
       if (rawRows.length > 0) {
         const raw = rawRows[0];
+        if (raw.registeredById) registration.registeredById = raw.registeredById;
         registration.cocDocumentUrl = raw.cocDocumentUrl;
         registration.labourIdUrl = raw.labourIdUrl;
         registration.laborID = raw.laborID;
@@ -593,7 +605,17 @@ router.get('/:id', async (req: Request, res: Response) => {
       }
     } catch (_) { /* ignore */ }
 
-    registration.registeredBy = registration.registeredBy?.name || 'Walk-in';
+    let registrarName = registration.registeredBy?.name;
+    const targetUserId = registration.registeredById;
+    if (targetUserId && (!registrarName || registrarName === 'Walk-in')) {
+      try {
+        const userRows = await prisma.$queryRawUnsafe<any[]>('SELECT `name` FROM `User` WHERE `id` = ?', targetUserId);
+        if (userRows.length > 0 && userRows[0].name) {
+          registrarName = userRows[0].name;
+        }
+      } catch (_) {}
+    }
+    registration.registeredBy = registrarName || 'Registrar';
     res.json(registration);
   } catch (error) {
     console.error('Failed to fetch quick registration:', error);

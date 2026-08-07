@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2, Download } from 'lucide-react';
+import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2, Download, FileDown } from 'lucide-react';
 import { getFileUrl } from '@/lib/utils';
 
 interface QuickRegistration {
@@ -84,6 +84,112 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   const [videoFile, setVideoFile] = useState<string | null>(null);
   const [isSavingDocs, setIsSavingDocs] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const [isDownloadingPdfs, setIsDownloadingPdfs] = useState(false);
+
+  const downloadImageAsPdf = async (imageUrl: string, docTitle: string) => {
+    if (!imageUrl) return;
+    try {
+      let b64 = '';
+      if (imageUrl.startsWith('data:image')) {
+        b64 = imageUrl;
+      } else {
+        const fullUrl = getFileUrl(imageUrl);
+        const res = await fetch(fullUrl);
+        const blob = await res.blob();
+        b64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      if (!b64 || !b64.startsWith('data:image')) {
+        const a = document.createElement('a');
+        a.href = getFileUrl(imageUrl);
+        a.download = `${docTitle}.pdf`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => document.body.removeChild(a), 200);
+        return;
+      }
+
+      const img = new Image();
+      img.src = b64;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+
+      const { jsPDF } = await import('jspdf');
+      const isLandscape = (img.width || 1) > (img.height || 1);
+      const pdf = new jsPDF({
+        orientation: isLandscape ? 'l' : 'p',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const maxWidth = pageWidth - margin * 2;
+      const maxHeight = pageHeight - margin * 2;
+
+      let imgWidth = maxWidth;
+      let imgHeight = ((img.height || 1) * maxWidth) / (img.width || 1);
+
+      if (imgHeight > maxHeight) {
+        imgHeight = maxHeight;
+        imgWidth = ((img.width || 1) * maxHeight) / (img.height || 1);
+      }
+
+      const x = (pageWidth - imgWidth) / 2;
+      const y = (pageHeight - imgHeight) / 2;
+
+      const format = b64.includes('png') ? 'PNG' : 'JPEG';
+      pdf.addImage(b64, format, x, y, imgWidth, imgHeight);
+
+      const safeTitle = docTitle.replace(/[^a-zA-Z0-9_-]/g, '_');
+      pdf.save(`${safeTitle}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      const a = document.createElement('a');
+      a.href = getFileUrl(imageUrl);
+      a.download = `${docTitle}.pdf`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 200);
+    }
+  };
+
+  const handleDownloadAllImagesAsPdf = async () => {
+    setIsDownloadingPdfs(true);
+    try {
+      const docs: { url: string | null; title: string }[] = [
+        { url: data?.passportImageUrl || null, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Passport_Document` },
+        { url: cocDoc, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_COC_Document` },
+        { url: candidateIdImg, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Candidate_ID` },
+        { url: relativeIdImg, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Relative_ID` },
+        { url: labourId, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Labour_ID` },
+      ].filter(d => Boolean(d.url));
+
+      if (docs.length === 0) {
+        alert('No inserted document images available for download.');
+        return;
+      }
+
+      for (let i = 0; i < docs.length; i++) {
+        await downloadImageAsPdf(docs[i].url!, docs[i].title);
+        if (i < docs.length - 1) {
+          await new Promise(r => setTimeout(r, 600));
+        }
+      }
+    } finally {
+      setIsDownloadingPdfs(false);
+    }
+  };
 
   const handleDownloadVideo = async (url: string, filename: string) => {
     if (!url) return;
@@ -529,13 +635,31 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       </div>
       {/* Uploaded Documents */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mt-6">
-        <div className="bg-gradient-to-r from-violet-500/5 to-transparent border-b border-border px-5 py-3 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-violet-500/5 to-transparent border-b border-border px-5 py-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Uploaded Documents</h2>
-          {hasUnsavedChanges && (
-            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full animate-pulse">
-              Unsaved changes
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {hasUnsavedChanges && (
+              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full animate-pulse">
+                Unsaved changes
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleDownloadAllImagesAsPdf}
+              disabled={isDownloadingPdfs}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              {isDownloadingPdfs ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" /> Downloading PDFs...
+                </>
+              ) : (
+                <>
+                  <FileDown size={14} /> Download All Images as PDFs
+                </>
+              )}
+            </button>
+          </div>
         </div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* COC Document */}
@@ -567,8 +691,8 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 )}
               </div>
             </div>
-            <div className="mt-3">
-              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+            <div className="mt-3 flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
                 <Upload size={14} />
                 {cocDoc ? 'Change File' : 'Upload Document'}
                 <input
@@ -581,6 +705,16 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   }}
                 />
               </label>
+              {cocDoc && (
+                <button
+                  type="button"
+                  onClick={() => downloadImageAsPdf(cocDoc, `${data?.passportNumber || data?.givenNames || 'Candidate'}_COC_Document`)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-sm shrink-0"
+                  title="Download inserted image as PDF"
+                >
+                  <FileDown size={14} /> PDF
+                </button>
+              )}
             </div>
           </div>
 
@@ -605,6 +739,18 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 )}
               </div>
             </div>
+            {labourId && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => downloadImageAsPdf(labourId, `${data?.passportNumber || data?.givenNames || 'Candidate'}_Labour_ID`)}
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-sm"
+                  title="Download Labour ID image as PDF"
+                >
+                  <FileDown size={14} /> Download Labour ID PDF
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Candidate ID Image */}
@@ -636,8 +782,8 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 )}
               </div>
             </div>
-            <div className="mt-3">
-              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+            <div className="mt-3 flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
                 <Upload size={14} />
                 {candidateIdImg ? 'Change File' : 'Upload Document'}
                 <input
@@ -650,6 +796,16 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   }}
                 />
               </label>
+              {candidateIdImg && (
+                <button
+                  type="button"
+                  onClick={() => downloadImageAsPdf(candidateIdImg, `${data?.passportNumber || data?.givenNames || 'Candidate'}_Candidate_ID`)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-sm shrink-0"
+                  title="Download inserted image as PDF"
+                >
+                  <FileDown size={14} /> PDF
+                </button>
+              )}
             </div>
           </div>
 
@@ -682,8 +838,8 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 )}
               </div>
             </div>
-            <div className="mt-3">
-              <label className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+            <div className="mt-3 flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
                 <Upload size={14} />
                 {relativeIdImg ? 'Change File' : 'Upload Document'}
                 <input
@@ -696,6 +852,16 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   }}
                 />
               </label>
+              {relativeIdImg && (
+                <button
+                  type="button"
+                  onClick={() => downloadImageAsPdf(relativeIdImg, `${data?.passportNumber || data?.givenNames || 'Candidate'}_Relative_ID`)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-sm shrink-0"
+                  title="Download inserted image as PDF"
+                >
+                  <FileDown size={14} /> PDF
+                </button>
+              )}
             </div>
           </div>
 

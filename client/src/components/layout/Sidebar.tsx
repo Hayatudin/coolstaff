@@ -171,7 +171,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
           <div className="px-4 py-3 mb-2 bg-white/5 rounded-xl border border-white/5 mx-1">
             <div className="flex items-center gap-2 mb-1">
               <p className="text-white/90 text-sm font-bold truncate leading-none">
-                {session?.user?.name || "CoolStaff User"}
+                {session?.user?.name || "User"}
               </p>
               <span className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter",
