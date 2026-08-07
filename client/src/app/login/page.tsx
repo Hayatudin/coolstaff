@@ -122,7 +122,7 @@ function LoginForm() {
           {/* Title & Subtitle */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in with email</h1>
-            <p className="text-slate-400 text-xs font-medium mt-1.5">Welcome back to the SKY agency portal.</p>
+            <p className="text-slate-400 text-xs font-medium mt-1.5">Welcome back to the Coolstaff agency portal.</p>
           </div>
 
           {/* Error Banner */}
