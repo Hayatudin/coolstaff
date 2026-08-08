@@ -77,6 +77,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
   const [error, setError] = useState<string | null>(null);
 
   // Document states
+  const [passportDoc, setPassportDoc] = useState<string | null>(null);
   const [cocDoc, setCocDoc] = useState<string | null>(null);
   const [labourId, setLabourId] = useState<string | null>(null);
   const [candidateIdImg, setCandidateIdImg] = useState<string | null>(null);
@@ -168,7 +169,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     setIsDownloadingPdfs(true);
     try {
       const docs: { url: string | null; title: string }[] = [
-        { url: data?.passportImageUrl || null, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Passport_Document` },
+        { url: passportDoc || data?.passportImageUrl || null, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Passport_Document` },
         { url: cocDoc, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_COC_Document` },
         { url: candidateIdImg, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Candidate_ID` },
         { url: relativeIdImg, title: `${data?.passportNumber || data?.givenNames || 'Candidate'}_Relative_ID` },
@@ -286,6 +287,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         if (!res.ok) throw new Error('Failed to load data');
         const json = await res.json();
         setData(json);
+        setPassportDoc(json.passportImageUrl || null);
         setCocDoc(json.cocDocumentUrl);
         setLabourId(json.labourIdUrl);
         setCandidateIdImg(json.candidateIdImageUrl);
@@ -470,7 +472,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     }
   };
 
-  const handleFileChange = (field: 'coc' | 'labour' | 'candidateId' | 'relativeId' | 'video', file: File) => {
+  const handleFileChange = (field: 'passport' | 'coc' | 'labour' | 'candidateId' | 'relativeId' | 'video', file: File) => {
     const limit = 50 * 1024 * 1024;
     if (file.size > limit) {
       alert(`Max file size is ${limit / (1024 * 1024)}MB`);
@@ -480,6 +482,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
     reader.onload = (ev) => {
       if (ev.target?.result) {
         const base64 = ev.target.result as string;
+        if (field === 'passport') setPassportDoc(base64);
         if (field === 'coc') setCocDoc(base64);
         if (field === 'labour') setLabourId(base64);
         if (field === 'candidateId') setCandidateIdImg(base64);
@@ -498,6 +501,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          passportImageUrl: passportDoc,
           cocDocumentUrl: cocDoc,
           labourIdUrl: labourId,
           candidateIdImageUrl: candidateIdImg,
@@ -511,6 +515,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       }
       const updated = await res.json();
       setData(updated);
+      setPassportDoc(updated.passportImageUrl || null);
       setCocDoc(updated.cocDocumentUrl);
       setLabourId(updated.labourIdUrl);
       setCandidateIdImg(updated.candidateIdImageUrl);
@@ -527,6 +532,7 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
 
   const hasUnsavedChanges =
     data && (
+      passportDoc !== (data.passportImageUrl || null) ||
       cocDoc !== data.cocDocumentUrl ||
       labourId !== data.labourIdUrl ||
       candidateIdImg !== data.candidateIdImageUrl ||
@@ -662,6 +668,62 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
           </div>
         </div>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Passport Document */}
+          <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">Passport Document</p>
+                {passportDoc && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Check size={10} /> Uploaded
+                  </span>
+                )}
+              </div>
+              <div className="h-32 bg-slate-100/80 rounded-xl overflow-hidden relative border border-dashed border-border/80 flex items-center justify-center">
+                {passportDoc ? (
+                  passportDoc.startsWith('data:image') || passportDoc.startsWith('http') || passportDoc.startsWith('/uploads') ? (
+                    <img src={getFileUrl(passportDoc)} alt="Passport Document" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
+                      <FileText className="text-primary/40" size={24} />
+                      <span>Document (PDF/Binary)</span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-center p-4">
+                    <AlertCircle className="text-amber-500/80" size={20} />
+                    <span className="text-xs font-semibold text-text-tertiary">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-white border border-border text-text-secondary hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer shadow-sm">
+                <Upload size={14} />
+                {passportDoc ? 'Replace' : 'Upload Passport'}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileChange('passport', file);
+                  }}
+                />
+              </label>
+              {passportDoc && (
+                <button
+                  type="button"
+                  onClick={() => downloadImageAsPdf(passportDoc, `${data?.passportNumber || data?.givenNames || 'Candidate'}_Passport_Document`)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-sm shrink-0"
+                  title="Download Passport document as PDF"
+                >
+                  <FileDown size={14} /> PDF
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* COC Document */}
           <div className="border border-border rounded-xl p-4 bg-gray-50/50 flex flex-col justify-between group transition-all hover:border-primary/20 hover:bg-gray-100/50">
             <div>
