@@ -13,6 +13,7 @@ import Input from '@/components/ui/Input';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { resolveCandidateNationality } from '@/lib/cvHelpers';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
   <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10 min-w-0">
@@ -302,7 +303,7 @@ export default function CandidateDetailPage() {
                 <div className="mt-5">
                   <p className="text-gray-800 text-[15px] font-medium">{pi.job || 'Unassigned'}</p>
                   <p className="text-gray-500 text-[13px] font-medium mt-1 flex items-center justify-center sm:justify-start gap-1.5">
-                    <MapPin size={14} className="text-gray-400" /> {pd.placeOfBirth ? `${pd.placeOfBirth}, ` : ''}{pd.nationality}
+                    <MapPin size={14} className="text-gray-400" /> {pd.placeOfBirth ? `${pd.placeOfBirth}, ` : ''}{resolveCandidateNationality(c)}
                   </p>
                 </div>
               </div>
@@ -462,7 +463,7 @@ export default function CandidateDetailPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <InfoItem icon={FileText} label="Passport Number" value={pd.passportNumber} />
-              <InfoItem icon={Globe} label="Nationality" value={pd.nationality} />
+              <InfoItem icon={Globe} label="Nationality" value={resolveCandidateNationality(c)} />
               <InfoItem icon={MapPin} label="Issuing Country" value={pd.issuingCountry} />
               <InfoItem icon={MapPin} label="Place of Birth" value={pd.placeOfBirth} />
               <InfoItem icon={Calendar} label="Date of Birth" value={pd.dateOfBirth ? new Date(pd.dateOfBirth).toLocaleDateString() : ''} />

@@ -25,6 +25,7 @@ import UssusTemplate from '@/components/cv/templates/UssusTemplate';
 import VisionTemplate from '@/components/cv/templates/VisionTemplate';
 import { clearCandidatesCache } from '@/hooks/useCandidates';
 import { authClient } from '@/lib/auth-client';
+import { resolveCandidateNationality } from '@/lib/cvHelpers';
 
 const TEMPLATES = [
   { id: 'ussus', name: 'USSUS', category: 'Minimal', color: 'bg-cyan-500', textColor: 'text-cyan-600', bgLight: 'bg-cyan-50', component: UssusTemplate },
@@ -1800,7 +1801,7 @@ const normalizeLanguageName = (lang: string): string => {
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex-1 truncate">
                       <span className="text-slate-400 font-medium">Nationality : </span>
-                      <span className="font-extrabold text-slate-800">{cv.candidate.passportData?.nationality || '—'}</span>
+                      <span className="font-extrabold text-slate-800">{resolveCandidateNationality(cv.candidate)}</span>
                     </div>
                     <div className="flex-1 truncate">
                       <span className="text-slate-400 font-medium">Experience : </span>

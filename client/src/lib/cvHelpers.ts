@@ -75,6 +75,17 @@ export const COUNTRY_TO_DEMONYM_MAP: Record<string, string> = {
   'BURMESE': 'BURMESE',
 };
 
+export const DESTINATION_WORK_COUNTRIES = new Set([
+  'SAUDI ARABIA', 'SAUDI', 'KSA',
+  'UAE', 'UNITED ARAB EMIRATES', 'EMIRATI', 'DUBAI', 'ABU DHABI',
+  'KUWAIT', 'KUWAITI',
+  'QATAR', 'QATARI',
+  'BAHRAIN', 'BAHRAINI',
+  'OMAN', 'OMANI',
+  'LEBANON', 'LEBANESE',
+  'JORDAN', 'JORDANIAN',
+]);
+
 export interface NormalizedWorkExperience {
   experienceStatus: string;
   country: string;
@@ -85,52 +96,48 @@ export interface NormalizedWorkExperience {
 export function resolveCandidateNationality(candidate: any): string {
   if (!candidate) return 'ETHIOPIAN';
 
-  // 1. Check candidate address country first (e.g. Ethiopia -> Ethiopian)
-  const addressCountry = (
-    candidate.personalInfo?.country ||
-    candidate.country ||
-    candidate.personalInfo?.address ||
-    candidate.address ||
-    ''
-  ).toString().trim();
+  const findHomeDemonym = (val: any): string | null => {
+    if (!val) return null;
+    const str = String(val).toUpperCase().replace(/YEARS OF EXPERIENCE.*/i, '').replace(/EXPERIENCE.*/i, '').trim();
+    if (!str) return null;
 
-  if (addressCountry) {
-    const cleanCountry = addressCountry.toUpperCase().replace(/YEARS OF EXPERIENCE.*/i, '').replace(/EXPERIENCE.*/i, '').trim();
-    if (COUNTRY_TO_DEMONYM_MAP[cleanCountry]) {
-      return COUNTRY_TO_DEMONYM_MAP[cleanCountry];
+    if (DESTINATION_WORK_COUNTRIES.has(str)) return null;
+
+    if (COUNTRY_TO_DEMONYM_MAP[str] && !DESTINATION_WORK_COUNTRIES.has(COUNTRY_TO_DEMONYM_MAP[str])) {
+      return COUNTRY_TO_DEMONYM_MAP[str];
     }
-  }
+
+    for (const [countryKey, demonym] of Object.entries(COUNTRY_TO_DEMONYM_MAP)) {
+      if (DESTINATION_WORK_COUNTRIES.has(countryKey) || DESTINATION_WORK_COUNTRIES.has(demonym)) continue;
+      if (str.includes(countryKey)) {
+        return demonym;
+      }
+    }
+
+    return null;
+  };
+
+  // 1. Check candidate address country or address text first
+  const addressVal = candidate.personalInfo?.country || candidate.country || candidate.personalInfo?.address || candidate.address;
+  const fromAddress = findHomeDemonym(addressVal);
+  if (fromAddress) return fromAddress;
 
   // 2. Check passport issuing country
-  const issuingCountry = (
-    candidate.passportData?.issuingCountry ||
-    candidate.issuingCountry ||
-    candidate.passportData?.placeOfBirth ||
-    candidate.placeOfBirth ||
-    ''
-  ).toString().trim();
+  const issuingVal = candidate.passportData?.issuingCountry || candidate.issuingCountry;
+  const fromIssuing = findHomeDemonym(issuingVal);
+  if (fromIssuing) return fromIssuing;
 
-  if (issuingCountry) {
-    const cleanIssuing = issuingCountry.toUpperCase().replace(/YEARS OF EXPERIENCE.*/i, '').replace(/EXPERIENCE.*/i, '').trim();
-    if (COUNTRY_TO_DEMONYM_MAP[cleanIssuing]) {
-      return COUNTRY_TO_DEMONYM_MAP[cleanIssuing];
-    }
-  }
+  // 3. Check place of birth
+  const birthVal = candidate.passportData?.placeOfBirth || candidate.placeOfBirth;
+  const fromBirth = findHomeDemonym(birthVal);
+  if (fromBirth) return fromBirth;
 
-  // 3. Check existing nationality value, cleaning out any experience noise
-  let rawNat = (
-    candidate.passportData?.nationality ||
-    candidate.nationality ||
-    ''
-  ).toString().trim();
+  // 4. Check nationality field in DB if it's a valid home country (not a work experience destination)
+  const natVal = candidate.passportData?.nationality || candidate.nationality;
+  const fromNat = findHomeDemonym(natVal);
+  if (fromNat) return fromNat;
 
-  if (rawNat) {
-    const cleanNat = rawNat.replace(/Years of Experience.*/i, '').replace(/Experience.*/i, '').trim().toUpperCase();
-    if (cleanNat && COUNTRY_TO_DEMONYM_MAP[cleanNat]) {
-      return COUNTRY_TO_DEMONYM_MAP[cleanNat];
-    }
-  }
-
+  // Default fallback
   return 'ETHIOPIAN';
 }
 
