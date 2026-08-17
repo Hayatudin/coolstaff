@@ -3,11 +3,16 @@
 import React from 'react';
 import { Candidate } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface TemplateProps { candidate: Candidate; facePhoto: string | null; fullBodyPhoto: string | null; }
 
 export function TemplateClassic({ candidate, facePhoto }: TemplateProps) {
   const { passportData: p, personalInfo: pi } = candidate;
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+  const expStr = resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') || 'N/A';
+
   return (
     <div className="bg-white w-full aspect-[210/297] p-8 text-[10px] leading-relaxed" style={{fontFamily:'Georgia, serif'}}>
       <div className="border-b-2 border-gray-800 pb-4 mb-4 flex items-start gap-4">
@@ -21,7 +26,7 @@ export function TemplateClassic({ candidate, facePhoto }: TemplateProps) {
       <div className="grid grid-cols-2 gap-4">
         <div><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">PERSONAL INFORMATION</h3>
           <p><strong>Date of Birth:</strong> {formatDate(p.dateOfBirth)}</p><p><strong>Gender:</strong> {p.gender}</p>
-          <p><strong>Nationality:</strong> {p.nationality}</p><p><strong>Marital Status:</strong> {pi.maritalStatus}</p>
+          <p><strong>Nationality:</strong> {resolvedNationality}</p><p><strong>Marital Status:</strong> {pi.maritalStatus}</p>
           <p><strong>Religion:</strong> {pi.religion}</p><p><strong>Passport No:</strong> {p.passportNumber}</p>
         </div>
         <div><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">PHYSICAL DETAILS</h3>
@@ -32,7 +37,7 @@ export function TemplateClassic({ candidate, facePhoto }: TemplateProps) {
       <div className="mt-4"><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">EDUCATION & LANGUAGES</h3>
         <p><strong>Education:</strong> {pi.educationLevel}</p><p><strong>Languages:</strong> {pi.languages.join(', ')}</p>
       </div>
-      <div className="mt-4"><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">WORK EXPERIENCE</h3><p>{pi.workExperience.map(e => `${e.experienceStatus} - ${e.country} (${e.yearsOfExperience})`).join(', ') || 'N/A'}</p></div>
+      <div className="mt-4"><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">WORK EXPERIENCE</h3><p>{expStr}</p></div>
       <div className="mt-4"><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">SKILLS</h3><p>{pi.skills.join(' • ')}</p></div>
     </div>
   );
@@ -40,11 +45,15 @@ export function TemplateClassic({ candidate, facePhoto }: TemplateProps) {
 
 export function TemplateModern({ candidate, facePhoto }: TemplateProps) {
   const { passportData: p, personalInfo: pi } = candidate;
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+  const expStr = resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') || 'N/A';
+
   return (
     <div className="bg-white w-full aspect-[210/297] text-[10px] leading-relaxed overflow-hidden" style={{fontFamily:'Inter, sans-serif'}}>
       <div className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-6 flex items-center gap-4">
         {facePhoto && <img src={facePhoto} alt="Photo" className="w-20 h-24 object-cover rounded-lg border-2 border-white/30" crossOrigin="anonymous" />}
-        <div><h1 className="text-xl font-bold">{p.givenNames} {p.surname}</h1><p className="text-indigo-100 mt-1">{p.nationality} • {p.gender}</p><p className="text-indigo-200 text-[9px]">{pi.phone} | {pi.email}</p></div>
+        <div><h1 className="text-xl font-bold">{p.givenNames} {p.surname}</h1><p className="text-indigo-100 mt-1">{resolvedNationality} • {p.gender}</p><p className="text-indigo-200 text-[9px]">{pi.phone} | {pi.email}</p></div>
       </div>
       <div className="p-6 space-y-4">
         <div className="grid grid-cols-3 gap-3">
@@ -54,7 +63,7 @@ export function TemplateModern({ candidate, facePhoto }: TemplateProps) {
         </div>
         <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Languages</h3><div className="flex flex-wrap gap-1">{pi.languages.map(l=><span key={l} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px]">{l}</span>)}</div></div>
         <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Skills</h3><div className="flex flex-wrap gap-1">{pi.skills.map(s=><span key={s} className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-[9px]">{s}</span>)}</div></div>
-        <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Experience</h3><p className="text-gray-700">{pi.workExperience.map(e => `${e.experienceStatus} - ${e.country} (${e.yearsOfExperience})`).join(', ') || 'N/A'}</p></div>
+        <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Experience</h3><p className="text-gray-700">{expStr}</p></div>
         <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Passport</h3><p className="text-gray-700">No: {p.passportNumber} | Issued: {formatDate(p.dateOfIssue)} | Expires: {formatDate(p.dateOfExpiry)}</p></div>
       </div>
     </div>
@@ -63,6 +72,10 @@ export function TemplateModern({ candidate, facePhoto }: TemplateProps) {
 
 export function TemplateProfessional({ candidate, facePhoto, fullBodyPhoto }: TemplateProps) {
   const { passportData: p, personalInfo: pi } = candidate;
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+  const expStr = resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') || 'N/A';
+
   return (
     <div className="bg-white w-full aspect-[210/297] flex text-[10px] leading-relaxed overflow-hidden" style={{fontFamily:'Inter, sans-serif'}}>
       <div className="w-1/3 bg-gray-900 text-white p-5 flex flex-col items-center">
@@ -79,10 +92,10 @@ export function TemplateProfessional({ candidate, facePhoto, fullBodyPhoto }: Te
       <div className="flex-1 p-6 space-y-4">
         <h1 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2">CURRICULUM VITAE</h1>
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">PERSONAL DETAILS</h3>
-          <div className="grid grid-cols-2 gap-2"><p><strong>DOB:</strong> {formatDate(p.dateOfBirth)}</p><p><strong>Gender:</strong> {p.gender}</p><p><strong>Nationality:</strong> {p.nationality}</p><p><strong>Marital:</strong> {pi.maritalStatus}</p><p><strong>Religion:</strong> {pi.religion}</p><p><strong>Blood Type:</strong> {pi.bloodType}</p></div>
+          <div className="grid grid-cols-2 gap-2"><p><strong>DOB:</strong> {formatDate(p.dateOfBirth)}</p><p><strong>Gender:</strong> {p.gender}</p><p><strong>Nationality:</strong> {resolvedNationality}</p><p><strong>Marital:</strong> {pi.maritalStatus}</p><p><strong>Religion:</strong> {pi.religion}</p><p><strong>Blood Type:</strong> {pi.bloodType}</p></div>
         </div>
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">EDUCATION</h3><p>{pi.educationLevel}</p></div>
-        <div><h3 className="text-xs font-bold text-gray-800 mb-2">EXPERIENCE</h3><p>{pi.workExperience.map(e => `${e.experienceStatus} - ${e.country} (${e.yearsOfExperience})`).join(', ') || 'N/A'}</p></div>
+        <div><h3 className="text-xs font-bold text-gray-800 mb-2">EXPERIENCE</h3><p>{expStr}</p></div>
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">SKILLS</h3><div className="flex flex-wrap gap-1">{pi.skills.map(s=><span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-[9px]">{s}</span>)}</div></div>
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">PASSPORT</h3><p>No: {p.passportNumber} | Valid: {formatDate(p.dateOfIssue)} - {formatDate(p.dateOfExpiry)}</p></div>
       </div>
@@ -92,6 +105,10 @@ export function TemplateProfessional({ candidate, facePhoto, fullBodyPhoto }: Te
 
 export function TemplateMinimal({ candidate, facePhoto }: TemplateProps) {
   const { passportData: p, personalInfo: pi } = candidate;
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+  const expStr = resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') || 'N/A';
+
   return (
     <div className="bg-white w-full aspect-[210/297] p-10 text-[10px] leading-loose" style={{fontFamily:'Inter, sans-serif'}}>
       <div className="flex items-center gap-5 mb-6">
@@ -100,7 +117,7 @@ export function TemplateMinimal({ candidate, facePhoto }: TemplateProps) {
       </div>
       <div className="h-px bg-gray-200 mb-6" />
       <div className="space-y-5">
-        {[{t:'Personal',c:`${formatDate(p.dateOfBirth)} • ${p.gender} • ${p.nationality} • ${pi.maritalStatus} • ${pi.religion}`},{t:'Education',c:pi.educationLevel},{t:'Languages',c:pi.languages.join(', ')},{t:'Experience',c:pi.workExperience.map(e => `${e.experienceStatus} - ${e.country} (${e.yearsOfExperience})`).join(', ') || 'N/A'},{t:'Skills',c:pi.skills.join(', ')},{t:'Passport',c:`${p.passportNumber} — Valid until ${formatDate(p.dateOfExpiry)}`}].map(s=>(
+        {[{t:'Personal',c:`${formatDate(p.dateOfBirth)} • ${p.gender} • ${resolvedNationality} • ${pi.maritalStatus} • ${pi.religion}`},{t:'Education',c:pi.educationLevel},{t:'Languages',c:pi.languages.join(', ')},{t:'Experience',c:expStr},{t:'Skills',c:pi.skills.join(', ')},{t:'Passport',c:`${p.passportNumber} — Valid until ${formatDate(p.dateOfExpiry)}`}].map(s=>(
           <div key={s.t}><h3 className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-1">{s.t}</h3><p className="text-gray-700">{s.c}</p></div>
         ))}
       </div>
@@ -110,6 +127,10 @@ export function TemplateMinimal({ candidate, facePhoto }: TemplateProps) {
 
 export function TemplateElegant({ candidate, facePhoto, fullBodyPhoto }: TemplateProps) {
   const { passportData: p, personalInfo: pi } = candidate;
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+  const expStr = resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') || 'N/A';
+
   return (
     <div className="bg-white w-full aspect-[210/297] text-[10px] leading-relaxed overflow-hidden" style={{fontFamily:'Georgia, serif'}}>
       <div className="h-3 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500" />
@@ -120,7 +141,7 @@ export function TemplateElegant({ candidate, facePhoto, fullBodyPhoto }: Templat
             {fullBodyPhoto && <img src={fullBodyPhoto} alt="Full body" className="w-20 h-24 object-cover rounded-lg border-2 border-amber-200" crossOrigin="anonymous" />}
           </div>
           <h1 className="text-xl font-bold text-gray-900">{p.givenNames} {p.surname}</h1>
-          <p className="text-amber-600 mt-1">{p.nationality} • {pi.educationLevel}</p>
+          <p className="text-amber-600 mt-1">{resolvedNationality} • {pi.educationLevel}</p>
         </div>
         <div className="grid grid-cols-2 gap-5">
           <div className="space-y-3">
@@ -131,7 +152,7 @@ export function TemplateElegant({ candidate, facePhoto, fullBodyPhoto }: Templat
           </div>
           <div className="space-y-3">
             <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Languages & Skills</h3><p><em>Languages:</em> {pi.languages.join(', ')}</p><p><em>Skills:</em> {pi.skills.join(', ')}</p></div>
-            <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Experience</h3><p>{pi.workExperience.map(e => `${e.experienceStatus} - ${e.country} (${e.yearsOfExperience})`).join(', ') || 'N/A'}</p></div>
+            <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Experience</h3><p>{expStr}</p></div>
             <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Passport Details</h3><p>No: {p.passportNumber}</p><p>Issued: {formatDate(p.dateOfIssue)}</p><p>Expires: {formatDate(p.dateOfExpiry)}</p></div>
           </div>
         </div>

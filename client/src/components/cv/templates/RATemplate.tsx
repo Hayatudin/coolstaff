@@ -2,6 +2,7 @@ import React from 'react';
 import { getFileUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -14,6 +15,9 @@ export default function RATemplate({ candidate, facePhoto, fullBodyPhoto }: CVTe
 }
 
 export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: CVTemplateProps & { headerImage: string }) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -24,20 +28,19 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
     return age;
   };
 
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+  const isExperienced = resolvedExps.length > 0;
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
     if (s === 'COOKING' || s === 'ARABIC COOKING') {
-      return isExperienced;
+      return isExperienced ? 'YES' : 'NO';
     }
     if (s === 'IRONING') {
-      return isExperienced ? (candidate.personalInfo?.skills || []).some(sk => sk.toUpperCase().includes(s)) : false;
+      return isExperienced ? (candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO') : 'NO';
     }
-    if (s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE') {
-      return true;
+    if (s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE' || s === 'DISABLED CARING') {
+      return 'YES';
     }
-    const skills = candidate.personalInfo?.skills || [];
-    return skills.some(sk => sk.toUpperCase().includes(s));
+    return candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO';
   };
 
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang);
@@ -58,13 +61,10 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
   let expCountry = '-';
   let expPeriod = '-';
   let expPosition = '-';
-  if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
-    const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
-    if (exps.length > 0) {
-      expCountry = exps.map(e => e.country).join(', ');
-      expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(', ');
-      expPosition = exps.map(e => (e as any).position || candidate.personalInfo?.job || '').join(', ');
-    }
+  if (resolvedExps.length > 0) {
+    expCountry = resolvedExps.map(e => e.country).join(', ');
+    expPeriod = resolvedExps.map(e => e.yearsOfExperience + ' YRS').join(', ');
+    expPosition = resolvedExps.map(e => e.position || candidate.personalInfo?.job || 'HOUSE MAID').join(', ');
   }
 
   const bgLightBlue = 'bg-[#a3c2e6]'; // Slightly richer blue based on the image
@@ -154,7 +154,7 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className={`border border-black px-2 py-1 font-bold w-[38%] ${bgLightBlue}`}>Nationality</td><td className="border border-black px-2 py-1 uppercase font-bold w-[42%]">{candidate.passportData?.nationality}</td><td className={`border border-black px-2 py-1 text-right font-bold w-[20%] ${bgLightBlue}`} dir="rtl">الجنسية</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-bold w-[38%] ${bgLightBlue}`}>Nationality</td><td className="border border-black px-2 py-1 uppercase font-bold w-[42%]">{resolvedNationality}</td><td className={`border border-black px-2 py-1 text-right font-bold w-[20%] ${bgLightBlue}`} dir="rtl">الجنسية</td></tr>
                   <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Date of Birth</td><td className="border border-black px-2 py-1 font-bold">{formatDateFull(candidate.passportData?.dateOfBirth)}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">تاريخ الميلاد</td></tr>
                   <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Address</td><td className="border border-black px-2 py-1 uppercase font-bold text-[11px] leading-tight">{candidate.personalInfo?.city || candidate.passportData?.placeOfBirth}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">العنوان</td></tr>
                   <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Marital Status</td><td className="border border-black px-2 py-1 uppercase font-bold">{candidate.personalInfo?.maritalStatus}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الحالة الاجتماعية</td></tr>

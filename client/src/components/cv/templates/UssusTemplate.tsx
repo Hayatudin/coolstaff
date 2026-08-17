@@ -2,6 +2,7 @@ import React from 'react';
 import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
 import { getFileUrl } from '@/lib/utils';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -10,6 +11,9 @@ interface CVTemplateProps {
 }
 
 export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   // Helper functions for data mapping
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -27,12 +31,11 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
   const age = calculateAge(candidate.passportData?.dateOfBirth);
 
   const hasExperience = () => {
-    const exps = candidate.personalInfo?.workExperience?.filter(e => e.experienceStatus === 'Have experience') || [];
-    return exps.length > 0 ? 'YES' : 'NO';
+    return resolvedExps.length > 0 ? `YES (${resolvedExps.map(e => `${e.country} ${e.yearsOfExperience} YRS`).join(', ')})` : 'NO';
   };
 
   const getSkillsText = () => {
-    const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+    const isExperienced = resolvedExps.length > 0;
     const dbSkills = candidate.personalInfo?.skills || [];
     const skillsSet = new Set<string>();
 
@@ -95,7 +98,7 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
             </div>
             <div>
               <span className="font-bold">NATIONALITY: </span>
-              {candidate.passportData?.nationality || 'ETHIOPIAN'}
+              {resolvedNationality}
             </div>
             <div>
               <span className="font-bold">RELIGION: </span>

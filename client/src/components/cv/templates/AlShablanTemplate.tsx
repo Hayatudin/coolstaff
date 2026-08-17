@@ -1,6 +1,7 @@
 import React from 'react';
 import { Candidate } from '@/types';
 import { getFileUrl } from '@/lib/utils';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -9,6 +10,9 @@ interface CVTemplateProps {
 }
 
 export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   // Helper functions for data mapping
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -152,12 +156,12 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                   </tr>
                 </thead>
                 <tbody>
-                  {candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience').length > 0 ? (
-                    candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience').map((exp, idx) => (
+                  {resolvedExps.length > 0 ? (
+                    resolvedExps.map((exp, idx) => (
                       <tr key={idx}>
-                        <td className="border border-black px-2 py-1 text-center capitalize">{exp.country}</td>
-                        <td className="border border-black px-2 py-1 text-center">{exp.yearsOfExperience}</td>
-                        <td className="border border-black px-2 py-1 text-center capitalize">{candidate.personalInfo?.job || 'House Maid'}</td>
+                        <td className="border border-black px-2 py-1 text-center uppercase">{exp.country}</td>
+                        <td className="border border-black px-2 py-1 text-center">{exp.yearsOfExperience} {exp.yearsOfExperience === '1' ? 'YEAR' : 'YEARS'}</td>
+                        <td className="border border-black px-2 py-1 text-center uppercase">{exp.position || candidate.personalInfo?.job || 'HOUSE MAID'}</td>
                       </tr>
                     ))
                   ) : (
@@ -187,7 +191,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                 <tbody>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold w-[45%] ${beigeBg}`}>Nationality</td>
-                    <td className="border border-black px-2 py-1 text-center uppercase">{candidate.passportData?.nationality}</td>
+                    <td className="border border-black px-2 py-1 text-center uppercase">{resolvedNationality}</td>
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Date of Birth</td>

@@ -1,8 +1,11 @@
+import { resolveCandidateNationality } from '../cvHelpers';
+
 export interface ExtractedMusanedData {
   passportNumber?: string;
   givenNames?: string;
   surname?: string;
   nationality?: string;
+  issuingCountry?: string;
   job?: string;
   dateOfBirth?: string;
   religion?: string;
@@ -12,6 +15,7 @@ export interface ExtractedMusanedData {
   dateOfExpiry?: string;
   dateOfIssue?: string;
   placeOfIssue?: string;
+  placeOfBirth?: string;
   email?: string;
   educationLevel?: string;
   skills?: string;
@@ -136,14 +140,23 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   // Expiration Date
   data.dateOfExpiry = extract(/Expiration date:\s*(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/i);
 
-  // Issue Date
-  data.dateOfIssue = extract(/Issue date:\s*(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2})/i);
+  // Issue Place / Issuing Country
+  data.placeOfIssue = extract(/(?:Issue place|Place of Issue|Issuing Country|Passport Issue Place)/i);
+  data.issuingCountry = data.placeOfIssue;
 
-  // Issue Place
-  data.placeOfIssue = extract(/Issue place:\s*([A-Za-z\s]+?)(?=\s+(?:Address|Country|City|$))/i);
+  // Place of Birth
+  data.placeOfBirth = extract(/(?:Place of birth|Birth place|Place of Birth|Birth Place)/i);
 
-  // Nationality (derived from Country)
-  data.nationality = extract(/Country:\s*([A-Za-z]+)/i);
+  // Address Country
+  const addressCountry = extract(/(?:Address Information\s+Country|Country(?=\s+City|\s+Address))/i) || extract(/Country/i);
+
+  // Nationality (derived from Country of address)
+  data.nationality = resolveCandidateNationality({
+    country: addressCountry,
+    issuingCountry: data.issuingCountry,
+    placeOfBirth: data.placeOfBirth,
+    nationality: extract(/Nationality/i),
+  });
 
   // Email
   data.email = extract(/E-Mail:\s*([^\s]+@[^\s]+)/i);

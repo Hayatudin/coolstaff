@@ -2,6 +2,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Image
 import { getFileUrl } from './utils';
 import { Candidate } from '../types';
 import QRCode from 'qrcode';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from './cvHelpers';
 
 // Helper to generate QR code as PNG ArrayBuffer
 async function generateQRBuffer(text: string): Promise<ArrayBuffer | null> {
@@ -166,9 +167,11 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
 
   const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim().toUpperCase();
   const age = calculateAge(candidate.passportData?.dateOfBirth);
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
 
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+  const isExperienced = resolvedExps.length > 0;
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
     if (s === 'COOKING' || s === 'ARABIC COOKING') {
@@ -182,6 +185,24 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
     }
     return candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO';
   };
+
+  const expRows = resolvedExps.length > 0
+    ? resolvedExps.map(e => new TableRow({
+        children: [
+          new TableCell({ borders: BORDER_SOLID, children: [createText(e.country, { size: 20 })] }),
+          new TableCell({ borders: BORDER_SOLID, children: [createText(`${e.yearsOfExperience} YRS`, { size: 20 })] }),
+          new TableCell({ borders: BORDER_SOLID, children: [createText((e.position || candidate.personalInfo?.job || 'HOUSE MAID').toUpperCase(), { size: 20 })] }),
+        ]
+      }))
+    : [
+        new TableRow({
+          children: [
+            new TableCell({ borders: BORDER_SOLID, children: [createText("-", { size: 20 })] }),
+            new TableCell({ borders: BORDER_SOLID, children: [createText("-", { size: 20 })] }),
+            new TableCell({ borders: BORDER_SOLID, children: [createText("-", { size: 20 })] }),
+          ]
+        })
+      ];
 
   const doc = new Document({
     sections: [
@@ -295,14 +316,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
                               new TableCell({ borders: BORDER_SOLID, children: [createText("Position", { bold: true, size: 20 })] }),
                             ]
                           }),
-                          // Dummy row for now
-                          new TableRow({
-                            children: [
-                              new TableCell({ borders: BORDER_SOLID, children: [createText("-", { size: 20 })] }),
-                              new TableCell({ borders: BORDER_SOLID, children: [createText("-", { size: 20 })] }),
-                              new TableCell({ borders: BORDER_SOLID, children: [createText("-", { size: 20 })] }),
-                            ]
-                          })
+                          ...expRows
                         ]
                       }),
                       new Paragraph({ text: "" }), // Spacer
@@ -319,7 +333,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
                               })
                             ]
                           }),
-                          createDataRow("Nationality", candidate.passportData?.nationality?.toUpperCase() || ""),
+                          createDataRow("Nationality", resolvedNationality),
                           createDataRow("Date of Birth", formatDate(candidate.passportData?.dateOfBirth)),
                           createDataRow("Address", (candidate.personalInfo?.address || candidate.personalInfo?.city || "").toUpperCase()),
                           createDataRow("Marital Status", candidate.personalInfo?.maritalStatus || ""),

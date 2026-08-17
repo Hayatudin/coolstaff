@@ -2,6 +2,7 @@ import React from 'react';
 import { getFileUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -18,6 +19,9 @@ export default function MATemplate({ candidate, facePhoto, fullBodyPhoto }: CVTe
 
 // Shared ALM-style layout with configurable header
 function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage }: CVTemplateProps & { headerImage: string }) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -28,7 +32,7 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
     return age;
   };
 
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+  const isExperienced = resolvedExps.length > 0;
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
@@ -58,13 +62,10 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
   let expPeriod = '-';
   let expCountry = '-';
   let expPosition = '-';
-  if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
-    const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
-    if (exps.length > 0) {
-      expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
-      expCountry = exps.map(e => e.country).join(', ');
-      expPosition = exps.map(e => (e as any).position || candidate.personalInfo?.job || '').join(', ');
-    }
+  if (resolvedExps.length > 0) {
+    expPeriod = resolvedExps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
+    expCountry = resolvedExps.map(e => e.country).join(', ');
+    expPosition = resolvedExps.map(e => e.position || candidate.personalInfo?.job || 'HOUSE MAID').join(', ');
   }
 
   return (
@@ -141,7 +142,7 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
             <table className="w-full border-collapse border-[1.5px] border-black text-[13px] leading-tight mb-[-1.5px]">
               <thead><tr className="bg-[#b0c4de]"><th colSpan={3} className="border-[1.5px] border-black text-center font-bold py-1.5">Details of Applicant <span dir="rtl" className="ml-2 font-bold">بيانات مقدم الطلب</span></th></tr></thead>
               <tbody>
-                <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold w-[30%]">Nationality</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center w-[45%] uppercase">{candidate.passportData?.nationality}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold w-[25%]" dir="rtl">الجنسيه</td></tr>
+                <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold w-[30%]">Nationality</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center w-[45%] uppercase">{resolvedNationality}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold w-[25%]" dir="rtl">الجنسيه</td></tr>
                 <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Passport No.</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center font-bold">{candidate.passportData?.passportNumber}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">رقم جواز السفر</td></tr>
                 <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Religion</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center uppercase">{candidate.personalInfo?.religion}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">الديانة</td></tr>
                 <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Date of Birth</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center font-medium">{formatDate(candidate.passportData?.dateOfBirth)}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">تاريخ الولادة</td></tr>

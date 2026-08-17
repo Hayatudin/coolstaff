@@ -3,6 +3,7 @@ import { getFileUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import MATemplate from './MATemplate';
 import CVVideoFooter from '../CVVideoFooter';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 // KU2 uses the exact same layout as ALM/MA, just with /KU2.png header
 // We import the shared ALMLayoutWithHeader from MATemplate pattern
@@ -19,6 +20,9 @@ export default function KU2Template({ candidate, facePhoto, fullBodyPhoto }: CVT
 }
 
 function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -28,7 +32,7 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
     return age;
   };
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+  const isExperienced = resolvedExps.length > 0;
   const hasLang = (lang: string) => candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
@@ -49,10 +53,10 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
     if (!dateString) return '';
     try { const d = new Date(dateString); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; } catch { return dateString; }
   };
-  let expPeriod = '0 YEAR'; let expCountry = '';
-  if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
-    const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
-    if (exps.length > 0) { expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + '); expCountry = exps.map(e => e.country).join(', '); }
+  let expPeriod = '0 YEAR'; let expCountry = '-';
+  if (resolvedExps.length > 0) {
+    expPeriod = resolvedExps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
+    expCountry = resolvedExps.map(e => e.country).join(', ');
   }
 
   return (
@@ -82,7 +86,7 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
             <table className="w-full border-collapse border-[1.5px] border-black text-[13px] leading-tight mb-[-1.5px]">
               <thead><tr className="bg-[#b0c4de]"><th colSpan={3} className="border-[1.5px] border-black text-center font-bold py-1.5">Details of Applicant <span dir="rtl" className="ml-2 font-bold">بيانات مقدم الطلب</span></th></tr></thead>
               <tbody>
-                <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold w-[30%]">Nationality</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center w-[45%] uppercase">{candidate.passportData?.nationality}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold w-[25%]" dir="rtl">الجنسيه</td></tr>
+                <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold w-[30%]">Nationality</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center w-[45%] uppercase">{resolvedNationality}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold w-[25%]" dir="rtl">الجنسيه</td></tr>
                 <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Passport No.</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center font-bold">{candidate.passportData?.passportNumber}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">رقم جواز السفر</td></tr>
                 <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Religion</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center uppercase">{candidate.personalInfo?.religion}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">الديانة</td></tr>
                 <tr><td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Date of Birth</td><td className="border-[1.5px] border-black px-2 py-1.5 text-center">{formatDate(candidate.passportData?.dateOfBirth)}</td><td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">تاريخ الولادة</td></tr>

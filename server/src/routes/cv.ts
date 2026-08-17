@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '../lib/cvHelpers';
 import fs from 'fs';
 import path from 'path';
 import PizZip from 'pizzip';
@@ -288,7 +289,10 @@ router.post('/generate', async (req: Request, res: Response) => {
 
       const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
       const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
-      const isExperienced = Array.isArray(candidate.workExperience) && (candidate.workExperience as any[]).some((e: any) => e.experienceStatus === 'Have experience');
+      const resolvedExps = resolveCandidateWorkExperience(candidate);
+      const resolvedNationality = resolveCandidateNationality(candidate);
+
+      const isExperienced = resolvedExps.length > 0;
       const hasSkill = (keyword: string) => {
         const kw = keyword.toLowerCase();
         if (kw.includes('cook') || kw.includes('arabic')) {
@@ -303,7 +307,6 @@ router.post('/generate', async (req: Request, res: Response) => {
         return skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';
       };
       const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
-
 
       const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
         fetchImageAsBase64(facePhoto || candidate.passportImageUrl || ''),
@@ -324,6 +327,11 @@ router.post('/generate', async (req: Request, res: Response) => {
 
       const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
 
+      const expCountryVal = resolvedExps.length > 0 ? resolvedExps.map(e => e.country).join(', ') : '-';
+      const expPeriodVal = resolvedExps.length > 0 ? resolvedExps.map(e => `${e.yearsOfExperience} YEARS`).join(', ') : '-';
+      const expPositionVal = resolvedExps.length > 0 ? resolvedExps.map(e => e.position || candidate.job || 'HOUSE MAID').join(', ') : '-';
+      const expSummaryVal = resolvedExps.length > 0 ? resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') : 'Fresher';
+
       const data = {
         refNumber: candidate.id.slice(-6).toUpperCase(),
         givenNames: formatValue(candidate.givenNames),
@@ -333,7 +341,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         dateOfBirth: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
         dob: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
         gender: formatValue(candidate.gender),
-        nationality: formatValue(candidate.nationality),
+        nationality: resolvedNationality,
         issuingCountry: formatValue(candidate.issuingCountry),
         dateOfIssue: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
         issueDate: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
@@ -354,7 +362,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         country: formatValue(candidate.country),
         educationLevel: formatValue(candidate.educationLevel),
         languages: langsArray.join(', ') || '-',
-        workExperience: formatValue(candidate.workExperience),
+        workExperience: expSummaryVal,
         skills: skillsArray.join(', ') || '-',
         medicalStatus: formatValue(candidate.medicalStatus),
         knownConditions: formatValue(candidate.knownConditions),
@@ -384,8 +392,9 @@ router.post('/generate', async (req: Request, res: Response) => {
         qrCode: qrCodeData,
 
         // Experience placeholders
-        expCountry: '-',
-        expPeriod: '-',
+        expCountry: expCountryVal,
+        expPeriod: expPeriodVal,
+        expPosition: expPositionVal,
 
         facePhoto: facePhotoData,
         photo: facePhotoData,
@@ -398,29 +407,20 @@ router.post('/generate', async (req: Request, res: Response) => {
         NAME_AR: 'الاسم الكامل',
         PASSPORT_NO: formatValue(candidate.passportNumber),
         DOB: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-        NATIONALITY: formatValue(candidate.nationality),
+        NATIONALITY: resolvedNationality,
         GENDER: formatValue(candidate.gender),
         PHONE: formatValue(candidate.phone),
         phoneNumber: formatValue(candidate.phone),
         HEIGHT: formatValue(candidate.height),
         WEIGHT: formatValue(candidate.weight),
-        EXPERIENCE: formatValue(candidate.workExperience),
-        workPeriod: formatValue(candidate.workExperience ? 'Experienced' : 'Fresher'),
+        EXPERIENCE: expSummaryVal,
+        workPeriod: isExperienced ? 'Experienced' : 'Fresher',
         position: formatValue(candidate.job),
         salary: '-',
         SKILLS: skillsArray.join(', ') || '-',
         PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
         AGE: calculateAge(candidate.dateOfBirth),
-        expPosition: '-',
       };
-
-      const exps = Array.isArray(candidate.workExperience) ? candidate.workExperience as any[] : [];
-      const validExp = exps.find(e => e.experienceStatus === 'Have experience');
-      if (validExp) {
-        data.expCountry = validExp.country || '-';
-        data.expPeriod = validExp.yearsOfExperience ? `${validExp.yearsOfExperience} YEARS` : '-';
-        data.expPosition = validExp.position || candidate.job || '-';
-      }
 
       doc.render(data);
 
@@ -555,7 +555,10 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
                 const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
                 const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
-                const isExperienced = Array.isArray(candidate.workExperience) && (candidate.workExperience as any[]).some((e: any) => e.experienceStatus === 'Have experience');
+                const resolvedExps = resolveCandidateWorkExperience(candidate);
+                const resolvedNationality = resolveCandidateNationality(candidate);
+
+                const isExperienced = resolvedExps.length > 0;
                 const hasSkill = (keyword: string) => {
                   const kw = keyword.toLowerCase();
                   if (kw.includes('cook') || kw.includes('arabic')) {
@@ -573,6 +576,11 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
                 const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
 
+                const expCountryVal = resolvedExps.length > 0 ? resolvedExps.map(e => e.country).join(', ') : '-';
+                const expPeriodVal = resolvedExps.length > 0 ? resolvedExps.map(e => `${e.yearsOfExperience} YEARS`).join(', ') : '-';
+                const expPositionVal = resolvedExps.length > 0 ? resolvedExps.map(e => e.position || candidate.job || 'HOUSE MAID').join(', ') : '-';
+                const expSummaryVal = resolvedExps.length > 0 ? resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') : 'Fresher';
+
                 const data = {
                   refNumber: candidate.id.slice(-6).toUpperCase(),
                   givenNames: formatValue(candidate.givenNames),
@@ -582,7 +590,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   dateOfBirth: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
                   dob: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
                   gender: formatValue(candidate.gender),
-                  nationality: formatValue(candidate.nationality),
+                  nationality: resolvedNationality,
                   issuingCountry: formatValue(candidate.issuingCountry),
                   dateOfIssue: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
                   issueDate: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
@@ -603,7 +611,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   country: formatValue(candidate.country),
                   educationLevel: formatValue(candidate.educationLevel),
                   languages: langsArray.join(', ') || '-',
-                  workExperience: formatValue(candidate.workExperience),
+                  workExperience: expSummaryVal,
                   skills: skillsArray.join(', ') || '-',
                   medicalStatus: formatValue(candidate.medicalStatus),
                   knownConditions: formatValue(candidate.knownConditions),
@@ -630,8 +638,9 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
                   qrCode: qrCodeData,
 
-                  expCountry: '-',
-                  expPeriod: '-',
+                  expCountry: expCountryVal,
+                  expPeriod: expPeriodVal,
+                  expPosition: expPositionVal,
 
                   facePhoto: facePhotoData,
                   photo: facePhotoData,
@@ -644,29 +653,20 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   NAME_AR: 'الاسم الكامل',
                   PASSPORT_NO: formatValue(candidate.passportNumber),
                   DOB: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-                  NATIONALITY: formatValue(candidate.nationality),
+                  NATIONALITY: resolvedNationality,
                   GENDER: formatValue(candidate.gender),
                   PHONE: formatValue(candidate.phone),
                   phoneNumber: formatValue(candidate.phone),
                   HEIGHT: formatValue(candidate.height),
                   WEIGHT: formatValue(candidate.weight),
-                  EXPERIENCE: formatValue(candidate.workExperience),
-                  workPeriod: formatValue(candidate.workExperience ? 'Experienced' : 'Fresher'),
+                  EXPERIENCE: expSummaryVal,
+                  workPeriod: isExperienced ? 'Experienced' : 'Fresher',
                   position: formatValue(candidate.job),
                   salary: '-',
                   SKILLS: skillsArray.join(', ') || '-',
                   PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
                   AGE: calculateAge(candidate.dateOfBirth),
-                  expPosition: '-',
                 };
-
-                const exps = Array.isArray(candidate.workExperience) ? candidate.workExperience as any[] : [];
-                const validExp = exps.find(e => e.experienceStatus === 'Have experience');
-                if (validExp) {
-                  data.expCountry = validExp.country || '-';
-                  data.expPeriod = validExp.yearsOfExperience ? `${validExp.yearsOfExperience} YEARS` : '-';
-                  data.expPosition = validExp.position || candidate.job || '-';
-                }
 
                 const sizeOf = require('image-size');
                 const imageOptions = {

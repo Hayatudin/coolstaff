@@ -1,3 +1,5 @@
+import { resolveCandidateNationality } from '../cvHelpers';
+
 export interface ExtractedMusanedData {
   passportNumber?: string;
   givenNames?: string;
@@ -159,8 +161,16 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
   // Place of Birth
   data.placeOfBirth = extract(/(?:Place of birth|Birth place|Place of Birth|Birth Place)/i);
 
-  // Nationality (derived from Country)
-  data.nationality = extract(/(?:Country|Nationality)/i);
+  // Address Country
+  const addressCountry = extract(/(?:Address Information\s+Country|Country(?=\s+City|\s+Address))/i) || extract(/Country/i);
+
+  // Nationality (derived from Country of address)
+  data.nationality = resolveCandidateNationality({
+    country: addressCountry,
+    issuingCountry: data.issuingCountry,
+    placeOfBirth: data.placeOfBirth,
+    nationality: extract(/Nationality/i),
+  });
 
   // Email
   data.email = extract(/(?:E-Mail|Email|E Mail)/i);

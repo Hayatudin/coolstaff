@@ -3,6 +3,7 @@ import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
 import { getFileUrl } from '@/lib/utils';
 import QRCode from '../QRCode';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -11,6 +12,9 @@ interface CVTemplateProps {
 }
 
 export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   // Helper for Age calculation
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -26,7 +30,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
     return candidate.personalInfo?.languages?.some(l => l.toUpperCase().includes(lang.toUpperCase())) ? 'YES' : 'NO';
   };
 
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+  const isExperienced = resolvedExps.length > 0;
   const hasSkill = (skillName: string) => {
     const s = skillName.toUpperCase();
     if (s === 'COOKING' || s === 'ARABIC COOKING') {
@@ -50,14 +54,11 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
   let expPosition = '-';
   let totalYears = 0;
 
-  if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
-    const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
-    if (exps.length > 0) {
-      expCountry = exps.map(e => e.country).join(', ');
-      expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
-      expPosition = exps.map(e => (e as any).position || candidate.personalInfo?.job || 'HOUSE MAID').join(', ');
-      totalYears = exps.reduce((acc, curr) => acc + (parseInt(curr.yearsOfExperience) || 0), 0);
-    }
+  if (resolvedExps.length > 0) {
+    expCountry = resolvedExps.map(e => e.country).join(', ');
+    expPeriod = resolvedExps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
+    expPosition = resolvedExps.map(e => e.position || candidate.personalInfo?.job || 'HOUSE MAID').join(', ');
+    totalYears = resolvedExps.reduce((acc, curr) => acc + (parseInt(curr.yearsOfExperience) || 0), 0);
   }
 
   // Visual Palette matching Vision Recruitment Office Logo (Gold, Deep Teal)
@@ -207,7 +208,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                 {/* Row 10: Nationality */}
                 <tr>
                   <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Nationality</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{candidate.passportData?.nationality || 'ETHIOPIAN'}</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{resolvedNationality}</td>
                   <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الجنسية</td>
                 </tr>
 

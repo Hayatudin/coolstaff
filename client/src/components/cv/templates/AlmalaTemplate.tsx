@@ -2,6 +2,7 @@ import React from 'react';
 import { getFileUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import CVVideoFooter from '../CVVideoFooter';
+import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
   candidate: Candidate;
@@ -10,6 +11,9 @@ interface CVTemplateProps {
 }
 
 export default function AlmalaTemplate({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
+  const resolvedExps = resolveCandidateWorkExperience(candidate);
+  const resolvedNationality = resolveCandidateNationality(candidate);
+
   // Helper functions for data mapping
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -27,7 +31,7 @@ export default function AlmalaTemplate({ candidate, facePhoto, fullBodyPhoto }: 
     return candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
   };
 
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+  const isExperienced = resolvedExps.length > 0;
   const hasSkill = (skill: string) => {
     const s = skill.toUpperCase();
     if (s === 'COOKING' || s === 'ARABIC COOKING') {
@@ -60,13 +64,10 @@ export default function AlmalaTemplate({ candidate, facePhoto, fullBodyPhoto }: 
   let expPeriod = '-';
   let expCountry = '-';
   let expPosition = '-';
-  if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
-    const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
-    if (exps.length > 0) {
-      expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
-      expCountry = exps.map(e => e.country).join(', ');
-      expPosition = exps.map(e => (e as any).position || candidate.personalInfo?.job || '').join(', ');
-    }
+  if (resolvedExps.length > 0) {
+    expPeriod = resolvedExps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
+    expCountry = resolvedExps.map(e => e.country).join(', ');
+    expPosition = resolvedExps.map(e => e.position || candidate.personalInfo?.job || 'HOUSE MAID').join(', ');
   }
 
   return (
@@ -163,7 +164,7 @@ export default function AlmalaTemplate({ candidate, facePhoto, fullBodyPhoto }: 
               <tbody>
                 <tr>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold w-[30%]">Nationality</td>
-                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center w-[45%] uppercase">{candidate.passportData?.nationality}</td>
+                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center w-[45%] uppercase">{resolvedNationality}</td>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold w-[25%]" dir="rtl">الجنسيه</td>
                 </tr>
                 <tr>
