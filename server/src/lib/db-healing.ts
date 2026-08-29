@@ -86,13 +86,14 @@ export async function ensureDatabaseSchema() {
         \`id\` VARCHAR(191) NOT NULL,
         \`accountId\` VARCHAR(191) NOT NULL,
         \`providerId\` VARCHAR(191) NOT NULL,
+        \`issuer\` VARCHAR(191) NULL,
         \`accessToken\` TEXT NULL,
         \`refreshToken\` TEXT NULL,
         \`idToken\` TEXT NULL,
         \`accessTokenExpiresAt\` DATETIME(3) NULL,
         \`refreshTokenExpiresAt\` DATETIME(3) NULL,
         \`scope\` VARCHAR(191) NULL,
-        \`password\` VARCHAR(191) NULL,
+        \`password\` TEXT NULL,
         \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
         \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
         \`userId\` VARCHAR(191) NOT NULL,
@@ -112,6 +113,9 @@ export async function ensureDatabaseSchema() {
   } catch (e) {}
   try {
     await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`providerId\` VARCHAR(191) NULL`);
+  } catch (e) {}
+  try {
+    await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`issuer\` VARCHAR(191) NULL`);
   } catch (e) {}
   try {
     await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`password\` VARCHAR(191) NULL`);

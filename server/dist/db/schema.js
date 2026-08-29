@@ -208,6 +208,7 @@ exports.account = (0, mysql_core_1.mysqlTable)('Account', {
     id: (0, mysql_core_1.varchar)('id', { length: 255 }).primaryKey().$defaultFn(() => (0, exports.generateId)()),
     accountId: (0, mysql_core_1.varchar)('accountId', { length: 255 }).notNull(),
     providerId: (0, mysql_core_1.varchar)('providerId', { length: 255 }).notNull(),
+    issuer: (0, mysql_core_1.varchar)('issuer', { length: 255 }),
     accessToken: (0, mysql_core_1.text)('accessToken'),
     refreshToken: (0, mysql_core_1.text)('refreshToken'),
     idToken: (0, mysql_core_1.text)('idToken'),

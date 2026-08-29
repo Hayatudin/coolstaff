@@ -227,6 +227,7 @@ export const account = mysqlTable('Account', {
   id: varchar('id', { length: 255 }).primaryKey().$defaultFn(() => generateId()),
   accountId: varchar('accountId', { length: 255 }).notNull(),
   providerId: varchar('providerId', { length: 255 }).notNull(),
+  issuer: varchar('issuer', { length: 255 }),
   accessToken: text('accessToken'),
   refreshToken: text('refreshToken'),
   idToken: text('idToken'),
