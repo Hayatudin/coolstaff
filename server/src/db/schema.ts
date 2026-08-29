@@ -11,10 +11,9 @@ import {
 } from 'drizzle-orm/mysql-core';
 import { relations, sql } from 'drizzle-orm';
 
-// Helper for generating cuid-like unique IDs
-import { createId } from '@paralleldrive/cuid2';
+import crypto from 'crypto';
 
-export const generateId = () => createId();
+export const generateId = () => 'c' + crypto.randomBytes(12).toString('hex');
 
 // ── Broker ─────────────────────────────────────────────────────────────────
 export const broker = mysqlTable('Broker', {
