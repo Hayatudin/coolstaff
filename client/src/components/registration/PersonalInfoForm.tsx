@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
@@ -11,7 +10,7 @@ import {
   educationLevels, languageOptions, skillOptions, religionOptions
 } from '@/data/mockData';
 import { allCountries } from '@/data/countries';
-import { Plus, Trash2, Calendar, Upload } from 'lucide-react';
+import { Plus, Trash2, Lock } from 'lucide-react';
 import { getFileUrl, cn } from '@/lib/utils';
 import FileUpload from '@/components/ui/FileUpload';
 
@@ -32,9 +31,10 @@ interface PersonalInfoFormProps {
   onFullBodyPhotoChange?: (url: string) => void;
   videoUrl?: string;
   onVideoUrlChange?: (url: string) => void;
+  isQuickRegImport?: boolean;
 }
 
-export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange }: PersonalInfoFormProps) {
+export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange, isQuickRegImport }: PersonalInfoFormProps) {
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
     if (file.size > 50 * 1024 * 1024) {
       alert('Max file size is 50MB');
@@ -116,7 +116,16 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
 
       {/* 1. Personal Information */}
       <section>
-        <h3 className="text-xl font-bold text-text-primary mb-6">Personal Information</h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-text-primary">Personal Information</h3>
+        </div>
+
+        {isQuickRegImport && (
+          <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-4 flex items-center gap-3 text-amber-900 text-sm font-medium mb-6 animate-fade-in">
+            <Lock size={18} className="text-amber-600 shrink-0" />
+            <span>Information imported from Quick Registration is locked to prevent data mismatches between records.</span>
+          </div>
+        )}
 
         {/* Profile Photos - Face & Full Body */}
         <div className="flex flex-col sm:flex-row items-start gap-8 mb-8">
@@ -144,19 +153,19 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
           {/* Row 1 */}
-          <Input label="Surname" value={passportData.surname} onChange={e => handlePassportChangeUpper('surname', e.target.value)} required />
-          <Input label="Given Names" value={passportData.givenNames} onChange={e => handlePassportChangeUpper('givenNames', e.target.value)} required />
-          <Input label="Date of Birth" type="date" value={passportData.dateOfBirth} onChange={e => onPassportChange('dateOfBirth', e.target.value)} required />
+          <Input label="Surname" value={passportData.surname} onChange={e => handlePassportChangeUpper('surname', e.target.value)} required disabled={isQuickRegImport} />
+          <Input label="Given Names" value={passportData.givenNames} onChange={e => handlePassportChangeUpper('givenNames', e.target.value)} required disabled={isQuickRegImport} />
+          <Input label="Date of Birth" type="date" value={passportData.dateOfBirth} onChange={e => onPassportChange('dateOfBirth', e.target.value)} required disabled={isQuickRegImport} />
 
           {/* Row 2: Gender, Marital Status, Religion (Radios) */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-secondary">Gender <span className="text-danger">*</span></label>
             <div className="flex gap-4 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="radio" name="gender" value="Female" checked={passportData.gender === 'Female'} onChange={() => onPassportChange('gender', 'Female')} className="accent-primary w-4 h-4" /> Female
+              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
+                <input type="radio" name="gender" value="Female" checked={passportData.gender === 'Female'} onChange={() => onPassportChange('gender', 'Female')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Female
               </label>
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="radio" name="gender" value="Male" checked={passportData.gender === 'Male'} onChange={() => onPassportChange('gender', 'Male')} className="accent-primary w-4 h-4" /> Male
+              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
+                <input type="radio" name="gender" value="Male" checked={passportData.gender === 'Male'} onChange={() => onPassportChange('gender', 'Male')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Male
               </label>
             </div>
           </div>
@@ -164,11 +173,11 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-secondary">Marital Status <span className="text-danger">*</span></label>
             <div className="flex gap-4 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="radio" name="marital" value="Single" checked={data.maritalStatus === 'Single'} onChange={() => onChange('maritalStatus', 'Single')} className="accent-primary w-4 h-4" /> Single
+              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
+                <input type="radio" name="marital" value="Single" checked={data.maritalStatus === 'Single'} onChange={() => onChange('maritalStatus', 'Single')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Single
               </label>
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="radio" name="marital" value="Married" checked={data.maritalStatus === 'Married'} onChange={() => onChange('maritalStatus', 'Married')} className="accent-primary w-4 h-4" /> Married
+              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
+                <input type="radio" name="marital" value="Married" checked={data.maritalStatus === 'Married'} onChange={() => onChange('maritalStatus', 'Married')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Married
               </label>
             </div>
           </div>
@@ -177,6 +186,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
             <Select
               label="Religion"
               required
+              disabled={isQuickRegImport}
               options={religionOptions.map(r => ({ value: r, label: r }))}
               value={data.religion}
               onChange={v => onChange('religion', v)}
@@ -185,13 +195,13 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           </div>
 
           {/* Row 3 */}
-          <Select label="Job" required options={jobOptions.map(j => ({ value: j.toUpperCase(), label: j.toUpperCase() }))} value={data.job} onChange={v => onChange('job', v)} placeholder="Select job" />
-          <MultiSelect label="Education level" options={educationLevels.map(e => ({ value: e.toUpperCase(), label: e.toUpperCase() }))} value={selectedEducation} onChange={handleEducationChange} placeholder="Select education" />
-          <MultiSelect label="Skills" options={skillOptions.map(s => ({ value: s.toUpperCase(), label: s.toUpperCase() }))} value={data.skills || []} onChange={v => onChange('skills', v)} placeholder="Select skills" />
+          <Select label="Job" required disabled={isQuickRegImport} options={jobOptions.map(j => ({ value: j.toUpperCase(), label: j.toUpperCase() }))} value={data.job} onChange={v => onChange('job', v)} placeholder="Select job" />
+          <MultiSelect label="Education level" disabled={isQuickRegImport} options={educationLevels.map(e => ({ value: e.toUpperCase(), label: e.toUpperCase() }))} value={selectedEducation} onChange={handleEducationChange} placeholder="Select education" />
+          <MultiSelect label="Skills" disabled={isQuickRegImport} options={skillOptions.map(s => ({ value: s.toUpperCase(), label: s.toUpperCase() }))} value={data.skills || []} onChange={v => onChange('skills', v)} placeholder="Select skills" />
 
           {/* Row 4 */}
-          <MultiSelect label="Languages" options={languageOptions.map(l => ({ value: l.toUpperCase(), label: l.toUpperCase() }))} value={data.languages || []} onChange={v => onChange('languages', v)} placeholder="Select languages" searchable allowAddCustom customStorageKey="custom_languages" />
-          <Input label="ID Number" value={data.idNumber || passportData.passportNumber} onChange={e => handleChangeUpper('idNumber', e.target.value)} required />
+          <MultiSelect label="Languages" disabled={isQuickRegImport} options={languageOptions.map(l => ({ value: l.toUpperCase(), label: l.toUpperCase() }))} value={data.languages || []} onChange={v => onChange('languages', v)} placeholder="Select languages" searchable allowAddCustom customStorageKey="custom_languages" />
+          <Input label="ID Number" value={data.idNumber || passportData.passportNumber} onChange={e => handleChangeUpper('idNumber', e.target.value)} required disabled={isQuickRegImport} />
 
           {/* Main Mobile Number */}
           <div className="space-y-2">
@@ -233,13 +243,14 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <Input label="Salary" type="text" value={data.salary || '1000SR'} onChange={e => onChange('salary', e.target.value)} placeholder="e.g. 1000SR" />
 
           {/* Row 6 */}
-          <Input label="Number Of Children" type="number" value={String(data.numberOfChildren || '')} onChange={e => onChange('numberOfChildren', parseInt(e.target.value) || 0)} required />
+          <Input label="Number Of Children" type="number" value={String(data.numberOfChildren || '')} onChange={e => onChange('numberOfChildren', parseInt(e.target.value) || 0)} required disabled={isQuickRegImport} />
           <Input label="E-Mail" type="email" value={data.email} onChange={e => onChange('email', e.target.value.toLowerCase())} placeholder="email@example.com" required />
 
           {/* Broker Dropdown */}
           <BrokerSelect
             label="Broker / Source"
             required
+            disabled={isQuickRegImport}
             brokers={brokers}
             value={data.brokerId || ''}
             onChange={v => onChange('brokerId', v)}
@@ -336,11 +347,11 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-          <Input label="Passport Number" value={passportData.passportNumber} onChange={e => handlePassportChangeUpper('passportNumber', e.target.value)} required />
-          <Input label="Place of Birth" value={passportData.placeOfBirth || data.city || ''} onChange={e => handlePassportChangeUpper('placeOfBirth', e.target.value)} required />
-          <Input label="Passport Issue Place" value={passportData.issuingCountry} onChange={e => handlePassportChangeUpper('issuingCountry', e.target.value)} required />
-          <Input label="Passport Issue Date" type="date" value={passportData.dateOfIssue} onChange={e => onPassportChange('dateOfIssue', e.target.value)} required />
-          <Input label="Passport Expiry Date" type="date" value={passportData.dateOfExpiry} onChange={e => onPassportChange('dateOfExpiry', e.target.value)} required />
+          <Input label="Passport Number" value={passportData.passportNumber} onChange={e => handlePassportChangeUpper('passportNumber', e.target.value)} required disabled={isQuickRegImport} />
+          <Input label="Place of Birth" value={passportData.placeOfBirth || data.city || ''} onChange={e => handlePassportChangeUpper('placeOfBirth', e.target.value)} required disabled={isQuickRegImport} />
+          <Input label="Passport Issue Place" value={passportData.issuingCountry} onChange={e => handlePassportChangeUpper('issuingCountry', e.target.value)} required disabled={isQuickRegImport} />
+          <Input label="Passport Issue Date" type="date" value={passportData.dateOfIssue} onChange={e => onPassportChange('dateOfIssue', e.target.value)} required disabled={isQuickRegImport} />
+          <Input label="Passport Expiry Date" type="date" value={passportData.dateOfExpiry} onChange={e => onPassportChange('dateOfExpiry', e.target.value)} required disabled={isQuickRegImport} />
         </div>
       </section>
 
@@ -349,7 +360,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         <h3 className="text-xl font-bold text-text-primary mb-6">Address</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-          <Select label="Country" searchable options={allCountries.map(c => ({ value: c.toUpperCase(), label: c.toUpperCase() }))} value={data.country} onChange={v => onChange('country', v)} placeholder="Select country" />
+          <Select label="Country" searchable disabled={isQuickRegImport} options={allCountries.map(c => ({ value: c.toUpperCase(), label: c.toUpperCase() }))} value={data.country} onChange={v => onChange('country', v)} placeholder="Select country" />
           <Input label="City" value={data.city} onChange={e => handleChangeUpper('city', e.target.value)} required />
           <Input label="Address" value={data.address} onChange={e => handleChangeUpper('address', e.target.value)} required />
         </div>

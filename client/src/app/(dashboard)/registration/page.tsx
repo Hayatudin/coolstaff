@@ -898,6 +898,7 @@ function RegistrationContent() {
             onFullBodyPhotoChange={setFullBodyPhoto}
             videoUrl={videoUrl}
             onVideoUrlChange={setVideoUrl}
+            isQuickRegImport={Boolean(quickRegistrationId)}
           />
         )}
 

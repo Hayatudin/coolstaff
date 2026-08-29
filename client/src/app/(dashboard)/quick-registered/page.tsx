@@ -937,26 +937,12 @@ export default function QuickRegisteredPage() {
                     </button>
 
                     {passportMatch && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handlePromote}
-                          disabled={isPromoting}
-                          className="px-4 py-2.5 text-emerald-700 bg-emerald-50 border border-emerald-200 font-semibold rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50 flex items-center gap-1.5 text-xs sm:text-sm"
-                          title="Push documents directly without editing"
-                        >
-                          {isPromoting ? (
-                            <><Loader2 size={14} className="animate-spin" /> Pushing...</>
-                          ) : (
-                            <><ShieldCheck size={14} /> Direct Push</>
-                          )}
-                        </button>
-                        <button
-                          onClick={handleValidateAndContinue}
-                          className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2 text-xs sm:text-sm"
-                        >
-                          Verify & Continue <ArrowRight size={16} />
-                        </button>
-                      </div>
+                      <button
+                        onClick={handleValidateAndContinue}
+                        className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2 text-xs sm:text-sm cursor-pointer"
+                      >
+                        Verify <ArrowRight size={16} />
+                      </button>
                     )}
                   </div>
                 </div>
