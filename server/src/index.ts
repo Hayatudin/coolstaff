@@ -119,6 +119,153 @@ app.use('/api/agency', agencyRoutes);
 app.use('/api/passports', passportRoutes);
 
 
+// Auth Diagnostic Endpoint — shows exactly what's in Account table and tests password verify
+app.get('/api/debug-auth', async (req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
+  const result: any = { steps: [] };
+
+  try {
+    const { pool } = await import('./db');
+    const { verifyPassword } = await import('better-auth/crypto');
+
+    // 1. Check better-auth package version
+    try {
+      // Read version via require to avoid TS module assertion issues
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pkgJson = require('better-auth/package.json');
+      result.betterAuthVersion = pkgJson?.version || 'unknown';
+    } catch { result.betterAuthVersion = 'could not read'; }
+
+    // 2. Check Account table columns
+    const [cols]: any = await pool.query('SHOW COLUMNS FROM `Account`');
+    result.accountColumns = cols.map((c: any) => ({ field: c.Field, type: c.Type, null: c.Null }));
+    result.steps.push('✅ Account columns fetched');
+
+    // 3. Find hayuuj0@gmail.com user
+    const [userRows]: any = await pool.query("SELECT id, email, role FROM `User` WHERE email = 'hayuuj0@gmail.com' LIMIT 1");
+    if (!userRows || userRows.length === 0) {
+      result.steps.push('❌ User hayuuj0@gmail.com NOT FOUND in User table');
+      result.userFound = false;
+    } else {
+      result.userFound = true;
+      result.user = userRows[0];
+      result.steps.push('✅ User found: ' + JSON.stringify(userRows[0]));
+
+      // 4. Find Account row
+      const [accRows]: any = await pool.query(
+        "SELECT id, accountId, providerId, LENGTH(password) as pwdLen, LEFT(password, 30) as pwdPrefix FROM `Account` WHERE userId = ? AND providerId = 'credential' LIMIT 1",
+        [userRows[0].id]
+      );
+      if (!accRows || accRows.length === 0) {
+        result.steps.push('❌ No credential Account row found for this user');
+        result.accountFound = false;
+      } else {
+        result.accountFound = true;
+        result.account = accRows[0];
+        result.steps.push(`✅ Account found. Password length: ${accRows[0].pwdLen}, prefix: ${accRows[0].pwdPrefix}`);
+
+        // 5. Fetch full password hash and test verification
+        const [fullAcc]: any = await pool.query(
+          "SELECT password FROM `Account` WHERE userId = ? AND providerId = 'credential' LIMIT 1",
+          [userRows[0].id]
+        );
+        const storedHash = fullAcc[0]?.password;
+        if (!storedHash) {
+          result.steps.push('❌ Password column is NULL or empty');
+          result.passwordNull = true;
+        } else {
+          result.passwordNull = false;
+          // Test with the known password
+          try {
+            const verified = await verifyPassword({ hash: storedHash, password: 'muju1212' });
+            result.passwordVerifyResult = verified;
+            result.steps.push(verified ? '✅ Password "muju1212" verifies CORRECTLY' : '❌ Password "muju1212" does NOT verify — hash mismatch');
+          } catch (verifyErr: any) {
+            result.steps.push('❌ verifyPassword threw error: ' + verifyErr.message);
+            result.verifyError = verifyErr.message;
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    result.error = err.message || String(err);
+    result.steps.push('❌ Fatal error: ' + result.error);
+  }
+
+  res.json(result);
+});
+
+// Force re-hash all user passwords using current better-auth crypto
+// Call: GET /api/debug-rehash?secret=coolstaff2026
+app.get('/api/debug-rehash', async (req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.query.secret !== 'coolstaff2026') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const result: any = { steps: [], rehashed: [] };
+
+  try {
+    const { pool } = await import('./db');
+    const { hashPassword, verifyPassword } = await import('better-auth/crypto');
+
+    // Get all credential accounts that have a password
+    const [accounts]: any = await pool.query(
+      "SELECT a.id, a.userId, a.password, u.email FROM `Account` a JOIN `User` u ON a.userId = u.id WHERE a.providerId = 'credential' AND a.password IS NOT NULL"
+    );
+
+    result.steps.push(`Found ${accounts.length} credential accounts`);
+
+    for (const acc of accounts) {
+      // Test if current hash already works with better-auth v1.7
+      let alreadyValid = false;
+      try {
+        // We can't verify without the plaintext — but we can detect old bcrypt hashes
+        // bcrypt hashes start with $2b$ or $2a$, scrypt (v1.7) is a hex:hex format
+        const isBcrypt = acc.password?.startsWith('$2');
+        const isOldScrypt = acc.password?.includes(':') && acc.password?.length < 100;
+        const isNewScrypt = acc.password?.includes(':') && acc.password?.length >= 100;
+
+        result.rehashed.push({
+          email: acc.email,
+          userId: acc.userId,
+          passwordLength: acc.password?.length,
+          passwordFormat: isBcrypt ? 'bcrypt (v1.1 format - INCOMPATIBLE)' : isNewScrypt ? 'scrypt-v1.7 (correct)' : isOldScrypt ? 'scrypt-old (may be incompatible)' : 'unknown',
+          action: isBcrypt || isOldScrypt ? 'NEEDS_REHASH' : 'OK',
+        });
+      } catch (e: any) {
+        result.steps.push(`⚠️ Error checking ${acc.email}: ${e.message}`);
+      }
+    }
+
+    // For hayuuj0@gmail.com specifically, force rehash with known password
+    const hayuuAcc = accounts.find((a: any) => a.email === 'hayuuj0@gmail.com');
+    if (hayuuAcc) {
+      const newHash = await hashPassword('muju1212');
+      await pool.query(
+        "UPDATE `Account` SET `password` = ?, `accountId` = 'hayuuj0@gmail.com' WHERE `id` = ?",
+        [newHash, hayuuAcc.id]
+      );
+      const verified = await verifyPassword({ hash: newHash, password: 'muju1212' });
+      result.steps.push(`✅ Force-rehashed hayuuj0@gmail.com. New hash length: ${newHash.length}. Verify test: ${verified}`);
+      result.hayuuRehashed = true;
+    } else {
+      result.steps.push('❌ hayuuj0@gmail.com not found in accounts');
+      result.hayuuRehashed = false;
+    }
+
+  } catch (err: any) {
+    result.error = err.message || String(err);
+    result.steps.push('❌ Fatal: ' + result.error);
+  }
+
+  res.json(result);
+});
+
 // Database Debug Endpoint (Direct Browser Diagnostics)
 app.get('/api/debug-db', async (req: Request, res: Response) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

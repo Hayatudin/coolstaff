@@ -59,6 +59,11 @@ function LoginForm() {
         raw: signInError,
       });
 
+      // Show the real server error directly on screen for debugging
+      const rawDetail = (signInError as any).code || signInError.message || 'unknown';
+      const statusDetail = (signInError as any).status ? ` [${(signInError as any).status}]` : '';
+      console.error(`AUTH FAILURE — code: ${rawDetail}${statusDetail} | full:`, JSON.stringify(signInError, null, 2));
+
       console.log("Sign in failed with:", signInError.message, ". Attempting auto-registration...");
 
       const namePrefix = email.split('@')[0];
@@ -85,11 +90,14 @@ function LoginForm() {
       });
 
       if (signUpError.message?.toLowerCase().includes('already exists') || signUpError.code === 'USER_ALREADY_EXISTS') {
-        const exactMsg = signInError.message ? `Invalid credentials (${signInError.message})` : 'Invalid email or password';
-        setError(exactMsg);
+        // Sign-in failed with real credentials — show the exact server error
+        const code = (signInError as any).code || '';
+        const msg = signInError.message || '';
+        const status = (signInError as any).status || '';
+        setError(`Server error: ${msg}${code ? ` (code: ${code})` : ''}${status ? ` [HTTP ${status}]` : ''}`);
       } else {
         const errorMessage = signUpError.message || signInError.message || 'Authentication failed';
-        setError(errorMessage);
+        setError(`Server error: ${errorMessage}`);
       }
 
     } catch (err: any) {
