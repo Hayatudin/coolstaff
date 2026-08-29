@@ -41,6 +41,10 @@ const better_auth_1 = require("better-auth");
 const drizzle_1 = require("better-auth/adapters/drizzle");
 const db_1 = __importDefault(require("../db"));
 const schema = __importStar(require("../db/schema"));
+const isProduction = process.env.NODE_ENV === 'production' ||
+    process.env.BETTER_AUTH_URL?.includes('coolstaffagency.com') ||
+    process.env.HOME?.includes('coolstou') ||
+    process.env.USER === 'coolstou';
 exports.auth = (0, better_auth_1.betterAuth)({
     secret: process.env.BETTER_AUTH_SECRET || '74RzhyeAPZVictmFaCAA/1TPEkfdE+469xOQtWgrPbI=',
     baseURL: process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com',
@@ -70,10 +74,10 @@ exports.auth = (0, better_auth_1.betterAuth)({
     advanced: {
         basePath: '/api/auth',
         disableCSRFCheck: true,
-        useSecureCookies: true,
+        useSecureCookies: isProduction,
         defaultCookieAttributes: {
-            sameSite: "none",
-            secure: true,
+            sameSite: isProduction ? "none" : "lax",
+            secure: isProduction,
         },
     },
     user: {
