@@ -98,7 +98,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     <aside
       className={cn(
         'relative shrink-0 h-full lg:h-screen bg-gradient-to-b from-sidebar-from to-sidebar-to flex flex-col z-40 transition-all duration-300 overflow-hidden',
-        isMobile ? 'w-64' : (isCollapsed ? 'w-16' : 'w-56')
+        isMobile ? 'w-56' : (isCollapsed ? 'w-14' : 'w-[140px]')
       )}
     >
       {/* Logo Section */}
@@ -132,7 +132,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 mt-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 px-2 mt-2 space-y-0.5 overflow-y-auto overflow-x-hidden pr-4">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href));
@@ -144,20 +144,20 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
               href={item.href}
               onClick={handleNavClick}
               className={cn(
-                'flex items-center rounded-lg transition-all duration-200 group relative',
-                isCollapsed && !isMobile ? 'justify-center py-2' : 'gap-2.5 px-3 py-1.5',
+                'flex items-center rounded-md transition-all duration-200 group relative',
+                isCollapsed && !isMobile ? 'justify-center py-2.5 px-0' : 'gap-2 px-2.5 py-2',
                 isActive
-                  ? 'bg-white/15 text-white shadow-none'
+                  ? 'bg-white/15 text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white/90'
               )}
               title={isCollapsed && !isMobile ? item.label : undefined}
             >
-              <Icon size={15} className={cn('shrink-0 transition-transform duration-200', !isActive && 'group-hover:scale-110')} />
+              <Icon size={14} className="shrink-0" />
               {(!isCollapsed || isMobile) && (
-                <span className="text-[11px] font-medium whitespace-nowrap">{item.label}</span>
+                <span className="text-xs font-medium whitespace-nowrap leading-none">{item.label}</span>
               )}
               {isActive && (!isCollapsed || isMobile) && (
-                <div className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse" />
+                <div className="ml-auto w-1 h-1 rounded-full bg-white/70" />
               )}
             </Link>
           );
@@ -189,26 +189,27 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
         <button
           onClick={handleLogout}
           className={cn(
-            'flex items-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all duration-200 w-full cursor-pointer',
-            isCollapsed && !isMobile ? 'justify-center py-2' : 'gap-2.5 px-3 py-1.5'
+            'flex items-center rounded-md text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all duration-200 w-full cursor-pointer',
+            isCollapsed && !isMobile ? 'justify-center py-2.5 px-0' : 'gap-2 px-2.5 py-2'
           )}
           title={isCollapsed && !isMobile ? 'Logout' : undefined}
         >
           {isPending
-            ? <Loader2 size={15} className="shrink-0 animate-spin" />
-            : <LogOut size={15} className="shrink-0" />
+            ? <Loader2 size={14} className="shrink-0 animate-spin" />
+            : <LogOut size={14} className="shrink-0" />
           }
-          {(!isCollapsed || isMobile) && <span className="text-[11px] whitespace-nowrap">Logout</span>}
+          {(!isCollapsed || isMobile) && <span className="text-xs font-medium whitespace-nowrap">Logout</span>}
         </button>
       </div>
 
-      {/* Collapse button — desktop only */}
+      {/* Collapse button — desktop only: visible tab on the right edge */}
       {!isMobile && (
         <button
           onClick={() => setIsCollapsed(prev => !prev)}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-surface border border-border rounded-full flex items-center justify-center shadow-sm cursor-pointer hover:bg-primary hover:text-white hover:border-primary transition-all duration-200 z-50"
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-10 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-all duration-200 rounded-l-md z-50"
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          <ChevronLeft size={12} className={cn('transition-transform duration-300', isCollapsed && 'rotate-180')} />
+          <ChevronLeft size={11} className={cn('text-white/70 transition-transform duration-300', isCollapsed && 'rotate-180')} />
         </button>
       )}
     </aside>
