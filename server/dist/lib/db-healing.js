@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureDatabaseSchema = ensureDatabaseSchema;
 const db_1 = require("../db");
@@ -97,6 +130,46 @@ async function ensureDatabaseSchema() {
         console.warn('⚠️ Account table check warning:', e.message || e);
     }
     try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`accountId\` VARCHAR(191) NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`providerId\` VARCHAR(191) NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`password\` VARCHAR(191) NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`accessToken\` TEXT NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`refreshToken\` TEXT NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`idToken\` TEXT NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`accessTokenExpiresAt\` DATETIME(3) NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`ALTER TABLE \`Account\` ADD COLUMN \`refreshTokenExpiresAt\` DATETIME(3) NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`UPDATE \`Account\` SET \`accountId\` = \`providerAccountId\` WHERE \`accountId\` IS NULL AND \`providerAccountId\` IS NOT NULL`);
+    }
+    catch (e) { }
+    try {
+        await executeRaw(`UPDATE \`Account\` SET \`providerId\` = \`provider\` WHERE \`providerId\` IS NULL AND \`provider\` IS NOT NULL`);
+    }
+    catch (e) { }
+    try {
         await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Verification\` (
         \`id\` VARCHAR(191) NOT NULL,
@@ -113,6 +186,35 @@ async function ensureDatabaseSchema() {
     }
     catch (e) {
         console.warn('⚠️ Verification table check warning:', e.message || e);
+    }
+    // Auto-heal super_admin user hayuuj0@gmail.com with password muju1212
+    try {
+        const { hashPassword } = await Promise.resolve().then(() => __importStar(require('better-auth/crypto')));
+        const hashedPass = await hashPassword('muju1212');
+        const users = await queryRaw(`SELECT id FROM \`User\` WHERE email = 'hayuuj0@gmail.com'`);
+        let targetUserId;
+        if (users.length === 0) {
+            targetUserId = 'c' + Math.random().toString(36).substring(2, 14);
+            await executeRaw(`INSERT INTO \`User\` (\`id\`, \`name\`, \`email\`, \`emailVerified\`, \`role\`, \`createdAt\`, \`updatedAt\`) VALUES (?, 'Hayatu', 'hayuuj0@gmail.com', 1, 'super_admin', NOW(), NOW())`, [targetUserId]);
+            console.log('✅ Created user hayuuj0@gmail.com in database.');
+        }
+        else {
+            targetUserId = users[0].id;
+            await executeRaw(`UPDATE \`User\` SET \`role\` = 'super_admin' WHERE \`id\` = ?`, [targetUserId]);
+        }
+        const accounts = await queryRaw(`SELECT id FROM \`Account\` WHERE userId = ? AND providerId = 'credential'`, [targetUserId]);
+        if (accounts.length === 0) {
+            const accId = 'c' + Math.random().toString(36).substring(2, 14);
+            await executeRaw(`INSERT INTO \`Account\` (\`id\`, \`userId\`, \`accountId\`, \`providerId\`, \`password\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, 'hayuuj0@gmail.com', 'credential', ?, NOW(), NOW())`, [accId, targetUserId, hashedPass]);
+            console.log('✅ Created credential Account for hayuuj0@gmail.com with hashed password.');
+        }
+        else {
+            await executeRaw(`UPDATE \`Account\` SET \`password\` = ?, \`accountId\` = 'hayuuj0@gmail.com' WHERE userId = ? AND providerId = 'credential'`, [hashedPass, targetUserId]);
+            console.log('✅ Updated credential Account password for hayuuj0@gmail.com.');
+        }
+    }
+    catch (e) {
+        console.warn('⚠️ User account auto-healing warning:', e.message || e);
     }
     // 1b. Create Leader Table
     try {
