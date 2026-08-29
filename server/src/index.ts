@@ -36,41 +36,7 @@ app.use(cookieParser());
 import { auth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
 
-app.all('/api/auth/*', express.text({ type: '*/*', limit: '50mb' }), async (req, res) => {
-  console.log(`[AUTH] request: ${req.method} ${req.url}`);
-  
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (Array.isArray(value)) value.forEach(v => headers.append(key, v));
-    else if (value) headers.set(key, value);
-  }
-
-  // Create standard Web Request with pre-read string body
-  const request = new globalThis.Request(`http://${req.headers.host}${req.url}`, {
-    method: req.method,
-    headers: headers,
-    body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
-  });
-
-  try {
-    const response = await auth.handler(request);
-    
-    res.status(response.status);
-    response.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
-         res.append('Set-Cookie', value);
-      } else {
-         res.setHeader(key, value);
-      }
-    });
-
-    const text = await response.text();
-    res.send(text);
-  } catch (err: any) {
-    console.error("AUTH FATAL ERROR:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
+app.all('/api/auth/*', toNodeHandler(auth));
 
 // Body parsers — AFTER auth handler (express.json drains the stream)
 app.use(express.json({ limit: '80mb' }));

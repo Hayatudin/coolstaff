@@ -65,40 +65,8 @@ app.use((req, res, next) => {
 app.use((0, cookie_parser_1.default)());
 // Better Auth handler — MUST come before body parsers
 const auth_1 = require("./lib/auth");
-app.all('/api/auth/*', express_1.default.text({ type: '*/*', limit: '50mb' }), async (req, res) => {
-    console.log(`[AUTH] request: ${req.method} ${req.url}`);
-    const headers = new Headers();
-    for (const [key, value] of Object.entries(req.headers)) {
-        if (Array.isArray(value))
-            value.forEach(v => headers.append(key, v));
-        else if (value)
-            headers.set(key, value);
-    }
-    // Create standard Web Request with pre-read string body
-    const request = new globalThis.Request(`http://${req.headers.host}${req.url}`, {
-        method: req.method,
-        headers: headers,
-        body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
-    });
-    try {
-        const response = await auth_1.auth.handler(request);
-        res.status(response.status);
-        response.headers.forEach((value, key) => {
-            if (key.toLowerCase() === 'set-cookie') {
-                res.append('Set-Cookie', value);
-            }
-            else {
-                res.setHeader(key, value);
-            }
-        });
-        const text = await response.text();
-        res.send(text);
-    }
-    catch (err) {
-        console.error("AUTH FATAL ERROR:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
+const node_1 = require("better-auth/node");
+app.all('/api/auth/*', (0, node_1.toNodeHandler)(auth_1.auth));
 // Body parsers — AFTER auth handler (express.json drains the stream)
 app.use(express_1.default.json({ limit: '80mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '80mb' }));
