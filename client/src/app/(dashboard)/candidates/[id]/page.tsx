@@ -618,6 +618,24 @@ export default function CandidateDetailPage() {
             )}
           </div>
 
+          {/* Registrar Details (Super Admin only) */}
+          {userRole === 'super_admin' && (
+            <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+              <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
+                <User size={20} className="text-purple-600" /> Registrar Details
+              </h2>
+              <div className="flex items-center gap-3 p-4 bg-purple-50/50 rounded-[1.25rem] border border-purple-100/50">
+                <div className="p-2.5 bg-purple-100 text-purple-600 rounded-xl font-bold text-sm flex items-center justify-center w-10 h-10">
+                  {c.registeredBy ? c.registeredBy.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <div>
+                  <p className="text-[10px] text-purple-700/70 uppercase tracking-[0.1em] font-bold">Registered By</p>
+                  <span className="text-[15px] font-bold text-purple-900">{c.registeredBy || 'Admin'}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Generated CV */}
           {c.broker?.name !== 'Calling' && (
             <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">

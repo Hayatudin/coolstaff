@@ -4,6 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2, Download, FileDown } from 'lucide-react';
+import { useSession } from '@/lib/auth-client';
 import { getFileUrl } from '@/lib/utils';
 
 interface QuickRegistration {
@@ -35,6 +36,7 @@ interface QuickRegistration {
   passportType?: string | null;
   languages?: string[] | null;
   laborID?: string | null;
+  registeredBy?: string | null;
 }
 
 function CopyField({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
@@ -72,6 +74,8 @@ function CopyField({ label, value, icon }: { label: string; value: string; icon?
 export default function QuickRegistrationPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { data: session } = useSession();
+  const isSuperAdmin = (session?.user as any)?.role === 'super_admin';
   const [data, setData] = useState<QuickRegistration | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -615,6 +619,9 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
           <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Additional Information</h2>
         </div>
         <div className="p-3 sm:p-4 space-y-2">
+          {isSuperAdmin && (
+            <CopyField label="Registrar" value={data.registeredBy || 'Walk-in'} icon={<User size={16} />} />
+          )}
           <CopyField label="Religion" value={data.religion || ''} icon={<BookOpen size={16} />} />
           <CopyField label="Broker" value={data.broker?.name || ''} icon={<Users size={16} />} />
           <CopyField label="Agency" value={data.agency ? data.agency.charAt(0).toUpperCase() + data.agency.slice(1) : 'Daera'} icon={<BookOpen size={16} />} />

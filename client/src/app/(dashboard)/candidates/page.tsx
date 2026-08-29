@@ -630,7 +630,8 @@ const normalizeLanguageName = (lang: string): string => {
                 <th className="px-6 py-4 font-semibold">CV Agency</th>
                 <th className="px-6 py-4 font-semibold">Broker</th>
                 <th className="px-6 py-4 font-semibold">Visa Status</th>
-                <th className="px-6 py-4 font-semibold hidden xl:table-cell">{isSuperAdmin ? 'Registrar' : 'COC'}</th>
+                {isSuperAdmin && <th className="px-6 py-4 font-semibold whitespace-nowrap">Registrar</th>}
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">COC</th>
                 <th className="px-6 py-4 font-semibold">Medical</th>
                 <th className="px-6 py-4 font-semibold">Open</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
@@ -752,21 +753,24 @@ const normalizeLanguageName = (lang: string): string => {
                       )}
                     </td>
 
-                    {/* COC / Registrar */}
-                    <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
-                      {isSuperAdmin ? (
+                    {/* Registrar (Super Admin only) */}
+                    {isSuperAdmin && (
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
                             {candidate.registeredBy ? candidate.registeredBy.charAt(0).toUpperCase() : 'A'}
                           </div>
                           <span className="text-sm font-medium text-text-primary">{candidate.registeredBy || 'Admin'}</span>
                         </div>
+                      </td>
+                    )}
+
+                    {/* COC */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {candidate.cocDocumentUrl ? (
+                        <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={13} /> View</button>
                       ) : (
-                        candidate.cocDocumentUrl ? (
-                          <button onClick={() => setViewDoc(candidate.cocDocumentUrl!)} className="text-sm text-primary hover:underline font-medium flex items-center gap-1"><Eye size={13} /> View</button>
-                        ) : (
-                          <span className="text-xs text-text-tertiary">—</span>
-                        )
+                        <span className="text-xs text-text-tertiary">—</span>
                       )}
                     </td>
 

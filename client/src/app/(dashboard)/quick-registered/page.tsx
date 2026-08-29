@@ -70,6 +70,7 @@ export default function QuickRegisteredPage() {
   const [search, setSearch] = useState('');
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role ?? 'user';
+  const isSuperAdmin = userRole === 'super_admin';
   const canVerify = ['super_admin', 'processor', 'genaral'].includes(userRole);
 
   // Verify modal state
@@ -549,21 +550,21 @@ export default function QuickRegisteredPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
-                <th className="px-6 py-4 font-semibold">Candidate</th>
-                <th className="px-6 py-4 font-semibold hidden sm:table-cell">Passport No.</th>
-                <th className="px-6 py-4 font-semibold hidden md:table-cell">Registrar ID</th>
-                <th className="px-6 py-4 font-semibold hidden md:table-cell">Agency</th>
-                <th className="px-6 py-4 font-semibold hidden lg:table-cell">Broker</th>
-                <th className="px-6 py-4 font-semibold hidden sm:table-cell">Status</th>
-                <th className="px-6 py-4 font-semibold hidden sm:table-cell">Date</th>
-                <th className="px-6 py-4 font-semibold">Open</th>
-                <th className="px-6 py-4 font-semibold text-right">Action</th>
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Candidate</th>
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Passport No.</th>
+                {isSuperAdmin && <th className="px-6 py-4 font-semibold whitespace-nowrap">Registrar</th>}
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Agency</th>
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Broker</th>
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Status</th>
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Date</th>
+                <th className="px-6 py-4 font-semibold whitespace-nowrap">Open</th>
+                <th className="px-6 py-4 font-semibold text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/20">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 size={32} className="text-primary animate-spin" />
                       <p className="text-sm font-medium text-text-tertiary">Loading registrations...</p>
@@ -600,29 +601,31 @@ export default function QuickRegisteredPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2.5 py-1 rounded border border-gray-200 shadow-sm">{r.passportNumber}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-secondary hidden md:table-cell whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                            {r.registeredBy ? r.registeredBy.charAt(0).toUpperCase() : 'W'}
+                      {isSuperAdmin && (
+                        <td className="px-6 py-4 text-sm text-text-secondary whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                              {r.registeredBy ? r.registeredBy.charAt(0).toUpperCase() : 'W'}
+                            </div>
+                            <span className="text-sm font-medium text-text-primary">{r.registeredBy || 'Walk-in'}</span>
                           </div>
-                          <span className="text-sm font-medium text-text-primary">{r.registeredBy || 'Walk-in'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 hidden md:table-cell whitespace-nowrap">
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className="capitalize px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 font-semibold text-text-primary text-[10px]">
                           {r.agency || 'daera'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap text-xs text-text-secondary font-semibold">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-text-secondary font-semibold">
                         {r.broker?.name || '—'}
                       </td>
-                      <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(r.verificationStatus || 'pending')}
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-primary font-semibold hidden sm:table-cell whitespace-nowrap">
+                      <td className="px-6 py-4 text-sm text-text-primary font-semibold whitespace-nowrap">
                         {new Date(r.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
