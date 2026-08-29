@@ -66,7 +66,15 @@ app.use((0, cookie_parser_1.default)());
 // Better Auth handler — MUST come before body parsers
 const auth_1 = require("./lib/auth");
 const node_1 = require("better-auth/node");
-app.all('/api/auth/*', (0, node_1.toNodeHandler)(auth_1.auth));
+app.all('/api/auth/*', async (req, res, next) => {
+    try {
+        return await (0, node_1.toNodeHandler)(auth_1.auth)(req, res);
+    }
+    catch (err) {
+        console.error('🔥 Better Auth Error:', err);
+        return res.status(500).json({ error: err?.message || 'Authentication error', details: String(err) });
+    }
+});
 // Body parsers — AFTER auth handler (express.json drains the stream)
 app.use(express_1.default.json({ limit: '80mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '80mb' }));

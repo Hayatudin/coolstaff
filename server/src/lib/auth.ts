@@ -4,6 +4,8 @@ import db from '../db';
 import * as schema from '../db/schema';
 
 export const auth = betterAuth({
+  secret: process.env.BETTER_AUTH_SECRET || '74RzhyeAPZVictmFaCAA/1TPEkfdE+469xOQtWgrPbI=',
+  baseURL: process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com',
   database: drizzleAdapter(db, {
     provider: 'mysql',
     schema,
@@ -33,7 +35,8 @@ export const auth = betterAuth({
 
   advanced: {
     basePath: '/api/auth',
-    useSecureCookies: process.env.BETTER_AUTH_URL?.startsWith('https://') ?? false,
+    disableCSRFCheck: true,
+    useSecureCookies: true,
     defaultCookieAttributes: {
       sameSite: "none" as const,
       secure: true,

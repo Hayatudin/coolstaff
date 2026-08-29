@@ -36,7 +36,14 @@ app.use(cookieParser());
 import { auth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
 
-app.all('/api/auth/*', toNodeHandler(auth));
+app.all('/api/auth/*', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    return await toNodeHandler(auth)(req, res);
+  } catch (err: any) {
+    console.error('🔥 Better Auth Error:', err);
+    return res.status(500).json({ error: err?.message || 'Authentication error', details: String(err) });
+  }
+});
 
 // Body parsers — AFTER auth handler (express.json drains the stream)
 app.use(express.json({ limit: '80mb' }));

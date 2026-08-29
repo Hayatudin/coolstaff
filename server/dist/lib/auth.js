@@ -42,6 +42,8 @@ const drizzle_1 = require("better-auth/adapters/drizzle");
 const db_1 = __importDefault(require("../db"));
 const schema = __importStar(require("../db/schema"));
 exports.auth = (0, better_auth_1.betterAuth)({
+    secret: process.env.BETTER_AUTH_SECRET || '74RzhyeAPZVictmFaCAA/1TPEkfdE+469xOQtWgrPbI=',
+    baseURL: process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com',
     database: (0, drizzle_1.drizzleAdapter)(db_1.default, {
         provider: 'mysql',
         schema,
@@ -67,7 +69,8 @@ exports.auth = (0, better_auth_1.betterAuth)({
     ],
     advanced: {
         basePath: '/api/auth',
-        useSecureCookies: process.env.BETTER_AUTH_URL?.startsWith('https://') ?? false,
+        disableCSRFCheck: true,
+        useSecureCookies: true,
         defaultCookieAttributes: {
             sameSite: "none",
             secure: true,
