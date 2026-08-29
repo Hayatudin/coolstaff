@@ -6,7 +6,7 @@ node_modules/
 out/
 
 # production builds
-dist/
+!server/dist/
 build/
 
 # Large files
