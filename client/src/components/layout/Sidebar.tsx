@@ -98,7 +98,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
     <aside
       className={cn(
         'relative shrink-0 h-full lg:h-screen bg-gradient-to-b from-sidebar-from to-sidebar-to flex flex-col z-40 transition-all duration-300 overflow-hidden',
-        isMobile ? 'w-72' : (isCollapsed ? 'w-20' : 'w-64')
+        isMobile ? 'w-64' : (isCollapsed ? 'w-16' : 'w-56')
       )}
     >
       {/* Logo Section */}
@@ -132,7 +132,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 mt-4 space-y-1 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 px-2 mt-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href));
@@ -145,19 +145,19 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
               onClick={handleNavClick}
               className={cn(
                 'flex items-center rounded-lg transition-all duration-200 group relative',
-                isCollapsed && !isMobile ? 'justify-center py-3' : 'gap-3 px-4 py-2.5',
+                isCollapsed && !isMobile ? 'justify-center py-2' : 'gap-2.5 px-3 py-1.5',
                 isActive
                   ? 'bg-white/15 text-white shadow-none'
                   : 'text-white/60 hover:bg-white/10 hover:text-white/90'
               )}
               title={isCollapsed && !isMobile ? item.label : undefined}
             >
-              <Icon size={18} className={cn('shrink-0 transition-transform duration-200', !isActive && 'group-hover:scale-110')} />
+              <Icon size={15} className={cn('shrink-0 transition-transform duration-200', !isActive && 'group-hover:scale-110')} />
               {(!isCollapsed || isMobile) && (
-                <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
+                <span className="text-[11px] font-medium whitespace-nowrap">{item.label}</span>
               )}
               {isActive && (!isCollapsed || isMobile) && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                <div className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse" />
               )}
             </Link>
           );
@@ -168,19 +168,19 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
       <div className="px-3 pb-6 space-y-1 border-t border-white/10 pt-3 mt-2 shrink-0">
         {/* User info */}
         {(!isCollapsed || isMobile) && (
-          <div className="px-4 py-3 mb-2 bg-white/5 rounded-xl border border-white/5 mx-1">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-white/90 text-sm font-bold truncate leading-none">
+          <div className="px-3 py-2 mb-1.5 bg-white/5 rounded-xl border border-white/5 mx-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <p className="text-white/90 text-[11px] font-bold truncate leading-none">
                 {session?.user?.name || "User"}
               </p>
               <span className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter",
+                "text-[8px] px-1 py-0.5 rounded-full font-bold uppercase tracking-tighter",
                 isStaffRole ? "bg-amber-500/20 text-amber-500 border border-amber-500/30" : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
               )}>
                 {roleLabel}
               </span>
             </div>
-            <p className="text-white/30 text-[10px] truncate font-medium">
+            <p className="text-white/30 text-[9px] truncate font-medium">
               {session?.user?.email || "authenticated@system"}
             </p>
           </div>
@@ -190,15 +190,15 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
           onClick={handleLogout}
           className={cn(
             'flex items-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all duration-200 w-full cursor-pointer',
-            isCollapsed && !isMobile ? 'justify-center py-3' : 'gap-3 px-4 py-2.5'
+            isCollapsed && !isMobile ? 'justify-center py-2' : 'gap-2.5 px-3 py-1.5'
           )}
           title={isCollapsed && !isMobile ? 'Logout' : undefined}
         >
           {isPending
-            ? <Loader2 size={18} className="shrink-0 animate-spin" />
-            : <LogOut size={18} className="shrink-0" />
+            ? <Loader2 size={15} className="shrink-0 animate-spin" />
+            : <LogOut size={15} className="shrink-0" />
           }
-          {(!isCollapsed || isMobile) && <span className="text-sm whitespace-nowrap">Logout</span>}
+          {(!isCollapsed || isMobile) && <span className="text-[11px] whitespace-nowrap">Logout</span>}
         </button>
       </div>
 
