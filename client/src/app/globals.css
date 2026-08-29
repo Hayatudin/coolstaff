@@ -42,27 +42,25 @@ body {
 }
 
 /* ── Sidebar compact styles ───────────────────────────────────────────── */
-/* Matches the SKY Agency reference: ~130px wide, 12px labels, tight rows */
+/* Matches the Catalog reference: 13px text, 16px icons, generous spacing */
 aside nav a {
-  font-size: 0.75rem !important;      /* 12px — text-xs, matches SKY Agency */
-  padding-top: 0.375rem !important;
-  padding-bottom: 0.375rem !important;
+  font-size: 0.8125rem !important;    /* 13px — matches reference */
 }
 aside nav a svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 /* ── Dashboard table compact styles ──────────────────────────────────── */
-/* Matches SKY Agency reference: 12px body text, tight but readable rows */
+/* Tight but readable — matches the reference table density              */
 .overflow-x-auto table thead tr th {
-  padding: 0.5rem 0.75rem !important;   /* compact but readable header */
-  font-size: 0.65rem !important;         /* 10.4px uppercase labels     */
-  letter-spacing: 0.07em !important;
+  padding: 0.5rem 0.875rem !important;
+  font-size: 0.6875rem !important;    /* 11px uppercase headers */
+  letter-spacing: 0.06em !important;
 }
 .overflow-x-auto table tbody tr td {
-  padding: 0.5rem 0.75rem !important;   /* compact rows                */
-  font-size: 0.75rem !important;         /* 12px — text-xs, matches ref */
+  padding: 0.5rem 0.875rem !important;
+  font-size: 0.8125rem !important;    /* 13px body — matches reference */
 }
 
 /* Custom scrollbar */
