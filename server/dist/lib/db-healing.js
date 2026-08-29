@@ -220,13 +220,21 @@ async function ensureDatabaseSchema() {
         const accounts = await queryRaw(`SELECT id FROM \`Account\` WHERE userId = ? AND providerId = 'credential'`, [targetUserId]);
         if (accounts.length === 0) {
             const accId = 'c' + Math.random().toString(36).substring(2, 14);
-            await executeRaw(`INSERT INTO \`Account\` (\`id\`, \`userId\`, \`accountId\`, \`providerId\`, \`password\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, 'hayuuj0@gmail.com', 'credential', ?, NOW(), NOW())`, [accId, targetUserId, hashedPass]);
+            await executeRaw(
+            // v1.7: accountId must be userId, issuer must be 'local:credential'
+            `INSERT INTO \`Account\` (\`id\`, \`userId\`, \`accountId\`, \`providerId\`, \`issuer\`, \`password\`, \`createdAt\`, \`updatedAt\`) VALUES (?, ?, ?, 'credential', 'local:credential', ?, NOW(), NOW())`, [accId, targetUserId, targetUserId, hashedPass]);
             console.log('✅ Created credential Account for hayuuj0@gmail.com with hashed password.');
         }
         else {
-            await executeRaw(`UPDATE \`Account\` SET \`password\` = ?, \`accountId\` = 'hayuuj0@gmail.com' WHERE userId = ? AND providerId = 'credential'`, [hashedPass, targetUserId]);
-            console.log('✅ Updated credential Account password for hayuuj0@gmail.com.');
+            await executeRaw(
+            // v1.7: fix accountId to be userId, set issuer to 'local:credential', rehash password
+            `UPDATE \`Account\` SET \`password\` = ?, \`accountId\` = ?, \`issuer\` = 'local:credential' WHERE userId = ? AND providerId = 'credential'`, [hashedPass, targetUserId, targetUserId]);
+            console.log('✅ Updated credential Account for hayuuj0@gmail.com (password rehashed, accountId=userId, issuer=local:credential).');
         }
+        // Fix ALL other credential accounts in the DB to match v1.7 format:
+        // accountId must equal userId, issuer must be 'local:credential'
+        await executeRaw(`UPDATE \`Account\` SET \`accountId\` = \`userId\`, \`issuer\` = 'local:credential' WHERE \`providerId\` = 'credential' AND (\`issuer\` IS NULL OR \`issuer\` != 'local:credential' OR \`accountId\` != \`userId\`)`);
+        console.log('✅ Migrated all credential accounts to v1.7 format (accountId=userId, issuer=local:credential).');
     }
     catch (e) {
         console.warn('⚠️ User account auto-healing warning:', e.message || e);

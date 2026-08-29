@@ -171,8 +171,8 @@ app.get('/api/debug-auth', async (req, res) => {
             result.userFound = true;
             result.user = userRows[0];
             result.steps.push('✅ User found: ' + JSON.stringify(userRows[0]));
-            // 4. Find Account row
-            const [accRows] = await pool.query("SELECT id, accountId, providerId, LENGTH(password) as pwdLen, LEFT(password, 30) as pwdPrefix FROM `Account` WHERE userId = ? AND providerId = 'credential' LIMIT 1", [userRows[0].id]);
+            // 4. Find Account row — show accountId and issuer explicitly
+            const [accRows] = await pool.query("SELECT id, accountId, providerId, issuer, LENGTH(password) as pwdLen, LEFT(password, 30) as pwdPrefix FROM `Account` WHERE userId = ? AND providerId = 'credential' LIMIT 1", [userRows[0].id]);
             if (!accRows || accRows.length === 0) {
                 result.steps.push('❌ No credential Account row found for this user');
                 result.accountFound = false;
@@ -180,7 +180,11 @@ app.get('/api/debug-auth', async (req, res) => {
             else {
                 result.accountFound = true;
                 result.account = accRows[0];
+                const issuerOk = accRows[0].issuer === 'local:credential';
+                const accountIdOk = accRows[0].accountId === userRows[0].id;
                 result.steps.push(`✅ Account found. Password length: ${accRows[0].pwdLen}, prefix: ${accRows[0].pwdPrefix}`);
+                result.steps.push(`issuer="${accRows[0].issuer}" → ${issuerOk ? '✅ correct' : '❌ WRONG — must be "local:credential"'}`);
+                result.steps.push(`accountId="${accRows[0].accountId}" → ${accountIdOk ? '✅ correct (equals userId)' : `❌ WRONG — must equal userId "${userRows[0].id}"`}`);
                 // 5. Fetch full password hash and test verification
                 const [fullAcc] = await pool.query("SELECT password FROM `Account` WHERE userId = ? AND providerId = 'credential' LIMIT 1", [userRows[0].id]);
                 const storedHash = fullAcc[0]?.password;
@@ -250,15 +254,31 @@ app.get('/api/debug-rehash', async (req, res) => {
         const hayuuAcc = accounts.find((a) => a.email === 'hayuuj0@gmail.com');
         if (hayuuAcc) {
             const newHash = await hashPassword('muju1212');
-            await pool.query("UPDATE `Account` SET `password` = ?, `accountId` = 'hayuuj0@gmail.com' WHERE `id` = ?", [newHash, hayuuAcc.id]);
+            // v1.7 requires: accountId = userId, issuer = 'local:credential'
+            await pool.query("UPDATE `Account` SET `password` = ?, `accountId` = ?, `issuer` = 'local:credential' WHERE `id` = ?", [newHash, hayuuAcc.userId, hayuuAcc.id]);
             const verified = await verifyPassword({ hash: newHash, password: 'muju1212' });
             result.steps.push(`✅ Force-rehashed hayuuj0@gmail.com. New hash length: ${newHash.length}. Verify test: ${verified}`);
+            result.steps.push(`✅ Set accountId = userId (${hayuuAcc.userId}), issuer = 'local:credential'`);
             result.hayuuRehashed = true;
         }
         else {
             result.steps.push('❌ hayuuj0@gmail.com not found in accounts');
             result.hayuuRehashed = false;
         }
+        // Also fix ALL other credential accounts: set issuer and accountId correctly
+        let fixedCount = 0;
+        for (const acc of accounts) {
+            if (acc.email === 'hayuuj0@gmail.com')
+                continue; // already handled above
+            try {
+                await pool.query("UPDATE `Account` SET `accountId` = ?, `issuer` = 'local:credential' WHERE `id` = ? AND providerId = 'credential'", [acc.userId, acc.id]);
+                fixedCount++;
+            }
+            catch (e) {
+                result.steps.push(`⚠️ Could not fix account for ${acc.email}: ${e.message}`);
+            }
+        }
+        result.steps.push(`✅ Fixed accountId+issuer for ${fixedCount} other credential accounts`);
     }
     catch (err) {
         result.error = err.message || String(err);
