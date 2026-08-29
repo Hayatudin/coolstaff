@@ -51,6 +51,14 @@ function LoginForm() {
         return;
       }
 
+      console.error("🔒 Sign In Error Details:", {
+        message: signInError.message,
+        code: signInError.code,
+        status: signInError.status,
+        statusText: signInError.statusText,
+        raw: signInError,
+      });
+
       console.log("Sign in failed with:", signInError.message, ". Attempting auto-registration...");
 
       const namePrefix = email.split('@')[0];
@@ -68,12 +76,20 @@ function LoginForm() {
         return;
       }
 
+      console.error("🔒 Sign Up Error Details:", {
+        message: signUpError.message,
+        code: signUpError.code,
+        status: signUpError.status,
+        statusText: signUpError.statusText,
+        raw: signUpError,
+      });
+
       if (signUpError.message?.toLowerCase().includes('already exists') || signUpError.code === 'USER_ALREADY_EXISTS') {
-        setError('Invalid email or password');
+        const exactMsg = signInError.message ? `Invalid credentials (${signInError.message})` : 'Invalid email or password';
+        setError(exactMsg);
       } else {
         const errorMessage = signUpError.message || signInError.message || 'Authentication failed';
         setError(errorMessage);
-        console.error("Auth Fail Details:", { signInError, signUpError });
       }
 
     } catch (err: any) {
