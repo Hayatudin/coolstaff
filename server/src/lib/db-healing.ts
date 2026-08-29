@@ -48,6 +48,16 @@ export async function ensureDatabaseSchema() {
   }
 
   try {
+    await executeRaw(`ALTER TABLE \`User\` ADD COLUMN \`majorAgency\` VARCHAR(191) NULL`);
+    console.log(`✅ Successfully added column 'majorAgency' to User table.`);
+  } catch (e: any) {
+    const msg = e.message || String(e);
+    if (!msg.includes('Duplicate column') && !msg.includes('already exists')) {
+      console.warn(`⚠️ User column fallback update warning for 'majorAgency':`, msg);
+    }
+  }
+
+  try {
     await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Session\` (
         \`id\` VARCHAR(191) NOT NULL,
