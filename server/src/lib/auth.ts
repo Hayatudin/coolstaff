@@ -3,6 +3,12 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import db from '../db';
 import * as schema from '../db/schema';
 
+const isProduction =
+  process.env.NODE_ENV === 'production' ||
+  process.env.BETTER_AUTH_URL?.includes('coolstaffagency.com') ||
+  process.env.HOME?.includes('coolstou') ||
+  process.env.USER === 'coolstou';
+
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET || '74RzhyeAPZVictmFaCAA/1TPEkfdE+469xOQtWgrPbI=',
   baseURL: process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com',
@@ -36,10 +42,10 @@ export const auth = betterAuth({
   advanced: {
     basePath: '/api/auth',
     disableCSRFCheck: true,
-    useSecureCookies: true,
+    useSecureCookies: isProduction,
     defaultCookieAttributes: {
-      sameSite: "none" as const,
-      secure: true,
+      sameSite: isProduction ? ("none" as const) : ("lax" as const),
+      secure: isProduction,
     },
   },
 
