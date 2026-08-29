@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db, candidate as candidateTable, notification as notificationTable, generateId } from '../db';
+import { gte, lte, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -10,14 +11,15 @@ router.get('/check-deadlines', async (req: Request, res: Response) => {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    const candidates = await prisma.candidate.findMany({
-      where: {
-        cvDeadline: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    });
+    const candidates = await db
+      .select()
+      .from(candidateTable)
+      .where(
+        and(
+          gte(candidateTable.cvDeadline, startOfDay),
+          lte(candidateTable.cvDeadline, endOfDay)
+        )
+      );
 
     if (candidates.length === 0) {
       return res.json({ success: true, message: 'No deadlines today.' });
@@ -41,12 +43,11 @@ router.get('/check-deadlines', async (req: Request, res: Response) => {
                       `_Please ensure the final document has been exported and sent to the agency._`;
 
       try {
-        await prisma.notification.create({
-          data: {
-            title: 'CV Deadline Reached',
-            message: `The 30-day CV deadline for ${candidate.givenNames} ${candidate.surname} (${candidate.passportNumber}) has been reached.`,
-            candidateId: candidate.id
-          }
+        await db.insert(notificationTable).values({
+          id: generateId(),
+          title: 'CV Deadline Reached',
+          message: `The 30-day CV deadline for ${candidate.givenNames} ${candidate.surname} (${candidate.passportNumber}) has been reached.`,
+          candidateId: candidate.id
         });
 
         const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

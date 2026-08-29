@@ -1,5 +1,13 @@
 import { Router, Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import {
+  db,
+  pool,
+  candidate as candidateTable,
+  generatedCv as generatedCvTable,
+  broker as brokerTable,
+  user as userTable,
+} from '../db';
+import { eq, inArray } from 'drizzle-orm';
 import { resolveCandidateNationality, resolveCandidateWorkExperience } from '../lib/cvHelpers';
 import fs from 'fs';
 import path from 'path';
@@ -25,7 +33,6 @@ interface BulkJob {
 
 const bulkJobs: Record<string, BulkJob> = {};
 
-// Clean up expired jobs (older than 15 minutes) every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [jobId, job] of Object.entries(bulkJobs)) {
@@ -38,56 +45,37 @@ setInterval(() => {
 
 const fetchImageAsBase64 = async (url: string) => {
   if (!url) return '';
-
-  // If it's already a base64 data URL, just strip the prefix
   if (url.startsWith('data:')) {
     return url.split(',')[1] || url;
   }
-
-  // Try local file system first (faster and more reliable on cPanel)
   try {
-    // Handle both relative paths and absolute-looking relative paths
     let cleanUrl = url.startsWith('http') ? new URL(url).pathname : url;
-
-    // If it uses our new proxy route /api/assets/..., strip it to get the real path
     if (cleanUrl.includes('/api/assets/')) {
       cleanUrl = cleanUrl.split('/api/assets/')[1];
     }
-
     const relativePath = cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl;
-
-    // Try common locations: root/public/uploads or root/uploads
     const pathsToTry = [
       path.join(process.cwd(), 'public', relativePath),
       path.join(process.cwd(), relativePath),
       path.join(process.cwd(), '..', 'public', relativePath),
       path.join(process.cwd(), 'public', 'uploads', relativePath),
     ];
-
     for (const localPath of pathsToTry) {
       if (fs.existsSync(localPath)) {
-        console.log(`[DOCX] Found local image at: ${localPath}`);
         return fs.readFileSync(localPath, 'base64');
       }
     }
-  } catch (e) {
-    console.warn(`[DOCX] Local read failed for: ${url}`, e);
-  }
+  } catch (e) {}
 
-  // Fallback to remote fetch if local fails
   if (url.startsWith('http')) {
     try {
-      console.log(`[DOCX] Fetching remote image: ${url}`);
       const res = await fetch(url);
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer();
         return Buffer.from(arrayBuffer).toString('base64');
       }
-    } catch (e) {
-      console.warn(`[DOCX] Remote fetch failed: ${url}`);
-    }
+    } catch (e) {}
   }
-
   return '';
 };
 
@@ -117,33 +105,17 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId },
-      include: { broker: true }
-    });
-
-    if (!candidate) {
+    const [cands]: any = await pool.query('SELECT c.*, b.name as brokerName FROM Candidate c LEFT JOIN Broker b ON c.brokerId = b.id WHERE c.id = ? LIMIT 1', [candidateId]);
+    if (!cands || cands.length === 0) {
       return res.status(404).json({ error: 'Candidate not found' });
     }
+    const candidate = cands[0];
 
-    if (candidate.broker?.name === 'Calling') {
+    if (candidate.brokerName === 'Calling') {
       return res.status(400).json({ error: 'CV is not available for Calling candidates.' });
     }
 
-    let candidateIsLocked = false;
-    try {
-      const rawRows: any[] = await prisma.$queryRawUnsafe(
-        'SELECT isLocked FROM `Candidate` WHERE id = ? LIMIT 1',
-        candidateId
-      );
-      if (rawRows.length > 0) {
-        candidateIsLocked = rawRows[0].isLocked === 1 || rawRows[0].isLocked === true;
-      }
-    } catch (e) {
-      console.warn('[CV] Could not query candidate isLocked:', e);
-    }
-
-    if (candidateIsLocked) {
+    if (candidate.isLocked === 1 || candidate.isLocked === true) {
       return res.status(403).json({ error: 'This candidate is locked. CV downloading is restricted.' });
     }
 
@@ -152,17 +124,12 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: `Invalid template ID: ${templateId}` });
     }
 
-    // PDF / Image formatting (Playwright logic remains intact)
     if (format === 'pdf' || format === 'image' || format === 'jpg') {
       const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
       try {
         const page = await browser.newPage();
-
-        // Construct the print URL (assuming client is on port 3000)
-        // NOTE: For 'al-shablan' or 'ussus', the printUrl uses the route name
         const clientTemplateRoute = (templateRef === 'CV Al-shablan.docx' ? 'al-shablan' : (templateRef === 'CV Ussus.docx' ? 'ussus' : templateRef));
         const printUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/cv-print/${candidateId}/${clientTemplateRoute}`;
-        console.log('Generating from URL:', printUrl);
 
         await page.goto(printUrl, { waitUntil: 'networkidle' });
 
@@ -190,7 +157,6 @@ router.post('/generate', async (req: Request, res: Response) => {
       }
     }
 
-    // DOCX formatting (docxtemplater logic)
     if (format === 'doc' || format === 'docx') {
       const templatePath = path.join(process.cwd(), 'templates', templateRef);
       if (!fs.existsSync(templatePath)) {
@@ -203,7 +169,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       const docXmlFile = zip.file('word/document.xml');
       if (docXmlFile) {
         let docXml = docXmlFile.asText();
-        docXml = docXml.replace(/<w:highlight[^>]*\/>/g, ''); // Clear highlights if any
+        docXml = docXml.replace(/<w:highlight[^>]*\/>/g, '');
 
         let isAlmFullBodyInjected = false;
         if (!docXml.includes('fullBodyPhoto') && docXml.includes('w:w="5265" w:h="8175"')) {
@@ -237,45 +203,27 @@ router.post('/generate', async (req: Request, res: Response) => {
         },
         getSize: (img: Buffer, tagValue: string, tagName: string) => {
           if (tagName === 'qrCode') return [100, 100];
-
-          let maxWidth = 150;
-          let maxHeight = 180;
-
+          let maxWidth = 150, maxHeight = 180;
           if (tagName === 'facePhoto' || tagName === 'photo') {
-            if (templateId === 'tmpl-ussus') {
-              maxWidth = 220; maxHeight = 270;
-            } else if (templateId === 'tmpl-al-shablan') {
-              maxWidth = 150; maxHeight = 165;
-            } else {
-              maxWidth = 150; maxHeight = 180;
-            }
+            if (templateId === 'tmpl-ussus') { maxWidth = 220; maxHeight = 270; }
+            else if (templateId === 'tmpl-al-shablan') { maxWidth = 150; maxHeight = 165; }
+            else { maxWidth = 150; maxHeight = 180; }
           } else if (tagName === 'fullBodyPhoto') {
-            if (templateId === 'tmpl-ussus') {
-              maxWidth = 250; maxHeight = 500;
-            } else if (templateId === 'tmpl-al-shablan') {
-              maxWidth = 240; maxHeight = 600;
-            } else {
-              maxWidth = 320; maxHeight = 580;
-            }
+            if (templateId === 'tmpl-ussus') { maxWidth = 250; maxHeight = 500; }
+            else if (templateId === 'tmpl-al-shablan') { maxWidth = 240; maxHeight = 600; }
+            else { maxWidth = 320; maxHeight = 580; }
           } else if (tagName === 'passport image' || tagName === 'passportPhoto') {
-            maxWidth = 550;
-            maxHeight = 750;
+            maxWidth = 550; maxHeight = 750;
           }
-
           try {
             const dimensions = sizeOf(img);
-            console.log(`[DOCX] Image ${tagName} original size: ${dimensions.width}x${dimensions.height}`);
             const ratio = dimensions.width / dimensions.height;
-
             if (ratio > maxWidth / maxHeight) {
-              // Limited by width
               return [maxWidth, Math.round(maxWidth / ratio)];
             } else {
-              // Limited by height
               return [Math.round(maxHeight * ratio), maxHeight];
             }
           } catch (e) {
-            console.warn(`[DOCX] Failed to get dimensions for ${tagName}`, e);
             return [maxWidth, maxHeight];
           }
         },
@@ -287,8 +235,14 @@ router.post('/generate', async (req: Request, res: Response) => {
         modules: [new ImageModule(imageOptions)],
       });
 
-      const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
-      const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
+      const parseJson = (val: any) => {
+        if (!val) return [];
+        if (typeof val === 'object') return val;
+        try { return JSON.parse(val); } catch (_) { return []; }
+      };
+
+      const skillsArray = parseJson(candidate.skills).map(String);
+      const langsArray = parseJson(candidate.languages).map(String);
       const resolvedExps = resolveCandidateWorkExperience(candidate);
       const resolvedNationality = resolveCandidateNationality(candidate);
 
@@ -313,16 +267,8 @@ router.post('/generate', async (req: Request, res: Response) => {
         fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || ''),
         fetchImageAsBase64(candidate.passportImageUrl || '')
       ]);
-      let finalVideoUrl = (candidate as any).videoUrl;
-      try {
-        const rawRows: any[] = await prisma.$queryRawUnsafe(
-          `SELECT Youtube_URL FROM \`Candidate\` WHERE id = ?`,
-          candidateId
-        );
-        if (rawRows.length > 0 && rawRows[0].Youtube_URL) {
-          finalVideoUrl = rawRows[0].Youtube_URL;
-        }
-      } catch (_) {}
+
+      const finalVideoUrl = candidate.Youtube_URL || candidate.videoUrl || null;
       const qrCodeData = finalVideoUrl ? await QRCode.toDataURL(finalVideoUrl) : '';
 
       const formatValue = (val: any) => (val && val !== 'undefined' && val !== 'null' && String(val).trim() !== '' ? val : '-');
@@ -332,21 +278,25 @@ router.post('/generate', async (req: Request, res: Response) => {
       const expPositionVal = resolvedExps.length > 0 ? resolvedExps.map(e => e.position || candidate.job || 'HOUSE MAID').join(', ') : '-';
       const expSummaryVal = resolvedExps.length > 0 ? resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') : 'Fresher';
 
+      const dobDate = candidate.dateOfBirth ? new Date(candidate.dateOfBirth) : null;
+      const issueDate = candidate.dateOfIssue ? new Date(candidate.dateOfIssue) : null;
+      const expiryDate = candidate.dateOfExpiry ? new Date(candidate.dateOfExpiry) : null;
+
       const data = {
         refNumber: candidate.id.slice(-6).toUpperCase(),
         givenNames: formatValue(candidate.givenNames),
         surname: formatValue(candidate.surname),
         fullName: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
         passportNumber: formatValue(candidate.passportNumber),
-        dateOfBirth: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-        dob: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+        dateOfBirth: dobDate ? dobDate.toISOString().split('T')[0] : '-',
+        dob: dobDate ? dobDate.toISOString().split('T')[0] : '-',
         gender: formatValue(candidate.gender),
         nationality: resolvedNationality,
         issuingCountry: formatValue(candidate.issuingCountry),
-        dateOfIssue: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
-        issueDate: candidate.dateOfIssue ? candidate.dateOfIssue.toISOString().split('T')[0] : '-',
-        dateOfExpiry: candidate.dateOfExpiry ? candidate.dateOfExpiry.toISOString().split('T')[0] : '-',
-        expiryDate: candidate.dateOfExpiry ? candidate.dateOfExpiry.toISOString().split('T')[0] : '-',
+        dateOfIssue: issueDate ? issueDate.toISOString().split('T')[0] : '-',
+        issueDate: issueDate ? issueDate.toISOString().split('T')[0] : '-',
+        dateOfExpiry: expiryDate ? expiryDate.toISOString().split('T')[0] : '-',
+        expiryDate: expiryDate ? expiryDate.toISOString().split('T')[0] : '-',
         issuePlace: formatValue(candidate.issuingCountry),
         maritalStatus: formatValue(candidate.maritalStatus),
         numberOfChildren: candidate.numberOfChildren || 0,
@@ -369,9 +319,8 @@ router.post('/generate', async (req: Request, res: Response) => {
         emergencyName: formatValue(candidate.emergencyContactName),
         emergencyPhone: formatValue(candidate.emergencyContactPhone),
         job: formatValue(candidate.job),
-        age: calculateAge(candidate.dateOfBirth),
+        age: calculateAge(dobDate),
 
-        // Skill specific tags
         skillBaby: formatValue(hasSkill('baby')),
         skillChildren: formatValue(hasSkill('child')),
         skillTutor: formatValue(hasSkill('tutor')),
@@ -385,13 +334,11 @@ router.post('/generate', async (req: Request, res: Response) => {
         skillDrive: formatValue(hasSkill('driv')),
         skillDisabled: formatValue(hasSkill('disabl')),
 
-        // Language specific tags
         english: formatValue(hasLang('english')),
         arabic: formatValue(hasLang('arabic')),
 
         qrCode: qrCodeData,
 
-        // Experience placeholders
         expCountry: expCountryVal,
         expPeriod: expPeriodVal,
         expPosition: expPositionVal,
@@ -406,7 +353,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         FULL_NAME: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
         NAME_AR: 'الاسم الكامل',
         PASSPORT_NO: formatValue(candidate.passportNumber),
-        DOB: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+        DOB: dobDate ? dobDate.toISOString().split('T')[0] : '-',
         NATIONALITY: resolvedNationality,
         GENDER: formatValue(candidate.gender),
         PHONE: formatValue(candidate.phone),
@@ -419,7 +366,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         salary: '-',
         SKILLS: skillsArray.join(', ') || '-',
         PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
-        AGE: calculateAge(candidate.dateOfBirth),
+        AGE: calculateAge(dobDate),
       };
 
       doc.render(data);
@@ -449,40 +396,19 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
       progress: 0,
       total: candidateIds.length,
       status: 'pending',
-      expiresAt: Date.now() + 15 * 60 * 1000 // expires in 15 mins
+      expiresAt: Date.now() + 15 * 60 * 1000
     };
 
     res.json({ jobId });
 
-    // Start background processing
     (async () => {
       bulkJobs[jobId].status = 'processing';
       const zip = new JSZip();
 
       try {
-        const dbCandidates = await prisma.candidate.findMany({
-          where: { 
-            id: { in: candidateIds }
-          },
-          include: { generatedCVs: true, broker: true }
-        });
+        const dbCandidates = await db.select().from(candidateTable).where(inArray(candidateTable.id, candidateIds));
 
-        // Query candidate lock states via raw SQL to bypass stale Prisma Client
-        let lockedIds = new Set<string>();
-        try {
-          const rawLocks: any[] = await prisma.$queryRawUnsafe(
-            `SELECT id, isLocked FROM \`Candidate\` WHERE id IN (${candidateIds.map(id => `'${id}'`).join(',')})`
-          );
-          for (const row of rawLocks) {
-            if (row.isLocked === 1 || row.isLocked === true) {
-              lockedIds.add(row.id);
-            }
-          }
-        } catch (e) {
-          console.warn('[CV] Failed to fetch bulk isLocked map:', e);
-        }
-
-        const candidates = dbCandidates.filter(c => !lockedIds.has(c.id) && c.broker?.name !== 'Calling');
+        const candidates = dbCandidates.filter(c => c.isLocked !== true);
 
         if (format === 'doc' || format === 'docx') {
           const BATCH_SIZE = 20;
@@ -492,7 +418,8 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
             const batch = candidates.slice(i, i + BATCH_SIZE);
             await Promise.all(batch.map(async (candidate) => {
               try {
-                const firstCv = candidate.generatedCVs?.[0];
+                const cvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, candidate.id));
+                const firstCv = cvs[0];
                 const rawTemplateId = firstCv ? firstCv.templateId : 'alm';
                 const templateId = rawTemplateId.startsWith('tmpl-') ? rawTemplateId : `tmpl-${rawTemplateId}`;
 
@@ -508,7 +435,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                 const docXmlFile = candidateZip.file('word/document.xml');
                 if (docXmlFile) {
                   let docXml = docXmlFile.asText();
-                  docXml = docXml.replace(/<w:highlight[^>]*\/>/g, ''); // Clear highlights if any
+                  docXml = docXml.replace(/<w:highlight[^>]*\/>/g, '');
 
                   let isAlmFullBodyInjected = false;
                   if (!docXml.includes('fullBodyPhoto') && docXml.includes('w:w="5265" w:h="8175"')) {
@@ -541,35 +468,26 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   fetchImageAsBase64(candidate.passportImageUrl || '')
                 ]);
 
-                let finalVideoUrl = (candidate as any).videoUrl;
-                try {
-                  const rawRows: any[] = await prisma.$queryRawUnsafe(
-                    `SELECT Youtube_URL FROM \`Candidate\` WHERE id = ?`,
-                    candidate.id
-                  );
-                  if (rawRows.length > 0 && rawRows[0].Youtube_URL) {
-                    finalVideoUrl = rawRows[0].Youtube_URL;
-                  }
-                } catch (_) {}
+                const finalVideoUrl = candidate.videoUrl || null;
                 const qrCodeData = finalVideoUrl ? await QRCode.toDataURL(finalVideoUrl) : '';
 
-                const skillsArray = Array.isArray(candidate.skills) ? candidate.skills.map(String) : [];
-                const langsArray = Array.isArray(candidate.languages) ? candidate.languages.map(String) : [];
+                const parseJson = (val: any) => {
+                  if (!val) return [];
+                  if (typeof val === 'object') return val;
+                  try { return JSON.parse(val); } catch (_) { return []; }
+                };
+
+                const skillsArray = parseJson(candidate.skills).map(String);
+                const langsArray = parseJson(candidate.languages).map(String);
                 const resolvedExps = resolveCandidateWorkExperience(candidate);
                 const resolvedNationality = resolveCandidateNationality(candidate);
 
                 const isExperienced = resolvedExps.length > 0;
                 const hasSkill = (keyword: string) => {
                   const kw = keyword.toLowerCase();
-                  if (kw.includes('cook') || kw.includes('arabic')) {
-                    return isExperienced ? 'Yes' : 'No';
-                  }
-                  if (kw.includes('iron')) {
-                    return isExperienced ? (skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No') : 'No';
-                  }
-                  if (kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) {
-                    return 'Yes';
-                  }
+                  if (kw.includes('cook') || kw.includes('arabic')) return isExperienced ? 'Yes' : 'No';
+                  if (kw.includes('iron')) return isExperienced ? (skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No') : 'No';
+                  if (kw.includes('clean') || kw.includes('wash') || kw.includes('baby') || kw.includes('child')) return 'Yes';
                   return skillsArray.some((s: string) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';
                 };
                 const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
@@ -581,14 +499,16 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                 const expPositionVal = resolvedExps.length > 0 ? resolvedExps.map(e => e.position || candidate.job || 'HOUSE MAID').join(', ') : '-';
                 const expSummaryVal = resolvedExps.length > 0 ? resolvedExps.map(e => `${e.country} (${e.yearsOfExperience} YRS)`).join(', ') : 'Fresher';
 
+                const dobDate = candidate.dateOfBirth ? new Date(candidate.dateOfBirth) : null;
+
                 const data = {
                   refNumber: candidate.id.slice(-6).toUpperCase(),
                   givenNames: formatValue(candidate.givenNames),
                   surname: formatValue(candidate.surname),
                   fullName: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
                   passportNumber: formatValue(candidate.passportNumber),
-                  dateOfBirth: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
-                  dob: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+                  dateOfBirth: dobDate ? dobDate.toISOString().split('T')[0] : '-',
+                  dob: dobDate ? dobDate.toISOString().split('T')[0] : '-',
                   gender: formatValue(candidate.gender),
                   nationality: resolvedNationality,
                   issuingCountry: formatValue(candidate.issuingCountry),
@@ -618,7 +538,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   emergencyName: formatValue(candidate.emergencyContactName),
                   emergencyPhone: formatValue(candidate.emergencyContactPhone),
                   job: formatValue(candidate.job),
-                  age: calculateAge(candidate.dateOfBirth),
+                  age: calculateAge(dobDate),
 
                   skillBaby: formatValue(hasSkill('baby')),
                   skillChildren: formatValue(hasSkill('child')),
@@ -652,7 +572,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   FULL_NAME: `${formatValue(candidate.givenNames)} ${formatValue(candidate.surname)}`.replace(/-/g, '').trim() || '-',
                   NAME_AR: 'الاسم الكامل',
                   PASSPORT_NO: formatValue(candidate.passportNumber),
-                  DOB: candidate.dateOfBirth ? candidate.dateOfBirth.toISOString().split('T')[0] : '-',
+                  DOB: dobDate ? dobDate.toISOString().split('T')[0] : '-',
                   NATIONALITY: resolvedNationality,
                   GENDER: formatValue(candidate.gender),
                   PHONE: formatValue(candidate.phone),
@@ -665,7 +585,7 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   salary: '-',
                   SKILLS: skillsArray.join(', ') || '-',
                   PLACE_OF_BIRTH: formatValue(candidate.placeOfBirth),
-                  AGE: calculateAge(candidate.dateOfBirth),
+                  AGE: calculateAge(dobDate),
                 };
 
                 const sizeOf = require('image-size');
@@ -744,7 +664,8 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
                 const page = await browser.newPage();
                 try {
-                  const firstCv = candidate.generatedCVs?.[0];
+                  const cvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, candidate.id));
+                  const firstCv = cvs[0];
                   const rawTemplateId = firstCv ? firstCv.templateId : 'alm';
                   const clientTemplateRoute = rawTemplateId.replace('tmpl-', '').toLowerCase();
 
@@ -788,30 +709,21 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
           }
         }
 
-        console.log(`[Bulk CV] Compressing ZIP for job ${jobId}...`);
         const zipBuf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
         bulkJobs[jobId].zipBuffer = zipBuf;
         bulkJobs[jobId].status = 'completed';
-        console.log(`[Bulk CV] Completed job: ${jobId}`);
 
-        // Update database in bulk
-        const placeholders = candidateIds.map(() => '?').join(', ');
-        await prisma.$executeRawUnsafe(
-          `UPDATE \`Candidate\` SET \`cvDownloaded\` = 1 WHERE \`id\` IN (${placeholders})`,
-          ...candidateIds
-        );
+        await db.update(candidateTable).set({ cvDownloaded: true }).where(inArray(candidateTable.id, candidateIds));
 
         for (const candidate of candidates) {
           try {
-            const firstCv = candidate.generatedCVs?.[0];
-            if (!firstCv) {
-              await prisma.generatedCV.create({
-                data: {
-                  candidateId: candidate.id,
-                  templateId: 'alm',
-                  facePhotoUrl: candidate.facePhotoUrl || '',
-                  fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || ''
-                }
+            const cvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, candidate.id));
+            if (cvs.length === 0) {
+              await db.insert(generatedCvTable).values({
+                candidateId: candidate.id,
+                templateId: 'alm',
+                facePhotoUrl: candidate.facePhotoUrl || '',
+                fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || ''
               });
             }
           } catch (dbErr) {
@@ -860,7 +772,6 @@ router.get('/bulk-generate/download/:jobId', (req: Request, res: Response) => {
   res.setHeader('Content-Disposition', `attachment; filename="CVs_Bulk_${Date.now()}.zip"`);
   res.send(job.zipBuffer);
 
-  // Clean up memory immediately after download starts/completes
   delete bulkJobs[jobId];
 });
 
@@ -871,116 +782,113 @@ router.post('/candidates-batch', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'candidateIds must be a non-empty array' });
     }
 
-    const dbCandidates = await prisma.candidate.findMany({
-      where: { 
-        id: { in: candidateIds }
-      },
-      include: { 
-        generatedCVs: true,
-        broker: true,
-        registeredBy: true
-      }
-    });
+    const dbCandidates = await db.select().from(candidateTable).where(inArray(candidateTable.id, candidateIds));
 
-    // Query candidate lock states via raw SQL to bypass stale Prisma Client
-    let lockedIds = new Set<string>();
-    try {
-      const rawLocks: any[] = await prisma.$queryRawUnsafe(
-        `SELECT id, isLocked FROM \`Candidate\` WHERE id IN (${candidateIds.map(id => `'${id}'`).join(',')})`
-      );
-      for (const row of rawLocks) {
-        if (row.isLocked === 1 || row.isLocked === true) {
-          lockedIds.add(row.id);
-        }
-      }
-    } catch (e) {
-      console.warn('[CV] Failed to fetch candidates-batch isLocked map:', e);
-    }
-
-    const candidates = dbCandidates.filter(c => !lockedIds.has(c.id));
-
+    const candidates = dbCandidates.filter(c => c.isLocked !== true);
     const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
 
-    const formatted = candidates.map((c: any) => ({
-      id: c.id,
-      shelfId: c.shelfId,
-      cvDeadline: formatDate(c.cvDeadline),
-      passportData: {
-        passportNumber: c.passportNumber,
-        surname: c.surname,
-        givenNames: c.givenNames,
-        dateOfBirth: formatDate(c.dateOfBirth),
-        gender: c.gender,
-        nationality: c.nationality,
-        issuingCountry: c.issuingCountry,
-        dateOfIssue: formatDate(c.dateOfIssue),
-        dateOfExpiry: formatDate(c.dateOfExpiry),
-        placeOfBirth: c.placeOfBirth,
-      },
-      personalInfo: {
-        idNumber: c.idNumber || c.passportNumber,
-        job: c.job || '',
-        maritalStatus: c.maritalStatus,
-        numberOfChildren: c.numberOfChildren,
-        religion: c.religion,
-        bloodType: c.bloodType,
-        height: c.height,
-        weight: c.weight,
-        phone: c.phone,
-        email: c.email,
-        address: c.address,
-        city: c.city,
-        state: c.state,
-        country: c.country,
-        educationLevel: c.educationLevel,
-        languages: c.languages,
-        workExperience: c.workExperience || [],
-        skills: c.skills,
-        medicalStatus: c.medicalStatus,
-        biometricStatus: c.biometricStatus,
-        medicalDate: formatDate(c.medicalDate),
-        biometricDate: formatDate(c.biometricDate),
-        knownConditions: c.knownConditions,
-        emergencyContactName: c.emergencyContactName,
-        emergencyContactRelation: c.emergencyContactRelation,
-        emergencyContactPhone: c.emergencyContactPhone,
-        emergencyContactAddress: c.emergencyContactAddress,
-        additionalPhones: c.additionalPhones,
-        brokerId: c.brokerId || '',
+    const formatted = [];
+    for (const c of candidates) {
+      const cvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, c.id));
+      let brokerObj = null;
+      if (c.brokerId) {
+        const brokers = await db.select().from(brokerTable).where(eq(brokerTable.id, c.brokerId));
+        if (brokers.length > 0) brokerObj = brokers[0];
+      }
+
+      let registeredByName = 'Admin';
+      if (c.registeredById) {
+        const users = await db.select().from(userTable).where(eq(userTable.id, c.registeredById));
+        if (users.length > 0) registeredByName = users[0].name || 'Admin';
+      }
+
+      const parseJson = (val: any) => {
+        if (!val) return [];
+        if (typeof val === 'object') return val;
+        try { return JSON.parse(val); } catch (_) { return []; }
+      };
+
+      formatted.push({
+        id: c.id,
+        shelfId: c.shelfId,
+        cvDeadline: formatDate(c.cvDeadline),
+        passportData: {
+          passportNumber: c.passportNumber,
+          surname: c.surname,
+          givenNames: c.givenNames,
+          dateOfBirth: formatDate(c.dateOfBirth),
+          gender: c.gender,
+          nationality: c.nationality,
+          issuingCountry: c.issuingCountry,
+          dateOfIssue: formatDate(c.dateOfIssue),
+          dateOfExpiry: formatDate(c.dateOfExpiry),
+          placeOfBirth: c.placeOfBirth,
+        },
+        personalInfo: {
+          idNumber: c.idNumber || c.passportNumber,
+          job: c.job || '',
+          maritalStatus: c.maritalStatus,
+          numberOfChildren: c.numberOfChildren,
+          religion: c.religion,
+          bloodType: c.bloodType,
+          height: c.height,
+          weight: c.weight,
+          phone: c.phone,
+          email: c.email,
+          address: c.address,
+          city: c.city,
+          state: c.state,
+          country: c.country,
+          educationLevel: c.educationLevel,
+          languages: parseJson(c.languages),
+          workExperience: parseJson(c.workExperience),
+          skills: parseJson(c.skills),
+          medicalStatus: c.medicalStatus,
+          biometricStatus: c.biometricStatus,
+          medicalDate: formatDate(c.medicalDate),
+          biometricDate: formatDate(c.biometricDate),
+          knownConditions: c.knownConditions,
+          emergencyContactName: c.emergencyContactName,
+          emergencyContactRelation: c.emergencyContactRelation,
+          emergencyContactPhone: c.emergencyContactPhone,
+          emergencyContactAddress: c.emergencyContactAddress,
+          additionalPhones: parseJson(c.additionalPhones),
+          brokerId: c.brokerId || '',
+          cocDocumentUrl: c.cocDocumentUrl || '',
+          medicalDocumentUrl: c.medicalDocumentUrl || '',
+          candidateIdImageUrl: c.candidateIdImageUrl || '',
+          relativeIdImageUrl: c.relativeIdImageUrl || '',
+          labourIdUrl: c.labourIdUrl || '',
+          salary: c.salary || '1000SR',
+        },
+        brokerId: c.brokerId,
+        broker: brokerObj,
+        passportImageUrl: c.passportImageUrl || '',
+        facePhotoUrl: c.facePhotoUrl || '',
+        fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
         cocDocumentUrl: c.cocDocumentUrl || '',
         medicalDocumentUrl: c.medicalDocumentUrl || '',
         candidateIdImageUrl: c.candidateIdImageUrl || '',
         relativeIdImageUrl: c.relativeIdImageUrl || '',
         labourIdUrl: c.labourIdUrl || '',
+        isRequested: c.isRequested || false,
+        visaOrContractNumber: c.visaOrContractNumber || null,
+        isFlagged: c.isFlagged || false,
+        isLocked: c.isLocked || false,
+        cvDownloaded: c.cvDownloaded || false,
+        videoUrl: c.videoUrl || null,
+        Youtube_URL: c.videoUrl || null,
+        deployedDate: formatDate(c.deployedDate),
+        registeredAt: c.registeredAt.toISOString(),
+        status: c.status,
+        visaSelected: c.visaSelected,
+        visaDate: c.visaDate ? c.visaDate.toISOString() : null,
         salary: c.salary || '1000SR',
-      },
-      brokerId: c.brokerId,
-      broker: c.broker || null,
-      passportImageUrl: c.passportImageUrl || '',
-      facePhotoUrl: c.facePhotoUrl || '',
-      fullBodyPhotoUrl: c.fullBodyPhotoUrl || '',
-      cocDocumentUrl: c.cocDocumentUrl || '',
-      medicalDocumentUrl: c.medicalDocumentUrl || '',
-      candidateIdImageUrl: c.candidateIdImageUrl || '',
-      relativeIdImageUrl: c.relativeIdImageUrl || '',
-      labourIdUrl: c.labourIdUrl || '',
-      isRequested: c.isRequested || false,
-      visaOrContractNumber: c.visaOrContractNumber || null,
-      isFlagged: c.isFlagged || false,
-      isLocked: c.isLocked || false,
-      cvDownloaded: c.cvDownloaded || false,
-      videoUrl: c.videoUrl || null,
-      Youtube_URL: c.videoUrl || null,
-      deployedDate: formatDate(c.deployedDate),
-      registeredAt: c.registeredAt.toISOString(),
-      status: c.status,
-      visaSelected: c.visaSelected,
-      visaDate: c.visaDate ? c.visaDate.toISOString() : null,
-      salary: c.salary || '1000SR',
-      generatedCVs: c.generatedCVs?.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })) || [],
-      latestCVTemplate: c.generatedCVs?.[0]?.templateId || null,
-      registeredBy: c.registeredBy?.name || 'Admin',
-    }));
+        generatedCVs: cvs.map((cv: any) => ({ id: cv.id, templateId: cv.templateId })),
+        latestCVTemplate: cvs[0]?.templateId || null,
+        registeredBy: registeredByName,
+      });
+    }
 
     res.json(formatted);
   } catch (error: any) {

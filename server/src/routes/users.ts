@@ -1,13 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import prisma from '../lib/prisma';
+import { db, pool, user as userTable } from '../db';
+import { eq, desc } from 'drizzle-orm';
 import { auth } from '../lib/auth';
 
 const router = Router();
 
-// Middleware to guard super_admin routes
 const requireSuperAdmin = async (req: Request | any, res: Response, next: NextFunction) => {
-  // In a real app, we would verify the session here.
-  // For now, mirroring the "temporary bypass" from the original code
   req.user = { role: 'super_admin' };
   next();
 };
@@ -15,72 +13,42 @@ const requireSuperAdmin = async (req: Request | any, res: Response, next: NextFu
 // GET /api/users/analytics
 router.get('/analytics', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    const users = await db
+      .select({
+        id: userTable.id,
+        name: userTable.name,
+        email: userTable.email,
+        role: userTable.role,
+        createdAt: userTable.createdAt,
+      })
+      .from(userTable);
 
     const candidateCountMap: Record<string, number> = {};
     try {
-      // Use raw SQL to bypass stale Prisma Client generator issues on VPS
-      const candidateCounts: any[] = await prisma.$queryRawUnsafe(
+      const [candidateCounts]: any = await pool.query(
         'SELECT `registeredById`, COUNT(`id`) as `count` FROM `Candidate` WHERE `registeredById` IS NOT NULL GROUP BY `registeredById`'
       );
-      candidateCounts.forEach((c) => {
+      (candidateCounts || []).forEach((c: any) => {
         if (c.registeredById) {
           candidateCountMap[c.registeredById] = Number(c.count);
         }
       });
     } catch (e: any) {
-      console.warn('[ANALYTICS] Failed to fetch candidate counts via raw SQL, trying Prisma fallback:', e.message || e);
-      try {
-        const candidateCounts = await prisma.candidate.groupBy({
-          by: ['registeredById'],
-          _count: { id: true },
-          where: { registeredById: { not: null } },
-        });
-        candidateCounts.forEach((c) => {
-          if (c.registeredById) {
-            candidateCountMap[c.registeredById] = c._count.id;
-          }
-        });
-      } catch (fallbackErr) {
-        console.error('[ANALYTICS] Candidate count fallback also failed:', fallbackErr);
-      }
+      console.warn('[ANALYTICS] Failed to fetch candidate counts:', e);
     }
 
     const quickCountMap: Record<string, number> = {};
     try {
-      // Use raw SQL to bypass stale Prisma Client generator issues on VPS
-      const quickRegistrationCounts: any[] = await prisma.$queryRawUnsafe(
+      const [quickRegistrationCounts]: any = await pool.query(
         'SELECT `registeredById`, COUNT(`id`) as `count` FROM `QuickRegistration` WHERE `registeredById` IS NOT NULL GROUP BY `registeredById`'
       );
-      quickRegistrationCounts.forEach((q) => {
+      (quickRegistrationCounts || []).forEach((q: any) => {
         if (q.registeredById) {
           quickCountMap[q.registeredById] = Number(q.count);
         }
       });
     } catch (e: any) {
-      console.warn('[ANALYTICS] Failed to fetch quick registration counts via raw SQL, trying Prisma fallback:', e.message || e);
-      try {
-        const quickRegistrationCounts = await prisma.quickRegistration.groupBy({
-          by: ['registeredById'],
-          _count: { id: true },
-          where: { registeredById: { not: null } },
-        });
-        quickRegistrationCounts.forEach((q) => {
-          if (q.registeredById) {
-            quickCountMap[q.registeredById] = q._count.id;
-          }
-        });
-      } catch (fallbackErr) {
-        console.error('[ANALYTICS] Quick registration count fallback also failed:', fallbackErr);
-      }
+      console.warn('[ANALYTICS] Failed to fetch quick registration counts:', e);
     }
 
     const analyticsData = users.map((user) => ({
@@ -103,40 +71,22 @@ router.get('/analytics', requireSuperAdmin, async (req: Request, res: Response) 
 // GET /api/users
 router.get('/', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
-    try {
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          agency: true,
-          emailVerified: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      res.json(users);
-    } catch (prismaErr: any) {
-      console.warn('[USERS] prisma.user.findMany failed, trying raw SQL fallback:', prismaErr.message || prismaErr);
-      
-      const rawUsers: any[] = await prisma.$queryRawUnsafe(
-        'SELECT `id`, `name`, `email`, `role`, `agency`, `emailVerified`, `createdAt` FROM `User` ORDER BY `createdAt` DESC'
-      );
-      
-      const mappedUsers = rawUsers.map((u: any) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        agency: u.agency,
-        emailVerified: u.emailVerified === 1 || u.emailVerified === true,
-        createdAt: u.createdAt,
-      }));
-      
-      res.json(mappedUsers);
-    }
+    const users = await db
+      .select({
+        id: userTable.id,
+        name: userTable.name,
+        email: userTable.email,
+        role: userTable.role,
+        agency: userTable.agency,
+        emailVerified: userTable.emailVerified,
+        createdAt: userTable.createdAt,
+      })
+      .from(userTable)
+      .orderBy(desc(userTable.createdAt));
+
+    res.json(users);
   } catch (error) {
+    console.error('Failed to fetch users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
@@ -153,32 +103,15 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
     const VALID_ROLES = ['user', 'super_admin', 'agency', 'registrar', 'processor', 'coordinator', 'accountant', 'video_uploader', 'genaral', 'calling'];
     const assignedRole = VALID_ROLES.includes(role) ? role : 'user';
 
-    // Use Better Auth's sign-up API
     const authRes: any = await auth.api.signUpEmail({
       body: { name, email, password },
     });
 
     let userId = authRes?.user?.id;
     if (!userId) {
-      try {
-        const dbUser = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true }
-        });
-        userId = dbUser?.id;
-      } catch (e) {
-        console.warn('[USERS] prisma.user.findUnique failed to resolve userId:', e);
-      }
-    }
-    if (!userId) {
-      try {
-        const rawUsers: any[] = await prisma.$queryRawUnsafe(
-          'SELECT `id` FROM `User` WHERE `email` = ? LIMIT 1',
-          email
-        );
-        userId = rawUsers[0]?.id;
-      } catch (e) {
-        console.error('[USERS] Raw SQL failed to resolve userId:', e);
+      const [userRows]: any = await pool.query('SELECT `id` FROM `User` WHERE `email` = ? LIMIT 1', [email]);
+      if (userRows && userRows.length > 0) {
+        userId = userRows[0].id;
       }
     }
 
@@ -186,24 +119,11 @@ router.post('/', requireSuperAdmin, async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to resolve user ID after signup' });
     }
 
-    try {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { 
-          role: assignedRole,
-          agency: assignedRole === 'agency' ? agency : null
-        },
-      });
-    } catch (updateErr: any) {
-      console.warn('[USERS] prisma.user.update failed (likely stale Prisma Client), trying raw SQL fallback:', updateErr.message || updateErr);
-      const targetAgency = assignedRole === 'agency' ? agency : null;
-      await prisma.$executeRawUnsafe(
-        'UPDATE `User` SET `role` = ?, `agency` = ? WHERE `id` = ?',
-        assignedRole,
-        targetAgency,
-        userId
-      );
-    }
+    const targetAgency = assignedRole === 'agency' ? agency : null;
+    await db
+      .update(userTable)
+      .set({ role: assignedRole, agency: targetAgency })
+      .where(eq(userTable.id, userId));
 
     res.status(201).json({ success: true, userId });
   } catch (err: any) {
@@ -234,50 +154,14 @@ router.patch('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
       updateData.agency = agency;
     }
 
-    let updated;
-    try {
-      updated = await prisma.user.update({
-        where: { id },
-        data: updateData,
-      });
-    } catch (patchErr: any) {
-      console.warn('[USERS] prisma.user.update failed (likely stale Prisma Client), trying raw SQL fallback:', patchErr.message || patchErr);
-      
-      const fieldsToUpdate: string[] = [];
-      const values: any[] = [];
-      
-      if (role) {
-        fieldsToUpdate.push('`role` = ?');
-        values.push(role);
-        if (role !== 'agency') {
-          fieldsToUpdate.push('`agency` = ?');
-          values.push(null);
-        }
-      }
-      if (agency !== undefined) {
-        fieldsToUpdate.push('`agency` = ?');
-        values.push(agency);
-      }
-      
-      if (fieldsToUpdate.length > 0) {
-        values.push(id);
-        const query = `UPDATE \`User\` SET ${fieldsToUpdate.join(', ')} WHERE \`id\` = ?`;
-        await prisma.$executeRawUnsafe(query, ...values);
-      }
-      
-      // Fetch the updated user
-      const rawUsers: any[] = await prisma.$queryRawUnsafe(
-        'SELECT `id`, `name`, `email`, `role`, `agency`, `emailVerified`, `createdAt` FROM `User` WHERE `id` = ? LIMIT 1',
-        id
-      );
-      updated = rawUsers[0] ? {
-        ...rawUsers[0],
-        emailVerified: rawUsers[0].emailVerified === 1 || rawUsers[0].emailVerified === true
-      } : null;
+    if (Object.keys(updateData).length > 0) {
+      await db.update(userTable).set(updateData).where(eq(userTable.id, id));
     }
 
-    res.json(updated);
+    const [updatedUser] = await db.select().from(userTable).where(eq(userTable.id, id));
+    res.json(updatedUser);
   } catch (error) {
+    console.error('Failed to update user:', error);
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
@@ -286,12 +170,10 @@ router.patch('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
 router.delete('/:id', requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    // req.user.id would come from session if we weren't bypassing
-    // if (req.user.id === id) return res.status(400).json({ error: 'You cannot delete your own account' });
-
-    await prisma.user.delete({ where: { id } });
+    await db.delete(userTable).where(eq(userTable.id, id));
     res.json({ success: true });
   } catch (error) {
+    console.error('Failed to delete user:', error);
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });

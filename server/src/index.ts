@@ -185,46 +185,44 @@ app.get('/api/debug-db', async (req: Request, res: Response) => {
   };
 
   try {
-    const { default: prisma } = await import('./lib/prisma');
+    const { pool, db, user: userTable, candidate: candidateTable } = await import('./db');
+    const { count } = await import('drizzle-orm');
     
     // Attempt database query with a 3-second timeout so it doesn't hang
     const dbPromise = (async () => {
-      const rawResult = await prisma.$queryRaw`SELECT 1 + 1 AS result`;
-      const userCount = await prisma.user.count();
-      const candidateCount = await prisma.candidate.count();
+      const [rawResult]: any = await pool.query('SELECT 1 + 1 AS result');
+      const userCountRes = await db.select({ value: count() }).from(userTable);
+      const candCountRes = await db.select({ value: count() }).from(candidateTable);
       
       // Diagnose tables and columns
       let tables: any[] = [];
       try {
-        tables = await prisma.$queryRawUnsafe<any[]>('SHOW TABLES');
+        const [tRows]: any = await pool.query('SHOW TABLES');
+        tables = tRows;
       } catch (e: any) {
         tables = [{ error: e.message }];
       }
 
       let leaderColumns: any[] = [];
       try {
-        leaderColumns = await prisma.$queryRawUnsafe<any[]>('SHOW COLUMNS FROM Leader');
+        const [lRows]: any = await pool.query('SHOW COLUMNS FROM Leader');
+        leaderColumns = lRows;
       } catch (e: any) {
         leaderColumns = [{ error: e.message }];
       }
 
       let brokerColumns: any[] = [];
       try {
-        brokerColumns = await prisma.$queryRawUnsafe<any[]>('SHOW COLUMNS FROM Broker');
+        const [bRows]: any = await pool.query('SHOW COLUMNS FROM Broker');
+        brokerColumns = bRows;
       } catch (e: any) {
         brokerColumns = [{ error: e.message }];
       }
 
-      // Check client models
-      const clientModels = Object.keys(prisma).filter(k => !k.startsWith('$') && !k.startsWith('_'));
-
       return { 
         rawResult, 
-        userCount, 
-        candidateCount,
-        clientModels,
-        hasLeaderModel: 'leader' in prisma,
-        hasBrokerModel: 'broker' in prisma,
+        userCount: userCountRes[0]?.value || 0, 
+        candidateCount: candCountRes[0]?.value || 0,
         tables,
         leaderColumns,
         brokerColumns

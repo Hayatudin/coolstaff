@@ -1,17 +1,16 @@
 import { Router, Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { pool } from '../db';
 
 const router = Router();
 
 // GET /api/settings/prices
 router.get('/prices', async (req: Request, res: Response) => {
   try {
-    const rawRows = await prisma.$queryRawUnsafe<any[]>(
+    const [rawRows]: any = await pool.query(
       `SELECT templateId, price, updatedAt FROM \`TemplatePrice\``
     );
-    res.json(rawRows);
+    res.json(rawRows || []);
   } catch (error) {
-    // If table doesn't exist yet, return empty array
     res.json([]);
   }
 });
@@ -19,7 +18,7 @@ router.get('/prices', async (req: Request, res: Response) => {
 // POST /api/settings/prices
 router.post('/prices', async (req: Request, res: Response) => {
   try {
-    const { prices } = req.body; // Expecting { prices: { templateId: 'price', ... } }
+    const { prices } = req.body;
 
     if (!prices || typeof prices !== 'object') {
       return res.status(400).json({ error: 'Invalid prices payload' });
@@ -29,14 +28,11 @@ router.post('/prices', async (req: Request, res: Response) => {
       if (typeof price !== 'string' && typeof price !== 'number') continue;
       const formattedPrice = String(price).trim();
       
-      // Upsert logic using raw SQL
-      await prisma.$executeRawUnsafe(
+      await pool.query(
         `INSERT INTO \`TemplatePrice\` (templateId, price, updatedAt) 
          VALUES (?, ?, NOW()) 
-         ON DUPLICATE KEY UPDATE price = ?, updatedAt = NOW()`,
-        templateId,
-        formattedPrice,
-        formattedPrice
+         ON DUPLICATE KEY UPDATE price = VALUES(price), updatedAt = NOW()`,
+        [templateId, formattedPrice]
       );
     }
 

@@ -1,8 +1,7 @@
 import express, { Request, Response } from 'express';
-import prisma from '../lib/prisma'; // adjust import path as needed
+import { pool } from '../db';
 import path from 'path';
 import fs from 'fs';
-import * as mime from 'mime-types';
 import ExcelJS from 'exceljs';
 
 const router = express.Router();
@@ -10,8 +9,7 @@ const router = express.Router();
 // GET deployments list (visaSelected = true, has deployedDate on candidate)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    // Use raw SQL to read deployedDate from Candidate (not Invoice)
-    const rawCandidates: any[] = await prisma.$queryRawUnsafe(`
+    const [rawCandidates]: any = await pool.query(`
       SELECT c.id, c.givenNames, c.surname, c.passportNumber, c.deployedDate,
              b.name AS brokerName,
              (SELECT COUNT(1) FROM \`Invoice\` i WHERE i.candidateId = c.id) AS invoiceCount
@@ -22,24 +20,24 @@ router.get('/', async (req: Request, res: Response) => {
       ORDER BY c.deployedDate DESC
     `);
 
-    // Get CV templates for these candidates
-    const candidateIds = rawCandidates.map((c: any) => c.id);
+    const candidateIds = (rawCandidates || []).map((c: any) => c.id);
     let cvMap: Record<string, string> = {};
     if (candidateIds.length > 0) {
       try {
-        const cvRows: any[] = await prisma.$queryRawUnsafe(
-          `SELECT candidateId, templateId FROM \`GeneratedCV\` WHERE candidateId IN (${candidateIds.map(() => '?').join(',')})`,
-          ...candidateIds
+        const placeholders = candidateIds.map(() => '?').join(',');
+        const [cvRows]: any = await pool.query(
+          `SELECT candidateId, templateId FROM \`GeneratedCV\` WHERE candidateId IN (${placeholders})`,
+          candidateIds
         );
-        for (const row of cvRows) {
+        for (const row of (cvRows || [])) {
           if (!cvMap[row.candidateId]) {
             cvMap[row.candidateId] = row.templateId;
           }
         }
-      } catch (_) { /* GeneratedCV table may not exist */ }
+      } catch (_) {}
     }
 
-    const result = rawCandidates.map((c: any) => ({
+    const result = (rawCandidates || []).map((c: any) => ({
       id: c.id,
       givenNames: c.givenNames,
       surname: c.surname,
@@ -61,8 +59,7 @@ router.get('/', async (req: Request, res: Response) => {
 // POST export Excel
 router.post('/export', async (req: Request, res: Response) => {
   try {
-    // Use raw SQL to read deployedDate from Candidate (not Invoice)
-    const rawCandidates: any[] = await prisma.$queryRawUnsafe(`
+    const [rawCandidates]: any = await pool.query(`
       SELECT c.id, c.givenNames, c.surname, c.passportNumber, c.deployedDate,
              b.name AS brokerName
       FROM \`Candidate\` c
@@ -72,27 +69,26 @@ router.post('/export', async (req: Request, res: Response) => {
       ORDER BY c.deployedDate DESC
     `);
 
-    // Get CV templates for these candidates
-    const candidateIds = rawCandidates.map((c: any) => c.id);
+    const candidateIds = (rawCandidates || []).map((c: any) => c.id);
     let cvMap: Record<string, string> = {};
     if (candidateIds.length > 0) {
       try {
-        const cvRows: any[] = await prisma.$queryRawUnsafe(
-          `SELECT candidateId, templateId FROM \`GeneratedCV\` WHERE candidateId IN (${candidateIds.map(() => '?').join(',')})`,
-          ...candidateIds
+        const placeholders = candidateIds.map(() => '?').join(',');
+        const [cvRows]: any = await pool.query(
+          `SELECT candidateId, templateId FROM \`GeneratedCV\` WHERE candidateId IN (${placeholders})`,
+          candidateIds
         );
-        for (const row of cvRows) {
+        for (const row of (cvRows || [])) {
           if (!cvMap[row.candidateId]) {
             cvMap[row.candidateId] = row.templateId;
           }
         }
-      } catch (_) { /* GeneratedCV table may not exist */ }
+      } catch (_) {}
     }
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Deployments');
 
-    // Header row
     sheet.columns = [
       { header: 'Candidate ID', key: 'id', width: 15 },
       { header: 'Name', key: 'name', width: 30 },
@@ -102,14 +98,12 @@ router.post('/export', async (req: Request, res: Response) => {
       { header: 'Deployment Date', key: 'deploymentDate', width: 20 },
     ];
 
-    // Insert rows
     let lastDateStr: string | null = null;
-    rawCandidates.forEach(c => {
+    (rawCandidates || []).forEach((c: any) => {
       const date = c.deployedDate ? new Date(c.deployedDate) : null;
       const dateStr = date ? date.toLocaleDateString() : '';
 
       if (lastDateStr && dateStr && dateStr !== lastDateStr) {
-        // Insert blank row between different dates
         sheet.addRow([]);
       }
 
@@ -126,7 +120,6 @@ router.post('/export', async (req: Request, res: Response) => {
       lastDateStr = dateStr;
     });
 
-    // Write to buffer
     const buffer = await workbook.xlsx.writeBuffer();
     const fileName = 'candidate_deployments.xlsx';
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

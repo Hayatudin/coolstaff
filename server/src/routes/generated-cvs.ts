@@ -1,14 +1,25 @@
 import { Router, Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import {
+  db,
+  pool,
+  candidate as candidateTable,
+  generatedCv as generatedCvTable,
+  broker as brokerTable,
+  generateId,
+} from '../db';
+import { eq, inArray, and, ne } from 'drizzle-orm';
 import { uploadToLocal } from '../lib/upload';
 
 const router = Router();
 
-
-
 const formatCandidate = (c: any) => {
   if (!c) return null;
-  const formatDate = (date: Date | null | undefined) => date?.toISOString().split('T')[0] || '';
+  const formatDate = (date: Date | null | undefined) => date ? new Date(date).toISOString().split('T')[0] : '';
+  const parseJson = (val: any) => {
+    if (!val) return [];
+    if (typeof val === 'object') return val;
+    try { return JSON.parse(val); } catch (_) { return []; }
+  };
   return {
     id: c.id,
     shelfId: c.shelfId,
@@ -41,9 +52,9 @@ const formatCandidate = (c: any) => {
       state: c.state,
       country: c.country,
       educationLevel: c.educationLevel,
-      languages: c.languages,
-      workExperience: c.workExperience || [],
-      skills: c.skills,
+      languages: parseJson(c.languages),
+      workExperience: parseJson(c.workExperience),
+      skills: parseJson(c.skills),
       medicalStatus: c.medicalStatus,
       biometricStatus: c.biometricStatus,
       medicalDate: formatDate(c.medicalDate),
@@ -53,7 +64,7 @@ const formatCandidate = (c: any) => {
       emergencyContactRelation: c.emergencyContactRelation,
       emergencyContactPhone: c.emergencyContactPhone,
       emergencyContactAddress: c.emergencyContactAddress,
-      additionalPhones: c.additionalPhones,
+      additionalPhones: parseJson(c.additionalPhones),
       brokerId: c.brokerId || '',
       cocDocumentUrl: c.cocDocumentUrl || '',
       medicalDocumentUrl: c.medicalDocumentUrl || '',
@@ -76,10 +87,10 @@ const formatCandidate = (c: any) => {
     visaOrContractNumber: c.visaOrContractNumber || null,
     isFlagged: c.isFlagged || false,
     videoUrl: c.videoUrl || null,
-    registeredAt: c.registeredAt instanceof Date ? c.registeredAt.toISOString() : c.registeredAt,
+    registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : new Date().toISOString(),
     status: c.status,
     visaSelected: c.visaSelected,
-    visaDate: c.visaDate ? (c.visaDate instanceof Date ? c.visaDate.toISOString() : c.visaDate) : null,
+    visaDate: c.visaDate ? new Date(c.visaDate).toISOString() : null,
     salary: c.salary || '1000SR',
     cvDownloaded: false as boolean,
   };
@@ -87,16 +98,13 @@ const formatCandidate = (c: any) => {
 
 async function getBrokerLockMap(): Promise<Record<string, boolean>> {
   try {
-    const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
-      'SELECT id, isLocked FROM Broker'
-    );
+    const [rows]: any = await pool.query('SELECT id, isLocked FROM Broker');
     const map: Record<string, boolean> = {};
     for (const row of rows) {
       map[row.id] = row.isLocked === 1 || row.isLocked === true;
     }
     return map;
   } catch (e) {
-    console.warn('[GENERATED-CVS] Could not fetch isLocked column via raw SQL:', e);
     return {};
   }
 }
@@ -104,35 +112,36 @@ async function getBrokerLockMap(): Promise<Record<string, boolean>> {
 // GET /api/generated-cvs
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const generatedCVs = await prisma.generatedCV.findMany({
-      include: {
-        candidate: {
-          include: {
-            broker: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const cvRowsList = await db.select().from(generatedCvTable);
+    const candidateIds = cvRowsList.map(cv => cv.candidateId);
 
-    // Dynamically fetch and include candidates who have a template/agency assigned but no GeneratedCV record
+    const candidatesList = candidateIds.length > 0
+      ? await db.select().from(candidateTable).where(inArray(candidateTable.id, candidateIds))
+      : [];
+
+    const brokerIds = candidatesList.map(c => c.brokerId).filter(Boolean) as string[];
+    const brokersList = brokerIds.length > 0
+      ? await db.select().from(brokerTable).where(inArray(brokerTable.id, brokerIds))
+      : [];
+
+    const brokerMap = new Map(brokersList.map(b => [b.id, b]));
+    const candMap = new Map(candidatesList.map(c => [c.id, { ...c, broker: c.brokerId ? brokerMap.get(c.brokerId) || null : null }]));
+
+    const generatedCVs = cvRowsList.map(cv => ({
+      ...cv,
+      candidate: candMap.get(cv.candidateId) || null,
+    }));
+
     try {
-      const candidatesWithAgency = await prisma.candidate.findMany({
-        where: {
-          agency: {
-            in: ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision']
-          }
-        },
-        include: {
-          broker: true
-        }
-      });
+      const candidatesWithAgency = await db
+        .select()
+        .from(candidateTable)
+        .where(inArray(candidateTable.agency, ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision']));
 
       const existingCandidateIds = new Set(generatedCVs.map(cv => cv.candidateId));
       for (const cand of candidatesWithAgency) {
         if (!existingCandidateIds.has(cand.id)) {
+          const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
           generatedCVs.push({
             id: `dummy-${cand.id}`,
             candidateId: cand.id,
@@ -141,7 +150,7 @@ router.get('/', async (req: Request, res: Response) => {
             fullBodyPhotoUrl: cand.fullBodyPhotoUrl || null,
             createdAt: cand.registeredAt || new Date(),
             updatedAt: cand.registeredAt || new Date(),
-            candidate: cand
+            candidate: { ...cand, broker: brokerObj }
           } as any);
         }
       }
@@ -152,15 +161,11 @@ router.get('/', async (req: Request, res: Response) => {
     const lockMap = await getBrokerLockMap();
     let cvDownloadedMap: Record<string, boolean> = {};
     try {
-      const rawRows = await prisma.$queryRawUnsafe<{ id: string; cvDownloaded: number | boolean }[]>(
-        'SELECT id, cvDownloaded FROM `Candidate`'
-      );
+      const [rawRows]: any = await pool.query('SELECT id, cvDownloaded FROM `Candidate`');
       for (const row of rawRows) {
         cvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
       }
-    } catch (e) {
-      console.warn('[GENERATED-CVS] Could not fetch cvDownloaded column via raw SQL:', e);
-    }
+    } catch (e) {}
 
     const mappedCVs = generatedCVs
       .filter((cv: any) => cv.candidate?.broker?.name !== 'Calling' && cv.candidate?.job !== 'Calling')
@@ -194,45 +199,23 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing candidateId or templateId' });
     }
     
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId },
-      include: { broker: true }
-    });
-    
-    if (!candidate) {
+    const cands = await db.select().from(candidateTable).where(eq(candidateTable.id, candidateId));
+    if (cands.length === 0) {
       return res.status(404).json({ error: 'Candidate not found' });
     }
 
-
-
-    // Calling candidates CAN have an agency saved, but actual CV generation/download is blocked in cv.ts
-
-
-
-    const duplicateCV = await prisma.generatedCV.findFirst({
-      where: {
-        candidateId: candidateId
-      }
-    });
+    const existingCvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, candidateId));
+    const duplicateCV = existingCvs[0];
 
     const deadline = new Date();
     deadline.setDate(deadline.getDate() + 30);
     const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
 
     if (duplicateCV) {
-      const [updatedCV] = await prisma.$transaction([
-        prisma.generatedCV.update({
-          where: { id: duplicateCV.id },
-          data: { templateId }
-        }),
-        prisma.candidate.update({
-          where: { id: candidateId },
-          data: { 
-            cvDeadline: deadline,
-            agency: cleanTemplateId
-          }
-        })
-      ]);
+      await db.update(generatedCvTable).set({ templateId }).where(eq(generatedCvTable.id, duplicateCV.id));
+      await db.update(candidateTable).set({ cvDeadline: deadline, agency: cleanTemplateId }).where(eq(candidateTable.id, candidateId));
+      
+      const [updatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, duplicateCV.id));
       return res.json(updatedCV);
     }
     
@@ -241,24 +224,18 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(fullBodyPhotoUrl, 'fullbody')
     ]);
 
-    const [generatedCV] = await prisma.$transaction([
-      prisma.generatedCV.create({
-        data: {
-          candidateId,
-          templateId,
-          facePhotoUrl: faceUrl,
-          fullBodyPhotoUrl: fullBodyUrl
-        }
-      }),
-      prisma.candidate.update({
-        where: { id: candidateId },
-        data: { 
-          cvDeadline: deadline,
-          agency: cleanTemplateId
-        }
-      })
-    ]);
+    const newCvId = generateId();
+    await db.insert(generatedCvTable).values({
+      id: newCvId,
+      candidateId,
+      templateId,
+      facePhotoUrl: faceUrl,
+      fullBodyPhotoUrl: fullBodyUrl
+    });
+
+    await db.update(candidateTable).set({ cvDeadline: deadline, agency: cleanTemplateId }).where(eq(candidateTable.id, candidateId));
     
+    const [generatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, newCvId));
     res.json(generatedCV);
   } catch (error) {
     console.error('Error saving generated CV:', error);
@@ -278,78 +255,54 @@ router.patch('/:id', async (req: Request, res: Response) => {
     
     if (id.startsWith('dummy-')) {
       const candidateId = id.replace('dummy-', '');
-      const candidate = await prisma.candidate.findUnique({
-        where: { id: candidateId },
-        include: { broker: true }
-      });
-      if (!candidate) {
+      const cands = await db.select().from(candidateTable).where(eq(candidateTable.id, candidateId));
+      if (cands.length === 0) {
         return res.status(404).json({ error: 'Candidate not found' });
       }
-
-
+      const candidate = cands[0];
 
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 30);
       const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
 
-      const [newCV] = await prisma.$transaction([
-        prisma.generatedCV.create({
-          data: {
-            candidateId,
-            templateId,
-            facePhotoUrl: candidate.facePhotoUrl || candidate.passportImageUrl || null,
-            fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || null
-          }
-        }),
-        prisma.candidate.update({
-          where: { id: candidateId },
-          data: {
-            cvDeadline: deadline,
-            agency: cleanTemplateId
-          }
-        })
-      ]);
+      const newCvId = generateId();
+      await db.insert(generatedCvTable).values({
+        id: newCvId,
+        candidateId,
+        templateId,
+        facePhotoUrl: candidate.facePhotoUrl || candidate.passportImageUrl || null,
+        fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || null
+      });
+
+      await db.update(candidateTable).set({ cvDeadline: deadline, agency: cleanTemplateId }).where(eq(candidateTable.id, candidateId));
+
+      const [newCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, newCvId));
       return res.json(newCV);
     }
 
-    const existingCV = await prisma.generatedCV.findUnique({
-      where: { id },
-      include: { candidate: { include: { broker: true } } }
-    });
-    
-    if (!existingCV) {
+    const existingCVs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, id));
+    if (existingCVs.length === 0) {
       return res.status(404).json({ error: 'Generated CV not found' });
     }
+    const existingCV = existingCVs[0];
 
+    const duplicateCVs = await db.select().from(generatedCvTable).where(
+      and(
+        eq(generatedCvTable.candidateId, existingCV.candidateId),
+        eq(generatedCvTable.templateId, templateId),
+        ne(generatedCvTable.id, id)
+      )
+    );
 
-
-
-
-    const duplicateCV = await prisma.generatedCV.findFirst({
-      where: {
-        candidateId: existingCV.candidateId,
-        templateId: templateId,
-        id: { not: id }
-      }
-    });
-
-    if (duplicateCV) {
+    if (duplicateCVs.length > 0) {
       return res.status(409).json({ error: 'Candidate already generated in that template' });
     }
 
     const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
-    const [updatedCV] = await prisma.$transaction([
-      prisma.generatedCV.update({
-        where: { id },
-        data: { templateId }
-      }),
-      prisma.$executeRawUnsafe(
-        'UPDATE `Candidate` SET `cvDownloaded` = 0, `agency` = ? WHERE `id` = ?',
-        cleanTemplateId,
-        existingCV.candidateId
-      )
-    ]);
+    await db.update(generatedCvTable).set({ templateId }).where(eq(generatedCvTable.id, id));
+    await pool.query('UPDATE `Candidate` SET `cvDownloaded` = 0, `agency` = ? WHERE `id` = ?', [cleanTemplateId, existingCV.candidateId]);
     
+    const [updatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, id));
     res.json(updatedCV);
   } catch (error) {
     console.error('Error updating generated CV:', error);
@@ -364,27 +317,16 @@ router.delete('/:id', async (req: Request, res: Response) => {
     
     if (id.startsWith('dummy-')) {
       const candidateId = id.replace('dummy-', '');
-      await prisma.candidate.update({
-        where: { id: candidateId },
-        data: { agency: 'daera' }
-      });
+      await db.update(candidateTable).set({ agency: 'daera' }).where(eq(candidateTable.id, candidateId));
       return res.json({ success: true });
     }
 
-    const existingCV = await prisma.generatedCV.findUnique({
-      where: { id }
-    });
-    
-    if (!existingCV) {
+    const existingCVs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, id));
+    if (existingCVs.length === 0) {
       return res.status(404).json({ error: 'Generated CV not found' });
     }
 
-
-
-    await prisma.generatedCV.delete({
-      where: { id }
-    });
-    
+    await db.delete(generatedCvTable).where(eq(generatedCvTable.id, id));
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting generated CV:', error);

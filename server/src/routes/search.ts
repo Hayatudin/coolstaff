@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db, candidate as candidateTable } from '../db';
+import { like, or } from 'drizzle-orm';
 
 const router = Router();
 
@@ -9,20 +10,23 @@ router.get('/', async (req: Request, res: Response) => {
     const query = req.query.q as string;
     if (!query) return res.json([]);
 
-    const candidates = await prisma.candidate.findMany({
-      where: {
-        OR: [
-          { givenNames: { contains: query } },
-          { surname: { contains: query } },
-          { passportNumber: { contains: query } },
-          { idNumber: { contains: query } },
-        ],
-      },
-      take: 10,
-    });
+    const pattern = `%${query}%`;
+    const candidates = await db
+      .select()
+      .from(candidateTable)
+      .where(
+        or(
+          like(candidateTable.givenNames, pattern),
+          like(candidateTable.surname, pattern),
+          like(candidateTable.passportNumber, pattern),
+          like(candidateTable.idNumber, pattern)
+        )
+      )
+      .limit(10);
 
     res.json(candidates);
   } catch (error) {
+    console.error('Search failed:', error);
     res.status(500).json({ error: 'Search failed' });
   }
 });

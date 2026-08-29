@@ -1,23 +1,30 @@
 import { Router, Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import {
+  db,
+  pool,
+  broker as brokerTable,
+  leader as leaderTable,
+  candidate as candidateTable,
+  quickRegistration as quickRegistrationTable,
+  generatedCv as generatedCvTable,
+  generateId,
+} from '../db';
+import { eq, inArray, count } from 'drizzle-orm';
 import { getSession } from '../lib/auth-helper';
-
 
 const router = Router();
 
 // Helper: fetch isLocked values for all brokers via raw SQL
 async function getBrokerLockMap(): Promise<Record<string, boolean>> {
   try {
-    const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean }[]>(
-      'SELECT id, isLocked FROM Broker'
-    );
+    const [rows]: any = await pool.query('SELECT id, isLocked FROM Broker');
     const map: Record<string, boolean> = {};
     for (const row of rows) {
       map[row.id] = row.isLocked === 1 || row.isLocked === true;
     }
     return map;
   } catch (e) {
-    console.warn('[BROKER] Could not fetch isLocked column via raw SQL, defaulting all to false:', e);
+    console.warn('[BROKER] Could not fetch isLocked column via raw SQL:', e);
     return {};
   }
 }
@@ -25,10 +32,8 @@ async function getBrokerLockMap(): Promise<Record<string, boolean>> {
 // Helper: fetch single broker isLocked via raw SQL
 async function getBrokerIsLocked(id: string): Promise<boolean> {
   try {
-    const rows = await prisma.$queryRawUnsafe<{ isLocked: number | boolean }[]>(
-      'SELECT isLocked FROM Broker WHERE id = ?', id
-    );
-    if (rows.length === 0) return false;
+    const [rows]: any = await pool.query('SELECT isLocked FROM Broker WHERE id = ?', [id]);
+    if (!rows || rows.length === 0) return false;
     return rows[0].isLocked === 1 || rows[0].isLocked === true;
   } catch (e) {
     console.warn('[BROKER] Could not fetch isLocked for broker', id, e);
@@ -38,79 +43,81 @@ async function getBrokerIsLocked(id: string): Promise<boolean> {
 
 // Helper: set broker isLocked via raw SQL
 async function setBrokerIsLocked(id: string, locked: boolean): Promise<void> {
-  await prisma.$executeRawUnsafe(
-    'UPDATE Broker SET isLocked = ? WHERE id = ?',
-    locked ? 1 : 0,
-    id
-  );
+  await pool.query('UPDATE Broker SET isLocked = ? WHERE id = ?', [locked ? 1 : 0, id]);
 }
 
 // GET /api/brokers
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const brokers = await prisma.broker.findMany({
-      include: {
-        candidates: {
-          select: {
-            id: true,
-            givenNames: true,
-            surname: true,
-            passportNumber: true,
-            facePhotoUrl: true,
-            fullBodyPhotoUrl: true,
-            generatedCVs: {
-              select: {
-                id: true,
-                templateId: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: { candidates: true }
-        }
-      },
-      orderBy: { name: 'asc' }
+    const brokersList = await db.select().from(brokerTable);
+    const leadersList = await db.select().from(leaderTable);
+    
+    const leaderMap = new Map<string, any>();
+    leadersList.forEach(l => leaderMap.set(l.id, l));
+
+    const candidateCountsList = await db
+      .select({
+        brokerId: candidateTable.brokerId,
+        count: count(candidateTable.id),
+      })
+      .from(candidateTable)
+      .groupBy(candidateTable.brokerId);
+
+    const candCountMap = new Map<string, number>();
+    candidateCountsList.forEach(c => {
+      if (c.brokerId) candCountMap.set(c.brokerId, c.count);
     });
 
-    // Fetch leaders via raw SQL to bypass stale Prisma Client
-    const leaders = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
-      'SELECT id, name FROM Leader'
-    );
-    const leaderMap = new Map<string, { id: string; name: string }>();
-    leaders.forEach(l => leaderMap.set(l.id, l));
-
-    // Fetch leaderId values via raw SQL
-    const brokerLeaders = await prisma.$queryRawUnsafe<{ id: string; leaderId: string | null }[]>(
-      'SELECT id, leaderId FROM Broker'
-    );
-    const brokerLeaderIdMap: Record<string, string | null> = {};
-    brokerLeaders.forEach(row => {
-      brokerLeaderIdMap[row.id] = row.leaderId;
-    });
-
-    // Augment each broker with isLocked from raw SQL
     const lockMap = await getBrokerLockMap();
-    const augmented = brokers.map((b: any) => {
-      const leaderId = brokerLeaderIdMap[b.id] || null;
-      const leader = leaderId ? leaderMap.get(leaderId) : null;
-      return {
+
+    const augmented = [];
+    for (const b of brokersList) {
+      const candidates = await db
+        .select({
+          id: candidateTable.id,
+          givenNames: candidateTable.givenNames,
+          surname: candidateTable.surname,
+          passportNumber: candidateTable.passportNumber,
+          facePhotoUrl: candidateTable.facePhotoUrl,
+          fullBodyPhotoUrl: candidateTable.fullBodyPhotoUrl,
+        })
+        .from(candidateTable)
+        .where(eq(candidateTable.brokerId, b.id));
+
+      const candidatesWithCVs = [];
+      for (const cand of candidates) {
+        const cvs = await db
+          .select({
+            id: generatedCvTable.id,
+            templateId: generatedCvTable.templateId,
+          })
+          .from(generatedCvTable)
+          .where(eq(generatedCvTable.candidateId, cand.id));
+
+        candidatesWithCVs.push({
+          ...cand,
+          generatedCVs: cvs,
+        });
+      }
+
+      augmented.push({
         ...b,
-        leaderId,
-        leader,
+        leaderId: b.leaderId,
+        leader: b.leaderId ? leaderMap.get(b.leaderId) || null : null,
         isLocked: lockMap[b.id] ?? false,
-      };
-    });
+        candidates: candidatesWithCVs,
+        _count: {
+          candidates: candCountMap.get(b.id) || 0,
+        },
+      });
+    }
 
     res.json(augmented);
   } catch (error: any) {
     console.error('Error fetching brokers:', error);
     res.status(500).json({ 
       error: 'Failed to fetch brokers',
-      message: error?.message || String(error),
-      code: error?.code,
-      meta: error?.meta,
-      stack: error?.stack
+      message: error?.message || String(error)
     });
   }
 });
@@ -119,96 +126,73 @@ router.get('/', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { name, leaderId } = req.body;
-    
     if (!name) return res.status(400).json({ error: 'Broker name is required' });
 
-    // Generate CUID-like ID: cb + 23 alphanumeric characters = 25 chars
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let randomPart = '';
-    for (let i = 0; i < 23; i++) {
-      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const brokerId = 'cb' + randomPart;
+    const brokerId = 'cb' + generateId().slice(0, 23);
 
-    // Use raw SQL insert to bypass any out-of-sync Prisma Client on the production server
-    await prisma.$executeRawUnsafe(
+    await pool.query(
       'INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), 0)',
-      brokerId,
-      name.trim(),
-      leaderId || null
+      [brokerId, name.trim(), leaderId || null]
     );
 
-    // Fetch back the created broker using raw SQL
-    const brokerRows = await prisma.$queryRawUnsafe<{ id: string; name: string; leaderId: string | null; createdAt: string | Date; isLocked: number }[]>(
+    const [brokerRows]: any = await pool.query(
       'SELECT id, name, leaderId, createdAt, isLocked FROM Broker WHERE id = ?',
-      brokerId
+      [brokerId]
     );
 
-    if (brokerRows.length === 0) {
+    if (!brokerRows || brokerRows.length === 0) {
       throw new Error('Failed to retrieve newly created broker.');
     }
 
-    const broker = {
+    const brokerObj = {
       ...brokerRows[0],
       isLocked: Boolean(brokerRows[0].isLocked),
       _count: { candidates: 0 }
     };
 
-    // Auto-assign new broker to 'DAERA OFFICE' leader group if not explicitly assigned
     if (!leaderId) {
       try {
-        const leaderRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+        const [leaderRows]: any = await pool.query(
           "SELECT id FROM Leader WHERE name = 'DAERA OFFICE' LIMIT 1"
         );
         let daeraLeaderId = null;
-        if (leaderRows.length > 0) {
+        if (leaderRows && leaderRows.length > 0) {
           daeraLeaderId = leaderRows[0].id;
         } else {
-          // Auto-create leader "DAERA OFFICE" if missing using raw SQL
-          const leaderChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-          let leaderRandom = '';
-          for (let i = 0; i < 23; i++) {
-            leaderRandom += leaderChars.charAt(Math.floor(Math.random() * leaderChars.length));
-          }
-          const generatedLeaderId = 'cl' + leaderRandom;
-          await prisma.$executeRawUnsafe(
+          const generatedLeaderId = 'cl' + generateId().slice(0, 23);
+          await pool.query(
             'INSERT INTO Leader (id, name, createdAt) VALUES (?, ?, NOW(3))',
-            generatedLeaderId,
-            'DAERA OFFICE'
+            [generatedLeaderId, 'DAERA OFFICE']
           );
           daeraLeaderId = generatedLeaderId;
         }
         
         if (daeraLeaderId) {
-          await prisma.$executeRawUnsafe(
+          await pool.query(
             'UPDATE Broker SET leaderId = ? WHERE id = ?',
-            daeraLeaderId,
-            broker.id
+            [daeraLeaderId, brokerObj.id]
           );
-          broker.leaderId = daeraLeaderId;
-          console.log(`[BROKER-CREATE] Automatically assigned new broker "${broker.name}" to Leader "DAERA OFFICE"`);
+          brokerObj.leaderId = daeraLeaderId;
         }
       } catch (e) {
         console.warn('[BROKER-CREATE] Failed to auto-assign/create DAERA OFFICE leader:', e);
       }
     }
     
-    res.json(broker);
+    res.json(brokerObj);
   } catch (error: any) {
     console.error('Error creating broker:', error);
-    if (error.code === 'P2002' || error.message?.includes('Duplicate entry')) {
+    if (error.code === 'ER_DUP_ENTRY' || error.message?.includes('Duplicate entry')) {
       return res.status(400).json({ error: 'A broker with this name already exists' });
     }
     res.status(500).json({ 
       error: 'Failed to create broker. Please try again.',
-      details: error.message || String(error),
-      code: error.code,
-      stack: error.stack
+      details: error.message || String(error)
     });
   }
 });
 
-// POST /api/brokers/move-candidates-bulk — Move specific candidates to another broker in bulk
+// POST /api/brokers/move-candidates-bulk
 router.post('/move-candidates-bulk', async (req: Request, res: Response) => {
   try {
     const { candidateIds, targetBrokerId } = req.body;
@@ -216,29 +200,24 @@ router.post('/move-candidates-bulk', async (req: Request, res: Response) => {
     if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
       return res.status(400).json({ error: 'Candidate IDs array is required' });
     }
-
     if (!targetBrokerId) {
       return res.status(400).json({ error: 'Target broker ID is required' });
     }
 
-    // Verify target broker exists
-    const targetBroker = await prisma.broker.findUnique({ where: { id: targetBrokerId } });
-    if (!targetBroker) {
+    const targetBroker = await db.select().from(brokerTable).where(eq(brokerTable.id, targetBrokerId));
+    if (targetBroker.length === 0) {
       return res.status(404).json({ error: 'Target broker not found' });
     }
 
-    // Move candidates
-    const result = await prisma.candidate.updateMany({
-      where: { id: { in: candidateIds } },
-      data: { brokerId: targetBrokerId }
-    });
-
-    console.log(`[BROKER-MOVE-BULK] Moved ${result.count} candidate(s) to "${targetBroker.name}"`);
+    await db
+      .update(candidateTable)
+      .set({ brokerId: targetBrokerId })
+      .where(inArray(candidateTable.id, candidateIds));
 
     res.json({
       success: true,
-      movedCount: result.count,
-      message: `Successfully moved ${result.count} candidate(s) to "${targetBroker.name}"`
+      movedCount: candidateIds.length,
+      message: `Successfully moved ${candidateIds.length} candidate(s) to "${targetBroker[0].name}"`
     });
   } catch (error: any) {
     console.error('Failed to move candidates in bulk:', error);
@@ -252,7 +231,15 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { search, interval, startDate, endDate } = req.query;
 
-    let registeredAtFilter: any = {};
+    const [brokerRows]: any = await pool.query('SELECT * FROM Broker WHERE id = ? LIMIT 1', [id]);
+    if (!brokerRows || brokerRows.length === 0) {
+      return res.status(404).json({ error: 'Broker not found' });
+    }
+    const brokerObj = brokerRows[0];
+
+    let sqlQuery = 'SELECT * FROM Candidate WHERE brokerId = ?';
+    const sqlParams: any[] = [id];
+
     if (interval && interval !== 'ALL') {
       const now = new Date();
       let from = new Date(now);
@@ -260,112 +247,60 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
       else if (interval === '1W') from.setDate(from.getDate() - 7);
       else if (interval === '1M') from.setMonth(from.getMonth() - 1);
       else if (interval === '1Y') from.setFullYear(from.getFullYear() - 1);
-      registeredAtFilter.gte = from;
+      sqlQuery += ' AND registeredAt >= ?';
+      sqlParams.push(from);
     }
-    if (startDate) registeredAtFilter.gte = new Date(startDate as string);
-    if (endDate) registeredAtFilter.lte = new Date(endDate as string);
+    if (startDate) {
+      sqlQuery += ' AND registeredAt >= ?';
+      sqlParams.push(new Date(startDate as string));
+    }
+    if (endDate) {
+      sqlQuery += ' AND registeredAt <= ?';
+      sqlParams.push(new Date(endDate as string));
+    }
+    if (search) {
+      sqlQuery += ' AND (givenNames LIKE ? OR surname LIKE ? OR passportNumber LIKE ?)';
+      const s = `%${search}%`;
+      sqlParams.push(s, s, s);
+    }
 
-    const searchFilter = search
-      ? {
-          OR: [
-            { givenNames: { contains: search as string } },
-            { surname: { contains: search as string } },
-            { passportNumber: { contains: search as string } },
-          ],
-        }
-      : {};
+    sqlQuery += ' ORDER BY registeredAt DESC';
 
-    const broker = await prisma.broker.findUnique({
-      where: { id },
-      include: {
-        candidates: {
-          where: {
-            ...searchFilter,
-            ...(Object.keys(registeredAtFilter).length > 0 ? { registeredAt: registeredAtFilter } : {}),
-          },
-          orderBy: { registeredAt: 'desc' },
-          select: {
-            id: true,
-            givenNames: true,
-            surname: true,
-            passportNumber: true,
-            job: true,
-            facePhotoUrl: true,
-            fullBodyPhotoUrl: true,
-            isRequested: true,
-            registeredAt: true,
-            visaSelected: true,
-            religion: true,
-            isFlagged: true,
-            medicalStatus: true,
-            visaOrContractNumber: true,
-            generatedCVs: {
-              select: {
-                id: true,
-                templateId: true,
-                facePhotoUrl: true,
-                fullBodyPhotoUrl: true,
-                createdAt: true,
-              }
-            }
-          },
-        },
-      },
-    });
+    const [candidates]: any = await pool.query(sqlQuery, sqlParams);
 
-    if (!broker) return res.status(404).json({ error: 'Broker not found' });
+    const candidatesWithCVs = [];
+    for (const cand of candidates) {
+      const cvs = await db
+        .select({
+          id: generatedCvTable.id,
+          templateId: generatedCvTable.templateId,
+          facePhotoUrl: generatedCvTable.facePhotoUrl,
+          fullBodyPhotoUrl: generatedCvTable.fullBodyPhotoUrl,
+          createdAt: generatedCvTable.createdAt,
+        })
+        .from(generatedCvTable)
+        .where(eq(generatedCvTable.candidateId, cand.id));
 
-    // Augment with isLocked status via raw SQL
+      candidatesWithCVs.push({
+        ...cand,
+        generatedCVs: cvs,
+      });
+    }
+
     const isLocked = await getBrokerIsLocked(id);
-
-    // Fetch leaderId via raw SQL to bypass stale Prisma client
-    let leaderId = null;
-    try {
-      const leaderRows = await prisma.$queryRawUnsafe<{ leaderId: string | null }[]>(
-        'SELECT leaderId FROM Broker WHERE id = ?',
-        id
-      );
-      if (leaderRows.length > 0) {
-        leaderId = leaderRows[0].leaderId;
-      }
-    } catch (e) {
-      console.warn('[BROKER] Could not fetch leaderId for broker', id, e);
-    }
-
-    // Fetch per-candidate isLocked & price via raw SQL
-    let candidateIsLockedMap: Record<string, boolean> = {};
-    let candidateCvDownloadedMap: Record<string, boolean> = {};
-    let candidatePriceMap: Record<string, string | null> = {};
-    try {
-      const candidateIds = broker.candidates.map((c: any) => c.id);
-      if (candidateIds.length > 0) {
-        const placeholders = candidateIds.map(() => '?').join(',');
-        const rows = await prisma.$queryRawUnsafe<{ id: string; isLocked: number | boolean; cvDownloaded: number | boolean; price: string | null }[]>(
-          `SELECT id, isLocked, cvDownloaded, price FROM Candidate WHERE id IN (${placeholders})`,
-          ...candidateIds
-        );
-        for (const row of rows) {
-          candidateIsLockedMap[row.id] = row.isLocked === 1 || row.isLocked === true;
-          candidateCvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
-          candidatePriceMap[row.id] = row.price || null;
-        }
-      }
-    } catch (_) { /* columns may not exist yet */ }
-
-    // Resolve requester role
     const session = await getSession(req);
     const role = (session?.user as any)?.role;
     const isSuperAdmin = role === 'super_admin';
 
     const augmentedBroker = {
-      ...broker,
-      leaderId,
+      ...brokerObj,
+      leaderId: brokerObj.leaderId || null,
       isLocked,
-      candidates: broker.candidates.map((c: any) => ({
+      candidates: candidatesWithCVs.map((c: any) => ({
         ...c,
-        isLocked: candidateIsLockedMap[c.id] ?? false,
-        cvDownloaded: candidateCvDownloadedMap[c.id] ?? false,
-        price: isSuperAdmin ? (candidatePriceMap[c.id] ?? null) : null,
+        isLocked: c.isLocked === 1 || c.isLocked === true,
+        cvDownloaded: c.cvDownloaded === 1 || c.cvDownloaded === true,
+        price: isSuperAdmin ? (c.price || null) : null,
       })),
     };
 
@@ -376,7 +311,7 @@ router.get('/:id/candidates', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/brokers/:id/move-candidates — Move all candidates to another broker
+// POST /api/brokers/:id/move-candidates
 router.post('/:id/move-candidates', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -385,44 +320,22 @@ router.post('/:id/move-candidates', async (req: Request, res: Response) => {
     if (!targetBrokerId) {
       return res.status(400).json({ error: 'Target broker ID is required' });
     }
-
     if (id === targetBrokerId) {
       return res.status(400).json({ error: 'Cannot move candidates to the same broker' });
     }
 
-    // Verify source broker exists
-    const sourceBroker = await prisma.broker.findUnique({
-      where: { id },
-      include: { _count: { select: { candidates: true } } }
-    });
-    if (!sourceBroker) {
-      return res.status(404).json({ error: 'Source broker not found' });
-    }
+    const sourceBroker = await db.select().from(brokerTable).where(eq(brokerTable.id, id));
+    if (sourceBroker.length === 0) return res.status(404).json({ error: 'Source broker not found' });
 
-    // Verify target broker exists
-    const targetBroker = await prisma.broker.findUnique({ where: { id: targetBrokerId } });
-    if (!targetBroker) {
-      return res.status(404).json({ error: 'Target broker not found' });
-    }
+    const targetBroker = await db.select().from(brokerTable).where(eq(brokerTable.id, targetBrokerId));
+    if (targetBroker.length === 0) return res.status(404).json({ error: 'Target broker not found' });
 
-    // Move all candidates
-    const result = await prisma.candidate.updateMany({
-      where: { brokerId: id },
-      data: { brokerId: targetBrokerId }
-    });
-
-    // Also move quick registrations
-    await prisma.quickRegistration.updateMany({
-      where: { brokerId: id },
-      data: { brokerId: targetBrokerId }
-    });
-
-    console.log(`[BROKER-MOVE] Moved ${result.count} candidates from "${sourceBroker.name}" to "${targetBroker.name}"`);
+    await db.update(candidateTable).set({ brokerId: targetBrokerId }).where(eq(candidateTable.brokerId, id));
+    await db.update(quickRegistrationTable).set({ brokerId: targetBrokerId }).where(eq(quickRegistrationTable.brokerId, id));
 
     res.json({
       success: true,
-      movedCount: result.count,
-      message: `Successfully moved ${result.count} candidate(s) from "${sourceBroker.name}" to "${targetBroker.name}"`
+      message: `Successfully moved candidate(s) from "${sourceBroker[0].name}" to "${targetBroker[0].name}"`
     });
   } catch (error: any) {
     console.error('Failed to move candidates:', error);
@@ -430,255 +343,131 @@ router.post('/:id/move-candidates', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/brokers/:id — Delete broker directly
+// DELETE /api/brokers/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Check if broker exists
-    const broker = await prisma.broker.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { candidates: true, quickRegistrations: true }
-        }
-      }
-    });
+    const broker = await db.select().from(brokerTable).where(eq(brokerTable.id, id));
+    if (broker.length === 0) return res.status(404).json({ error: 'Broker not found' });
 
-    if (!broker) {
-      return res.status(404).json({ error: 'Broker not found' });
-    }
+    await db.update(candidateTable).set({ brokerId: null }).where(eq(candidateTable.brokerId, id));
+    await db.update(quickRegistrationTable).set({ brokerId: null }).where(eq(quickRegistrationTable.brokerId, id));
+    await db.delete(brokerTable).where(eq(brokerTable.id, id));
 
-    // Disconnect all candidates (set brokerId to null)
-    await prisma.candidate.updateMany({
-      where: { brokerId: id },
-      data: { brokerId: null }
-    });
-
-    // Disconnect all quick registrations
-    await prisma.quickRegistration.updateMany({
-      where: { brokerId: id },
-      data: { brokerId: null }
-    });
-
-    // Delete the broker
-    await prisma.broker.delete({
-      where: { id }
-    });
-
-    console.log(`[BROKER-DELETE] Broker "${broker.name}" deleted. ${broker._count.candidates} candidates disconnected.`);
-
-    res.json({ success: true, message: `Broker "${broker.name}" deleted successfully` });
+    res.json({ success: true, message: `Broker "${broker[0].name}" deleted successfully` });
   } catch (error: any) {
     console.error('Failed to delete broker:', error);
     res.status(500).json({ error: error.message || 'Failed to delete broker' });
   }
 });
 
-// PATCH /api/brokers/:id/toggle-lock — Lock/Unlock broker (hides/shows CVs)
+// PATCH /api/brokers/:id/toggle-lock
 router.patch('/:id/toggle-lock', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Find the broker
-    const broker = await prisma.broker.findUnique({ where: { id } });
-    if (!broker) {
-      return res.status(404).json({ error: 'Broker not found' });
-    }
-
     const currentLockState = await getBrokerIsLocked(id);
     const newLockState = !currentLockState;
 
-    // Toggle the lock status using raw SQL
     await setBrokerIsLocked(id, newLockState);
 
-    // Re-fetch to get candidate count and name cleanly
-    const updated = await prisma.broker.findUnique({
-      where: { id },
-      include: {
-        _count: { select: { candidates: true } }
-      }
-    });
+    const broker = await db.select().from(brokerTable).where(eq(brokerTable.id, id));
+    if (broker.length === 0) return res.status(404).json({ error: 'Broker not found' });
 
-    if (!updated) {
-      return res.status(404).json({ error: 'Broker not found' });
-    }
-
-    const responseObj = {
-      ...updated,
+    res.json({
+      ...broker[0],
       isLocked: newLockState
-    };
-
-    console.log(`[BROKER-LOCK] Broker "${updated.name}" ${newLockState ? 'LOCKED' : 'UNLOCKED'}`);
-
-    res.json(responseObj);
+    });
   } catch (error: any) {
     console.error('Failed to toggle broker lock:', error);
     res.status(500).json({ error: error.message || 'Failed to toggle broker lock' });
   }
 });
 
-// POST /api/brokers/move-bulk — Move multiple brokers to a leader
+// POST /api/brokers/move-bulk
 router.post('/move-bulk', async (req: Request, res: Response) => {
   try {
-    const { brokerIds, leaderId } = req.body; // leaderId can be string or null
+    const { brokerIds, leaderId } = req.body;
 
     if (!brokerIds || !Array.isArray(brokerIds) || brokerIds.length === 0) {
       return res.status(400).json({ error: 'Broker IDs array is required' });
     }
 
-    // If leaderId is provided, verify it exists
-    if (leaderId !== null && leaderId !== undefined && leaderId !== '') {
-      const leaderRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
-        'SELECT id FROM Leader WHERE id = ?',
-        leaderId
-      );
-      if (leaderRows.length === 0) {
-        return res.status(404).json({ error: 'Target leader not found' });
-      }
+    if (leaderId) {
+      const leaders = await db.select().from(leaderTable).where(eq(leaderTable.id, leaderId));
+      if (leaders.length === 0) return res.status(404).json({ error: 'Target leader not found' });
     }
 
-    // Update the leaderId of all specified brokers via raw SQL
-    const placeholders = brokerIds.map(() => '?').join(',');
-    await prisma.$executeRawUnsafe(
-      `UPDATE Broker SET leaderId = ? WHERE id IN (${placeholders})`,
-      leaderId || null,
-      ...brokerIds
-    );
-
-    console.log(`[BROKER-MOVE-BULK] Moved ${brokerIds.length} brokers to leader: ${leaderId || 'None'}`);
+    await db
+      .update(brokerTable)
+      .set({ leaderId: leaderId || null })
+      .where(inArray(brokerTable.id, brokerIds));
 
     res.json({ success: true, movedCount: brokerIds.length });
   } catch (error: any) {
-    console.error('Failed to move brokers in bulk via raw SQL:', error);
+    console.error('Failed to move brokers in bulk:', error);
     res.status(500).json({ error: error.message || 'Failed to move brokers in bulk' });
   }
 });
 
-// PATCH /api/brokers/:id/leader — Assign or change broker's leader
+// PATCH /api/brokers/:id/leader
 router.patch('/:id/leader', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { leaderId } = req.body; // Can be string or null
+    const { leaderId } = req.body;
 
-    // Find the broker using raw SQL to be safe
-    const brokerRows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
-      'SELECT id, name FROM Broker WHERE id = ?',
-      id
-    );
-    if (brokerRows.length === 0) {
-      return res.status(404).json({ error: 'Broker not found' });
-    }
+    const broker = await db.select().from(brokerTable).where(eq(brokerTable.id, id));
+    if (broker.length === 0) return res.status(404).json({ error: 'Broker not found' });
 
-    const brokerName = brokerRows[0].name;
-
-    // If leaderId is provided, make sure the leader exists
-    if (leaderId !== null && leaderId !== undefined && leaderId !== '') {
-      const leaderRows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
-        'SELECT id, name FROM Leader WHERE id = ?',
-        leaderId
-      );
-      if (leaderRows.length === 0) {
-        return res.status(404).json({ error: 'Target leader not found' });
-      }
-    }
-
-    // Update the broker's leaderId via raw SQL
-    await prisma.$executeRawUnsafe(
-      'UPDATE Broker SET leaderId = ? WHERE id = ?',
-      leaderId || null,
-      id
-    );
-
-    // Fetch broker count and info cleanly from Prisma (relation-free models)
-    const updated = await prisma.broker.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { candidates: true }
-        }
-      }
-    });
-
-    if (!updated) {
-      return res.status(404).json({ error: 'Broker not found' });
-    }
-
-    // Fetch leader details using raw SQL
     let leaderObj = null;
     if (leaderId) {
-      const leaderRows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
-        'SELECT id, name FROM Leader WHERE id = ?',
-        leaderId
-      );
-      if (leaderRows.length > 0) {
-        leaderObj = leaderRows[0];
-      }
+      const leaders = await db.select().from(leaderTable).where(eq(leaderTable.id, leaderId));
+      if (leaders.length === 0) return res.status(404).json({ error: 'Target leader not found' });
+      leaderObj = leaders[0];
     }
 
-    const responseObj = {
-      ...updated,
+    await db.update(brokerTable).set({ leaderId: leaderId || null }).where(eq(brokerTable.id, id));
+
+    res.json({
+      ...broker[0],
       leaderId: leaderId || null,
       leader: leaderObj
-    };
-
-    console.log(`[BROKER-LEADER] Moved broker "${brokerName}" to leader: ${leaderObj?.name || 'None'}`);
-
-    res.json(responseObj);
+    });
   } catch (error: any) {
-    console.error('Failed to update broker leader via raw SQL:', error);
+    console.error('Failed to update broker leader:', error);
     res.status(500).json({ error: error.message || 'Failed to update broker leader' });
   }
 });
 
-// POST /api/brokers/:id/change-template — Bulk change CV template for all candidates under broker
+// POST /api/brokers/:id/change-template
 router.post('/:id/change-template', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { templateId } = req.body;
 
-    if (!templateId) {
-      return res.status(400).json({ error: 'Template ID is required' });
-    }
+    if (!templateId) return res.status(400).json({ error: 'Template ID is required' });
 
-    // Verify broker exists
-    const broker = await prisma.broker.findUnique({
-      where: { id },
-      include: {
-        candidates: {
-          include: {
-            generatedCVs: true
-          }
-        }
-      }
-    });
-
-    if (!broker) {
-      return res.status(404).json({ error: 'Broker not found' });
+    const brokerCandidates = await db.select().from(candidateTable).where(eq(candidateTable.brokerId, id));
+    if (brokerCandidates.length === 0) {
+      return res.json({ success: true, updatedCount: 0, message: 'No candidates found under broker' });
     }
 
     let updatedCount = 0;
-    for (const candidate of broker.candidates) {
-      const existingCv = candidate.generatedCVs?.[0];
-      if (existingCv) {
-        await prisma.generatedCV.update({
-          where: { id: existingCv.id },
-          data: { templateId }
-        });
+    for (const cand of brokerCandidates) {
+      const existingCvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, cand.id));
+      if (existingCvs.length > 0) {
+        await db.update(generatedCvTable).set({ templateId }).where(eq(generatedCvTable.id, existingCvs[0].id));
       } else {
-        await prisma.generatedCV.create({
-          data: {
-            candidateId: candidate.id,
-            templateId,
-            facePhotoUrl: candidate.facePhotoUrl,
-            fullBodyPhotoUrl: candidate.fullBodyPhotoUrl
-          }
+        await db.insert(generatedCvTable).values({
+          candidateId: cand.id,
+          templateId,
+          facePhotoUrl: cand.facePhotoUrl,
+          fullBodyPhotoUrl: cand.fullBodyPhotoUrl,
         });
       }
       updatedCount++;
     }
-
-    console.log(`[BROKER-TEMPLATE] Updated ${updatedCount} candidates of broker "${broker.name}" to template "${templateId}"`);
 
     res.json({
       success: true,

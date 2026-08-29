@@ -1,7 +1,8 @@
 import { Request } from 'express';
 import { auth } from './auth';
 import { fromNodeHeaders } from 'better-auth/node';
-import prisma from './prisma';
+import { db, session as sessionTable, user as userTable } from '../db';
+import { eq } from 'drizzle-orm';
 
 export async function getSession(req: Request) {
   // Strategy 0: Bearer Token Header (Direct DB Query for Cross-Domain / Third-Party Cookie Bypass)
@@ -10,15 +11,20 @@ export async function getSession(req: Request) {
     if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7).trim();
       if (token) {
-        const dbSession = await prisma.session.findUnique({
-          where: { token },
-          include: { user: true },
-        });
+        const rows = await db
+          .select({
+            session: sessionTable,
+            user: userTable,
+          })
+          .from(sessionTable)
+          .innerJoin(userTable, eq(sessionTable.userId, userTable.id))
+          .where(eq(sessionTable.token, token))
+          .limit(1);
 
-        if (dbSession && dbSession.expiresAt > new Date()) {
+        if (rows.length > 0 && rows[0].session.expiresAt > new Date()) {
           return {
-            session: dbSession,
-            user: dbSession.user,
+            session: rows[0].session,
+            user: rows[0].user,
           };
         }
       }

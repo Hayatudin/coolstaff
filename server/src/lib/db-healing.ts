@@ -1,11 +1,21 @@
-import prisma from './prisma';
+import { pool, db, quickRegistration as quickRegistrationTable, candidate as candidateTable } from '../db';
+import { sql, isNotNull, and, eq } from 'drizzle-orm';
 
 export async function ensureDatabaseSchema() {
   console.log('🔧 Starting database self-healing schema checks...');
 
+  const executeRaw = async (query: string, params: any[] = []) => {
+    return await pool.query(query, params);
+  };
+
+  const queryRaw = async <T = any>(query: string, params: any[] = []): Promise<T[]> => {
+    const [rows] = await pool.query(query, params);
+    return rows as T[];
+  };
+
   // 1. Create Core Better Auth Tables
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`User\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`name\` VARCHAR(191) NOT NULL,
@@ -28,17 +38,17 @@ export async function ensureDatabaseSchema() {
   }
 
   try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE \`User\` ADD COLUMN \`agency\` VARCHAR(191) NULL`);
+    await executeRaw(`ALTER TABLE \`User\` ADD COLUMN \`agency\` VARCHAR(191) NULL`);
     console.log(`✅ Successfully added column 'agency' to User table.`);
   } catch (e: any) {
     const msg = e.message || String(e);
-    if (!msg.includes('Duplicate column') && !msg.includes('already exists') && e.code !== 'P2010') {
+    if (!msg.includes('Duplicate column') && !msg.includes('already exists')) {
       console.warn(`⚠️ User column fallback update warning for 'agency':`, msg);
     }
   }
 
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Session\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`expiresAt\` DATETIME(3) NOT NULL,
@@ -61,7 +71,7 @@ export async function ensureDatabaseSchema() {
   }
 
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Account\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`accountId\` VARCHAR(191) NOT NULL,
@@ -88,7 +98,7 @@ export async function ensureDatabaseSchema() {
   }
 
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Verification\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`identifier\` VARCHAR(191) NOT NULL,
@@ -107,7 +117,7 @@ export async function ensureDatabaseSchema() {
 
   // 1b. Create Leader Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Leader\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`name\` VARCHAR(191) NOT NULL,
@@ -123,7 +133,7 @@ export async function ensureDatabaseSchema() {
 
   // 2. Create Broker Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Broker\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`name\` VARCHAR(191) NOT NULL,
@@ -143,9 +153,9 @@ export async function ensureDatabaseSchema() {
 
   // 3. Add flaggedAt to Candidate Table if it doesn't exist
   try {
-    const columns: any[] = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`Candidate\` LIKE 'flaggedAt'`);
+    const columns: any[] = await queryRaw(`SHOW COLUMNS FROM \`Candidate\` LIKE 'flaggedAt'`);
     if (columns.length === 0) {
-      await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`flaggedAt\` DATETIME(3) NULL`);
+      await executeRaw(`ALTER TABLE \`Candidate\` ADD COLUMN \`flaggedAt\` DATETIME(3) NULL`);
       console.log(`✅ Added 'flaggedAt' column to 'Candidate' table.`);
     }
   } catch (e: any) {
@@ -154,7 +164,7 @@ export async function ensureDatabaseSchema() {
 
   // 3. Create Candidate Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Candidate\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`shelfId\` VARCHAR(191) NULL,
@@ -234,7 +244,7 @@ export async function ensureDatabaseSchema() {
 
   // 4. Create QuickRegistration Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`QuickRegistration\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`passportNumber\` VARCHAR(191) NOT NULL,
@@ -281,7 +291,7 @@ export async function ensureDatabaseSchema() {
 
   // 5. Create GeneratedCV Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`GeneratedCV\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`candidateId\` VARCHAR(191) NOT NULL,
@@ -303,7 +313,7 @@ export async function ensureDatabaseSchema() {
 
   // 6. Create Notification Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Notification\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`title\` VARCHAR(191) NOT NULL,
@@ -329,29 +339,29 @@ export async function ensureDatabaseSchema() {
     let hasFullName = false;
 
     try {
-      const columns: any[] = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`PreRegisteredVideo\``);
+      const columns: any[] = await queryRaw(`SHOW COLUMNS FROM \`PreRegisteredVideo\``);
       hasPassportNumber = columns.some(c => c.Field === 'passportNumber');
       hasFacePhoto = columns.some(c => c.Field === 'facePhotoUrl');
       hasFullBodyPhoto = columns.some(c => c.Field === 'fullBodyPhotoUrl');
       hasFullName = columns.some(c => c.Field === 'fullName');
     } catch (_) {
-      // Table doesn't exist yet, we will create it below
+      // Table doesn't exist yet
     }
 
     if (hasFullName) {
       try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` DROP INDEX \`PreRegisteredVideo_fullName_key\``);
+        await executeRaw(`ALTER TABLE \`PreRegisteredVideo\` DROP INDEX \`PreRegisteredVideo_fullName_key\``);
       } catch (_) {}
       try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` CHANGE COLUMN \`fullName\` \`passportNumber\` VARCHAR(191) NOT NULL`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` ADD UNIQUE KEY \`PreRegisteredVideo_passportNumber_key\` (\`passportNumber\`)`);
+        await executeRaw(`ALTER TABLE \`PreRegisteredVideo\` CHANGE COLUMN \`fullName\` \`passportNumber\` VARCHAR(191) NOT NULL`);
+        await executeRaw(`ALTER TABLE \`PreRegisteredVideo\` ADD UNIQUE KEY \`PreRegisteredVideo_passportNumber_key\` (\`passportNumber\`)`);
         console.log(`✅ Successfully updated PreRegisteredVideo table: renamed 'fullName' to 'passportNumber' and made it unique.`);
         hasPassportNumber = true;
       } catch (e: any) {
         console.warn('⚠️ PreRegisteredVideo migration warning:', e.message || e);
       }
     } else if (!hasPassportNumber) {
-      await prisma.$executeRawUnsafe(`
+      await executeRaw(`
         CREATE TABLE IF NOT EXISTS \`PreRegisteredVideo\` (
           \`id\` VARCHAR(191) NOT NULL,
           \`passportNumber\` VARCHAR(191) NOT NULL,
@@ -369,17 +379,16 @@ export async function ensureDatabaseSchema() {
       hasFullBodyPhoto = true;
     }
 
-    // Incremental column checks for facePhotoUrl and fullBodyPhotoUrl
     if (hasPassportNumber) {
       if (!hasFacePhoto) {
         try {
-          await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` ADD COLUMN \`facePhotoUrl\` TEXT NULL`);
+          await executeRaw(`ALTER TABLE \`PreRegisteredVideo\` ADD COLUMN \`facePhotoUrl\` TEXT NULL`);
           console.log(`✅ Successfully added column 'facePhotoUrl' to PreRegisteredVideo table.`);
         } catch (_) {}
       }
       if (!hasFullBodyPhoto) {
         try {
-          await prisma.$executeRawUnsafe(`ALTER TABLE \`PreRegisteredVideo\` ADD COLUMN \`fullBodyPhotoUrl\` TEXT NULL`);
+          await executeRaw(`ALTER TABLE \`PreRegisteredVideo\` ADD COLUMN \`fullBodyPhotoUrl\` TEXT NULL`);
           console.log(`✅ Successfully added column 'fullBodyPhotoUrl' to PreRegisteredVideo table.`);
         } catch (_) {}
       }
@@ -390,7 +399,7 @@ export async function ensureDatabaseSchema() {
 
   // 8. Create Invoice Table
   try {
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Invoice\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`candidateId\` VARCHAR(191) NOT NULL,
@@ -412,33 +421,18 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Invoice table check warning:', e.message || e);
   }
 
-  // 9. Create TemplatePrice Table
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS \`TemplatePrice\` (
-        \`templateId\` VARCHAR(191) NOT NULL,
-        \`price\` VARCHAR(191) NOT NULL,
-        \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-        PRIMARY KEY (\`templateId\`)
-      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    `);
-    console.log(`✅ Verified/Created 'TemplatePrice' table.`);
-  } catch (e: any) {
-    console.warn('⚠️ TemplatePrice table check warning:', e.message || e);
-  }
-
-  // 9b. Create Passport Table (Auto-migrated if older schema detected)
+  // 9. Create Passport Table
   try {
     try {
-      const cols: any[] = await prisma.$queryRawUnsafe('SHOW COLUMNS FROM `Passport`');
+      const cols: any[] = await queryRaw('SHOW COLUMNS FROM `Passport`');
       const hasShelfNo = cols.some(c => c.Field === 'shelfNo');
       if (!hasShelfNo) {
         console.log('🔄 Old Passport table detected. Recreating to match new schema...');
-        await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS `Passport`');
+        await executeRaw('DROP TABLE IF EXISTS `Passport`');
       }
     } catch (_) {}
 
-    await prisma.$executeRawUnsafe(`
+    await executeRaw(`
       CREATE TABLE IF NOT EXISTS \`Passport\` (
         \`id\` VARCHAR(191) NOT NULL,
         \`shelfNo\` VARCHAR(191) NOT NULL,
@@ -458,7 +452,6 @@ export async function ensureDatabaseSchema() {
   } catch (e: any) {
     console.warn('⚠️ Passport table check warning:', e.message || e);
   }
-
 
   const candidateColumns = [
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
@@ -487,13 +480,11 @@ export async function ensureDatabaseSchema() {
 
   for (const col of candidateColumns) {
     try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`${col.name}\` ${col.type}`);
+      await executeRaw(`ALTER TABLE \`Candidate\` ADD COLUMN \`${col.name}\` ${col.type}`);
       console.log(`✅ Successfully added column '${col.name}' to Candidate table.`);
     } catch (e: any) {
       const msg = e.message || String(e);
-      if (msg.includes('Duplicate column') || msg.includes('already exists') || e.code === 'P2010') {
-        // column already exists
-      } else {
+      if (!msg.includes('Duplicate column') && !msg.includes('already exists')) {
         console.warn(`⚠️ Candidate column fallback update warning for '${col.name}':`, msg);
       }
     }
@@ -520,99 +511,20 @@ export async function ensureDatabaseSchema() {
 
   for (const col of quickRegColumns) {
     try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE \`QuickRegistration\` ADD COLUMN \`${col.name}\` ${col.type}`);
+      await executeRaw(`ALTER TABLE \`QuickRegistration\` ADD COLUMN \`${col.name}\` ${col.type}`);
       console.log(`✅ Successfully added column '${col.name}' to QuickRegistration table.`);
     } catch (e: any) {
       const msg = e.message || String(e);
-      if (msg.includes('Duplicate column') || msg.includes('already exists') || e.code === 'P2010') {
-        // column already exists
-      } else {
+      if (!msg.includes('Duplicate column') && !msg.includes('already exists')) {
         console.warn(`⚠️ QuickRegistration column fallback update warning for '${col.name}':`, msg);
       }
     }
   }
 
-  // 10b. Incremental Broker column additions
-  try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE \`Broker\` ADD COLUMN \`isLocked\` TINYINT(1) NOT NULL DEFAULT 0`);
-    console.log(`✅ Successfully added column 'isLocked' to Broker table.`);
-  } catch (e: any) {
-    const msg = e.message || String(e);
-    if (msg.includes('Duplicate column') || msg.includes('already exists') || e.code === 'P2010') {
-      // column already exists
-    } else {
-      console.warn(`⚠️ Broker column fallback update warning for 'isLocked':`, msg);
-    }
-  }
-
-  try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE \`Broker\` ADD COLUMN \`leaderId\` VARCHAR(191) NULL`);
-    console.log(`✅ Successfully added column 'leaderId' to Broker table.`);
-  } catch (e: any) {
-    const msg = e.message || String(e);
-    if (msg.includes('Duplicate column') || msg.includes('already exists') || e.code === 'P2010') {
-      // column already exists
-    } else {
-      console.warn(`⚠️ Broker column fallback update warning for 'leaderId':`, msg);
-    }
-  }
-
-  try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE \`Broker\` ADD INDEX \`Broker_leaderId_idx\` (\`leaderId\`)`);
-    console.log(`✅ Successfully added index 'Broker_leaderId_idx' to Broker table.`);
-  } catch (e: any) {
-    // Index may exist
-  }
-
-  try {
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE \`Broker\` 
-      ADD CONSTRAINT \`Broker_leaderId_fkey\` 
-      FOREIGN KEY (\`leaderId\`) REFERENCES \`Leader\`(\`id\`) 
-      ON DELETE SET NULL ON UPDATE CASCADE
-    `);
-    console.log(`✅ Successfully added foreign key constraint for leaderId in Broker table.`);
-  } catch (e: any) {
-    // FK may exist
-  }
-
-  // 10c. Alter QuickRegistration passportType default to original
-  try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE \`QuickRegistration\` ALTER COLUMN \`passportType\` SET DEFAULT 'original'`);
-    console.log(`✅ Successfully updated default of 'passportType' to 'original' in QuickRegistration table.`);
-  } catch (e: any) {
-    console.warn(`⚠️ QuickRegistration default update warning for 'passportType':`, e.message || e);
-  }
-
-  // 10d. Rename Candidate.videoUrl → Youtube_URL (if old column still exists)
-  try {
-    const candidateCols: any[] = await prisma.$queryRawUnsafe(`SHOW COLUMNS FROM \`Candidate\``);
-    const hasOldVideoUrl = candidateCols.some((c: any) => c.Field === 'videoUrl');
-    const hasYoutubeUrl = candidateCols.some((c: any) => c.Field === 'Youtube_URL');
-
-    if (hasOldVideoUrl && !hasYoutubeUrl) {
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` CHANGE COLUMN \`videoUrl\` \`Youtube_URL\` VARCHAR(191) NULL`);
-        console.log(`✅ Successfully renamed Candidate column 'videoUrl' to 'Youtube_URL'.`);
-      } catch (renameErr: any) {
-        console.warn(`⚠️ Candidate videoUrl rename warning:`, renameErr.message || renameErr);
-      }
-    } else if (!hasOldVideoUrl && !hasYoutubeUrl) {
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE \`Candidate\` ADD COLUMN \`Youtube_URL\` VARCHAR(191) NULL`);
-        console.log(`✅ Successfully added column 'Youtube_URL' to Candidate table.`);
-      } catch (_) {}
-    } else {
-      // Youtube_URL already exists, nothing to do
-    }
-  } catch (colCheckErr: any) {
-    console.warn(`⚠️ Candidate Youtube_URL column check warning:`, colCheckErr.message || colCheckErr);
-  }
-
-  // 11. Run auto-migration for previously registered candidates' videos
+  // Auto-migration for candidate video paths using Drizzle
   try {
     console.log('🔄 Running auto-migration for existing candidates with missing videos...');
-    const candidates: any[] = await prisma.$queryRawUnsafe(
+    const candidates: any[] = await queryRaw(
       `SELECT id, passportNumber, quickVideoUrl, Youtube_URL FROM \`Candidate\` WHERE quickVideoUrl IS NULL OR quickVideoUrl = '' OR Youtube_URL IS NULL OR Youtube_URL = ''`
     );
 
@@ -621,41 +533,36 @@ export async function ensureDatabaseSchema() {
     let migrationCount = 0;
     for (const cand of candidates) {
       if (!cand.passportNumber) continue;
-      
-      // Find matching QuickRegistration record
-      const quickReg = await prisma.quickRegistration.findFirst({
-        where: {
-          passportNumber: cand.passportNumber,
-          AND: [
-            { videoUrl: { not: null } },
-            { videoUrl: { not: '' } }
-          ]
-        },
-        select: {
-          videoUrl: true
-        }
-      });
 
+      const quickRegs = await db
+        .select({ videoUrl: quickRegistrationTable.videoUrl })
+        .from(quickRegistrationTable)
+        .where(
+          and(
+            eq(quickRegistrationTable.passportNumber, cand.passportNumber),
+            isNotNull(quickRegistrationTable.videoUrl)
+          )
+        )
+        .limit(1);
+
+      const quickReg = quickRegs[0];
       if (quickReg && quickReg.videoUrl) {
         const isLocalVideo = quickReg.videoUrl.startsWith('/uploads');
-        
         if (isLocalVideo) {
-          await prisma.$executeRawUnsafe(
+          await executeRaw(
             `UPDATE \`Candidate\` SET \`quickVideoUrl\` = ? WHERE \`id\` = ?`,
-            quickReg.videoUrl,
-            cand.id
+            [quickReg.videoUrl, cand.id]
           );
         } else {
-          await prisma.$executeRawUnsafe(
+          await executeRaw(
             `UPDATE \`Candidate\` SET \`Youtube_URL\` = ? WHERE \`id\` = ?`,
-            quickReg.videoUrl,
-            cand.id
+            [quickReg.videoUrl, cand.id]
           );
         }
         migrationCount++;
       }
     }
-    
+
     if (migrationCount > 0) {
       console.log(`✅ Successfully auto-migrated video paths for ${migrationCount} existing candidates!`);
     } else {
@@ -665,15 +572,16 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Auto-migration of existing candidate videos failed:', migErr.message || migErr);
   }
 
-  // 12. Auto-backfill registeredById for promoted QuickRegistration records using matched Candidates
+  // Backfill registeredById
   try {
     console.log('🔄 Running auto-backfill of registeredById for QuickRegistration records...');
-    const backfilledCount = await prisma.$executeRawUnsafe(`
+    const [result]: any = await pool.query(`
       UPDATE \`QuickRegistration\` q 
       INNER JOIN \`Candidate\` c ON q.passportNumber = c.passportNumber 
       SET q.registeredById = c.registeredById 
       WHERE q.registeredById IS NULL AND c.registeredById IS NOT NULL
     `);
+    const backfilledCount = result?.affectedRows || 0;
     if (backfilledCount > 0) {
       console.log(`✅ Successfully backfilled registeredById for ${backfilledCount} QuickRegistration records!`);
     } else {
@@ -682,29 +590,6 @@ export async function ensureDatabaseSchema() {
   } catch (backfillErr: any) {
     console.warn('⚠️ Auto-backfill of QuickRegistration registeredById failed:', backfillErr.message || backfillErr);
   }
-
-  // 13. Create UploadedVideoProfile table automatically if it doesn't exist
-  try {
-    console.log('🔄 Checking/Creating UploadedVideoProfile table...');
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS \`UploadedVideoProfile\` (
-        \`id\` VARCHAR(191) NOT NULL,
-        \`passportNumber\` VARCHAR(191) NOT NULL,
-        \`fullName\` VARCHAR(191) NOT NULL,
-        \`videoUrl\` TEXT NOT NULL,
-        \`facePhotoUrl\` TEXT NULL,
-        \`fullBodyPhotoUrl\` TEXT NULL,
-        \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-        PRIMARY KEY (\`id\`),
-        UNIQUE KEY \`UploadedVideoProfile_passportNumber_key\` (\`passportNumber\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    console.log('✅ Verified/Created UploadedVideoProfile table.');
-  } catch (err: any) {
-    console.warn('⚠️ Failed to check/create UploadedVideoProfile table:', err.message || err);
-  }
-
-
 
   console.log('✅ Database self-healing complete.');
 }
