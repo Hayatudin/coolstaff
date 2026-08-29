@@ -2,8 +2,7 @@
  * Central API helper for the frontend to communicate with the standalone backend.
  */
 import { authClient } from './auth-client';
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
+import { getApiBaseUrl } from './utils';
 
 export class ApiError extends Error {
   status: number;
@@ -49,7 +48,7 @@ function getSessionToken(): string | null {
 export async function api(path: string, options: RequestInit = {}) {
   // Ensure path starts with a slash
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const url = `${API_BASE_URL}${cleanPath}`;
+  const url = `${getApiBaseUrl()}${cleanPath}`;
   
   const isFormData = options.body instanceof FormData;
   const token = getSessionToken();

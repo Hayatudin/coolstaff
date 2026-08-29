@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { cn, getFileUrl } from '@/lib/utils';
+import { cn, getFileUrl, getApiBaseUrl } from '@/lib/utils';
 import Input from '@/components/ui/Input';
 import FileUpload from '@/components/ui/FileUpload';
 import {
@@ -228,7 +228,7 @@ export default function VideoUploadsPage() {
       setOcrProgress(80);
 
       const ocrText = result.data.text;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/ocr/passport`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/ocr/passport`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ocrText }),
@@ -247,7 +247,7 @@ export default function VideoUploadsPage() {
         // Auto check if candidate is registered
         setIsSearching(true);
         try {
-          const searchRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/search-candidates?q=${encodeURIComponent(pNum)}`);
+          const searchRes = await fetch(`${getApiBaseUrl()}/api/video-uploads/search-candidates?q=${encodeURIComponent(pNum)}`);
           if (searchRes.ok) {
             const searchData = await searchRes.json();
             if (searchData.length > 0) {
@@ -291,7 +291,7 @@ export default function VideoUploadsPage() {
     const delayDebounce = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/search-candidates?q=${encodeURIComponent(passportNumber)}`);
+        const response = await fetch(`${getApiBaseUrl()}/api/video-uploads/search-candidates?q=${encodeURIComponent(passportNumber)}`);
         if (response.ok) {
           const data = await response.json();
           setSearchResults(data);
@@ -363,7 +363,7 @@ export default function VideoUploadsPage() {
         formData.append('fullBodyPhoto', fullBodyPhotoFile);
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/save`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/video-uploads/save`, {
         method: 'POST',
         body: formData,
       });

@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
   // Fetch session to verify role
   try {
     const sessionRes = await fetch(
-      new URL('/api/auth/session', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'),
+      new URL('/api/auth/session', process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || (process.env.NODE_ENV === 'production' ? 'https://api.coolstaffagency.com' : 'http://localhost:4000')),
       {
         headers: { cookie: request.headers.get('cookie') ?? '' },
         cache: 'no-store',

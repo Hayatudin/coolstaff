@@ -14,7 +14,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { Broker } from '@/types';
 import { api } from '@/lib/api';
-import { getFileUrl, cn, convertImageToBase64 } from '@/lib/utils';
+import { getFileUrl, cn, convertImageToBase64, getApiBaseUrl } from '@/lib/utils';
 import { useSession } from '@/lib/auth-client';
 
 // Import CV templates
@@ -188,7 +188,7 @@ export default function BrokerCandidatesPage() {
     setIsSettingAgency(true);
     try {
       const cand = candidates.find(c => c.id === candidateId);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/generated-cvs`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/generated-cvs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

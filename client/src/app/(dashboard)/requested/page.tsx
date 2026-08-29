@@ -11,7 +11,7 @@ import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { Candidate } from '@/types';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
-import { cn, getFileUrl } from '@/lib/utils';
+import { cn, getFileUrl, getApiBaseUrl } from '@/lib/utils';
 
 import { useCandidates } from '@/hooks/useCandidates';
 
@@ -122,7 +122,7 @@ export default function RequestedPage() {
     setIsSettingAgency(true);
     try {
       const cand = allCandidates.find(c => c.id === candidateId);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/generated-cvs`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/generated-cvs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

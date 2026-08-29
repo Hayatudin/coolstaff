@@ -8,7 +8,7 @@ import Badge from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import { Candidate } from '@/types';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
-import { cn } from '@/lib/utils';
+import { cn, getApiBaseUrl } from '@/lib/utils';
 import { useCandidates } from '@/hooks/useCandidates';
 
 const TEMPLATES = [
@@ -26,7 +26,7 @@ const TEMPLATES = [
 const getFileUrl = (path: string | null | undefined): string => {
   if (!path) return '';
   if (path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('http')) return path;
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const baseUrl = getApiBaseUrl();
   return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 

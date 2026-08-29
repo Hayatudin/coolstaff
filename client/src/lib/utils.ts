@@ -15,11 +15,31 @@ export function formatDate(dateString: string): string {
   });
 }
 
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+        return 'https://api.coolstaffagency.com';
+      }
+      return envUrl.replace(/\/$/, '');
+    }
+  }
+
+  if (process.env.NODE_ENV === 'production' && (!envUrl || envUrl.includes('localhost'))) {
+    return 'https://api.coolstaffagency.com';
+  }
+
+  return (envUrl || 'http://localhost:4000').replace(/\/$/, '');
+}
+
 export function getDownloadUrl(path: string | null | undefined) {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('data:')) return path;
 
-  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const baseUrl = getApiBaseUrl();
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   return `${baseUrl}/api/files/${cleanPath}`;
 }
@@ -28,7 +48,7 @@ export function getFileUrl(path: string | null | undefined) {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('data:')) return path;
   
-  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const baseUrl = getApiBaseUrl();
   
   // Ensure the path uses our new secure proxy route
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;

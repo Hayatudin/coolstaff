@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
+import { getApiBaseUrl } from '@/lib/utils';
 import PassportUploader from '@/components/registration/PassportUploader';
 import PassportDataFields from '@/components/registration/PassportDataFields';
 import { PassportData, WorkExperienceEntry, Broker } from '@/types';
@@ -133,7 +134,7 @@ export default function QuickRegistrationPage() {
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
+        const response = await fetch(`${getApiBaseUrl()}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.matchFound && data.videoUrl) {

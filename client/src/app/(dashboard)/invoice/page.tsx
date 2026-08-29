@@ -6,7 +6,7 @@ import { FileText, Loader2, CheckCircle2, Eye, Download, AlertCircle, FileCheck,
 import Input from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { generateInvoicePdf } from '@/lib/invoicePdfGenerator';
-import { getFileUrl } from '@/lib/utils';
+import { getFileUrl, getApiBaseUrl } from '@/lib/utils';
 
 const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'all': { name: 'ALL', fullName: '' },
@@ -163,7 +163,7 @@ export default function InvoicePage() {
   const getFileUrl = (pathStr: string) => {
     if (!pathStr) return '';
     if (pathStr.startsWith('http')) return pathStr;
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const backendUrl = getApiBaseUrl();
     return `${backendUrl}${pathStr}`;
   };
 

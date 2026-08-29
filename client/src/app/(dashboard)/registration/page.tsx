@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PassportData, CandidatePersonalInfo, RegistrationStep, Broker } from '@/types';
-import { cn, compressImage } from '@/lib/utils';
+import { cn, compressImage, getApiBaseUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import StepIndicator from '@/components/registration/StepIndicator';
 import PassportUploader from '@/components/registration/PassportUploader';
@@ -355,7 +355,7 @@ function RegistrationContent() {
 
     const delayDebounce = setTimeout(async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
+        const response = await fetch(`${getApiBaseUrl()}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.matchFound) {

@@ -9,7 +9,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { Candidate } from '@/types';
-import { cn, getFileUrl } from '@/lib/utils';
+import { cn, getFileUrl, getApiBaseUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { authClient } from '@/lib/auth-client';
@@ -200,7 +200,7 @@ const normalizeLanguageName = (lang: string): string => {
     setIsSettingAgency(true);
     try {
       const cand = candidates.find(c => c.id === candidateId);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/generated-cvs`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/generated-cvs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { getApiBaseUrl } from '@/lib/utils';
 import FileUpload from '@/components/ui/FileUpload';
 import { Save, Loader2 } from 'lucide-react';
 import Input from '@/components/ui/Input';
@@ -40,7 +41,7 @@ export default function PassportRegistrationPage() {
 
     const delayDebounceFn = setTimeout(async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const baseUrl = getApiBaseUrl();
         const response = await fetch(`${baseUrl}/api/candidates/by-passport/${encodeURIComponent(passportNo)}`);
         if (response.ok) {
           const data = await response.json();
