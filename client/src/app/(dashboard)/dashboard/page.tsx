@@ -21,7 +21,8 @@ import { useCandidates } from '@/hooks/useCandidates';
 import { 
   useQuickRegistrationsQuery, 
   useGeneratedCVsQuery, 
-  useNotificationsQuery 
+  useNotificationsQuery,
+  useInvalidateQueries
 } from '@/hooks/useQueryHooks';
 
 const MUSANED_URL = 'https://accounts.wahid.sa/auth/realms/wahid/protocol/openid-connect/auth?client_id=etawtheeq-fe&redirect_uri=https%3A%2F%2Ftawtheeq.musaned.com.sa%2Flogin&state=1afbc6a5-ab04-454a-864e-2139d00d05a5&response_mode=fragment&response_type=code&scope=openid&nonce=c08d47d0-27af-41b3-8812-5ea7548fd14e&code_challenge=mlx9pnpSqR2PmNC1onUouVnZeV3FM3T2f8ELMWSHvds&code_challenge_method=S256';
@@ -31,6 +32,7 @@ type MetricFilter = 'all' | 'candidates' | 'requested' | 'quick' | 'fit';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const invalidateQueries = useInvalidateQueries();
   const { candidates: allCandidates, isLoading, mutate: setAllCandidates } = useCandidates();
   const { data: quickRegistrations = [], isLoading: quickLoading } = useQuickRegistrationsQuery();
   const { data: generatedCVs = [] } = useGeneratedCVsQuery();
@@ -172,7 +174,7 @@ export default function DashboardPage() {
     return notifications.filter((n: any) => !n.isRead).length;
   }, [notifications]);
 
-  // Group notifications into Today, Yesterday, and Earlier for iOS timeline UI
+  // Group real notifications into Today, Yesterday, and Earlier for iOS timeline UI
   const groupedNotifications = useMemo(() => {
     const today: any[] = [];
     const yesterday: any[] = [];
@@ -197,6 +199,38 @@ export default function DashboardPage() {
 
     return { today, yesterday, earlier };
   }, [notifications]);
+
+  // Mark single notification as read & decrement counter
+  const handleMarkNotificationRead = async (notifId: string, candidateId?: string) => {
+    try {
+      await api('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: notifId }),
+      });
+      invalidateQueries('notifications');
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+
+    if (candidateId) {
+      router.push(`/candidates/${candidateId}`);
+    }
+  };
+
+  // Mark all notifications as read
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await api('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllRead: true }),
+      });
+      invalidateQueries('notifications');
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
 
   // Exact Agency CV counts matching Generated CVs page (`/generated-cvs`) in DECREASING order
   const agencyBreakdown = useMemo(() => {
@@ -609,8 +643,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Column 3: Notifications / Activity (Matching Inspiration Timeline UI: 3 cols) */}
-        <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
+        {/* Column 3: Real Notifications Stream (Matches Navbar API stream & iOS Timeline UI: 3 cols) */}
+        <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3 shadow-2xs">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
               Notifications
@@ -622,125 +656,168 @@ export default function DashboardPage() {
               <button 
                 onClick={() => setShowNotificationsModal(true)}
                 className="p-1 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer"
+                title="View All Notifications"
               >
                 <MoreVertical size={16} />
               </button>
             </div>
           </div>
 
-          {/* Timeline Feed Stream matching Inspiration UI */}
+          {/* Timeline Feed Stream matching Inspiration UI with REAL Notifications */}
           <div className="space-y-4 flex-1 overflow-y-auto max-h-[310px] pr-1.5">
-            
-            {/* Today Group */}
-            <div>
-              <p className="text-xs font-extrabold text-slate-900 mb-3">Today</p>
-              <div className="relative space-y-3.5 pl-2">
-                {/* Continuous vertical connector line */}
-                <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
-                
-                {groupedNotifications.today.length > 0 ? (
-                  groupedNotifications.today.slice(0, 4).map((notif: any) => (
-                    <div 
-                      key={notif.id}
-                      onClick={() => {
-                        if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
-                        else setShowNotificationsModal(true);
-                      }}
-                      className="relative z-10 flex items-start gap-3 group cursor-pointer"
-                    >
-                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white transition-colors shrink-0 shadow-2xs">
-                        <CheckCircle2 size={13} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-xs font-bold text-slate-800 leading-snug group-hover:text-[#2A276C] transition-colors truncate">
-                          {notif.title}
-                        </p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
+            {notifications.length > 0 ? (
+              <>
+                {/* Today Section */}
+                {groupedNotifications.today.length > 0 && (
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-900 mb-3">Today</p>
+                    <div className="relative space-y-3.5 pl-2">
+                      <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                      {groupedNotifications.today.map((notif: any) => (
+                        <div 
+                          key={notif.id}
+                          onClick={() => handleMarkNotificationRead(notif.id, notif.candidateId)}
+                          className={cn(
+                            "relative z-10 flex items-start gap-3 group cursor-pointer p-1 rounded-xl transition-all",
+                            !notif.isRead ? "bg-indigo-50/40" : "hover:bg-slate-50"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-7 h-7 rounded-xl border flex items-center justify-center transition-colors shrink-0 shadow-2xs",
+                            !notif.isRead 
+                              ? "bg-[#2A276C] text-white border-[#2A276C]" 
+                              : "bg-slate-100 border-slate-200/70 text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white"
+                          )}>
+                            <CheckCircle2 size={13} />
+                          </div>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={cn(
+                                "text-xs font-bold leading-snug truncate",
+                                !notif.isRead ? "text-[#2A276C]" : "text-slate-800 group-hover:text-[#2A276C]"
+                              )}>
+                                {notif.title}
+                              </p>
+                              {!notif.isRead && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2A276C] shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-1 leading-tight mt-0.5">
+                              {notif.message}
+                            </p>
+                            <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+                              {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="relative z-10 flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
-                        <CheckCircle2 size={13} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">16:05</p>
-                      </div>
-                    </div>
-                    <div className="relative z-10 flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
-                        <CheckCircle2 size={13} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-xs font-bold text-slate-800 leading-snug">You Logged Out your account</p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">14:22</p>
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
-              </div>
-            </div>
 
-            {/* Yesterday Group */}
-            <div>
-              <p className="text-xs font-extrabold text-slate-900 mb-3">Yesterday</p>
-              <div className="relative space-y-3.5 pl-2">
-                {/* Continuous vertical connector line */}
-                <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
-                
-                {groupedNotifications.yesterday.length > 0 ? (
-                  groupedNotifications.yesterday.slice(0, 3).map((notif: any) => (
-                    <div 
-                      key={notif.id}
-                      onClick={() => {
-                        if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
-                        else setShowNotificationsModal(true);
-                      }}
-                      className="relative z-10 flex items-start gap-3 group cursor-pointer"
-                    >
-                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white transition-colors shrink-0 shadow-2xs">
-                        <CheckCircle2 size={13} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-xs font-bold text-slate-800 leading-snug group-hover:text-[#2A276C] transition-colors truncate">
-                          {notif.title}
-                        </p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
+                {/* Yesterday Section */}
+                {groupedNotifications.yesterday.length > 0 && (
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-900 mb-3">Yesterday</p>
+                    <div className="relative space-y-3.5 pl-2">
+                      <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                      {groupedNotifications.yesterday.map((notif: any) => (
+                        <div 
+                          key={notif.id}
+                          onClick={() => handleMarkNotificationRead(notif.id, notif.candidateId)}
+                          className={cn(
+                            "relative z-10 flex items-start gap-3 group cursor-pointer p-1 rounded-xl transition-all",
+                            !notif.isRead ? "bg-indigo-50/40" : "hover:bg-slate-50"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-7 h-7 rounded-xl border flex items-center justify-center transition-colors shrink-0 shadow-2xs",
+                            !notif.isRead 
+                              ? "bg-[#2A276C] text-white border-[#2A276C]" 
+                              : "bg-slate-100 border-slate-200/70 text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white"
+                          )}>
+                            <CheckCircle2 size={13} />
+                          </div>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={cn(
+                                "text-xs font-bold leading-snug truncate",
+                                !notif.isRead ? "text-[#2A276C]" : "text-slate-800 group-hover:text-[#2A276C]"
+                              )}>
+                                {notif.title}
+                              </p>
+                              {!notif.isRead && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2A276C] shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-1 leading-tight mt-0.5">
+                              {notif.message}
+                            </p>
+                            <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+                              {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="relative z-10 flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
-                        <CheckCircle2 size={13} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-xs font-bold text-slate-800 leading-snug">Candidate visa status verified</p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">12:40</p>
-                      </div>
-                    </div>
-                    <div className="relative z-10 flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
-                        <CheckCircle2 size={13} />
-                      </div>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
-                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">09:06</p>
-                      </div>
-                    </div>
-                  </>
+                  </div>
                 )}
-              </div>
-            </div>
 
+                {/* Earlier Section */}
+                {groupedNotifications.earlier.length > 0 && groupedNotifications.today.length === 0 && groupedNotifications.yesterday.length === 0 && (
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-900 mb-3">Earlier</p>
+                    <div className="relative space-y-3.5 pl-2">
+                      <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                      {groupedNotifications.earlier.slice(0, 5).map((notif: any) => (
+                        <div 
+                          key={notif.id}
+                          onClick={() => handleMarkNotificationRead(notif.id, notif.candidateId)}
+                          className={cn(
+                            "relative z-10 flex items-start gap-3 group cursor-pointer p-1 rounded-xl transition-all",
+                            !notif.isRead ? "bg-indigo-50/40" : "hover:bg-slate-50"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-7 h-7 rounded-xl border flex items-center justify-center transition-colors shrink-0 shadow-2xs",
+                            !notif.isRead 
+                              ? "bg-[#2A276C] text-white border-[#2A276C]" 
+                              : "bg-slate-100 border-slate-200/70 text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white"
+                          )}>
+                            <CheckCircle2 size={13} />
+                          </div>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={cn(
+                                "text-xs font-bold leading-snug truncate",
+                                !notif.isRead ? "text-[#2A276C]" : "text-slate-800 group-hover:text-[#2A276C]"
+                              )}>
+                                {notif.title}
+                              </p>
+                              {!notif.isRead && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2A276C] shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 line-clamp-1 leading-tight mt-0.5">
+                              {notif.message}
+                            </p>
+                            <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+                              {new Date(notif.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="py-12 text-center text-slate-400">
+                <Bell size={24} className="mx-auto opacity-20 mb-2 text-slate-500" />
+                <p className="text-xs font-bold text-slate-700">All caught up!</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">No notifications in feed</p>
+              </div>
+            )}
           </div>
 
           <button 
@@ -867,7 +944,7 @@ export default function DashboardPage() {
                     <CheckCircle2 size={13} />
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
+                    <p className="text-xs font-bold text-slate-800 leading-snug">Candidate visa status verified</p>
                     <p className="text-[11px] font-medium text-slate-400 mt-0.5">16:05</p>
                   </div>
                 </div>
@@ -876,7 +953,7 @@ export default function DashboardPage() {
                     <CheckCircle2 size={13} />
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-xs font-bold text-slate-800 leading-snug">You Logged Out your account</p>
+                    <p className="text-xs font-bold text-slate-800 leading-snug">Musaned entry file synced</p>
                     <p className="text-[11px] font-medium text-slate-400 mt-0.5">14:22</p>
                   </div>
                 </div>
@@ -892,7 +969,7 @@ export default function DashboardPage() {
                     <CheckCircle2 size={13} />
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
+                    <p className="text-xs font-bold text-slate-800 leading-snug">New candidate file indexed</p>
                     <p className="text-[11px] font-medium text-slate-400 mt-0.5">12:40</p>
                   </div>
                 </div>
@@ -904,60 +981,94 @@ export default function DashboardPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          6. REAL NOTIFICATIONS MODAL
+          6. REAL NOTIFICATIONS MODAL (Updated Modern iOS Pop-up UI)
       ════════════════════════════════════════════════════════════════════════ */}
       {showNotificationsModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowNotificationsModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                <Bell className="text-[#2A276C]" size={20} /> Real-time Notifications ({notifications.length})
-              </h3>
-              <button onClick={() => setShowNotificationsModal(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">✕</button>
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 border border-slate-100 animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#2A276C]/10 text-[#2A276C] flex items-center justify-center font-bold">
+                  <Bell size={18} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-lg leading-none">Notifications</h3>
+                  <p className="text-xs font-medium text-slate-400 mt-1">Real-time candidate activity feed</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {unreadNotificationCount > 0 && (
+                  <button 
+                    onClick={handleMarkAllNotificationsRead}
+                    className="text-xs font-extrabold text-[#2A276C] hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCheck size={14} /> Mark all read
+                  </button>
+                )}
+                <button onClick={() => setShowNotificationsModal(false)} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
             
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
               {notifications.length > 0 ? (
                 notifications.map((notif: any) => (
                   <div 
                     key={notif.id} 
                     onClick={() => {
-                      if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
+                      handleMarkNotificationRead(notif.id, notif.candidateId);
                       setShowNotificationsModal(false);
                     }}
                     className={cn(
-                      "p-3 rounded-xl border transition-all cursor-pointer",
+                      "p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 group",
                       !notif.isRead 
-                        ? "bg-indigo-50/50 border-indigo-200/60 hover:bg-indigo-50" 
-                        : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                        ? "bg-indigo-50/50 border-indigo-200/80 hover:bg-indigo-50" 
+                        : "bg-slate-50/80 border-slate-100 hover:bg-slate-100"
                     )}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <p className={cn("text-xs font-bold", !notif.isRead ? "text-[#2A276C]" : "text-slate-900")}>
-                        {notif.title}
-                      </p>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(notif.createdAt).toLocaleDateString()}
-                      </span>
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-colors shadow-2xs",
+                      !notif.isRead ? "bg-[#2A276C] text-white" : "bg-white border border-slate-200 text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white"
+                    )}>
+                      <Bell size={14} />
                     </div>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      {notif.message}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <p className={cn("text-xs font-bold truncate", !notif.isRead ? "text-[#2A276C]" : "text-slate-900")}>
+                          {notif.title}
+                        </p>
+                        <span className="text-[10px] font-medium text-slate-400 shrink-0">
+                          {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {notif.message}
+                      </p>
+                    </div>
+                    {!notif.isRead && (
+                      <span className="w-2 h-2 rounded-full bg-[#2A276C] shrink-0 mt-1.5" />
+                    )}
                   </div>
                 ))
               ) : (
                 <div className="py-12 text-center text-slate-400">
-                  <Bell size={28} className="mx-auto opacity-20 mb-2" />
-                  <p className="text-xs font-bold text-slate-700">No notifications found</p>
+                  <Bell size={32} className="mx-auto opacity-20 mb-3 text-slate-500" />
+                  <p className="text-sm font-extrabold text-slate-800">All caught up!</p>
+                  <p className="text-xs text-slate-400 mt-1">No notifications found</p>
                 </div>
               )}
             </div>
 
-            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-              <span className="text-xs font-medium text-slate-400">
-                {unreadNotificationCount} unread
+            <div className="pt-3 flex items-center justify-between border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-500">
+                {unreadNotificationCount} unread notification{unreadNotificationCount !== 1 ? 's' : ''}
               </span>
-              <button onClick={() => setShowNotificationsModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200">
+              <button 
+                onClick={() => setShowNotificationsModal(false)} 
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
+              >
                 Close
               </button>
             </div>
