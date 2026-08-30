@@ -48,6 +48,7 @@ export default function DashboardPage() {
 
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
+  const userName = session?.user?.name || 'Admin';
 
   React.useEffect(() => {
     if (userRole === 'agency') {
@@ -57,8 +58,6 @@ export default function DashboardPage() {
     }
   }, [userRole, router]);
 
-
-  // Role-based access helper
   const canSee = (route: string) => {
     const roles = ROUTE_ACCESS[route];
     return roles ? roles.includes(userRole as Role) : false;
@@ -146,57 +145,43 @@ export default function DashboardPage() {
 
   // KPI Metrics Calculation
   const totalCandidatesCount = filteredCandidates.length;
-  const visaSelectedCount = filteredCandidates.filter(c => c.isRequested).length;
-  const quickRegCount = filteredQuickRegistrations.length;
-  const fitCandidatesCount = filteredCandidates.filter(c => c.generatedCVs && c.generatedCVs.length > 0).length;
-
-  const conversionRate = totalCandidatesCount > 0 
-    ? Math.round((visaSelectedCount / totalCandidatesCount) * 100) 
-    : 0;
-
-  const promotedQuickCount = filteredQuickRegistrations.filter(r => r.verificationStatus === 'promoted').length;
-  const pendingQuickCount = filteredQuickRegistrations.filter(r => r.verificationStatus !== 'promoted').length;
-
-  // Display Candidates table based on metric selection & search
-  const displayedCandidates = useMemo(() => {
-    let list = filteredCandidates;
-    if (metricFilter === 'requested') {
-      list = list.filter(c => c.isRequested);
-    } else if (metricFilter === 'fit') {
-      list = list.filter(c => c.generatedCVs && c.generatedCVs.length > 0);
-    }
-    return list;
-  }, [filteredCandidates, metricFilter]);
-
-  const displayedVisaSelected = useMemo(() => {
-    return filteredCandidates.filter(c => c.isRequested);
+  const visaSelectedCount = useMemo(() => {
+    return filteredCandidates.filter(c => c.isRequested || c.visaSelected || c.status === 'visa selected').length;
+  }, [filteredCandidates]);
+  
+  const fitCandidatesCount = useMemo(() => {
+    return filteredCandidates.filter(c => c.generatedCVs && c.generatedCVs.length > 0).length;
   }, [filteredCandidates]);
 
-  // Job category breakdown data for donut chart
-  const jobCategoryData = useMemo(() => {
+  const quickRegCount = filteredQuickRegistrations.length;
+  const pendingQuickCount = useMemo(() => {
+    return filteredQuickRegistrations.filter(r => r.verificationStatus !== 'promoted').length;
+  }, [filteredQuickRegistrations]);
+
+  const conversionRate = totalCandidatesCount > 0 ? Math.round((visaSelectedCount / totalCandidatesCount) * 100) : 0;
+
+  // Sector distribution breakdown
+  const sectorBreakdown = useMemo(() => {
     const counts: Record<string, number> = {
       'House Maid': 0,
       'Driver': 0,
       'Cook': 0,
       'Babysitter': 0,
-      'Nurse / Caregiver': 0,
-      'Cleaner / Other': 0,
+      'Nurse': 0,
     };
-
     filteredCandidates.forEach(c => {
-      const job = (c.personalInfo?.job || '').toUpperCase();
-      if (job.includes('MAID') || job.includes('HOUSE')) counts['House Maid']++;
-      else if (job.includes('DRIVER')) counts['Driver']++;
-      else if (job.includes('COOK')) counts['Cook']++;
-      else if (job.includes('BABY') || job.includes('SITTER')) counts['Babysitter']++;
-      else if (job.includes('NURSE') || job.includes('CARE')) counts['Nurse / Caregiver']++;
-      else counts['Cleaner / Other']++;
+      const job = c.personalInfo?.job || 'House Maid';
+      if (job.toLowerCase().includes('driver')) counts['Driver']++;
+      else if (job.toLowerCase().includes('cook')) counts['Cook']++;
+      else if (job.toLowerCase().includes('baby') || job.toLowerCase().includes('nanny')) counts['Babysitter']++;
+      else if (job.toLowerCase().includes('nurse')) counts['Nurse']++;
+      else counts['House Maid']++;
     });
 
     const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-    const colors = ['#2a9d8f', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#64748b'];
-    
+    const colors = ['#2A276C', '#6b5ce7', '#ec4899', '#3b82f6', '#10b981'];
     let currentAngle = 0;
+
     return Object.entries(counts).map(([name, count], idx) => {
       const percentage = Math.round((count / total) * 100);
       const angle = (count / total) * 360;
@@ -206,7 +191,7 @@ export default function DashboardPage() {
     });
   }, [filteredCandidates]);
 
-  // Dynamic trend chart series points (6 intervals across period)
+  // Dynamic trend chart series points
   const chartPoints = useMemo(() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
@@ -232,49 +217,6 @@ export default function DashboardPage() {
     }
     return points;
   }, [totalCandidatesCount, visaSelectedCount, dateInterval]);
-
-  // Notifications feed derived from real candidate events
-  const notificationFeed = useMemo(() => {
-    const notifications = [
-      {
-        id: '1',
-        title: 'New Candidate Registered',
-        desc: filteredCandidates[0] ? `${filteredCandidates[0].passportData.givenNames} ${filteredCandidates[0].passportData.surname} added to candidates list` : 'New candidate record created in database',
-        time: 'Just now',
-        type: 'registration',
-        icon: UserPlus,
-        color: 'text-primary bg-primary/10 border-primary/20',
-      },
-      {
-        id: '2',
-        title: 'Visa Selected Status Updated',
-        desc: visaSelectedCount > 0 ? `${visaSelectedCount} candidates currently confirmed for Visa Selection` : 'No candidates waiting for visa',
-        time: '18 mins ago',
-        type: 'visa',
-        icon: CheckCircle2,
-        color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
-      },
-      {
-        id: '3',
-        title: 'Quick Registrations Entry',
-        desc: quickRegCount > 0 ? `${quickRegCount} quick registration files waiting in Musaned pipeline` : 'Quick registration queue clear',
-        time: '1 hour ago',
-        type: 'quick',
-        icon: ClipboardList,
-        color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
-      },
-      {
-        id: '4',
-        title: 'Musaned Integration Active',
-        desc: 'Official Wahid Musaned portal connection live and ready for document verification',
-        time: '2 hours ago',
-        type: 'system',
-        icon: ShieldCheck,
-        color: 'text-blue-600 bg-blue-500/10 border-blue-500/20',
-      },
-    ];
-    return notifications;
-  }, [filteredCandidates, visaSelectedCount, quickRegCount]);
 
   const toggleRequested = async (id: string, current: boolean, visaNum?: string) => {
     const cand = allCandidates.find(c => c.id === id);
@@ -328,971 +270,478 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12 text-slate-800">
+      
       {/* ════════════════════════════════════════════════════════════════════════
-          1. TOP HEADER & NOTIFICATIONS BAR
+          1. iOS TOP GREETING & HEADER BAR
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-surface p-6 sm:p-8 rounded-[2.5rem] border border-border/40 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-0 pointer-events-none" />
-        
-        <div className="relative z-10 space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={12} /> Recruitment Hub Overview
-            </span>
-            <span className="text-xs text-text-tertiary font-medium">Updated just now</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight">Dashboard Overview</h1>
-          <p className="text-text-secondary text-sm max-w-xl">
-            Real-time candidate metrics, Musaned quick verification status, and recruitment pipeline insights.
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            Hey {userName}, Welcome back! 👋
+          </h1>
+          <p className="text-sm font-medium text-slate-500 mt-1">
+            Here is your recruitment overview and operation statistics for today.
           </p>
         </div>
 
-        {/* Header Action Buttons & Top-Right Notifications Button */}
-        <div className="relative z-10 flex items-center gap-3 flex-wrap">
+        {/* Action Triggers */}
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           {canSee('/registration') && (
-            <Link href="/registration" className="hidden sm:block">
-              <Button variant="primary" icon={<UserPlus size={16} />} className="shadow-lg shadow-primary/20 hover:shadow-primary/30">
-                ADD CANDIDATE
-              </Button>
-            </Link>
-          )}
-          {canSee('/quick-registration') && (
-            <Link href="/quick-registration" className="sm:hidden w-full">
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-orange-500/30">
-                <ClipboardList size={18} /> QUICK REGISTER
+            <Link href="/registration">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-sm hover:bg-primary-dark transition-all cursor-pointer">
+                <UserPlus size={15} /> Add Candidate
               </button>
             </Link>
           )}
-          
+
           <a 
             href={MUSANED_URL} 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-[#2a9d8f] to-[#238b80] hover:from-[#238b80] hover:to-[#1d7a71] text-white rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-[#2a9d8f]/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
           >
-            <ExternalLink size={16} /> <span>Musaned Portal</span>
+            <ExternalLink size={15} /> <span>Musaned Sync</span>
           </a>
 
-          {/* Top-Right Corner Notifications Trigger (Matching UI Design Reference) */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowNotificationsModal(!showNotificationsModal);
-                setUnreadNotifications(0);
-              }}
-              className={cn(
-                "relative p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-center",
-                showNotificationsModal 
-                  ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
-                  : "bg-surface border-border/60 hover:border-primary/40 text-text-primary hover:bg-gray-50"
-              )}
-              title="View Notifications"
-            >
-              <Bell size={20} />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-surface animate-bounce">
-                  {unreadNotifications}
-                </span>
-              )}
-            </button>
-
-            {/* Top-Right Notifications Dropdown Popup */}
-            {showNotificationsModal && (
-              <div className="absolute right-0 top-14 w-80 sm:w-96 bg-surface border border-border/80 rounded-3xl shadow-2xl z-50 p-5 animate-fade-in-down space-y-4">
-                <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Bell size={18} className="text-primary" />
-                    <h3 className="font-bold text-text-primary text-sm">Live System Notifications</h3>
-                  </div>
-                  <button onClick={() => setShowNotificationsModal(false)} className="text-text-tertiary hover:text-text-primary text-xs">
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                  {notificationFeed.map((item) => {
-                    const IconComp = item.icon;
-                    return (
-                      <div key={item.id} className="p-3 rounded-2xl bg-surface-hover border border-border/30 flex items-start gap-3 hover:border-primary/30 transition-all">
-                        <div className={cn("p-2 rounded-xl border shrink-0 mt-0.5", item.color)}>
-                          <IconComp size={16} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <p className="text-xs font-bold text-text-primary truncate">{item.title}</p>
-                            <span className="text-[10px] text-text-tertiary font-medium shrink-0">{item.time}</span>
-                          </div>
-                          <p className="text-[11px] text-text-tertiary leading-relaxed mt-0.5">{item.desc}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-2 border-t border-border/40 flex justify-between items-center text-xs">
-                  <span className="text-text-tertiary">All channels active</span>
-                  <button onClick={() => setShowNotificationsModal(false)} className="text-primary font-bold hover:underline">
-                    Close Feed
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setShowNotificationsModal(true)}
+            className="relative p-2.5 bg-white border border-slate-200/80 rounded-xl hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
+            title="Notifications"
+          >
+            <Bell size={18} />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center">
+              4
+            </span>
+          </button>
         </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          2. 4 PREMIUM KPI CARDS & MAIN ANALYTICS GRID
+          2. TOP 4 CARDS ROW (FinPay Inspiration UI Aesthetics)
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* LEFT / CENTER ANALYTICS (XL 3 COLS) */}
-        <div className="xl:col-span-3 space-y-8">
-          
-          {/* 4 PREMIUM CARDS GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            
-            {/* Card 1: Total Candidates */}
-            <div 
-              onClick={() => setMetricFilter(metricFilter === 'candidates' ? 'all' : 'candidates')}
-              className={cn(
-                "p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer relative overflow-hidden group",
-                metricFilter === 'candidates' 
-                  ? "bg-primary/10 border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10" 
-                  : "bg-surface border-border/40 shadow-sm hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5"
-              )}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">Total Candidates</span>
-                <div className="p-3 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
-                  <Users size={20} />
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <h3 className="text-3xl font-black text-text-primary tracking-tight">{totalCandidatesCount}</h3>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-0.5">
-                  <ArrowUpRight size={12} /> +12.4%
-                </span>
-              </div>
-              <p className="text-xs text-text-tertiary mt-2">Active database records</p>
-              <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                <div className="bg-primary h-full rounded-full transition-all duration-500" style={{ width: '85%' }} />
-              </div>
-            </div>
-
-            {/* Card 2: Visa Selected */}
-            <div 
-              onClick={() => setMetricFilter(metricFilter === 'requested' ? 'all' : 'requested')}
-              className={cn(
-                "p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer relative overflow-hidden group",
-                metricFilter === 'requested' 
-                  ? "bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10" 
-                  : "bg-surface border-border/40 shadow-sm hover:border-emerald-500/40 hover:shadow-md hover:-translate-y-0.5"
-              )}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">Visa Selected</span>
-                <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 group-hover:scale-110 transition-transform">
-                  <CheckCircle2 size={20} />
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <h3 className="text-3xl font-black text-text-primary tracking-tight">{visaSelectedCount}</h3>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-0.5">
-                  <ArrowUpRight size={12} /> {conversionRate}% rate
-                </span>
-              </div>
-              <p className="text-xs text-text-tertiary mt-2">Confirmed visa contracts</p>
-              <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, conversionRate)}%` }} />
-              </div>
-            </div>
-
-            {/* Card 3: Quick Registrations */}
-            <div 
-              onClick={() => setMetricFilter(metricFilter === 'quick' ? 'all' : 'quick')}
-              className={cn(
-                "p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer relative overflow-hidden group",
-                metricFilter === 'quick' 
-                  ? "bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10" 
-                  : "bg-surface border-border/40 shadow-sm hover:border-amber-500/40 hover:shadow-md hover:-translate-y-0.5"
-              )}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">Quick Records</span>
-                <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 group-hover:scale-110 transition-transform">
-                  <ClipboardList size={20} />
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <h3 className="text-3xl font-black text-text-primary tracking-tight">{quickRegCount}</h3>
-                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  {pendingQuickCount} pending
-                </span>
-              </div>
-              <p className="text-xs text-text-tertiary mt-2">{promotedQuickCount} promoted to Musaned</p>
-              <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${quickRegCount > 0 ? Math.round((promotedQuickCount / quickRegCount) * 100) : 0}%` }} />
-              </div>
-            </div>
-
-            {/* Card 4: Fit Candidates */}
-            <div 
-              onClick={() => setMetricFilter(metricFilter === 'fit' ? 'all' : 'fit')}
-              className={cn(
-                "p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer relative overflow-hidden group",
-                metricFilter === 'fit' 
-                  ? "bg-indigo-500/10 border-indigo-500 ring-2 ring-indigo-500/30 shadow-lg shadow-indigo-500/10" 
-                  : "bg-surface border-border/40 shadow-sm hover:border-indigo-500/40 hover:shadow-md hover:-translate-y-0.5"
-              )}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-text-tertiary">Fit Candidates</span>
-                <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-600 group-hover:scale-110 transition-transform">
-                  <UserCheck size={20} />
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <h3 className="text-3xl font-black text-text-primary tracking-tight">{fitCandidatesCount}</h3>
-                <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                  CV Generated
-                </span>
-              </div>
-              <p className="text-xs text-text-tertiary mt-2">Ready for employer matching</p>
-              <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${totalCandidatesCount > 0 ? Math.round((fitCandidatesCount / totalCandidatesCount) * 100) : 0}%` }} />
-              </div>
-            </div>
-
+        {/* Card 1: Metallic Primary Brand Card */}
+        <div className="bg-gradient-to-br from-[#2A276C] via-[#35327D] to-[#4A479C] text-white p-5 rounded-2xl shadow-sm border border-indigo-900/40 relative overflow-hidden flex flex-col justify-between min-h-[170px]">
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-[10px] font-black uppercase tracking-widest bg-white/15 px-2.5 py-1 rounded-lg backdrop-blur-md text-white/90">
+              CoolStaff Agency
+            </span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           </div>
 
-          {/* ════════════════════════════════════════════════════════════════════════
-              3. DATE INTERVAL FILTER BAR (Right under the 4 cards)
-          ════════════════════════════════════════════════════════════════════════ */}
-          <div className="bg-surface p-4 sm:p-5 rounded-[2rem] border border-border/40 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                <Calendar size={18} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider">Date Interval Filter</h4>
-                <p className="text-[11px] text-text-tertiary">Select timeframe to recalculate statistics & overview tables</p>
-              </div>
-            </div>
-
-            {/* Date Range Tabs */}
-            <div className="flex items-center gap-1.5 bg-surface-hover p-1.5 rounded-2xl border border-border/40 overflow-x-auto w-full sm:w-auto">
-              {(['all', 'today', 'week', 'month', 'quarter', 'year'] as DateInterval[]).map((interval) => {
-                const labels: Record<DateInterval, string> = {
-                  all: 'All Time',
-                  today: 'Today',
-                  week: 'This Week',
-                  month: 'This Month',
-                  quarter: 'Quarter',
-                  year: 'This Year'
-                };
-                return (
-                  <button
-                    key={interval}
-                    onClick={() => setDateInterval(interval)}
-                    className={cn(
-                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
-                      dateInterval === interval 
-                        ? "bg-surface text-primary shadow-sm border border-border/60" 
-                        : "text-text-tertiary hover:text-text-primary hover:bg-surface/50"
-                    )}
-                  >
-                    {labels[interval]}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="relative z-10 my-3">
+            <p className="text-[11px] font-medium text-white/60 uppercase tracking-wider">Total Active Quota</p>
+            <h3 className="text-3xl font-extrabold tracking-tight mt-0.5">{totalCandidatesCount}</h3>
           </div>
 
-          {/* ════════════════════════════════════════════════════════════════════════
-              4. INTERACTIVE ANALYTICS CHARTS (Below Cards & Date Filter)
-          ════════════════════════════════════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Chart 1: Registration & Selection Trends Area Chart */}
-            <div className="lg:col-span-2 bg-surface p-6 rounded-[2.5rem] border border-border/40 shadow-sm relative overflow-hidden flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="font-bold text-text-primary text-base flex items-center gap-2">
-                    <TrendingUp size={18} className="text-primary" /> Registration & Selection Trends
-                  </h3>
-                  <p className="text-xs text-text-tertiary mt-0.5">Timeline overview for interval: <span className="font-bold capitalize text-primary">{dateInterval}</span></p>
-                </div>
-                <div className="flex items-center gap-4 text-xs font-medium">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-primary" />
-                    <span className="text-text-secondary">Candidates</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="text-text-secondary">Visa Selected</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Custom Responsive SVG Area & Line Chart */}
-              <div className="relative w-full h-56 mt-2">
-                <svg className="w-full h-full overflow-visible" viewBox="0 0 500 200" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="primaryGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2a9d8f" stopOpacity="0.35" />
-                      <stop offset="100%" stopColor="#2a9d8f" stopOpacity="0.0" />
-                    </linearGradient>
-                    <linearGradient id="emeraldGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Horizontal grid lines */}
-                  {[40, 90, 140, 190].map((y, idx) => (
-                    <line key={idx} x1="0" y1={y} x2="500" y2={y} stroke="var(--color-border, #e2e8f0)" strokeOpacity="0.4" strokeDasharray="4 4" />
-                  ))}
-
-                  {/* Dynamic Curve Paths derived from chartPoints */}
-                  {(() => {
-                    const maxCount = Math.max(...chartPoints.map(p => Math.max(p.candCount, p.visaCount, 5)));
-                    const coords = chartPoints.map((pt, i) => {
-                      const x = (i / (chartPoints.length - 1)) * 500;
-                      const candY = 180 - (pt.candCount / maxCount) * 140;
-                      const visaY = 180 - (pt.visaCount / maxCount) * 140;
-                      return { x, candY, visaY, ...pt };
-                    });
-
-                    const candPathD = coords.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.candY}`, '');
-                    const visaPathD = coords.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.visaY}`, '');
-                    
-                    const candAreaD = `${candPathD} L 500 190 L 0 190 Z`;
-                    const visaAreaD = `${visaPathD} L 500 190 L 0 190 Z`;
-
-                    return (
-                      <>
-                        <path d={candAreaD} fill="url(#primaryGradient)" />
-                        <path d={visaAreaD} fill="url(#emeraldGradient)" />
-
-                        <path d={candPathD} fill="none" stroke="#2a9d8f" strokeWidth="3.5" strokeLinecap="round" />
-                        <path d={visaPathD} fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray="3 3" strokeLinecap="round" />
-
-                        {coords.map((pt, i) => (
-                          <g key={i} className="cursor-pointer group/point" onMouseEnter={() => setHoveredPoint(pt)}>
-                            <circle cx={pt.x} cy={pt.candY} r="5" fill="#2a9d8f" stroke="#ffffff" strokeWidth="2.5" className="transition-transform group-hover/point:r-7" />
-                            <circle cx={pt.x} cy={pt.visaY} r="4" fill="#10b981" stroke="#ffffff" strokeWidth="2" className="transition-transform group-hover/point:r-6" />
-                          </g>
-                        ))}
-                      </>
-                    );
-                  })()}
-                </svg>
-              </div>
-
-              {/* Chart X-Axis Labels */}
-              <div className="flex justify-between items-center text-[11px] text-text-tertiary pt-3 border-t border-border/30">
-                {chartPoints.map((pt, idx) => (
-                  <span key={idx} className="font-semibold">{pt.label}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Chart 2: Job Category Breakdown Donut Chart */}
-            <div className="bg-surface p-6 rounded-[2.5rem] border border-border/40 shadow-sm flex flex-col justify-between">
-              <div>
-                <h3 className="font-bold text-text-primary text-base flex items-center gap-2">
-                  <Layers size={18} className="text-primary" /> Candidate Job Categories
-                </h3>
-                <p className="text-xs text-text-tertiary mt-0.5">Distribution breakdown across skill sectors</p>
-              </div>
-
-              {/* Donut Chart Ring */}
-              <div className="relative flex items-center justify-center my-4 h-44">
-                <svg className="w-36 h-36 -rotate-90" viewBox="0 0 100 100">
-                  {jobCategoryData.map((item, idx) => {
-                    const strokeDasharray = `${(item.percentage * 283) / 100} 283`;
-                    const strokeDashoffset = -((item.startAngle * 283) / 360);
-                    return (
-                      <circle
-                        key={idx}
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        fill="transparent"
-                        stroke={item.color}
-                        strokeWidth="14"
-                        strokeDasharray={strokeDasharray}
-                        strokeDashoffset={strokeDashoffset}
-                        className="transition-all duration-500 hover:opacity-80 cursor-pointer"
-                      />
-                    );
-                  })}
-                </svg>
-
-                {/* Donut Center Display */}
-                <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-black text-text-primary">{totalCandidatesCount}</span>
-                  <span className="text-[10px] uppercase font-bold text-text-tertiary">Total</span>
-                </div>
-              </div>
-
-              {/* Donut Chart Legend */}
-              <div className="space-y-2 pt-2 border-t border-border/30 max-h-36 overflow-y-auto pr-1">
-                {jobCategoryData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs font-medium">
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-text-secondary truncate">{item.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-bold text-text-primary">{item.count}</span>
-                      <span className="text-[10px] text-text-tertiary w-8 text-right">({item.percentage}%)</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div className="flex items-center justify-between relative z-10 pt-2 border-t border-white/10 text-xs">
+            <span className="font-mono text-[11px] text-white/70">CS-2026-ETH</span>
+            <span className="text-emerald-300 font-semibold text-[11px]">Musaned Synced ✓</span>
           </div>
-
         </div>
 
-        {/* RIGHT SIDEBAR: NOTIFICATIONS & SYSTEM ACTIVITY PANEL (XL 1 COL) */}
-        <div className="xl:col-span-1 space-y-6">
-          
-          {/* Notifications Card Panel */}
-          <div className="bg-surface p-6 rounded-[2.5rem] border border-border/40 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-border/30 pb-4">
-              <h3 className="font-bold text-text-primary text-base flex items-center gap-2">
-                <Bell size={18} className="text-primary" /> Live Feed
-              </h3>
-              <span className="px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-bold rounded-full">
-                Real-time
+        {/* Card 2: Total Candidates KPI */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Users size={20} />
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
+              <TrendingUp size={12} /> +14%
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-400">Total Candidates</p>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalCandidatesCount}</h3>
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-100 pt-2 font-medium">
+            Active candidate database records
+          </p>
+        </div>
+
+        {/* Card 3: Visa Selected KPI */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 size={20} />
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
+              {conversionRate}% Conversion
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-400">Visa Selected</p>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{visaSelectedCount}</h3>
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-100 pt-2 font-medium">
+            Confirmed for Gulf employer visas
+          </p>
+        </div>
+
+        {/* Card 4: Quick Registrations KPI */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <ClipboardList size={20} />
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">
+              {pendingQuickCount} Pending
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-400">Quick Registrations</p>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{quickRegCount}</h3>
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-100 pt-2 font-medium">
+            Musaned fast entry pipeline
+          </p>
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          3. DATE INTERVAL SEGMENT FILTER BAR
+      ════════════════════════════════════════════════════════════════════════ */}
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-2.5 rounded-2xl border border-slate-200/80">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+          <span className="text-xs font-bold text-slate-400 px-3 uppercase tracking-wider hidden sm:inline">Interval:</span>
+          {(['all', 'today', 'week', 'month', 'quarter', 'year'] as DateInterval[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setDateInterval(tab)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer capitalize whitespace-nowrap",
+                dateInterval === tab
+                  ? "bg-[#2A276C] text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+              )}
+            >
+              {tab === 'all' ? 'All Time' : tab === 'week' ? 'This Week' : tab === 'month' ? 'This Month' : tab === 'year' ? 'This Year' : tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="text-xs font-semibold text-slate-400 px-3">
+          Showing <span className="text-slate-900 font-extrabold">{totalCandidatesCount}</span> records
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          4. MIDDLE SECTION: CHARTS & SECTOR BREAKDOWN (2/3 + 1/3)
+      ════════════════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left: Main Bar / Area Chart (2/3 width) */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900">Recruitment Statistics</h2>
+              <p className="text-xs text-slate-400 font-medium">Candidate Registrations vs Visa Selections</p>
+            </div>
+            
+            <div className="flex items-center gap-4 text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2A276C]" /> Registrations
+              </span>
+              <span className="flex items-center gap-1.5 text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Visa Approved
               </span>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              {notificationFeed.map((item) => {
-                const IconComp = item.icon;
+          <div className="pt-2">
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-extrabold text-slate-900">{totalCandidatesCount}</span>
+              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                +{conversionRate}% Visa Rate
+              </span>
+            </div>
+          </div>
+
+          {/* SVG Bar / Area Chart */}
+          <div className="h-64 w-full pt-4 relative">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 500 200">
+              {/* Grid Lines */}
+              {[40, 80, 120, 160].map((y, idx) => (
+                <line key={idx} x1="0" y1={y} x2="500" y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 4" />
+              ))}
+
+              {/* Bars representation */}
+              {chartPoints.map((pt, idx) => {
+                const step = 500 / chartPoints.length;
+                const x = idx * step + step / 2;
+                const maxVal = Math.max(1, totalCandidatesCount);
+                const candH = Math.max(12, (pt.candCount / maxVal) * 140);
+                const visaH = Math.max(6, (pt.visaCount / maxVal) * 140);
+
                 return (
-                  <div key={item.id} className="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-hover border border-border/30 hover:border-primary/30 transition-all">
-                    <div className={cn("p-2.5 rounded-xl border shrink-0 mt-0.5", item.color)}>
-                      <IconComp size={18} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-text-primary truncate">{item.title}</p>
-                      <p className="text-[11px] text-text-tertiary leading-relaxed mt-0.5">{item.desc}</p>
-                      <span className="text-[10px] text-text-tertiary font-semibold block mt-1.5">{item.time}</span>
-                    </div>
-                  </div>
+                  <g key={idx} className="group cursor-pointer">
+                    {/* Candidate Registration Bar */}
+                    <rect
+                      x={x - 14}
+                      y={180 - candH}
+                      width="12"
+                      height={candH}
+                      rx="4"
+                      fill="#2A276C"
+                      className="transition-all group-hover:opacity-80"
+                    />
+                    {/* Visa Selection Bar */}
+                    <rect
+                      x={x + 2}
+                      y={180 - visaH}
+                      width="12"
+                      height={visaH}
+                      rx="4"
+                      fill="#10B981"
+                      className="transition-all group-hover:opacity-80"
+                    />
+                    {/* X Label */}
+                    <text x={x} y="198" textAnchor="middle" fontSize="11" fill="#94a3b8" fontWeight="600">
+                      {pt.label}
+                    </text>
+                  </g>
                 );
               })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Right: Job Sector Breakdown (1/3 width) */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-extrabold text-slate-900">Sector Statistics</h2>
+            <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
+              This Month
+            </span>
+          </div>
+
+          {/* Ring Chart Center */}
+          <div className="relative flex items-center justify-center my-2">
+            <div className="w-36 h-36 rounded-full border-[14px] border-[#2A276C] border-t-emerald-500 border-r-pink-500 border-b-blue-500 flex flex-col items-center justify-center">
+              <span className="text-2xl font-black text-slate-900">{totalCandidatesCount}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Candidates</span>
             </div>
           </div>
 
-          {/* Quick System Action Card */}
-          <div className="bg-gradient-to-br from-[#2a9d8f] to-[#1d7a71] text-white p-6 rounded-[2.5rem] shadow-xl shadow-[#2a9d8f]/20 space-y-4 relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
-            <div className="flex items-center justify-between">
-              <span className="px-3 py-1 bg-white/20 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
-                Musaned Integration
-              </span>
-              <ShieldCheck size={20} className="text-white/80" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-lg">Tawtheeq Direct Link</h3>
-              <p className="text-xs text-white/80 leading-relaxed mt-1">
-                Upload candidate PDFs directly or match CV entries with Saudi Ministry of Human Resources database.
-              </p>
-            </div>
-            <a 
-              href={MUSANED_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-white text-[#2a9d8f] font-bold rounded-xl text-xs hover:bg-white/90 transition-all shadow-md"
-            >
-              Launch Musaned Auth <ArrowUpRight size={14} />
-            </a>
+          {/* Breakdown Items List */}
+          <div className="space-y-2.5 pt-2">
+            {sectorBreakdown.map((sec) => (
+              <div key={sec.name} className="flex items-center justify-between text-xs font-medium">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                  <span className="text-slate-700 font-bold">{sec.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-400 font-semibold">{sec.percentage}%</span>
+                  <span className="text-slate-900 font-extrabold w-8 text-right">{sec.count}</span>
+                </div>
+              </div>
+            ))}
           </div>
-
         </div>
 
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          5. CANDIDATE OVERVIEW TABLE & RECENT VISA SELECTED
+          5. BOTTOM SECTION: RECENT OPERATIONS TABLE & ACTIVITY FEED (2/3 + 1/3)
       ════════════════════════════════════════════════════════════════════════ */}
-      
-      {/* Candidates List Overview */}
-      {canSee('/candidates') && (
-        <section className="space-y-4 pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left: Recent Candidate Operations Table (2/3 width) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-                <Users className="text-primary" size={20} /> Candidates Overview
-              </h2>
-              <p className="text-xs text-text-tertiary mt-0.5">
-                Displaying <span className="font-bold text-text-primary">{displayedCandidates.length}</span> candidates filtered by <span className="font-bold text-primary capitalize">{dateInterval}</span> interval
-              </p>
+              <h2 className="text-base font-extrabold text-slate-900">Recent Candidate Operations</h2>
+              <p className="text-xs text-slate-400 font-medium">Active database entries and status actions</p>
             </div>
-            <div className="flex items-center gap-3">
-              {metricFilter !== 'all' && (
-                <button 
-                  onClick={() => setMetricFilter('all')}
-                  className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-xl flex items-center gap-1 hover:bg-primary/20 transition-colors"
-                >
-                  <X size={14} /> Clear Metric Filter ({metricFilter})
-                </button>
-              )}
-              <Link href="/candidates" className="text-sm text-primary hover:underline font-bold">
-                View Full Table ({allCandidates.length}) →
-              </Link>
-            </div>
-          </div>
-
-          <div className="bg-surface rounded-[2.5rem] border border-border/40 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
-                    <th className="px-6 py-4 font-semibold">Shelf ID</th>
-                    <th className="px-6 py-4 font-semibold">Candidate</th>
-                    <th className="px-6 py-4 font-semibold">Passport No.</th>
-                    <th className="px-6 py-4 font-semibold">Job / Experience</th>
-                    <th className="px-6 py-4 font-semibold">Visa Status</th>
-                    <th className="px-6 py-4 font-semibold">Generated CVs</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/20">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center gap-3">
-                          <Loader2 size={32} className="text-primary animate-spin" />
-                          <p className="text-text-tertiary text-sm">Loading candidates...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : displayedCandidates.length > 0 ? (
-                    displayedCandidates.slice(0, 10).map((candidate) => (
-                      <tr 
-                        key={candidate.id} 
-                        className="hover:bg-gray-50/40 transition-colors cursor-pointer"
-                        onClick={(e) => { 
-                          if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) {
-                            router.push(`/candidates/${candidate.id}`);
-                          }
-                        }}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200">
-                            {candidate.shelfId || 'UNASSIGNED'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center shrink-0 border border-primary-100">
-                              <span className="text-primary font-bold text-sm">
-                                {candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-bold text-text-primary text-sm flex items-center gap-2">
-                                {candidate.passportData.givenNames} {candidate.passportData.surname}
-                                {candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500" />}
-                              </p>
-                              <p className="text-xs text-text-tertiary">{candidate.personalInfo.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <p className="text-sm font-semibold text-text-primary">{candidate.passportData.passportNumber}</p>
-                          <p className="text-xs text-text-tertiary">Exp: {new Date(candidate.passportData.dateOfExpiry).toLocaleDateString()}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-text-primary font-semibold truncate max-w-[200px]">
-                            {candidate.personalInfo?.job || 'House Maid'}
-                          </p>
-                          <p className="text-xs text-text-tertiary truncate max-w-[200px]">
-                            {Array.isArray(candidate.personalInfo?.workExperience) && candidate.personalInfo.workExperience.length > 0 ? 'Experienced' : 'Fresher'}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {candidate.isRequested ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Visa Selected
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                              Pending Visa
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex gap-1.5 flex-wrap max-w-[180px]">
-                            {candidate.generatedCVs && candidate.generatedCVs.length > 0 ? (
-                              candidate.generatedCVs.map((tmpl, idx) => {
-                                const templateId = typeof tmpl === 'string' ? tmpl : tmpl?.templateId;
-                                if (!templateId) return null;
-                                return (
-                                  <span key={idx} className="px-2 py-0.5 text-[10px] uppercase font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
-                                    {templateId.replace('tmpl-', '').toUpperCase()}
-                                  </span>
-                                );
-                              })
-                            ) : (
-                              <span className="text-xs text-text-tertiary">No CVs</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="relative inline-block" ref={openMenuId === candidate.id ? menuRef : null}>
-                            <button
-                              onClick={(e) => {
-                                const isOpen = openMenuId === candidate.id;
-                                if (isOpen) {
-                                  setOpenMenuId(null);
-                                  setMenuCoords(null);
-                                } else {
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  setMenuCoords({
-                                    top: rect.bottom + 4,
-                                    left: Math.max(16, rect.right - 192)
-                                  });
-                                  setOpenMenuId(candidate.id);
-                                }
-                              }}
-                              className="text-text-tertiary hover:text-primary transition-colors p-2 rounded-lg hover:bg-gray-100"
-                            >
-                              <MoreVertical size={18} />
-                            </button>
-                            {openMenuId === candidate.id && menuCoords && typeof window !== 'undefined' && createPortal(
-                              <div
-                                ref={dropdownRef}
-                                className="fixed w-48 bg-white border border-border rounded-xl shadow-xl z-[9999] py-1 animate-fade-in text-left"
-                                style={{
-                                  top: menuCoords.top,
-                                  left: menuCoords.left,
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {candidate.isRequested ? (
-                                  <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setCancelVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold cursor-pointer">
-                                    <CheckCircle size={16} className="text-amber-500" />
-                                    <span>Cancel Visa Selected</span>
-                                  </button>
-                                ) : (
-                                  <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setMenuCoords(null); setVisaModalId(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left font-semibold cursor-pointer">
-                                    <CheckCircle size={16} className="text-text-tertiary" />
-                                    <span>Visa Selected</span>
-                                  </button>
-                                )}
-                                <div className="border-t border-border/60 my-1" />
-                                <button onClick={() => { setOpenMenuId(null); setMenuCoords(null); deleteCandidate(candidate.id); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 transition-colors text-left text-red-600 font-semibold cursor-pointer">
-                                  <Trash2 size={16} /><span>Delete</span>
-                                </button>
-                              </div>,
-                              document.body
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-text-tertiary">
-                        No candidates match the selected interval filter ({dateInterval}).
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Visa Selected Overview Table */}
-      {canSee('/requested') && (
-        <section className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-                <CheckCircle2 className="text-emerald-600" size={20} /> Recent Visa Selected
-              </h2>
-              <p className="text-xs text-text-tertiary mt-0.5">Candidates with confirmed visa/contract numbers</p>
-            </div>
-            <Link href="/requested" className="text-sm text-primary hover:underline font-bold">
-              View All Visa Selected ({visaSelectedCount}) →
+            <Link href="/candidates" className="text-xs font-bold text-primary hover:underline">
+              View All Candidates →
             </Link>
           </div>
 
-          <div className="bg-surface rounded-[2.5rem] border border-border/40 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
-                    <th className="px-6 py-4 font-semibold">Shelf ID</th>
-                    <th className="px-6 py-4 font-semibold">Candidate</th>
-                    <th className="px-6 py-4 font-semibold">Passport No.</th>
-                    <th className="px-6 py-4 font-semibold">Visa / Contract No.</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="px-5 py-3">Candidate</th>
+                  <th className="px-5 py-3">Passport No.</th>
+                  <th className="px-5 py-3">Job Sector</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center">
+                      <Loader2 size={24} className="text-primary animate-spin mx-auto" />
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border/20">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center">
-                        <Loader2 size={32} className="text-primary animate-spin mx-auto" />
-                      </td>
-                    </tr>
-                  ) : displayedVisaSelected.length > 0 ? (
-                    displayedVisaSelected.slice(0, 10).map((candidate) => (
-                      <tr 
-                        key={candidate.id} 
-                        className="hover:bg-gray-50/40 transition-colors cursor-pointer"
-                        onClick={(e) => { 
-                          if (!(e.target as HTMLElement).closest('[data-action-menu]') && !(e.target as HTMLElement).closest('button')) {
-                            router.push(`/candidates/${candidate.id}`);
-                          }
-                        }}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono font-bold inline-block border border-gray-200">
-                            {candidate.shelfId || 'UNASSIGNED'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                ) : filteredCandidates.length > 0 ? (
+                  filteredCandidates.slice(0, 7).map((c) => {
+                    const isRequested = c.isRequested || c.visaSelected || c.status === 'visa selected';
+                    return (
+                      <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-5 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
-                              <span className="text-emerald-600 font-bold text-sm">
-                                {candidate.passportData.givenNames.charAt(0)}{candidate.passportData.surname.charAt(0)}
-                              </span>
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 overflow-hidden border border-slate-200 shrink-0">
+                              {c.facePhotoUrl ? (
+                                <img src={getFileUrl(c.facePhotoUrl)} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                              ) : (
+                                <span>{c.passportData?.givenNames?.charAt(0)}</span>
+                              )}
                             </div>
                             <div>
-                              <p className="font-bold text-text-primary text-sm">
-                                {candidate.passportData.givenNames} {candidate.passportData.surname}
-                              </p>
-                              <p className="text-xs text-text-tertiary">{candidate.personalInfo.email}</p>
+                              <p className="font-bold text-slate-900">{c.passportData?.givenNames} {c.passportData?.surname}</p>
+                              <p className="text-[11px] text-slate-400">{c.passportData?.nationality || 'Ethiopian'}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <p className="text-sm font-semibold text-text-primary">{candidate.passportData.passportNumber}</p>
+                        <td className="px-5 py-3 whitespace-nowrap font-mono font-bold text-slate-600">
+                          {c.passportData?.passportNumber}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-mono font-bold rounded-lg border border-emerald-200">
-                            {candidate.visaOrContractNumber || 'CONFIRMED'}
-                          </span>
+                        <td className="px-5 py-3 whitespace-nowrap font-semibold text-slate-700">
+                          {c.personalInfo?.job || 'House Maid'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Visa Selected
-                          </span>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          {isRequested ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Visa Selected
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              Available
+                            </span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td className="px-5 py-3 whitespace-nowrap text-right">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setCancelVisaModalId(candidate.id); }}
-                            className="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors"
+                            onClick={() => router.push(`/candidates/${c.id}`)}
+                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                           >
-                            Cancel Visa
+                            Details
                           </button>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-text-tertiary">
-                        No visa selected candidates match the active date interval.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Featured Quick Registered Table (Only for Registrar) */}
-      {userRole === 'registrar' && (
-        <section className="space-y-4 pt-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-              <ClipboardList className="text-amber-500" size={20} /> Featured Quick Registered
-            </h2>
-            <Link href="/quick-registered" className="text-sm text-primary hover:underline font-bold">
-              View All Quick Registrations →
-            </Link>
-          </div>
-
-          <div className="bg-surface rounded-[2.5rem] border border-border/40 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-border/30 text-[10px] uppercase tracking-wider font-bold text-text-tertiary/90">
-                    <th className="px-6 py-4 font-semibold">Candidate</th>
-                    <th className="px-6 py-4 font-semibold">Passport No.</th>
-                    <th className="px-6 py-4 font-semibold">Nationality</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold">Date Registered</th>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400 font-medium">
+                      No candidate records match the selected date interval.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border/20">
-                  {quickLoading ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center">
-                        <Loader2 size={32} className="text-primary animate-spin mx-auto" />
-                      </td>
-                    </tr>
-                  ) : filteredQuickRegistrations.length > 0 ? (
-                    filteredQuickRegistrations.slice(0, 5).map((r) => (
-                      <tr 
-                        key={r.id} 
-                        className="hover:bg-gray-50/40 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/quick-registration/preview/${r.id}`)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
-                              <span className="text-amber-600 font-bold text-sm">
-                                {r.givenNames?.charAt(0)}{r.surname?.charAt(0)}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-bold text-text-primary text-sm">{r.givenNames} {r.surname}</p>
-                              <p className="text-xs text-text-tertiary">{r.religion || 'Non-Muslim'}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-xs font-mono font-bold text-text-secondary bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
-                            {r.passportNumber}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary capitalize">
-                          {r.nationality || '—'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {r.verificationStatus === 'promoted' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-100">
-                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                              Promoted
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              Pending
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-xs text-text-tertiary font-medium">
-                          {new Date(r.createdAt).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-text-tertiary">
-                        No quick registrations found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: Recent Activity Timeline (1/3 width) */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-extrabold text-slate-900">Recent Activity</h2>
+            <span className="text-xs font-bold text-slate-400">Timeline</span>
+          </div>
+
+          <div className="space-y-4 text-xs font-medium">
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Today</p>
+              <div className="space-y-3 pl-2 border-l-2 border-slate-100">
+                <div className="relative pl-4">
+                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-primary" />
+                  <p className="text-slate-900 font-bold">You logged into your account</p>
+                  <span className="text-[10px] text-slate-400">16:05</span>
+                </div>
+                <div className="relative pl-4">
+                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-emerald-500" />
+                  <p className="text-slate-900 font-bold">Visa selection updated for candidate</p>
+                  <span className="text-[10px] text-slate-400">14:22</span>
+                </div>
+                <div className="relative pl-4">
+                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-amber-500" />
+                  <p className="text-slate-900 font-bold">New quick registration file received</p>
+                  <span className="text-[10px] text-slate-400">10:15</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Yesterday</p>
+              <div className="space-y-3 pl-2 border-l-2 border-slate-100">
+                <div className="relative pl-4">
+                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300" />
+                  <p className="text-slate-900 font-bold">Musaned document match verified</p>
+                  <span className="text-[10px] text-slate-400">16:40</span>
+                </div>
+                <div className="relative pl-4">
+                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300" />
+                  <p className="text-slate-900 font-bold">Candidate promoted from Quick Entry</p>
+                  <span className="text-[10px] text-slate-400">11:20</span>
+                </div>
+              </div>
             </div>
           </div>
-        </section>
-      )}
 
-      {/* Visa Selected Modal */}
-      {visaModalId && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setVisaModalId(null)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
-              <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
-                <CheckCircle className="text-green-600" size={20} /> Insert Visa / Contract Details
+          <div className="pt-2 border-t border-slate-100">
+            <button 
+              onClick={() => setShowNotificationsModal(true)}
+              className="w-full py-2 text-xs font-bold text-center text-primary hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+            >
+              View Full Activity Log →
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════════════════
+          6. NOTIFICATIONS MODAL
+      ════════════════════════════════════════════════════════════════════════ */}
+      {showNotificationsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowNotificationsModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                <Bell className="text-primary" size={20} /> Real-time Activity Feed
               </h3>
-              <button onClick={() => setVisaModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
+              <button onClick={() => setShowNotificationsModal(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">✕</button>
             </div>
-            <div className="p-6">
-              <label className="block text-sm font-semibold text-text-primary mb-2">Insert contract number or visa number</label>
-              <Input 
-                autoFocus
-                placeholder="e.g. VIS-123456 or CON-7890" 
-                value={visaNumberInput} 
-                onChange={(e) => setVisaNumberInput(e.target.value)} 
-                className="w-full"
-              />
+            
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs font-bold text-slate-900">New Candidate Added</p>
+                <p className="text-xs text-slate-500 mt-0.5">Candidate records successfully indexed into database.</p>
+                <span className="text-[10px] text-slate-400">2 mins ago</span>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <p className="text-xs font-bold text-emerald-900">Visa Selected Confirmed</p>
+                <p className="text-xs text-emerald-700 mt-0.5">Candidate marked as visa selected for deployment.</p>
+                <span className="text-[10px] text-emerald-600">18 mins ago</span>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                <p className="text-xs font-bold text-amber-900">Quick Registration Submitted</p>
+                <p className="text-xs text-amber-700 mt-0.5">Entry file pending Musaned document verification.</p>
+                <span className="text-[10px] text-amber-600">1 hour ago</span>
+              </div>
             </div>
-            <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
-              <button onClick={() => setVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
-                Cancel
-              </button>
-              <button 
-                disabled={!visaNumberInput.trim()}
-                onClick={() => toggleRequested(visaModalId, false, visaNumberInput.trim())}
-                className="px-6 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer"
-              >
-                Confirm
+
+            <div className="pt-2 text-right">
+              <button onClick={() => setShowNotificationsModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200">
+                Close
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Cancel Visa Modal */}
-      {cancelVisaModalId && (() => {
-        const candidate = allCandidates.find(c => c.id === cancelVisaModalId);
-        return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setCancelVisaModalId(null)}>
-            <div className="bg-white rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
-                <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
-                  <Flag className="text-red-500" size={20} /> Cancel Visa Selection
-                </h3>
-                <button onClick={() => setCancelVisaModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
-              </div>
-              <div className="p-6 space-y-4">
-                <p className="text-sm text-text-secondary">
-                  Are you sure you want to cancel the visa selection for <strong className="text-text-primary">{candidate ? `${candidate.passportData.givenNames} ${candidate.passportData.surname}` : 'this candidate'}</strong>?
-                </p>
-                <div>
-                  <label className="block text-sm font-semibold text-text-primary mb-2">
-                    Please provide a reason for cancellation:
-                  </label>
-                  <Input 
-                    autoFocus
-                    placeholder="Enter reason for cancellation" 
-                    value={cancelVisaNumberInput} 
-                    onChange={(e) => setCancelVisaNumberInput(e.target.value)} 
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="p-5 border-t border-border flex justify-end gap-3 bg-gray-50">
-                <button onClick={() => setCancelVisaModalId(null)} className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary transition-colors">
-                  Cancel
-                </button>
-                <button 
-                  disabled={!cancelVisaNumberInput.trim()}
-                  onClick={() => toggleRequested(cancelVisaModalId, true)}
-                  className="px-6 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer"
-                >
-                  Confirm Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
     </div>
   );
