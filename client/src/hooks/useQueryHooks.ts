@@ -122,6 +122,21 @@ export function usePassportsQuery() {
   });
 }
 
+export async function fetchNotificationsApi() {
+  const res = await api('/api/notifications', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch notifications');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+export function useNotificationsQuery() {
+  return useQuery({
+    queryKey: QUERY_KEYS.notifications,
+    queryFn: fetchNotificationsApi,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
 // --- Global Query Cache Invalidation Helper Hook ---
 export function useInvalidateQueries() {
   const queryClient = useQueryClient();

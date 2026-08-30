@@ -11,14 +11,18 @@ import {
   Users, UserPlus, ExternalLink, Loader2, MoreVertical, CheckCircle2, 
   Trash2, Edit3, Eye, ClipboardList, Flag, Bell, TrendingUp, Calendar, 
   Sparkles, CheckCircle, ArrowUpRight, ArrowDownRight, UserCheck, ShieldCheck,
-  Filter, Layers, X, Info, ShieldAlert, Building2
+  Filter, Layers, X, Info, ShieldAlert, Building2, CheckCheck
 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { ROUTE_ACCESS, type Role } from '@/lib/role-config';
 import { useCandidates } from '@/hooks/useCandidates';
-import { useQuickRegistrationsQuery } from '@/hooks/useQueryHooks';
+import { 
+  useQuickRegistrationsQuery, 
+  useGeneratedCVsQuery, 
+  useNotificationsQuery 
+} from '@/hooks/useQueryHooks';
 
 const MUSANED_URL = 'https://accounts.wahid.sa/auth/realms/wahid/protocol/openid-connect/auth?client_id=etawtheeq-fe&redirect_uri=https%3A%2F%2Ftawtheeq.musaned.com.sa%2Flogin&state=1afbc6a5-ab04-454a-864e-2139d00d05a5&response_mode=fragment&response_type=code&scope=openid&nonce=c08d47d0-27af-41b3-8812-5ea7548fd14e&code_challenge=mlx9pnpSqR2PmNC1onUouVnZeV3FM3T2f8ELMWSHvds&code_challenge_method=S256';
 
@@ -29,6 +33,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate: setAllCandidates } = useCandidates();
   const { data: quickRegistrations = [], isLoading: quickLoading } = useQuickRegistrationsQuery();
+  const { data: generatedCVs = [] } = useGeneratedCVsQuery();
+  const { data: notifications = [] } = useNotificationsQuery();
+
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -160,65 +167,58 @@ export default function DashboardPage() {
 
   const conversionRate = totalCandidatesCount > 0 ? Math.round((visaSelectedCount / totalCandidatesCount) * 100) : 0;
 
-  // Agency distribution breakdown (9 agencies)
+  // Real Notifications Metrics & Unread Count (Matching Topbar API)
+  const unreadNotificationCount = useMemo(() => {
+    return notifications.filter((n: any) => !n.isRead).length;
+  }, [notifications]);
+
+  // Exact Agency CV counts matching Generated CVs page (`/generated-cvs`)
   const agencyBreakdown = useMemo(() => {
-    const tmplMap: Record<string, string> = {
-      'ussus': 'USSUS',
-      'al-shablan': 'AL-Shablan',
-      'alm': 'Almersah',
-      'almala': 'Almala',
-      'ka7': 'Kaafaat',
-      'ku2': 'Khuzam',
-      'ma': 'MA Standard',
-      'ra': 'Rayaat',
-      'vision': 'Vision',
-    };
+    // Filter active CVs exactly as generated-cvs/page.tsx does:
+    const activeCVs = generatedCVs.filter((c: any) => 
+      c?.candidate &&
+      !c.candidate.isRequested && 
+      c.candidate.personalInfo?.medicalStatus !== 'Unfit' && 
+      c.candidate.medicalStatus !== 'Unfit' && 
+      !c.candidate.visaSelected &&
+      !c.candidate.isFlagged &&
+      c.candidate.isLocked !== true &&
+      c.candidate.broker?.isLocked !== true
+    );
 
-    const counts: Record<string, number> = {
-      'USSUS': 0,
-      'AL-Shablan': 0,
-      'Almersah': 0,
-      'Almala': 0,
-      'Kaafaat': 0,
-      'Khuzam': 0,
-      'MA Standard': 0,
-      'Rayaat': 0,
-      'Vision': 0,
-    };
+    const templates = [
+      { id: 'ussus', name: 'USSUS', color: '#06b6d4' },
+      { id: 'al-shablan', name: 'AL-Shablan', color: '#eab308' },
+      { id: 'alm', name: 'ALMERSAH', color: '#3b82f6' },
+      { id: 'almala', name: 'ALMALA', color: '#14b8a6' },
+      { id: 'ka7', name: 'KAAFAAT', color: '#10b981' },
+      { id: 'ku2', name: 'KHUZAM', color: '#6366f1' },
+      { id: 'ma', name: 'MA Standard', color: '#f97316' },
+      { id: 'ra', name: 'RAYAAT', color: '#a855f7' },
+      { id: 'vision', name: 'Vision Layout', color: '#0a5c4e' },
+    ];
 
-    filteredCandidates.forEach(c => {
-      let agencyName = c.agency;
-      if (!agencyName && c.latestCVTemplate) {
-        agencyName = tmplMap[c.latestCVTemplate] || c.latestCVTemplate;
-      }
-      if (!agencyName) {
-        agencyName = 'USSUS';
-      }
-      
-      const foundKey = Object.keys(counts).find(k => k.toLowerCase() === agencyName?.toLowerCase());
-      if (foundKey) {
-        counts[foundKey]++;
-      } else {
-        counts[agencyName] = (counts[agencyName] || 0) + 1;
-      }
+    const counts: Record<string, number> = {};
+    templates.forEach(t => {
+      counts[t.id] = activeCVs.filter((c: any) => c.templateId === t.id).length;
     });
 
     const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-    const colors = [
-      '#2A276C', '#6b5ce7', '#ec4899', '#3b82f6', '#10b981', 
-      '#f59e0b', '#8b5cf6', '#06b6d4', '#f97316'
-    ];
 
     let currentAngle = 0;
-
-    return Object.entries(counts).map(([name, count], idx) => {
+    return templates.map((t) => {
+      const count = counts[t.id] || 0;
       const percentage = Math.round((count / total) * 100);
       const angle = (count / total) * 360;
       const startAngle = currentAngle;
       currentAngle += angle;
-      return { name, count, percentage, color: colors[idx % colors.length], startAngle, angle };
+      return { name: t.name, count, percentage, color: t.color, startAngle, angle };
     });
-  }, [filteredCandidates]);
+  }, [generatedCVs]);
+
+  const totalGeneratedCVsCount = useMemo(() => {
+    return agencyBreakdown.reduce((sum, a) => sum + a.count, 0);
+  }, [agencyBreakdown]);
 
   // Dynamic trend chart series points
   const chartPoints = useMemo(() => {
@@ -432,11 +432,11 @@ export default function DashboardPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          4. MIDDLE SECTION: RECRUITMENT STATS, AGENCY STATS & NOTIFICATIONS
+          4. MIDDLE SECTION: RECRUITMENT STATS, AGENCY STATS & REAL NOTIFICATIONS
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* Column 1: Recruitment Statistics (Minimized width: 5 cols) */}
+        {/* Column 1: Recruitment Statistics (5 cols) */}
         <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 space-y-3 flex flex-col justify-between">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
@@ -505,23 +505,23 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Column 2: Agency Statistics (4 cols) */}
+        {/* Column 2: Agency Statistics (Exact Generated CVs match: 4 cols) */}
         <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Building2 size={18} className="text-primary" />
               <h2 className="text-base font-extrabold text-slate-900">Agency Statistics</h2>
             </div>
-            <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+            <Link href="/generated-cvs" className="text-[11px] font-bold text-primary hover:underline bg-slate-100 px-2 py-0.5 rounded-md">
               9 Agencies
-            </span>
+            </Link>
           </div>
 
           {/* Donut Chart Ring */}
           <div className="relative flex items-center justify-center my-1">
-            <div className="w-28 h-28 rounded-full border-[12px] border-[#2A276C] border-t-emerald-500 border-r-pink-500 border-b-blue-500 flex flex-col items-center justify-center">
-              <span className="text-xl font-black text-slate-900">{totalCandidatesCount}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase">Total</span>
+            <div className="w-28 h-28 rounded-full border-[12px] border-[#2A276C] border-t-yellow-500 border-r-teal-500 border-b-indigo-500 flex flex-col items-center justify-center">
+              <span className="text-xl font-black text-slate-900">{totalGeneratedCVsCount}</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase">CVs</span>
             </div>
           </div>
 
@@ -535,65 +535,69 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-slate-400 text-[11px] font-semibold">{agency.percentage}%</span>
-                  <span className="text-slate-900 font-extrabold text-xs w-6 text-right">{agency.count}</span>
+                  <span className="text-slate-900 font-extrabold text-xs w-8 text-right">{agency.count}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Column 3: Notifications Section (Right side beside Agency panel: 3 cols) */}
+        {/* Column 3: Real Notifications Panel (Matches Topbar: 3 cols) */}
         <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <div className="flex items-center gap-2">
               <Bell size={18} className="text-primary" />
               <h2 className="text-base font-extrabold text-slate-900">Notifications</h2>
             </div>
-            <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
-              4
+            <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black">
+              {unreadNotificationCount > 0 ? unreadNotificationCount : notifications.length}
             </span>
           </div>
 
-          {/* Activity / Notification Feed Items */}
-          <div className="space-y-3 flex-1 overflow-y-auto max-h-64 text-xs font-medium pr-1">
-            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100/80">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-slate-900 text-xs">New Candidate Added</span>
-                <span className="text-[9px] text-slate-400">2m ago</span>
+          {/* Activity / Real Notification Feed Items */}
+          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-64 text-xs font-medium pr-1">
+            {notifications.length > 0 ? (
+              notifications.slice(0, 5).map((notif: any) => (
+                <div 
+                  key={notif.id} 
+                  onClick={() => {
+                    if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
+                    else setShowNotificationsModal(true);
+                  }}
+                  className={cn(
+                    "p-2.5 rounded-xl border transition-all cursor-pointer",
+                    !notif.isRead 
+                      ? "bg-primary/5 border-primary/20 hover:bg-primary/10" 
+                      : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={cn("font-bold text-xs truncate max-w-[140px]", !notif.isRead ? "text-primary" : "text-slate-900")}>
+                      {notif.title}
+                    </span>
+                    <span className="text-[9px] text-slate-400 shrink-0">
+                      {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-tight">
+                    {notif.message}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-slate-400">
+                <Bell size={24} className="mx-auto opacity-20 mb-2" />
+                <p className="text-xs font-bold text-slate-700">All caught up!</p>
+                <p className="text-[11px] text-slate-400">No new notifications</p>
               </div>
-              <p className="text-[11px] text-slate-500 leading-tight">Candidate file indexed into database queue.</p>
-            </div>
-
-            <div className="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-100">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-emerald-900 text-xs">Visa Selected</span>
-                <span className="text-[9px] text-emerald-600 font-semibold">18m ago</span>
-              </div>
-              <p className="text-[11px] text-emerald-700 leading-tight">Candidate verified for employer visa.</p>
-            </div>
-
-            <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-100">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-amber-900 text-xs">Quick Entry File</span>
-                <span className="text-[9px] text-amber-600 font-semibold">1h ago</span>
-              </div>
-              <p className="text-[11px] text-amber-700 leading-tight">Musaned registration entry pending match.</p>
-            </div>
-
-            <div className="p-2.5 bg-blue-50/70 rounded-xl border border-blue-100">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-blue-900 text-xs">Musaned Sync Active</span>
-                <span className="text-[9px] text-blue-600 font-semibold">2h ago</span>
-              </div>
-              <p className="text-[11px] text-blue-700 leading-tight">Wahid portal connection verified live.</p>
-            </div>
+            )}
           </div>
 
           <button 
             onClick={() => setShowNotificationsModal(true)}
             className="w-full py-2 text-xs font-bold text-center text-primary bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors cursor-pointer shrink-0"
           >
-            View All Notifications
+            View All ({notifications.length})
           </button>
         </div>
 
@@ -744,37 +748,59 @@ export default function DashboardPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          6. NOTIFICATIONS MODAL
+          6. REAL NOTIFICATIONS MODAL
       ════════════════════════════════════════════════════════════════════════ */}
       {showNotificationsModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowNotificationsModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                <Bell className="text-primary" size={20} /> Real-time Activity Feed
+                <Bell className="text-primary" size={20} /> Real-time Notifications ({notifications.length})
               </h3>
               <button onClick={() => setShowNotificationsModal(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">✕</button>
             </div>
             
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-xs font-bold text-slate-900">New Candidate Added</p>
-                <p className="text-xs text-slate-500 mt-0.5">Candidate records successfully indexed into database.</p>
-                <span className="text-[10px] text-slate-400">2 mins ago</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <p className="text-xs font-bold text-emerald-900">Visa Selected Confirmed</p>
-                <p className="text-xs text-emerald-700 mt-0.5">Candidate marked as visa selected for deployment.</p>
-                <span className="text-[10px] text-emerald-600">18 mins ago</span>
-              </div>
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <p className="text-xs font-bold text-amber-900">Quick Registration Submitted</p>
-                <p className="text-xs text-amber-700 mt-0.5">Entry file pending Musaned document verification.</p>
-                <span className="text-[10px] text-amber-600">1 hour ago</span>
-              </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {notifications.length > 0 ? (
+                notifications.map((notif: any) => (
+                  <div 
+                    key={notif.id} 
+                    onClick={() => {
+                      if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
+                      setShowNotificationsModal(false);
+                    }}
+                    className={cn(
+                      "p-3 rounded-xl border transition-all cursor-pointer",
+                      !notif.isRead 
+                        ? "bg-primary/5 border-primary/20 hover:bg-primary/10" 
+                        : "bg-slate-50 border-slate-100 hover:bg-slate-100"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <p className={cn("text-xs font-bold", !notif.isRead ? "text-primary" : "text-slate-900")}>
+                        {notif.title}
+                      </p>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(notif.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      {notif.message}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center text-slate-400">
+                  <Bell size={28} className="mx-auto opacity-20 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No notifications found</p>
+                </div>
+              )}
             </div>
 
-            <div className="pt-2 text-right">
+            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+              <span className="text-xs font-medium text-slate-400">
+                {unreadNotificationCount} unread
+              </span>
               <button onClick={() => setShowNotificationsModal(false)} className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200">
                 Close
               </button>
