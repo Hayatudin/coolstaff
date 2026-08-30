@@ -11,7 +11,7 @@ import {
   Users, UserPlus, ExternalLink, Loader2, MoreVertical, CheckCircle2, 
   Trash2, Edit3, Eye, ClipboardList, Flag, Bell, TrendingUp, Calendar, 
   Sparkles, CheckCircle, ArrowUpRight, ArrowDownRight, UserCheck, ShieldCheck,
-  Filter, Layers, X, Info, ShieldAlert, Building2, CheckCheck
+  Filter, Layers, X, Info, ShieldAlert, Building2, CheckCheck, LogIn, LogOut, Clock
 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import { Candidate } from '@/types';
@@ -172,7 +172,33 @@ export default function DashboardPage() {
     return notifications.filter((n: any) => !n.isRead).length;
   }, [notifications]);
 
-  // Exact Agency CV counts matching Generated CVs page (`/generated-cvs`)
+  // Group notifications into Today, Yesterday, and Earlier for iOS timeline UI
+  const groupedNotifications = useMemo(() => {
+    const today: any[] = [];
+    const yesterday: any[] = [];
+    const earlier: any[] = [];
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
+
+    notifications.forEach((n: any) => {
+      const time = new Date(n.createdAt).getTime();
+      if (isNaN(time)) {
+        today.push(n);
+      } else if (time >= startOfToday) {
+        today.push(n);
+      } else if (time >= startOfYesterday) {
+        yesterday.push(n);
+      } else {
+        earlier.push(n);
+      }
+    });
+
+    return { today, yesterday, earlier };
+  }, [notifications]);
+
+  // Exact Agency CV counts matching Generated CVs page (`/generated-cvs`) in DECREASING order
   const agencyBreakdown = useMemo(() => {
     // Filter active CVs exactly as generated-cvs/page.tsx does:
     const activeCVs = generatedCVs.filter((c: any) => 
@@ -205,15 +231,17 @@ export default function DashboardPage() {
 
     const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
 
-    let currentAngle = 0;
-    return templates.map((t) => {
+    // Create agency list with counts and sort in decreasing order
+    const list = templates.map((t) => {
       const count = counts[t.id] || 0;
       const percentage = Math.round((count / total) * 100);
-      const angle = (count / total) * 360;
-      const startAngle = currentAngle;
-      currentAngle += angle;
-      return { name: t.name, count, percentage, color: t.color, startAngle, angle };
+      return { id: t.id, name: t.name, count, percentage, color: t.color };
     });
+
+    // Sort in decreasing order by count
+    list.sort((a, b) => b.count - a.count);
+
+    return list;
   }, [generatedCVs]);
 
   const totalGeneratedCVsCount = useMemo(() => {
@@ -432,7 +460,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          4. MIDDLE SECTION: RECRUITMENT STATS, AGENCY STATS & REAL NOTIFICATIONS
+          4. MIDDLE SECTION: RECRUITMENT STATS, AGENCY STATS & NOTIFICATIONS TIMELINE
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
@@ -505,33 +533,72 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Column 2: Agency Statistics (Exact Generated CVs match: 4 cols) */}
+        {/* Column 2: Agency Statistics (Dynamic Multi-Color SVG Donut Ring + Decreasing Order List: 4 cols) */}
         <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Building2 size={18} className="text-primary" />
+              <Building2 size={18} className="text-[#2A276C]" />
               <h2 className="text-base font-extrabold text-slate-900">Agency Statistics</h2>
             </div>
-            <Link href="/generated-cvs" className="text-[11px] font-bold text-primary hover:underline bg-slate-100 px-2 py-0.5 rounded-md">
+            <Link href="/generated-cvs" className="text-[11px] font-bold text-primary hover:underline bg-slate-100 px-2.5 py-1 rounded-lg">
               9 Agencies
             </Link>
           </div>
 
-          {/* Donut Chart Ring */}
-          <div className="relative flex items-center justify-center my-1">
-            <div className="w-28 h-28 rounded-full border-[12px] border-[#2A276C] border-t-yellow-500 border-r-teal-500 border-b-indigo-500 flex flex-col items-center justify-center">
+          {/* SVG Multi-Segment Donut Ring showing real agency proportions & colors */}
+          <div className="relative flex items-center justify-center my-2">
+            <svg className="w-36 h-36 transform -rotate-90" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                stroke="#f1f5f9"
+                strokeWidth="10"
+                fill="transparent"
+              />
+              {(() => {
+                let accumulatedLength = 0;
+                const circumference = 2 * Math.PI * 38; // ~238.761
+                const total = totalGeneratedCVsCount || 1;
+
+                return agencyBreakdown.map((agency) => {
+                  if (agency.count === 0) return null;
+                  const segmentLength = (agency.count / total) * circumference;
+                  const strokeDasharray = `${segmentLength} ${circumference - segmentLength}`;
+                  const strokeDashoffset = -accumulatedLength;
+                  accumulatedLength += segmentLength;
+
+                  return (
+                    <circle
+                      key={agency.id}
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      stroke={agency.color}
+                      strokeWidth="10"
+                      strokeDasharray={strokeDasharray}
+                      strokeDashoffset={strokeDashoffset}
+                      fill="transparent"
+                      className="transition-all duration-500 hover:opacity-80 cursor-pointer"
+                    />
+                  );
+                });
+              })()}
+            </svg>
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-xl font-black text-slate-900">{totalGeneratedCVsCount}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase">CVs</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total CVs</span>
             </div>
           </div>
 
-          {/* Agency Breakdown List */}
+          {/* Agency Breakdown List (Decreasing order by candidate count) */}
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {agencyBreakdown.map((agency) => (
-              <div key={agency.name} className="flex items-center justify-between text-xs font-medium py-0.5 border-b border-slate-50">
+              <div key={agency.id} className="flex items-center justify-between text-xs font-medium py-1 border-b border-slate-50 hover:bg-slate-50/50 px-1 rounded-md transition-colors">
                 <div className="flex items-center gap-2 truncate">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: agency.color }} />
-                  <span className="text-slate-700 font-bold truncate">{agency.name}</span>
+                  <span className="text-slate-800 font-bold truncate">{agency.name}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-slate-400 text-[11px] font-semibold">{agency.percentage}%</span>
@@ -542,60 +609,143 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Column 3: Real Notifications Panel (Matches Topbar: 3 cols) */}
+        {/* Column 3: Notifications / Activity (Matching Inspiration Timeline UI: 3 cols) */}
         <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-            <div className="flex items-center gap-2">
-              <Bell size={18} className="text-primary" />
-              <h2 className="text-base font-extrabold text-slate-900">Notifications</h2>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+              Notifications
+            </h2>
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-[#2A276C] text-[10px] font-black">
+                {unreadNotificationCount > 0 ? unreadNotificationCount : notifications.length}
+              </span>
+              <button 
+                onClick={() => setShowNotificationsModal(true)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer"
+              >
+                <MoreVertical size={16} />
+              </button>
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black">
-              {unreadNotificationCount > 0 ? unreadNotificationCount : notifications.length}
-            </span>
           </div>
 
-          {/* Activity / Real Notification Feed Items */}
-          <div className="space-y-2.5 flex-1 overflow-y-auto max-h-64 text-xs font-medium pr-1">
-            {notifications.length > 0 ? (
-              notifications.slice(0, 5).map((notif: any) => (
-                <div 
-                  key={notif.id} 
-                  onClick={() => {
-                    if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
-                    else setShowNotificationsModal(true);
-                  }}
-                  className={cn(
-                    "p-2.5 rounded-xl border transition-all cursor-pointer",
-                    !notif.isRead 
-                      ? "bg-primary/5 border-primary/20 hover:bg-primary/10" 
-                      : "bg-slate-50 border-slate-100 hover:bg-slate-100"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={cn("font-bold text-xs truncate max-w-[140px]", !notif.isRead ? "text-primary" : "text-slate-900")}>
-                      {notif.title}
-                    </span>
-                    <span className="text-[9px] text-slate-400 shrink-0">
-                      {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-tight">
-                    {notif.message}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div className="py-8 text-center text-slate-400">
-                <Bell size={24} className="mx-auto opacity-20 mb-2" />
-                <p className="text-xs font-bold text-slate-700">All caught up!</p>
-                <p className="text-[11px] text-slate-400">No new notifications</p>
+          {/* Timeline Feed Stream matching Inspiration UI */}
+          <div className="space-y-4 flex-1 overflow-y-auto max-h-[310px] pr-1.5">
+            
+            {/* Today Group */}
+            <div>
+              <p className="text-xs font-extrabold text-slate-900 mb-3">Today</p>
+              <div className="relative space-y-3.5 pl-2">
+                {/* Continuous vertical connector line */}
+                <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                
+                {groupedNotifications.today.length > 0 ? (
+                  groupedNotifications.today.slice(0, 4).map((notif: any) => (
+                    <div 
+                      key={notif.id}
+                      onClick={() => {
+                        if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
+                        else setShowNotificationsModal(true);
+                      }}
+                      className="relative z-10 flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white transition-colors shrink-0 shadow-2xs">
+                        <CheckCircle2 size={13} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-xs font-bold text-slate-800 leading-snug group-hover:text-[#2A276C] transition-colors truncate">
+                          {notif.title}
+                        </p>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="relative z-10 flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                        <CheckCircle2 size={13} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">16:05</p>
+                      </div>
+                    </div>
+                    <div className="relative z-10 flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                        <CheckCircle2 size={13} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-xs font-bold text-slate-800 leading-snug">You Logged Out your account</p>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">14:22</p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Yesterday Group */}
+            <div>
+              <p className="text-xs font-extrabold text-slate-900 mb-3">Yesterday</p>
+              <div className="relative space-y-3.5 pl-2">
+                {/* Continuous vertical connector line */}
+                <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                
+                {groupedNotifications.yesterday.length > 0 ? (
+                  groupedNotifications.yesterday.slice(0, 3).map((notif: any) => (
+                    <div 
+                      key={notif.id}
+                      onClick={() => {
+                        if (notif.candidateId) router.push(`/candidates/${notif.candidateId}`);
+                        else setShowNotificationsModal(true);
+                      }}
+                      className="relative z-10 flex items-start gap-3 group cursor-pointer"
+                    >
+                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 group-hover:bg-[#2A276C] group-hover:text-white transition-colors shrink-0 shadow-2xs">
+                        <CheckCircle2 size={13} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-xs font-bold text-slate-800 leading-snug group-hover:text-[#2A276C] transition-colors truncate">
+                          {notif.title}
+                        </p>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                          {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="relative z-10 flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                        <CheckCircle2 size={13} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-xs font-bold text-slate-800 leading-snug">Candidate visa status verified</p>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">12:40</p>
+                      </div>
+                    </div>
+                    <div className="relative z-10 flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                        <CheckCircle2 size={13} />
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
+                        <p className="text-[11px] font-medium text-slate-400 mt-0.5">09:06</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
           </div>
 
           <button 
             onClick={() => setShowNotificationsModal(true)}
-            className="w-full py-2 text-xs font-bold text-center text-primary bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors cursor-pointer shrink-0"
+            className="w-full py-2 text-xs font-bold text-center text-[#2A276C] bg-indigo-50/80 hover:bg-indigo-100 rounded-xl transition-colors cursor-pointer shrink-0 mt-1"
           >
             View All ({notifications.length})
           </button>
@@ -698,47 +848,53 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Right: Recent Activity Timeline (1/3 width) */}
+        {/* Right: Recent Activity Timeline (Matching Inspiration UI) */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-slate-900">Recent Activity</h2>
-            <span className="text-xs font-bold text-slate-400">Timeline</span>
+            <button className="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+              <MoreVertical size={16} />
+            </button>
           </div>
 
           <div className="space-y-4 text-xs font-medium">
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Today</p>
-              <div className="space-y-3 pl-2 border-l-2 border-slate-100">
-                <div className="relative pl-4">
-                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-primary" />
-                  <p className="text-slate-900 font-bold">You logged into your account</p>
-                  <span className="text-[10px] text-slate-400">16:05</span>
+              <p className="text-xs font-extrabold text-slate-900 mb-3">Today</p>
+              <div className="relative space-y-3.5 pl-2">
+                <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                    <CheckCircle2 size={13} />
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
+                    <p className="text-[11px] font-medium text-slate-400 mt-0.5">16:05</p>
+                  </div>
                 </div>
-                <div className="relative pl-4">
-                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-emerald-500" />
-                  <p className="text-slate-900 font-bold">Visa selection updated for candidate</p>
-                  <span className="text-[10px] text-slate-400">14:22</span>
-                </div>
-                <div className="relative pl-4">
-                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-amber-500" />
-                  <p className="text-slate-900 font-bold">New quick registration file received</p>
-                  <span className="text-[10px] text-slate-400">10:15</span>
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                    <CheckCircle2 size={13} />
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-xs font-bold text-slate-800 leading-snug">You Logged Out your account</p>
+                    <p className="text-[11px] font-medium text-slate-400 mt-0.5">14:22</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Yesterday</p>
-              <div className="space-y-3 pl-2 border-l-2 border-slate-100">
-                <div className="relative pl-4">
-                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300" />
-                  <p className="text-slate-900 font-bold">Musaned document match verified</p>
-                  <span className="text-[10px] text-slate-400">16:40</span>
-                </div>
-                <div className="relative pl-4">
-                  <span className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-slate-300" />
-                  <p className="text-slate-900 font-bold">Candidate promoted from Quick Entry</p>
-                  <span className="text-[10px] text-slate-400">11:20</span>
+              <p className="text-xs font-extrabold text-slate-900 mb-3">Yesterday</p>
+              <div className="relative space-y-3.5 pl-2">
+                <div className="absolute left-[14px] top-3 bottom-3 w-[1.5px] bg-slate-200/70 -z-0" />
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-600 shrink-0 shadow-2xs">
+                    <CheckCircle2 size={13} />
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-xs font-bold text-slate-800 leading-snug">You Logged into your account</p>
+                    <p className="text-[11px] font-medium text-slate-400 mt-0.5">12:40</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -755,7 +911,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
-                <Bell className="text-primary" size={20} /> Real-time Notifications ({notifications.length})
+                <Bell className="text-[#2A276C]" size={20} /> Real-time Notifications ({notifications.length})
               </h3>
               <button onClick={() => setShowNotificationsModal(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">✕</button>
             </div>
@@ -772,12 +928,12 @@ export default function DashboardPage() {
                     className={cn(
                       "p-3 rounded-xl border transition-all cursor-pointer",
                       !notif.isRead 
-                        ? "bg-primary/5 border-primary/20 hover:bg-primary/10" 
+                        ? "bg-indigo-50/50 border-indigo-200/60 hover:bg-indigo-50" 
                         : "bg-slate-50 border-slate-100 hover:bg-slate-100"
                     )}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <p className={cn("text-xs font-bold", !notif.isRead ? "text-primary" : "text-slate-900")}>
+                      <p className={cn("text-xs font-bold", !notif.isRead ? "text-[#2A276C]" : "text-slate-900")}>
                         {notif.title}
                       </p>
                       <span className="text-[10px] text-slate-400">
