@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { generateInvoicePdf } from '@/lib/invoicePdfGenerator';
 import { getFileUrl, getApiBaseUrl } from '@/lib/utils';
+import { useInvoicesQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
 
 const TEMPLATES: Record<string, { name: string; fullName: string }> = {
   'all': { name: 'ALL', fullName: '' },
@@ -22,8 +23,16 @@ const TEMPLATES: Record<string, { name: string; fullName: string }> = {
 };
 
 export default function InvoicePage() {
+  const { data: fetchedInvoices = [], isLoading: isInvoicesLoading, refetch } = useInvoicesQuery();
+  const invalidateQueries = useInvalidateQueries();
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (fetchedInvoices) setInvoices(fetchedInvoices);
+  }, [fetchedInvoices]);
+
+  const isLoading = isInvoicesLoading && invoices.length === 0;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -73,15 +82,10 @@ export default function InvoicePage() {
 
   const fetchInvoices = async () => {
     try {
-      setIsLoading(true);
-      const res = await api('/api/invoices', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to fetch invoices');
-      const data = await res.json();
-      setInvoices(data);
+      invalidateQueries('invoices');
+      await refetch();
     } catch (err) {
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -225,7 +229,6 @@ export default function InvoicePage() {
     const toUpdate = filtered.filter(inv => inv.isDelivered !== targetStatus);
     if (toUpdate.length === 0) return;
 
-    setIsLoading(true);
     try {
       await Promise.all(
         toUpdate.map(async (inv) => {
@@ -241,8 +244,6 @@ export default function InvoicePage() {
     } catch (err) {
       alert('Failed to update some invoices. Make sure their candidate brokers are not locked.');
       await fetchInvoices();
-    } finally {
-      setIsLoading(false);
     }
   };
 

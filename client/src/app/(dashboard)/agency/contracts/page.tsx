@@ -29,6 +29,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
@@ -120,9 +121,38 @@ const getVisiblePages = (current: number, total: number) => {
 };
 
 export default function AgencyContractsPage() {
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
+  const { data: session } = useSession();
+  const userRole = ((session?.user as any)?.role ?? 'user') as string;
+  const isSuperAdmin = userRole === 'super_admin';
+  const canDeselect = userRole === 'super_admin' || userRole === 'agency';
+
+  const { data: agencyContractsData, isLoading: isQueryLoading, refetch: refetchAgencyContracts } = useQuery({
+    queryKey: ['agency-contracts', selectedAgency],
+    queryFn: async () => {
+      let url = '/api/agency/candidates';
+      if (selectedAgency && selectedAgency !== 'all') {
+        url += `?agency=${encodeURIComponent(selectedAgency)}`;
+      }
+      const res = await api(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to load agency candidates');
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
   const [candidates, setCandidates] = useState<AgencyCandidate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (agencyContractsData) {
+      setCandidates(agencyContractsData);
+      setError(null);
+    }
+  }, [agencyContractsData]);
+
+  const isLoading = isQueryLoading && candidates.length === 0;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -133,12 +163,6 @@ export default function AgencyContractsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [activeTabs, setActiveTabs] = useState<string[]>(['In Process']);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-
-  const { data: session } = useSession();
-  const userRole = ((session?.user as any)?.role ?? 'user') as string;
-  const isSuperAdmin = userRole === 'super_admin';
-  const canDeselect = userRole === 'super_admin' || userRole === 'agency';
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
   // Agency Filter States
   const [filterReligion, setFilterReligion] = useState<string>('all');
@@ -316,28 +340,16 @@ export default function AgencyContractsPage() {
 
 
   // Fetch candidates from /api/agency/candidates
-  const fetchCandidates = async (agencyFilter?: string) => {
-    setIsLoading(true);
+  const fetchCandidates = async () => {
     try {
-      let url = '/api/agency/candidates';
-      if (agencyFilter && agencyFilter !== 'all') {
-        url += `?agency=${encodeURIComponent(agencyFilter)}`;
-      }
-      const res = await api(url);
-      if (!res.ok) throw new Error('Failed to load agency candidates');
-      const data = await res.json();
-      setCandidates(Array.isArray(data) ? data : []);
-      setError(null);
+      await refetchAgencyContracts();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Something went wrong while fetching data.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCandidates(selectedAgency);
+    fetchCandidates();
   }, [selectedAgency]);
 
   useEffect(() => {

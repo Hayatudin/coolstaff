@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { ROLE_CONFIG, type Role } from '@/lib/role-config';
+import { useUsersQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
   
 interface UserRow {
   id: string;
@@ -78,75 +79,121 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       onCreated();
       onClose();
     } catch (err: any) {
-      let msg = err.message || 'Failed to create user';
-      if (msg.includes('already exists') || msg.includes('already_exists') || msg.includes('UNPROCESSABLE_ENTITY')) {
-        msg = 'A user with this email address already exists. Please choose a different email.';
-      }
-      setError(msg);
+      setError(err.message || 'Failed to create user');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">Create New User</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"><X size={18} /></button>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-border space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <UserPlus size={20} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-[#111928] text-lg">Create New User</h3>
+              <p className="text-xs text-text-tertiary">Add team member access</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-text-tertiary hover:bg-gray-100 transition-colors">
+            <X size={18} />
+          </button>
         </div>
 
-        <form onSubmit={handleCreate} className="p-6 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
-              <AlertCircle size={15} className="shrink-0" />{error}
-            </div>
-          )}
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium flex items-center gap-2">
+            <AlertCircle size={14} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
+        <form onSubmit={handleCreate} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Full Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} required placeholder="John Doe"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all" />
+            <label className="text-xs font-bold text-[#111928] block mb-1">Full Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. John Doe"
+              className="w-full px-4 py-2.5 rounded-xl border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium outline-hidden transition-all"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email Address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="user@example.com"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all" />
+            <label className="text-xs font-bold text-[#111928] block mb-1">Email Address</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@company.com"
+              className="w-full px-4 py-2.5 rounded-xl border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium outline-hidden transition-all"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Min. 6 characters"
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all" />
+            <label className="text-xs font-bold text-[#111928] block mb-1">Password</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Minimum 6 characters"
+              className="w-full px-4 py-2.5 rounded-xl border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium outline-hidden transition-all"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Role</label>
-            <select value={role} onChange={e => setRole(e.target.value as Role)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all bg-white cursor-pointer">
-              {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            <label className="text-xs font-bold text-[#111928] block mb-1">Assign Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium outline-hidden transition-all bg-white"
+            >
+              {ROLE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 
           {role === 'agency' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Agency Template</label>
-              <select value={agency} onChange={e => setAgency(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all bg-white cursor-pointer">
-                {AGENCIES.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              <label className="text-xs font-bold text-[#111928] block mb-1">Assigned Agency</label>
+              <select
+                value={agency}
+                onChange={(e) => setAgency(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium outline-hidden transition-all bg-white"
+              >
+                {AGENCIES.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
               </select>
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={loading}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <><Loader2 size={15} className="animate-spin" />Creating…</> : <><Check size={15} />Create User</>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {loading ? <><Loader2 size={14} className="animate-spin" />Creating…</> : <><Check size={14} />Create User</>}
             </button>
           </div>
         </form>

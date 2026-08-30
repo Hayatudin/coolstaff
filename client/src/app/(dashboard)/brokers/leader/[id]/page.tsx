@@ -14,11 +14,17 @@ import Input from '@/components/ui/Input';
 import { Broker, Leader } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
+import { useLeadersQuery, useBrokersQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
 
 export default function LeaderBrokersPage() {
   const params = useParams();
   const router = useRouter();
   const leaderId = params.id as string;
+
+  const { data: fetchedLeaders = [], isLoading: isLeadersLoading, refetch: refetchLeaders } = useLeadersQuery();
+  const { data: fetchedBrokers = [], isLoading: isBrokersLoading, refetch: refetchBrokers } = useBrokersQuery();
+  const invalidateQueries = useInvalidateQueries();
+
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isAuthorized = role === 'super_admin' || role === 'accountant';
@@ -30,7 +36,22 @@ export default function LeaderBrokersPage() {
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [selectedBrokerForTemplate, setSelectedBrokerForTemplate] = useState<Broker | null>(null);
   const [isChangingTemplate, setIsChangingTemplate] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (fetchedLeaders) {
+      setLeaders(fetchedLeaders);
+      const match = fetchedLeaders.find((l: Leader) => l.id === leaderId);
+      setLeader(match || null);
+    }
+  }, [fetchedLeaders, leaderId]);
+
+  useEffect(() => {
+    if (fetchedBrokers) {
+      setBrokers(fetchedBrokers);
+    }
+  }, [fetchedBrokers]);
+
+  const isLoading = (isLeadersLoading || isBrokersLoading) && !leader;
   const [searchQuery, setSearchQuery] = useState('');
 
   // Add broker state
@@ -97,26 +118,11 @@ export default function LeaderBrokersPage() {
 
   const fetchData = async () => {
     try {
-      setIsLoading(true);
-      const [leadersRes, brokersRes] = await Promise.all([
-        api('/api/leaders', { cache: 'no-store' }),
-        api('/api/brokers', { cache: 'no-store' })
-      ]);
-      const leadersData = await leadersRes.json();
-      const brokersData = await brokersRes.json();
-      
-      if (Array.isArray(leadersData)) {
-        setLeaders(leadersData);
-        const match = leadersData.find((l: Leader) => l.id === leaderId);
-        setLeader(match || null);
-      }
-      if (Array.isArray(brokersData)) {
-        setBrokers(brokersData);
-      }
+      invalidateQueries(['leaders', 'brokers']);
+      refetchLeaders();
+      refetchBrokers();
     } catch (err) {
       console.error('Failed to fetch data:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 

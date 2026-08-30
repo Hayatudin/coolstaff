@@ -18,6 +18,7 @@ import {
   FileDown
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { getFileUrl, convertImageToBase64 } from '@/lib/utils';
 import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
@@ -181,9 +182,35 @@ const getExperienceDisplay = (workExperience: any): string => {
 };
 
 export default function AvailableCandidatesPage() {
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
+  const { data: session } = useSession();
+  const userRole = ((session?.user as any)?.role ?? 'user') as string;
+  const isSuperAdmin = userRole === 'super_admin';
+
+  const { data: agencyCandidatesData, isLoading: isQueryLoading, refetch: refetchAgencyCandidates } = useQuery({
+    queryKey: ['agency-available-candidates', selectedAgency, isSuperAdmin],
+    queryFn: async () => {
+      const url = isSuperAdmin && selectedAgency !== 'all' 
+        ? `/api/agency/available-candidates?agency=${selectedAgency}`
+        : '/api/agency/available-candidates';
+      const res = await api(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch candidates');
+      return await res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
   const [candidates, setCandidates] = useState<AvailableCandidate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (agencyCandidatesData) {
+      setCandidates(agencyCandidatesData);
+      setError(null);
+    }
+  }, [agencyCandidatesData]);
+
+  const isLoading = isQueryLoading && candidates.length === 0;
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 9;
@@ -191,11 +218,6 @@ export default function AvailableCandidatesPage() {
   // Search and Filter States
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
-
-  const { data: session } = useSession();
-  const userRole = ((session?.user as any)?.role ?? 'user') as string;
-  const isSuperAdmin = userRole === 'super_admin';
 
   // Input states for filters (applied immediately)
   const [inputMinAge, setInputMinAge] = useState('');
@@ -633,21 +655,10 @@ export default function AvailableCandidatesPage() {
 
   // Fetch candidates from /api/agency/available-candidates
   const fetchCandidates = async () => {
-    setIsLoading(true);
     try {
-      const url = isSuperAdmin && selectedAgency !== 'all' 
-        ? `/api/agency/available-candidates?agency=${selectedAgency}`
-        : '/api/agency/available-candidates';
-      const res = await api(url);
-      if (!res.ok) throw new Error('Failed to fetch candidates');
-      const data = await res.json();
-      setCandidates(data);
-      setError(null);
+      await refetchAgencyCandidates();
     } catch (err: any) {
-      setError(err.message || 'Error occurred while loading candidates');
-      setCandidates([]);
-    } finally {
-      setIsLoading(false);
+      console.error(err);
     }
   };
 

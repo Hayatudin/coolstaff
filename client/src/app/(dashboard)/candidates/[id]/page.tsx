@@ -14,6 +14,8 @@ import { getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { resolveCandidateNationality } from '@/lib/cvHelpers';
+import { useCandidateQuery } from '@/hooks/useQueryHooks';
+import { useQueryClient } from '@tanstack/react-query';
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number | undefined }) => (
   <div className="group flex flex-col py-3 px-4 rounded-2xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10 min-w-0">
@@ -28,10 +30,17 @@ const InfoItem = ({ icon: Icon, label, value }: { icon: any; label: string; valu
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const candidateId = params.id as string;
+  const { data: fetchedCandidate, isLoading: isQueryLoading, refetch: refetchCandidate } = useCandidateQuery(candidateId);
+
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role ?? 'user';
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [localCandidate, setLocalCandidate] = useState<Candidate | null>(null);
+  const candidate = localCandidate || fetchedCandidate || null;
+  const isLoading = isQueryLoading && !candidate;
+
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -44,22 +53,15 @@ export default function CandidateDetailPage() {
   const [editLaborIdInput, setEditLaborIdInput] = useState('');
   const [isSavingLaborId, setIsSavingLaborId] = useState(false);
 
-  const fetchCandidate = useCallback(async () => {
-    try {
-      const res = await api(`/api/candidates/${params.id}`);
-      if (!res.ok) throw new Error('Not found');
-      const data = await res.json();
-      setCandidate(data);
-    } catch {
-      setCandidate(null);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (fetchedCandidate) {
+      setLocalCandidate(fetchedCandidate);
     }
-  }, [params.id]);
+  }, [fetchedCandidate]);
 
   const mergeAndFetchCandidate = useCallback((updatedCandidate: any) => {
-    setCandidate((prev: any) => {
-      if (!prev) return null;
+    setLocalCandidate((prev: any) => {
+      if (!prev) return updatedCandidate;
       const nextCandidate = { ...prev, ...updatedCandidate };
       if (updatedCandidate.personalInfo || prev.personalInfo) {
         nextCandidate.personalInfo = {
@@ -75,8 +77,9 @@ export default function CandidateDetailPage() {
       }
       return nextCandidate;
     });
-    fetchCandidate();
-  }, [fetchCandidate]);
+    queryClient.invalidateQueries({ queryKey: ['candidate', candidateId] });
+    refetchCandidate();
+  }, [candidateId, queryClient, refetchCandidate]);
 
   const handleDownloadFile = async (url: string, filename: string) => {
     try {
@@ -214,8 +217,8 @@ export default function CandidateDetailPage() {
   };
 
   useEffect(() => {
-    if (params.id) fetchCandidate();
-  }, [params.id, fetchCandidate]);
+    if (params.id) refetchCandidate();
+  }, [params.id, refetchCandidate]);
 
   const handleDelete = async () => {
     if (!candidate) return;
@@ -489,7 +492,7 @@ export default function CandidateDetailPage() {
                 </div>
                 <div className="space-y-1 pl-5">
                   <p className="text-[15px] text-text-primary font-semibold">{pi.phone || '—'}</p>
-                  {pi.additionalPhones && pi.additionalPhones.length > 0 && pi.additionalPhones.map((p, i) => (
+                  {pi.additionalPhones && pi.additionalPhones.length > 0 && pi.additionalPhones.map((p: any, i: number) => (
                     <p key={i} className="text-[15px] text-text-primary font-semibold">{p}</p>
                   ))}
                 </div>
@@ -562,7 +565,7 @@ export default function CandidateDetailPage() {
               <div>
                 <p className="text-[11px] text-text-tertiary uppercase tracking-[0.1em] font-bold mb-3">Languages</p>
                 <div className="flex flex-wrap gap-2">
-                  {pi.languages?.length > 0 ? pi.languages.map(l => (
+                  {pi.languages?.length > 0 ? pi.languages.map((l: any) => (
                     <span key={l} className="px-4 py-1.5 bg-primary/5 text-primary text-sm font-bold rounded-xl border border-primary/10">{l}</span>
                   )) : <span className="text-text-tertiary text-sm font-semibold pl-1">—</span>}
                 </div>
@@ -570,7 +573,7 @@ export default function CandidateDetailPage() {
               <div>
                 <p className="text-[11px] text-text-tertiary uppercase tracking-[0.1em] font-bold mb-3">Skills</p>
                 <div className="flex flex-wrap gap-2">
-                  {pi.skills?.length > 0 ? pi.skills.map(s => (
+                  {pi.skills?.length > 0 ? pi.skills.map((s: any) => (
                     <span key={s} className="px-4 py-1.5 bg-emerald-50 text-emerald-700 text-sm font-bold rounded-xl border border-emerald-100">{s}</span>
                   )) : <span className="text-text-tertiary text-sm font-semibold pl-1">—</span>}
                 </div>

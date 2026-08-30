@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   Users, Loader2, Search, ArrowLeft, FileText,
   ChevronRight, Filter, Download, Trash2, Briefcase,
@@ -92,7 +93,25 @@ export default function BrokerCandidatesPage() {
 
   const [broker, setBroker] = useState<Broker | null>(null);
   const [candidates, setCandidates] = useState<BrokerCandidate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const { data: brokerQueryData, isLoading: isBrokerQueryLoading, refetch: refetchBrokerData } = useQuery({
+    queryKey: ['broker-candidates', brokerId],
+    queryFn: async () => {
+      const res = await api(`/api/brokers/${brokerId}/candidates?interval=ALL`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch broker candidates');
+      return await res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  useEffect(() => {
+    if (brokerQueryData) {
+      setBroker(brokerQueryData);
+      setCandidates(brokerQueryData.candidates || []);
+    }
+  }, [brokerQueryData]);
+
+  const isLoading = isBrokerQueryLoading && !broker;
   const [searchQuery, setSearchQuery] = useState('');
 
   // Advanced Filters
@@ -1004,16 +1023,9 @@ export default function BrokerCandidatesPage() {
 
   const fetchBrokerData = async () => {
     try {
-      setIsLoading(true);
-      const res = await api(`/api/brokers/${brokerId}/candidates?interval=ALL`);
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
-      setBroker(data);
-      setCandidates(data.candidates || []);
+      await refetchBrokerData();
     } catch (err) {
       console.error('Failed to fetch broker candidates:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 

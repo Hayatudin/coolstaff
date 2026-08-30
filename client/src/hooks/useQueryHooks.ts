@@ -65,6 +65,27 @@ export async function fetchPassportsApi() {
   return Array.isArray(data) ? data : [];
 }
 
+export async function fetchUsersApi() {
+  const res = await api('/api/users', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchCandidateDetailApi(id: string) {
+  if (!id) return null;
+  const res = await api(`/api/candidates/${id}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch candidate details');
+  return await res.json();
+}
+
+export async function fetchNotificationsApi() {
+  const res = await api('/api/notifications', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch notifications');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 // --- Hooks ---
 export function useQuickRegistrationsQuery() {
   return useQuery({
@@ -122,11 +143,22 @@ export function usePassportsQuery() {
   });
 }
 
-export async function fetchNotificationsApi() {
-  const res = await api('/api/notifications', { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch notifications');
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
+export function useUsersQuery() {
+  return useQuery({
+    queryKey: QUERY_KEYS.users,
+    queryFn: fetchUsersApi,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useCandidateQuery(id: string) {
+  return useQuery({
+    queryKey: ['candidate', id],
+    queryFn: () => fetchCandidateDetailApi(id),
+    enabled: Boolean(id),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+  });
 }
 
 export function useNotificationsQuery() {

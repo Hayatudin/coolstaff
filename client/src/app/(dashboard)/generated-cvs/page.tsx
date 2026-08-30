@@ -324,6 +324,8 @@ function DeleteModal({
   );
 }
 
+import { useGeneratedCVsQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
+
 // ── Main Content ──────────────────────────────────────────────────────────────
 function GeneratedCVsContent() {
   const router = useRouter();
@@ -332,8 +334,25 @@ function GeneratedCVsContent() {
   const userRole = (session?.user as any)?.role;
   const isSuperAdmin = userRole === 'super_admin';
 
+  const { data: fetchedCVs = [], isLoading: isQueryLoading, refetch } = useGeneratedCVsQuery();
+  const invalidateQueries = useInvalidateQueries();
   const [cvs, setCvs] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (fetchedCVs) {
+      setCvs(fetchedCVs.filter((c: any) => 
+        c?.candidate &&
+        !c.candidate.isRequested && 
+        c.candidate.personalInfo?.medicalStatus !== 'Unfit' && 
+        c.candidate.medicalStatus !== 'Unfit' && 
+        !c.candidate.visaSelected &&
+        !c.candidate.isFlagged
+      ));
+    }
+  }, [fetchedCVs]);
+
+  const isLoading = isQueryLoading && cvs.length === 0;
+
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [religionFilter, setReligionFilter] = useState<string>('');
   const [experienceFilter, setExperienceFilter] = useState<string>('');
@@ -530,33 +549,18 @@ const normalizeLanguageName = (lang: string): string => {
     }
   }, []);
 
-  const fetchCVs = async (showLoading = true) => {
+  const fetchCVs = async (showLoading = false) => {
     try {
-      if (showLoading) setIsLoading(true);
-      const res = await api('/api/generated-cvs', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed');
-      const data = await res.json();
-      setCvs(data.filter((c: any) => 
-        !c.candidate.isRequested && 
-        c.candidate.personalInfo?.medicalStatus !== 'Unfit' && 
-        c.candidate.medicalStatus !== 'Unfit' && 
-        !c.candidate.visaSelected &&
-        !c.candidate.isFlagged
-      ));
-      if (showLoading) setSelectedCVIds(new Set()); // only clear selection on hard refresh
+      invalidateQueries('generatedCVs');
+      await refetch();
+      if (showLoading) setSelectedCVIds(new Set());
     } catch {
       if (showLoading) showToast('Failed to load CVs', 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   useEffect(() => { 
-    fetchCVs(true);
-    const interval = setInterval(() => {
-      fetchCVs(false);
-    }, 3000);
-    return () => clearInterval(interval);
+    fetchCVs(false);
   }, []);
 
   useEffect(() => {
