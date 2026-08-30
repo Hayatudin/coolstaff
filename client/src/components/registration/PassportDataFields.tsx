@@ -10,6 +10,7 @@ interface PassportDataFieldsProps {
   onChange: (field: keyof PassportData, value: string) => void;
   animatingFields: Set<string>;
   isExtracted: boolean;
+  disabled?: boolean;
 }
 
 export default function PassportDataFields({
@@ -17,6 +18,7 @@ export default function PassportDataFields({
   onChange,
   animatingFields,
   isExtracted,
+  disabled = false,
 }: PassportDataFieldsProps) {
   const fields: { key: keyof PassportData; label: string; type?: string }[] = [
     { key: 'passportNumber', label: 'Passport Number' },
@@ -56,7 +58,7 @@ export default function PassportDataFields({
                 ]}
                 value={data.gender || ''}
                 onChange={(val) => onChange('gender', val)}
-                disabled={animatingFields.has('gender')}
+                disabled={disabled || animatingFields.has('gender')}
               />
             ) : (
               <Input
@@ -65,7 +67,8 @@ export default function PassportDataFields({
                 value={data[field.key]}
                 onChange={(e) => onChange(field.key, e.target.value)}
                 animating={animatingFields.has(field.key)}
-                readOnly={animatingFields.has(field.key)}
+                readOnly={disabled || animatingFields.has(field.key)}
+                disabled={disabled}
               />
             )}
           </div>

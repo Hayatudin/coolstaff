@@ -32,9 +32,10 @@ interface PersonalInfoFormProps {
   videoUrl?: string;
   onVideoUrlChange?: (url: string) => void;
   isQuickRegImport?: boolean;
+  quickRegistrationId?: string | null;
 }
 
-export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange, isQuickRegImport }: PersonalInfoFormProps) {
+export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange, isQuickRegImport, quickRegistrationId }: PersonalInfoFormProps) {
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
     if (file.size > 50 * 1024 * 1024) {
       alert('Max file size is 50MB');
@@ -121,9 +122,28 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         </div>
 
         {isQuickRegImport && (
-          <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-4 flex items-center gap-3 text-amber-900 text-sm font-medium mb-6 animate-fade-in">
-            <Lock size={18} className="text-amber-600 shrink-0" />
-            <span>Information imported from Quick Registration is locked to prevent data mismatches between records.</span>
+          <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900 text-sm font-medium mb-8 animate-fade-in shadow-xs">
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-700 shrink-0">
+                <Lock size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-amber-950 text-base">Quick Registration Fields Locked</p>
+                <p className="text-xs text-amber-800/90 mt-0.5 leading-relaxed">
+                  Information imported from Quick Registration cannot be edited directly here to prevent data mismatches. To update these fields, please edit the candidate&apos;s Quick Registration record.
+                </p>
+              </div>
+            </div>
+            {quickRegistrationId && (
+              <a
+                href={`/quick-registration/preview/${quickRegistrationId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shrink-0 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+              >
+                Edit Quick Registration
+              </a>
+            )}
           </div>
         )}
 
