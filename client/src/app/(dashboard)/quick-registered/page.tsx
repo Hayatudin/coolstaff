@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useQuickRegistrationsQuery, useBrokersQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
 import { useSession } from '@/lib/auth-client';
 import { getFileUrl } from '@/lib/utils';
 import { Loader2, ClipboardList, Search, Eye, Calendar, User, ShieldCheck, X, Upload, CheckCircle2, XCircle, ArrowRight, FileText, Trash2, MoreVertical, Edit2, Plus, Phone, Briefcase, GraduationCap, Heart, Baby, Globe, ChevronLeft, ChevronRight, Download, Video } from 'lucide-react';
@@ -188,32 +189,21 @@ export default function QuickRegisteredPage() {
     reader.readAsDataURL(file);
   };
 
+  const { data: fetchedRegs = [], isLoading: isRegLoading } = useQuickRegistrationsQuery();
+  const { data: fetchedBrokers = [], isLoading: isBrokersLoading } = useBrokersQuery();
+  const invalidateQueries = useInvalidateQueries();
+
   useEffect(() => {
-    const fetchData = async (showLoading = true) => {
-      try {
-        if (showLoading) setLoading(true);
-        const [regRes, brokerRes] = await Promise.all([
-          api('/api/quick-registrations'),
-          api('/api/brokers')
-        ]);
-        const regData = await regRes.json();
-        const brokerData = await brokerRes.json();
-        if (Array.isArray(regData)) setRegistrations(regData);
-        if (Array.isArray(brokerData)) setBrokers(brokerData);
-      } catch (err) {
-        console.error('Failed to fetch quick registrations or brokers', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData(true);
+    if (fetchedRegs) setRegistrations(fetchedRegs as QuickReg[]);
+  }, [fetchedRegs]);
 
-    const interval = setInterval(() => {
-      fetchData(false);
-    }, 3000);
+  useEffect(() => {
+    if (fetchedBrokers) setBrokers(fetchedBrokers);
+  }, [fetchedBrokers]);
 
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => {
+    setLoading(isRegLoading || isBrokersLoading);
+  }, [isRegLoading, isBrokersLoading]);
 
   const filtered = registrations.filter(r => {
     if (!search) return true;
@@ -313,6 +303,7 @@ export default function QuickRegisteredPage() {
           ? { ...r, verificationStatus: 'promoted', promotedCandidateId: data.candidateId }
           : r
       ));
+      invalidateQueries(['quickRegistrations', 'candidates']);
     } catch (err: any) {
       setVerifyError(err.message || 'Failed to push documents to candidate.');
     } finally {
@@ -329,6 +320,7 @@ export default function QuickRegisteredPage() {
         throw new Error(errData.error || 'Failed to delete');
       }
       setRegistrations(prev => prev.filter(r => r.id !== id));
+      invalidateQueries(['quickRegistrations', 'candidates']);
     } catch (err: any) {
       alert(err.message || 'Something went wrong while deleting');
     }

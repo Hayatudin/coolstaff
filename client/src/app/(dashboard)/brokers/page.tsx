@@ -15,8 +15,14 @@ import { Broker, Leader } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 
+import { useBrokersQuery, useLeadersQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
+
 export default function BrokersPage() {
   const router = useRouter();
+  const { data: fetchedBrokers = [], isLoading: isBrokersQueryLoading } = useBrokersQuery();
+  const { data: fetchedLeaders = [], isLoading: isLeadersQueryLoading } = useLeadersQuery();
+  const invalidateQueries = useInvalidateQueries();
+
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const isSuperAdmin = role === 'super_admin';
@@ -25,6 +31,27 @@ export default function BrokersPage() {
   const canManageBrokers = role === 'super_admin' || role === 'accountant' || role === 'genaral';
 
   const [brokers, setBrokers] = useState<Broker[]>([]);
+  const [leaders, setLeaders] = useState<Leader[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLeadersLoading, setIsLeadersLoading] = useState(true);
+
+  useEffect(() => {
+    if (fetchedBrokers) setBrokers(fetchedBrokers);
+  }, [fetchedBrokers]);
+
+  useEffect(() => {
+    if (fetchedLeaders) setLeaders(fetchedLeaders);
+  }, [fetchedLeaders]);
+
+  useEffect(() => {
+    setIsLoading(isBrokersQueryLoading);
+    setIsLeadersLoading(isLeadersQueryLoading);
+  }, [isBrokersQueryLoading, isLeadersQueryLoading]);
+
+  const fetchData = async () => {
+    invalidateQueries(['brokers', 'leaders']);
+  };
+
   const [selectedBrokerForTemplate, setSelectedBrokerForTemplate] = useState<Broker | null>(null);
   const [isChangingTemplate, setIsChangingTemplate] = useState(false);
 
@@ -71,9 +98,6 @@ export default function BrokersPage() {
       setIsChangingTemplate(false);
     }
   };
-  const [leaders, setLeaders] = useState<Leader[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLeadersLoading, setIsLeadersLoading] = useState(true);
 
   // Create forms visibility states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -153,50 +177,6 @@ export default function BrokersPage() {
       window.removeEventListener('scroll', handleScrollOrResize, true);
       window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, []);
-
-  const fetchBrokers = async () => {
-    try {
-      setIsLoading(true);
-      const res = await api('/api/brokers', { cache: 'no-store' });
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setBrokers(data);
-      } else {
-        console.error('API did not return an array for brokers:', data);
-        setBrokers([]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch brokers:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchLeaders = async () => {
-    try {
-      setIsLeadersLoading(true);
-      const res = await api('/api/leaders', { cache: 'no-store' });
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setLeaders(data);
-      } else {
-        console.error('API did not return an array for leaders:', data);
-        setLeaders([]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch leaders:', err);
-    } finally {
-      setIsLeadersLoading(false);
-    }
-  };
-
-  const fetchData = async () => {
-    await Promise.all([fetchBrokers(), fetchLeaders()]);
-  };
-
-  useEffect(() => {
-    fetchData();
   }, []);
 
   // Keyboard navigation spelling search

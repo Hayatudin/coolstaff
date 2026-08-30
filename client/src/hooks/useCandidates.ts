@@ -1,83 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Candidate } from '@/types';
 import { api } from '@/lib/api';
 
-// Global cache variables outside the component
-let cachedCandidates: Candidate[] | null = null;
-let lastFetchTime = 0;
+export const CANDIDATES_QUERY_KEY = ['candidates'];
+
+export async function fetchCandidatesApi(): Promise<Candidate[]> {
+  const res = await api('/api/candidates', { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error('Failed to fetch candidates');
+  }
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
 
 export function clearCandidatesCache() {
-  cachedCandidates = null;
-  lastFetchTime = 0;
+  // Legacy compatibility helper
 }
 
 export function useCandidates() {
-  const [candidates, setCandidates] = useState<Candidate[]>(cachedCandidates || []);
-  const [isLoading, setIsLoading] = useState(!cachedCandidates);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchCandidates = async (showLoading = false) => {
-    if (showLoading && !cachedCandidates) {
-      setIsLoading(true);
-    }
-    try {
-      const res = await api('/api/candidates', { cache: 'no-store' });
-      if (!res.ok) {
-        throw new Error('Failed to fetch candidates');
-      }
-      const data = await res.json();
-      const freshData = Array.isArray(data) ? data : [];
-      cachedCandidates = freshData;
-      lastFetchTime = Date.now();
-      setCandidates(freshData);
-      setError(null);
-    } catch (err: any) {
-      console.error('[CANDIDATES FETCH ERROR]', err);
-      setError(err.message || 'Failed to fetch candidates');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const query = useQuery<Candidate[], Error>({
+    queryKey: CANDIDATES_QUERY_KEY,
+    queryFn: fetchCandidatesApi,
+    staleTime: 1000 * 60 * 5, // Keep cached data fresh for 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
+    refetchInterval: 15000, // Background poll every 15s for updates
+  });
 
-  // Immediate fetch on mount and setup polling
-  useEffect(() => {
-    fetchCandidates(true);
-
-    // Setup polling every 15 seconds
-    const interval = setInterval(() => {
-      fetchCandidates(false);
-    }, 15000);
-
-    // Listen for global app-refresh event to refresh instantly
-    const handleGlobalRefresh = () => {
-      fetchCandidates(false);
-    };
-    window.addEventListener('app-refresh', handleGlobalRefresh);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('app-refresh', handleGlobalRefresh);
-    };
-  }, []);
-
-  // Method to update cache and local state optimistically
   const mutate = (updater?: Candidate[] | ((prev: Candidate[]) => Candidate[])) => {
     if (updater === undefined) {
-      fetchCandidates(false);
+      queryClient.invalidateQueries({ queryKey: CANDIDATES_QUERY_KEY });
       return;
     }
 
-    if (typeof updater === 'function') {
-      setCandidates(prev => {
-        const newData = updater(prev);
-        cachedCandidates = newData;
-        return newData;
-      });
-    } else {
-      cachedCandidates = updater;
-      setCandidates(updater);
-    }
+    queryClient.setQueryData<Candidate[]>(CANDIDATES_QUERY_KEY, (old) => {
+      const prevData = old || [];
+      if (typeof updater === 'function') {
+        return updater(prevData);
+      }
+      return updater;
+    });
   };
 
-  return { candidates, isLoading, error, mutate };
+  return {
+    candidates: query.data || [],
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error ? query.error.message : null,
+    mutate,
+    refetch: query.refetch,
+  };
 }

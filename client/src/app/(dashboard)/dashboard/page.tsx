@@ -18,6 +18,7 @@ import { Candidate } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { ROUTE_ACCESS, type Role } from '@/lib/role-config';
 import { useCandidates } from '@/hooks/useCandidates';
+import { useQuickRegistrationsQuery } from '@/hooks/useQueryHooks';
 
 const MUSANED_URL = 'https://accounts.wahid.sa/auth/realms/wahid/protocol/openid-connect/auth?client_id=etawtheeq-fe&redirect_uri=https%3A%2F%2Ftawtheeq.musaned.com.sa%2Flogin&state=1afbc6a5-ab04-454a-864e-2139d00d05a5&response_mode=fragment&response_type=code&scope=openid&nonce=c08d47d0-27af-41b3-8812-5ea7548fd14e&code_challenge=mlx9pnpSqR2PmNC1onUouVnZeV3FM3T2f8ELMWSHvds&code_challenge_method=S256';
 
@@ -27,6 +28,7 @@ type MetricFilter = 'all' | 'candidates' | 'requested' | 'quick' | 'fit';
 export default function DashboardPage() {
   const router = useRouter();
   const { candidates: allCandidates, isLoading, mutate: setAllCandidates } = useCandidates();
+  const { data: quickRegistrations = [], isLoading: quickLoading } = useQuickRegistrationsQuery();
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,21 +57,6 @@ export default function DashboardPage() {
     }
   }, [userRole, router]);
 
-  const [quickRegistrations, setQuickRegistrations] = React.useState<any[]>([]);
-  const [quickLoading, setQuickLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    if (['registrar', 'super_admin', 'processor', 'coordinator', 'accountant'].includes(userRole)) {
-      setQuickLoading(true);
-      api('/api/quick-registrations')
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) setQuickRegistrations(data);
-        })
-        .catch(err => console.error('Failed to fetch quick registrations on dashboard', err))
-        .finally(() => setQuickLoading(false));
-    }
-  }, [userRole]);
 
   // Role-based access helper
   const canSee = (route: string) => {
