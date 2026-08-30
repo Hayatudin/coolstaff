@@ -16,6 +16,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { cn, getFileUrl } from '@/lib/utils';
+import { usePassportsQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
 
 interface Passport {
   id: string;
@@ -32,8 +33,17 @@ interface Passport {
 }
 
 export default function AvailablePassportPage() {
+  const { data: fetchedPassports = [], isLoading: isQueryLoading, refetch: refetchPassports } = usePassportsQuery();
+  const invalidateQueries = useInvalidateQueries();
   const [passports, setPassports] = useState<Passport[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (fetchedPassports) {
+      setPassports(fetchedPassports);
+    }
+  }, [fetchedPassports]);
+
+  const loading = isQueryLoading && passports.length === 0;
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'available' | 'taken'>('available');
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -50,24 +60,14 @@ export default function AvailablePassportPage() {
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returnPassport, setReturnPassport] = useState<Passport | null>(null);
 
-  // Fetch all passports from backend
   const fetchPassports = async () => {
     try {
-      const res = await api('/api/passports');
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setPassports(data);
-      }
+      invalidateQueries('passports');
+      await refetchPassports();
     } catch (err) {
       console.error('Failed to fetch passports:', err);
-    } finally {
-      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchPassports();
-  }, []);
 
   // Handlers
   const handleOpenTakenModal = (passport: Passport) => {
@@ -96,6 +96,7 @@ export default function AvailablePassportPage() {
         }),
       });
       if (res.ok) {
+        invalidateQueries('passports');
         // Update local state instantly for snappiness
         setPassports(prev =>
           prev.map(p =>
@@ -140,6 +141,7 @@ export default function AvailablePassportPage() {
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
+        invalidateQueries('passports');
         // Update local state — restore to Available, keep shelfNo
         setPassports(prev =>
           prev.map(p =>
