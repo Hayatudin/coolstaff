@@ -278,43 +278,13 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            Hey {userName}, Welcome back! 👋
+            Hey {userName}, Welcome back!
           </h1>
           <p className="text-sm font-medium text-slate-500 mt-1">
             Here is your recruitment overview and operation statistics for today.
           </p>
         </div>
 
-        {/* Action Triggers */}
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          {canSee('/registration') && (
-            <Link href="/registration">
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-sm hover:bg-primary-dark transition-all cursor-pointer">
-                <UserPlus size={15} /> Add Candidate
-              </button>
-            </Link>
-          )}
-
-          <a 
-            href={MUSANED_URL} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
-          >
-            <ExternalLink size={15} /> <span>Musaned Sync</span>
-          </a>
-
-          <button
-            onClick={() => setShowNotificationsModal(true)}
-            className="relative p-2.5 bg-white border border-slate-200/80 rounded-xl hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
-            title="Notifications"
-          >
-            <Bell size={18} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center">
-              4
-            </span>
-          </button>
-        </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
