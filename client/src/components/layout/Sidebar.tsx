@@ -126,7 +126,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
           </div>
           {(!isCollapsed || isMobile) && (
             <span className="text-base font-extrabold text-white tracking-tight leading-none whitespace-nowrap">
-              Cool Stuff
+              Coolstaff
             </span>
           )}
         </div>
