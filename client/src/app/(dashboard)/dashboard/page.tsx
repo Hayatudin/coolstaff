@@ -11,7 +11,7 @@ import {
   Users, UserPlus, ExternalLink, Loader2, MoreVertical, CheckCircle2, 
   Trash2, Edit3, Eye, ClipboardList, Flag, Bell, TrendingUp, Calendar, 
   Sparkles, CheckCircle, ArrowUpRight, ArrowDownRight, UserCheck, ShieldCheck,
-  Filter, Layers, X, Info
+  Filter, Layers, X, Info, ShieldAlert, Building2
 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import { Candidate } from '@/types';
@@ -39,11 +39,9 @@ export default function DashboardPage() {
   const [cancelVisaModalId, setCancelVisaModalId] = React.useState<string | null>(null);
   const [cancelVisaNumberInput, setCancelVisaNumberInput] = React.useState('');
   
-  // Interactive Controls: Date Range & Active Card Metric Filter
+  // Interactive Controls: Date Range
   const [dateInterval, setDateInterval] = useState<DateInterval>('all');
   const [metricFilter, setMetricFilter] = useState<MetricFilter>('all');
-  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; candY: number; visaY: number; label: string; candCount: number; visaCount: number } | null>(null);
-  const [unreadNotifications, setUnreadNotifications] = useState(4);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   const { data: session } = useSession();
@@ -143,43 +141,74 @@ export default function DashboardPage() {
     return filterByDate(quickRegistrations);
   }, [quickRegistrations, dateInterval]);
 
-  // KPI Metrics Calculation
+  // Top 4 Card Metrics Calculation
   const totalCandidatesCount = filteredCandidates.length;
+
   const visaSelectedCount = useMemo(() => {
     return filteredCandidates.filter(c => c.isRequested || c.visaSelected || c.status === 'visa selected').length;
   }, [filteredCandidates]);
   
-  const fitCandidatesCount = useMemo(() => {
-    return filteredCandidates.filter(c => c.generatedCVs && c.generatedCVs.length > 0).length;
-  }, [filteredCandidates]);
-
   const quickRegCount = filteredQuickRegistrations.length;
+
   const pendingQuickCount = useMemo(() => {
     return filteredQuickRegistrations.filter(r => r.verificationStatus !== 'promoted').length;
   }, [filteredQuickRegistrations]);
 
+  const flaggedCandidatesCount = useMemo(() => {
+    return filteredCandidates.filter(c => c.isFlagged).length;
+  }, [filteredCandidates]);
+
   const conversionRate = totalCandidatesCount > 0 ? Math.round((visaSelectedCount / totalCandidatesCount) * 100) : 0;
 
-  // Sector distribution breakdown
-  const sectorBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {
-      'House Maid': 0,
-      'Driver': 0,
-      'Cook': 0,
-      'Babysitter': 0,
-      'Nurse': 0,
+  // Agency distribution breakdown (9 agencies)
+  const agencyBreakdown = useMemo(() => {
+    const tmplMap: Record<string, string> = {
+      'ussus': 'USSUS',
+      'al-shablan': 'AL-Shablan',
+      'alm': 'Almersah',
+      'almala': 'Almala',
+      'ka7': 'Kaafaat',
+      'ku2': 'Khuzam',
+      'ma': 'MA Standard',
+      'ra': 'Rayaat',
+      'vision': 'Vision',
     };
+
+    const counts: Record<string, number> = {
+      'USSUS': 0,
+      'AL-Shablan': 0,
+      'Almersah': 0,
+      'Almala': 0,
+      'Kaafaat': 0,
+      'Khuzam': 0,
+      'MA Standard': 0,
+      'Rayaat': 0,
+      'Vision': 0,
+    };
+
     filteredCandidates.forEach(c => {
-      const job = c.personalInfo?.job || 'House Maid';
-      if (job.toLowerCase().includes('driver')) counts['Driver']++;
-      else if (job.toLowerCase().includes('cook')) counts['Cook']++;
-      else if (job.toLowerCase().includes('baby') || job.toLowerCase().includes('nanny')) counts['Babysitter']++;
-      else if (job.toLowerCase().includes('nurse')) counts['Nurse']++;
-      else counts['House Maid']++;
+      let agencyName = c.agency;
+      if (!agencyName && c.latestCVTemplate) {
+        agencyName = tmplMap[c.latestCVTemplate] || c.latestCVTemplate;
+      }
+      if (!agencyName) {
+        agencyName = 'USSUS';
+      }
+      
+      const foundKey = Object.keys(counts).find(k => k.toLowerCase() === agencyName?.toLowerCase());
+      if (foundKey) {
+        counts[foundKey]++;
+      } else {
+        counts[agencyName] = (counts[agencyName] || 0) + 1;
+      }
     });
 
     const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-    const colors = ['#2A276C', '#6b5ce7', '#ec4899', '#3b82f6', '#10b981'];
+    const colors = [
+      '#2A276C', '#6b5ce7', '#ec4899', '#3b82f6', '#10b981', 
+      '#f59e0b', '#8b5cf6', '#06b6d4', '#f97316'
+    ];
+
     let currentAngle = 0;
 
     return Object.entries(counts).map(([name, count], idx) => {
@@ -273,7 +302,7 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-fade-in pb-12 text-slate-800">
       
       {/* ════════════════════════════════════════════════════════════════════════
-          1. iOS TOP GREETING & HEADER BAR
+          1. TOP GREETING & HEADER
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -284,56 +313,33 @@ export default function DashboardPage() {
             Here is your recruitment overview and operation statistics for today.
           </p>
         </div>
-
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          2. TOP 4 CARDS ROW (FinPay Inspiration UI Aesthetics)
+          2. TOP 4 CARDS ROW (Card 1 Blue: Total Candidates)
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Card 1: Metallic Primary Brand Card */}
-        <div className="bg-gradient-to-br from-[#2A276C] via-[#35327D] to-[#4A479C] text-white p-5 rounded-2xl shadow-sm border border-indigo-900/40 relative overflow-hidden flex flex-col justify-between min-h-[170px]">
+        {/* Card 1 (Blue background): Total Candidates */}
+        <div className="bg-gradient-to-br from-[#2A276C] via-[#35327D] to-[#4A479C] text-white p-5 rounded-2xl shadow-sm border border-indigo-900/40 relative overflow-hidden flex flex-col justify-between min-h-[160px]">
           <div className="flex items-center justify-between relative z-10">
             <span className="text-[10px] font-black uppercase tracking-widest bg-white/15 px-2.5 py-1 rounded-lg backdrop-blur-md text-white/90">
-              CoolStaff Agency
+              Total Candidates
             </span>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           </div>
 
-          <div className="relative z-10 my-3">
-            <p className="text-[11px] font-medium text-white/60 uppercase tracking-wider">Total Active Quota</p>
-            <h3 className="text-3xl font-extrabold tracking-tight mt-0.5">{totalCandidatesCount}</h3>
+          <div className="relative z-10 my-2">
+            <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight">{totalCandidatesCount}</h3>
           </div>
 
           <div className="flex items-center justify-between relative z-10 pt-2 border-t border-white/10 text-xs">
-            <span className="font-mono text-[11px] text-white/70">CS-2026-ETH</span>
-            <span className="text-emerald-300 font-semibold text-[11px]">Musaned Synced ✓</span>
+            <span className="text-white/70 text-[11px]">Registered Candidates</span>
+            <span className="text-emerald-300 font-semibold text-[11px]">+14% this month</span>
           </div>
         </div>
 
-        {/* Card 2: Total Candidates KPI */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Users size={20} />
-            </div>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
-              <TrendingUp size={12} /> +14%
-            </span>
-          </div>
-
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-slate-400">Total Candidates</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalCandidatesCount}</h3>
-          </div>
-
-          <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-100 pt-2 font-medium">
-            Active candidate database records
-          </p>
-        </div>
-
-        {/* Card 3: Visa Selected KPI */}
+        {/* Card 2: Visa Selected */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -344,17 +350,17 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <p className="text-xs font-semibold text-slate-400">Visa Selected</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{visaSelectedCount}</h3>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">{visaSelectedCount}</h3>
           </div>
 
-          <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-100 pt-2 font-medium">
-            Confirmed for Gulf employer visas
+          <p className="text-[11px] text-slate-400 mt-2 border-t border-slate-100 pt-2 font-medium">
+            Confirmed for employer visas
           </p>
         </div>
 
-        {/* Card 4: Quick Registrations KPI */}
+        {/* Card 3: Quick Registration */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
@@ -365,15 +371,37 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-slate-400">Quick Registrations</p>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{quickRegCount}</h3>
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-slate-400">Quick Registration</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">{quickRegCount}</h3>
           </div>
 
-          <p className="text-[11px] text-slate-400 mt-3 border-t border-slate-100 pt-2 font-medium">
+          <p className="text-[11px] text-slate-400 mt-2 border-t border-slate-100 pt-2 font-medium">
             Musaned fast entry pipeline
           </p>
         </div>
+
+        {/* Card 4: Flagged Candidates */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-none hover:border-slate-300 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+              <Flag size={20} />
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700">
+              Attention Required
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <p className="text-xs font-semibold text-slate-400">Flagged Candidates</p>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">{flaggedCandidatesCount}</h3>
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-2 border-t border-slate-100 pt-2 font-medium">
+            Candidates marked for review
+          </p>
+        </div>
+
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
@@ -404,77 +432,70 @@ export default function DashboardPage() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          4. MIDDLE SECTION: CHARTS & SECTOR BREAKDOWN (2/3 + 1/3)
+          4. MIDDLE SECTION: RECRUITMENT STATS, AGENCY STATS & NOTIFICATIONS
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* Left: Main Bar / Area Chart (2/3 width) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 space-y-4">
+        {/* Column 1: Recruitment Statistics (Minimized width: 5 cols) */}
+        <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 space-y-3 flex flex-col justify-between">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Recruitment Statistics</h2>
-              <p className="text-xs text-slate-400 font-medium">Candidate Registrations vs Visa Selections</p>
+              <p className="text-xs text-slate-400 font-medium">Registrations vs Visa Approved</p>
             </div>
             
-            <div className="flex items-center gap-4 text-xs font-semibold">
-              <span className="flex items-center gap-1.5 text-slate-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#2A276C]" /> Registrations
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="flex items-center gap-1 text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2A276C]" /> Reg
               </span>
-              <span className="flex items-center gap-1.5 text-slate-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Visa Approved
-              </span>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-extrabold text-slate-900">{totalCandidatesCount}</span>
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                +{conversionRate}% Visa Rate
+              <span className="flex items-center gap-1 text-slate-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Visa
               </span>
             </div>
           </div>
 
-          {/* SVG Bar / Area Chart */}
-          <div className="h-64 w-full pt-4 relative">
-            <svg className="w-full h-full overflow-visible" viewBox="0 0 500 200">
-              {/* Grid Lines */}
-              {[40, 80, 120, 160].map((y, idx) => (
-                <line key={idx} x1="0" y1={y} x2="500" y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 4" />
+          <div className="pt-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-900">{totalCandidatesCount}</span>
+              <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                +{conversionRate}% rate
+              </span>
+            </div>
+          </div>
+
+          {/* Minimized Bar Chart */}
+          <div className="h-56 w-full pt-2 relative">
+            <svg className="w-full h-full overflow-visible" viewBox="0 0 350 180">
+              {[35, 70, 105, 140].map((y, idx) => (
+                <line key={idx} x1="0" y1={y} x2="350" y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3 3" />
               ))}
 
-              {/* Bars representation */}
               {chartPoints.map((pt, idx) => {
-                const step = 500 / chartPoints.length;
+                const step = 350 / chartPoints.length;
                 const x = idx * step + step / 2;
                 const maxVal = Math.max(1, totalCandidatesCount);
-                const candH = Math.max(12, (pt.candCount / maxVal) * 140);
-                const visaH = Math.max(6, (pt.visaCount / maxVal) * 140);
+                const candH = Math.max(10, (pt.candCount / maxVal) * 125);
+                const visaH = Math.max(5, (pt.visaCount / maxVal) * 125);
 
                 return (
                   <g key={idx} className="group cursor-pointer">
-                    {/* Candidate Registration Bar */}
                     <rect
-                      x={x - 14}
-                      y={180 - candH}
-                      width="12"
+                      x={x - 10}
+                      y={160 - candH}
+                      width="8"
                       height={candH}
-                      rx="4"
+                      rx="3"
                       fill="#2A276C"
-                      className="transition-all group-hover:opacity-80"
                     />
-                    {/* Visa Selection Bar */}
                     <rect
                       x={x + 2}
-                      y={180 - visaH}
-                      width="12"
+                      y={160 - visaH}
+                      width="8"
                       height={visaH}
-                      rx="4"
+                      rx="3"
                       fill="#10B981"
-                      className="transition-all group-hover:opacity-80"
                     />
-                    {/* X Label */}
-                    <text x={x} y="198" textAnchor="middle" fontSize="11" fill="#94a3b8" fontWeight="600">
+                    <text x={x} y="176" textAnchor="middle" fontSize="10" fill="#94a3b8" fontWeight="600">
                       {pt.label}
                     </text>
                   </g>
@@ -484,44 +505,102 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Right: Job Sector Breakdown (1/3 width) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+        {/* Column 2: Agency Statistics (4 cols) */}
+        <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-extrabold text-slate-900">Sector Statistics</h2>
-            <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
-              This Month
+            <div className="flex items-center gap-2">
+              <Building2 size={18} className="text-primary" />
+              <h2 className="text-base font-extrabold text-slate-900">Agency Statistics</h2>
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+              9 Agencies
             </span>
           </div>
 
-          {/* Ring Chart Center */}
-          <div className="relative flex items-center justify-center my-2">
-            <div className="w-36 h-36 rounded-full border-[14px] border-[#2A276C] border-t-emerald-500 border-r-pink-500 border-b-blue-500 flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-slate-900">{totalCandidatesCount}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Candidates</span>
+          {/* Donut Chart Ring */}
+          <div className="relative flex items-center justify-center my-1">
+            <div className="w-28 h-28 rounded-full border-[12px] border-[#2A276C] border-t-emerald-500 border-r-pink-500 border-b-blue-500 flex flex-col items-center justify-center">
+              <span className="text-xl font-black text-slate-900">{totalCandidatesCount}</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Total</span>
             </div>
           </div>
 
-          {/* Breakdown Items List */}
-          <div className="space-y-2.5 pt-2">
-            {sectorBreakdown.map((sec) => (
-              <div key={sec.name} className="flex items-center justify-between text-xs font-medium">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                  <span className="text-slate-700 font-bold">{sec.name}</span>
+          {/* Agency Breakdown List */}
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {agencyBreakdown.map((agency) => (
+              <div key={agency.name} className="flex items-center justify-between text-xs font-medium py-0.5 border-b border-slate-50">
+                <div className="flex items-center gap-2 truncate">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: agency.color }} />
+                  <span className="text-slate-700 font-bold truncate">{agency.name}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-400 font-semibold">{sec.percentage}%</span>
-                  <span className="text-slate-900 font-extrabold w-8 text-right">{sec.count}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-slate-400 text-[11px] font-semibold">{agency.percentage}%</span>
+                  <span className="text-slate-900 font-extrabold text-xs w-6 text-right">{agency.count}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
+        {/* Column 3: Notifications Section (Right side beside Agency panel: 3 cols) */}
+        <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2">
+              <Bell size={18} className="text-primary" />
+              <h2 className="text-base font-extrabold text-slate-900">Notifications</h2>
+            </div>
+            <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
+              4
+            </span>
+          </div>
+
+          {/* Activity / Notification Feed Items */}
+          <div className="space-y-3 flex-1 overflow-y-auto max-h-64 text-xs font-medium pr-1">
+            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100/80">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-slate-900 text-xs">New Candidate Added</span>
+                <span className="text-[9px] text-slate-400">2m ago</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight">Candidate file indexed into database queue.</p>
+            </div>
+
+            <div className="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-emerald-900 text-xs">Visa Selected</span>
+                <span className="text-[9px] text-emerald-600 font-semibold">18m ago</span>
+              </div>
+              <p className="text-[11px] text-emerald-700 leading-tight">Candidate verified for employer visa.</p>
+            </div>
+
+            <div className="p-2.5 bg-amber-50/70 rounded-xl border border-amber-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-amber-900 text-xs">Quick Entry File</span>
+                <span className="text-[9px] text-amber-600 font-semibold">1h ago</span>
+              </div>
+              <p className="text-[11px] text-amber-700 leading-tight">Musaned registration entry pending match.</p>
+            </div>
+
+            <div className="p-2.5 bg-blue-50/70 rounded-xl border border-blue-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-blue-900 text-xs">Musaned Sync Active</span>
+                <span className="text-[9px] text-blue-600 font-semibold">2h ago</span>
+              </div>
+              <p className="text-[11px] text-blue-700 leading-tight">Wahid portal connection verified live.</p>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setShowNotificationsModal(true)}
+            className="w-full py-2 text-xs font-bold text-center text-primary bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors cursor-pointer shrink-0"
+          >
+            View All Notifications
+          </button>
+        </div>
+
       </div>
 
       {/* ════════════════════════════════════════════════════════════════════════
-          5. BOTTOM SECTION: RECENT OPERATIONS TABLE & ACTIVITY FEED (2/3 + 1/3)
+          5. BOTTOM SECTION: RECENT CANDIDATES & RECENT ACTIVITY
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -529,7 +608,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h2 className="text-base font-extrabold text-slate-900">Recent Candidate Operations</h2>
+              <h2 className="text-base font-extrabold text-slate-900">Recent Candidates</h2>
               <p className="text-xs text-slate-400 font-medium">Active database entries and status actions</p>
             </div>
             <Link href="/candidates" className="text-xs font-bold text-primary hover:underline">
@@ -556,7 +635,7 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ) : filteredCandidates.length > 0 ? (
-                  filteredCandidates.slice(0, 7).map((c) => {
+                  filteredCandidates.slice(0, 6).map((c) => {
                     const isRequested = c.isRequested || c.visaSelected || c.status === 'visa selected';
                     return (
                       <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
@@ -659,15 +738,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100">
-            <button 
-              onClick={() => setShowNotificationsModal(true)}
-              className="w-full py-2 text-xs font-bold text-center text-primary hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
-            >
-              View Full Activity Log →
-            </button>
           </div>
         </div>
 
