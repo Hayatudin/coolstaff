@@ -11,7 +11,7 @@ import {
 } from '@/data/mockData';
 import { allCountries } from '@/data/countries';
 import { Plus, Trash2, AlertTriangle } from 'lucide-react';
-import { getFileUrl, cn } from '@/lib/utils';
+import { getFileUrl } from '@/lib/utils';
 import FileUpload from '@/components/ui/FileUpload';
 
 const jobOptions = ['House Maid', 'Driver', 'Babysitter', 'Cook', 'Nurse', 'Cleaner', 'Caregiver'];
@@ -101,7 +101,6 @@ export default function PersonalInfoForm({
   onFullBodyPhotoChange,
   videoUrl,
   onVideoUrlChange,
-  isQuickRegImport,
   quickRegistrationId,
   quickRegistrationData,
 }: PersonalInfoFormProps) {
