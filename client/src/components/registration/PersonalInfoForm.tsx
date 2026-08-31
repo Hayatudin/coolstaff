@@ -10,7 +10,7 @@ import {
   educationLevels, languageOptions, skillOptions, religionOptions
 } from '@/data/mockData';
 import { allCountries } from '@/data/countries';
-import { Plus, Trash2, Lock } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { getFileUrl, cn } from '@/lib/utils';
 import FileUpload from '@/components/ui/FileUpload';
 
@@ -33,9 +33,78 @@ interface PersonalInfoFormProps {
   onVideoUrlChange?: (url: string) => void;
   isQuickRegImport?: boolean;
   quickRegistrationId?: string | null;
+  quickRegistrationData?: any;
 }
 
-export default function PersonalInfoForm({ data, onChange, passportData, onPassportChange, passportImage, onPassportImageChange, facePhoto, onFacePhotoChange, brokers, onBrokerCreate, fullBodyPhoto, onFullBodyPhotoChange, videoUrl, onVideoUrlChange, isQuickRegImport, quickRegistrationId }: PersonalInfoFormProps) {
+const isStringMismatch = (val1?: string | null, val2?: string | null) => {
+  if (!val2 || typeof val2 !== 'string' || !val2.trim()) return false;
+  if (!val1 || typeof val1 !== 'string') return true;
+  return val1.trim().toUpperCase() !== val2.trim().toUpperCase();
+};
+
+const isReligionMismatch = (val1?: string | null, val2?: string | null) => {
+  if (!val2 || !val2.trim()) return false;
+  if (!val1) return true;
+  const norm = (r: string) => {
+    const u = r.toUpperCase();
+    if (u.includes('NON-MUSLIM') || u.includes('NON MUSLIM')) return 'NON MUSLIM';
+    if (u.includes('MUSLIM') || u.includes('ISLAM')) return 'MUSLIM';
+    if (u.includes('CHRISTIAN')) return 'CHRISTIAN';
+    return u.trim();
+  };
+  return norm(val1) !== norm(val2);
+};
+
+const isNumberMismatch = (val1?: number | null, val2?: number | null) => {
+  if (val2 === undefined || val2 === null) return false;
+  return Number(val1 || 0) !== Number(val2);
+};
+
+const isBrokerMismatch = (val1?: string | null, quickRegObj?: any) => {
+  if (!quickRegObj) return false;
+  const quickBrokerId = quickRegObj.brokerId || quickRegObj.broker?.id;
+  if (!quickBrokerId) return false;
+  return String(val1 || '') !== String(quickBrokerId);
+};
+
+const isLanguagesMismatch = (fieldLangs?: string[], quickLangs?: string[]) => {
+  if (!quickLangs || !Array.isArray(quickLangs) || quickLangs.length === 0) return false;
+  if (!fieldLangs || !Array.isArray(fieldLangs) || fieldLangs.length === 0) return true;
+  const set1 = new Set(fieldLangs.map(l => l.trim().toUpperCase()));
+  const set2 = new Set(quickLangs.map(l => l.trim().toUpperCase()));
+  if (set1.size !== set2.size) return true;
+  for (const item of set1) {
+    if (!set2.has(item)) return true;
+  }
+  return false;
+};
+
+const MismatchAlert = () => (
+  <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1.5 animate-fade-in">
+    <AlertTriangle size={13} className="shrink-0 text-amber-500" />
+    This field is mismatched with quick registration.
+  </p>
+);
+
+export default function PersonalInfoForm({
+  data,
+  onChange,
+  passportData,
+  onPassportChange,
+  passportImage,
+  onPassportImageChange,
+  facePhoto,
+  onFacePhotoChange,
+  brokers,
+  onBrokerCreate,
+  fullBodyPhoto,
+  onFullBodyPhotoChange,
+  videoUrl,
+  onVideoUrlChange,
+  isQuickRegImport,
+  quickRegistrationId,
+  quickRegistrationData,
+}: PersonalInfoFormProps) {
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
     if (file.size > 50 * 1024 * 1024) {
       alert('Max file size is 50MB');
@@ -81,12 +150,6 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
   };
   const handlePassportChangeUpper = (field: keyof PassportData, value: string) => onPassportChange(field, value.toUpperCase());
 
-  const [isCocDragOver, setIsCocDragOver] = React.useState(false);
-  const [isMedicalDragOver, setIsMedicalDragOver] = React.useState(false);
-  const [isCandidateIdDragOver, setIsCandidateIdDragOver] = React.useState(false);
-  const [isRelativeIdDragOver, setIsRelativeIdDragOver] = React.useState(false);
-  const [isLabourIdDragOver, setIsLabourIdDragOver] = React.useState(false);
-
   // Education level handler
   const handleEducationChange = (values: string[]) => {
     onChange('educationLevel', values.join(', '));
@@ -111,6 +174,17 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
     onChange('additionalPhones', updated);
   };
 
+  const hasAnyMismatch = Boolean(quickRegistrationData) && (
+    isStringMismatch(passportData.surname, quickRegistrationData?.surname) ||
+    isStringMismatch(passportData.givenNames, quickRegistrationData?.givenNames) ||
+    isStringMismatch(passportData.passportNumber, quickRegistrationData?.passportNumber) ||
+    isStringMismatch(passportData.gender, quickRegistrationData?.gender) ||
+    isStringMismatch(data.maritalStatus, quickRegistrationData?.maritalStatus) ||
+    isReligionMismatch(data.religion, quickRegistrationData?.religion) ||
+    isNumberMismatch(data.numberOfChildren, quickRegistrationData?.numberOfChildren) ||
+    isBrokerMismatch(data.brokerId, quickRegistrationData) ||
+    isLanguagesMismatch(data.languages, quickRegistrationData?.languages)
+  );
 
   return (
     <div className="space-y-10 animate-slide-in-right max-w-5xl mx-auto">
@@ -121,27 +195,27 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <h3 className="text-xl font-bold text-text-primary">Personal Information</h3>
         </div>
 
-        {isQuickRegImport && (
+        {hasAnyMismatch && (
           <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900 text-sm font-medium mb-8 animate-fade-in shadow-xs">
             <div className="flex items-center gap-3.5">
               <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-700 shrink-0">
-                <Lock size={20} />
+                <AlertTriangle size={20} />
               </div>
               <div>
-                <p className="font-bold text-amber-950 text-base">Quick Registration Fields Locked</p>
+                <p className="font-bold text-amber-950 text-base">Quick Registration Data Mismatch</p>
                 <p className="text-xs text-amber-800/90 mt-0.5 leading-relaxed">
-                  Information imported from Quick Registration cannot be edited directly here to prevent data mismatches. To update these fields, please edit the candidate&apos;s Quick Registration record.
+                  Information filled from Musaned CV has been pre-populated and remains fully editable. Any field that differs from the Quick Registration entry is highlighted with a warning below.
                 </p>
               </div>
             </div>
-            {quickRegistrationId && (
+            {(quickRegistrationId || quickRegistrationData?.id) && (
               <a
-                href={`/quick-registration/preview/${quickRegistrationId}`}
+                href={`/quick-registration/preview/${quickRegistrationId || quickRegistrationData?.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shrink-0 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
               >
-                Edit Quick Registration
+                View Quick Registration
               </a>
             )}
           </div>
@@ -173,55 +247,80 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
           {/* Row 1 */}
-          <Input label="Surname" value={passportData.surname} onChange={e => handlePassportChangeUpper('surname', e.target.value)} required disabled={isQuickRegImport} />
-          <Input label="Given Names" value={passportData.givenNames} onChange={e => handlePassportChangeUpper('givenNames', e.target.value)} required disabled={isQuickRegImport} />
-          <Input label="Date of Birth" type="date" value={passportData.dateOfBirth} onChange={e => onPassportChange('dateOfBirth', e.target.value)} required disabled={isQuickRegImport} />
+          <div>
+            <Input label="Surname" value={passportData.surname} onChange={e => handlePassportChangeUpper('surname', e.target.value)} required />
+            {isStringMismatch(passportData.surname, quickRegistrationData?.surname) && <MismatchAlert />}
+          </div>
+          <div>
+            <Input label="Given Names" value={passportData.givenNames} onChange={e => handlePassportChangeUpper('givenNames', e.target.value)} required />
+            {isStringMismatch(passportData.givenNames, quickRegistrationData?.givenNames) && <MismatchAlert />}
+          </div>
+          <div>
+            <Input label="Date of Birth" type="date" value={passportData.dateOfBirth} onChange={e => onPassportChange('dateOfBirth', e.target.value)} required />
+            {isStringMismatch(passportData.dateOfBirth, quickRegistrationData?.dateOfBirth?.split?.('T')?.[0]) && <MismatchAlert />}
+          </div>
 
           {/* Row 2: Gender, Marital Status, Religion (Radios) */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-secondary">Gender <span className="text-danger">*</span></label>
             <div className="flex gap-4 pt-2">
-              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
-                <input type="radio" name="gender" value="Female" checked={passportData.gender === 'Female'} onChange={() => onPassportChange('gender', 'Female')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Female
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="radio" name="gender" value="Female" checked={passportData.gender === 'Female'} onChange={() => onPassportChange('gender', 'Female')} className="accent-primary w-4 h-4" /> Female
               </label>
-              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
-                <input type="radio" name="gender" value="Male" checked={passportData.gender === 'Male'} onChange={() => onPassportChange('gender', 'Male')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Male
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="radio" name="gender" value="Male" checked={passportData.gender === 'Male'} onChange={() => onPassportChange('gender', 'Male')} className="accent-primary w-4 h-4" /> Male
               </label>
             </div>
+            {isStringMismatch(passportData.gender, quickRegistrationData?.gender) && <MismatchAlert />}
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-secondary">Marital Status <span className="text-danger">*</span></label>
             <div className="flex gap-4 pt-2">
-              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
-                <input type="radio" name="marital" value="Single" checked={data.maritalStatus === 'Single'} onChange={() => onChange('maritalStatus', 'Single')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Single
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="radio" name="marital" value="Single" checked={data.maritalStatus === 'Single'} onChange={() => onChange('maritalStatus', 'Single')} className="accent-primary w-4 h-4" /> Single
               </label>
-              <label className={cn("flex items-center gap-2 cursor-pointer text-sm", isQuickRegImport && "opacity-60 cursor-not-allowed")}>
-                <input type="radio" name="marital" value="Married" checked={data.maritalStatus === 'Married'} onChange={() => onChange('maritalStatus', 'Married')} disabled={isQuickRegImport} className="accent-primary w-4 h-4" /> Married
+              <label className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="radio" name="marital" value="Married" checked={data.maritalStatus === 'Married'} onChange={() => onChange('maritalStatus', 'Married')} className="accent-primary w-4 h-4" /> Married
               </label>
             </div>
+            {isStringMismatch(data.maritalStatus, quickRegistrationData?.maritalStatus) && <MismatchAlert />}
           </div>
 
           <div className="space-y-2">
             <Select
               label="Religion"
               required
-              disabled={isQuickRegImport}
               options={religionOptions.map(r => ({ value: r, label: r }))}
               value={data.religion}
               onChange={v => onChange('religion', v)}
               placeholder="Select religion"
             />
+            {isReligionMismatch(data.religion, quickRegistrationData?.religion) && <MismatchAlert />}
           </div>
 
           {/* Row 3 */}
-          <Select label="Job" required disabled={isQuickRegImport} options={jobOptions.map(j => ({ value: j.toUpperCase(), label: j.toUpperCase() }))} value={data.job} onChange={v => onChange('job', v)} placeholder="Select job" />
-          <MultiSelect label="Education level" disabled={isQuickRegImport} options={educationLevels.map(e => ({ value: e.toUpperCase(), label: e.toUpperCase() }))} value={selectedEducation} onChange={handleEducationChange} placeholder="Select education" />
-          <MultiSelect label="Skills" disabled={isQuickRegImport} options={skillOptions.map(s => ({ value: s.toUpperCase(), label: s.toUpperCase() }))} value={data.skills || []} onChange={v => onChange('skills', v)} placeholder="Select skills" />
+          <div>
+            <Select label="Job" required options={jobOptions.map(j => ({ value: j.toUpperCase(), label: j.toUpperCase() }))} value={data.job} onChange={v => onChange('job', v)} placeholder="Select job" />
+            {isStringMismatch(data.job, quickRegistrationData?.job) && <MismatchAlert />}
+          </div>
+          <div>
+            <MultiSelect label="Education level" options={educationLevels.map(e => ({ value: e.toUpperCase(), label: e.toUpperCase() }))} value={selectedEducation} onChange={handleEducationChange} placeholder="Select education" />
+            {isStringMismatch(data.educationLevel, quickRegistrationData?.educationLevel) && <MismatchAlert />}
+          </div>
+          <div>
+            <MultiSelect label="Skills" options={skillOptions.map(s => ({ value: s.toUpperCase(), label: s.toUpperCase() }))} value={data.skills || []} onChange={v => onChange('skills', v)} placeholder="Select skills" />
+          </div>
 
           {/* Row 4 */}
-          <MultiSelect label="Languages" disabled={isQuickRegImport} options={languageOptions.map(l => ({ value: l.toUpperCase(), label: l.toUpperCase() }))} value={data.languages || []} onChange={v => onChange('languages', v)} placeholder="Select languages" searchable allowAddCustom customStorageKey="custom_languages" />
-          <Input label="ID Number" value={data.idNumber || passportData.passportNumber} onChange={e => handleChangeUpper('idNumber', e.target.value)} required disabled={isQuickRegImport} />
+          <div>
+            <MultiSelect label="Languages" options={languageOptions.map(l => ({ value: l.toUpperCase(), label: l.toUpperCase() }))} value={data.languages || []} onChange={v => onChange('languages', v)} placeholder="Select languages" searchable allowAddCustom customStorageKey="custom_languages" />
+            {isLanguagesMismatch(data.languages, quickRegistrationData?.languages) && <MismatchAlert />}
+          </div>
+          <div>
+            <Input label="ID Number" value={data.idNumber || passportData.passportNumber} onChange={e => handleChangeUpper('idNumber', e.target.value)} required />
+            {isStringMismatch(data.idNumber || passportData.passportNumber, quickRegistrationData?.passportNumber) && <MismatchAlert />}
+          </div>
 
           {/* Main Mobile Number */}
           <div className="space-y-2">
@@ -263,20 +362,25 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <Input label="Salary" type="text" value={data.salary || '1000SR'} onChange={e => onChange('salary', e.target.value)} placeholder="e.g. 1000SR" />
 
           {/* Row 6 */}
-          <Input label="Number Of Children" type="number" value={String(data.numberOfChildren || '')} onChange={e => onChange('numberOfChildren', parseInt(e.target.value) || 0)} required disabled={isQuickRegImport} />
+          <div>
+            <Input label="Number Of Children" type="number" value={String(data.numberOfChildren || '')} onChange={e => onChange('numberOfChildren', parseInt(e.target.value) || 0)} required />
+            {isNumberMismatch(data.numberOfChildren, quickRegistrationData?.numberOfChildren) && <MismatchAlert />}
+          </div>
           <Input label="E-Mail" type="email" value={data.email} onChange={e => onChange('email', e.target.value.toLowerCase())} placeholder="email@example.com" required />
 
           {/* Broker Dropdown */}
-          <BrokerSelect
-            label="Broker / Source"
-            required
-            disabled={isQuickRegImport}
-            brokers={brokers}
-            value={data.brokerId || ''}
-            onChange={v => onChange('brokerId', v)}
-            placeholder="Select broker"
-            onCreate={onBrokerCreate}
-          />
+          <div>
+            <BrokerSelect
+              label="Broker / Source"
+              required
+              brokers={brokers}
+              value={data.brokerId || ''}
+              onChange={v => onChange('brokerId', v)}
+              placeholder="Select broker"
+              onCreate={onBrokerCreate}
+            />
+            {isBrokerMismatch(data.brokerId, quickRegistrationData) && <MismatchAlert />}
+          </div>
 
           {/* Video Token / Path */}
           {onVideoUrlChange && (
@@ -367,11 +471,25 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-          <Input label="Passport Number" value={passportData.passportNumber} onChange={e => handlePassportChangeUpper('passportNumber', e.target.value)} required disabled={isQuickRegImport} />
-          <Input label="Place of Birth" value={passportData.placeOfBirth || data.city || ''} onChange={e => handlePassportChangeUpper('placeOfBirth', e.target.value)} required disabled={isQuickRegImport} />
-          <Input label="Passport Issue Place" value={passportData.issuingCountry} onChange={e => handlePassportChangeUpper('issuingCountry', e.target.value)} required disabled={isQuickRegImport} />
-          <Input label="Passport Issue Date" type="date" value={passportData.dateOfIssue} onChange={e => onPassportChange('dateOfIssue', e.target.value)} required disabled={isQuickRegImport} />
-          <Input label="Passport Expiry Date" type="date" value={passportData.dateOfExpiry} onChange={e => onPassportChange('dateOfExpiry', e.target.value)} required disabled={isQuickRegImport} />
+          <div>
+            <Input label="Passport Number" value={passportData.passportNumber} onChange={e => handlePassportChangeUpper('passportNumber', e.target.value)} required />
+            {isStringMismatch(passportData.passportNumber, quickRegistrationData?.passportNumber) && <MismatchAlert />}
+          </div>
+          <div>
+            <Input label="Place of Birth" value={passportData.placeOfBirth || data.city || ''} onChange={e => handlePassportChangeUpper('placeOfBirth', e.target.value)} required />
+            {isStringMismatch(passportData.placeOfBirth, quickRegistrationData?.placeOfBirth) && <MismatchAlert />}
+          </div>
+          <div>
+            <Input label="Passport Issue Place" value={passportData.issuingCountry} onChange={e => handlePassportChangeUpper('issuingCountry', e.target.value)} required />
+            {isStringMismatch(passportData.issuingCountry, quickRegistrationData?.issuingCountry) && <MismatchAlert />}
+          </div>
+          <div>
+            <Input label="Passport Issue Date" type="date" value={passportData.dateOfIssue} onChange={e => onPassportChange('dateOfIssue', e.target.value)} required />
+          </div>
+          <div>
+            <Input label="Passport Expiry Date" type="date" value={passportData.dateOfExpiry} onChange={e => onPassportChange('dateOfExpiry', e.target.value)} required />
+            {isStringMismatch(passportData.dateOfExpiry, quickRegistrationData?.dateOfExpiry?.split?.('T')?.[0]) && <MismatchAlert />}
+          </div>
         </div>
       </section>
 
@@ -380,7 +498,7 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
         <h3 className="text-xl font-bold text-text-primary mb-6">Address</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-          <Select label="Country" searchable disabled={isQuickRegImport} options={allCountries.map(c => ({ value: c.toUpperCase(), label: c.toUpperCase() }))} value={data.country} onChange={v => onChange('country', v)} placeholder="Select country" />
+          <Select label="Country" searchable options={allCountries.map(c => ({ value: c.toUpperCase(), label: c.toUpperCase() }))} value={data.country} onChange={v => onChange('country', v)} placeholder="Select country" />
           <Input label="City" value={data.city} onChange={e => handleChangeUpper('city', e.target.value)} required />
           <Input label="Address" value={data.address} onChange={e => handleChangeUpper('address', e.target.value)} required />
         </div>
@@ -397,8 +515,6 @@ export default function PersonalInfoForm({ data, onChange, passportData, onPassp
           <Input label="Relative address" value={data.emergencyContactAddress} onChange={e => handleChangeUpper('emergencyContactAddress', e.target.value)} required />
         </div>
       </section>
-
-
 
       <div className="pt-6 border-t border-slate-100 flex items-start gap-3">
         <input type="checkbox" id="acknowledge" className="mt-1 w-4 h-4 accent-primary rounded cursor-pointer" />

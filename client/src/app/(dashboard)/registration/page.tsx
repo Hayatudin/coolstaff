@@ -91,6 +91,7 @@ function RegistrationContent() {
   const [videoUrl, setVideoUrl] = useState('');
   const [allowVideo, setAllowVideo] = useState(false);
   const [quickRegistrationId, setQuickRegistrationId] = useState<string | null>(null);
+  const [quickRegData, setQuickRegData] = useState<any | null>(null);
 
   // Musaned drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
@@ -123,6 +124,7 @@ function RegistrationContent() {
       console.log('[DEBUG] Loading pending quick registration promotion from session:', { extractedData, quickRegistration });
 
       setQuickRegistrationId(quickRegistration.id);
+      setQuickRegData(quickRegistration);
 
       const convertDate = (dateStr?: string): string => {
         if (!dateStr) return '';
@@ -147,16 +149,16 @@ function RegistrationContent() {
       const extractedIssuingCountry = extractedData.placeOfIssue || extractedData.issuingCountry || '';
 
       setPassportData({
-        passportNumber: quickRegistration.passportNumber || extractedData.passportNumber || '',
-        surname: (quickRegistration.surname || extractedData.surname || '').toUpperCase(),
-        givenNames: (quickRegistration.givenNames || extractedData.givenNames || '').toUpperCase(),
-        dateOfBirth: convertDate(extractedData.dateOfBirth) || '',
-        gender: quickRegistration.gender || extractedData.gender || '',
-        nationality: quickRegistration.nationality || extractedData.nationality || '',
-        issuingCountry: extractedIssuingCountry,
+        passportNumber: extractedData.passportNumber || quickRegistration.passportNumber || '',
+        surname: (extractedData.surname || quickRegistration.surname || '').toUpperCase(),
+        givenNames: (extractedData.givenNames || quickRegistration.givenNames || '').toUpperCase(),
+        dateOfBirth: convertDate(extractedData.dateOfBirth) || convertDate(quickRegistration.dateOfBirth) || '',
+        gender: extractedData.gender || quickRegistration.gender || '',
+        nationality: extractedData.nationality || quickRegistration.nationality || '',
+        issuingCountry: extractedIssuingCountry || quickRegistration.issuingCountry || '',
         dateOfIssue: convertDate(extractedData.dateOfIssue) || '',
-        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || '',
-        placeOfBirth: extractedPlaceOfBirth,
+        dateOfExpiry: convertDate(extractedData.dateOfExpiry) || convertDate(quickRegistration.dateOfExpiry) || '',
+        placeOfBirth: extractedPlaceOfBirth || quickRegistration.placeOfBirth || '',
       });
 
       const mapReligion = (r?: string): string => {
@@ -173,33 +175,33 @@ function RegistrationContent() {
 
       setPersonalInfo(prev => ({
         ...prev,
-        idNumber: quickRegistration.passportNumber || extractedData.passportNumber || prev.idNumber,
-        job: extractedData.job ? extractedData.job.toUpperCase() : prev.job,
-        religion: mapReligion(quickRegistration.religion || extractedData.religion) || prev.religion,
-        maritalStatus: quickRegistration.maritalStatus || extractedData.maritalStatus || prev.maritalStatus,
+        idNumber: extractedData.passportNumber || quickRegistration.passportNumber || prev.idNumber,
+        job: extractedData.job ? extractedData.job.toUpperCase() : (quickRegistration.job ? quickRegistration.job.toUpperCase() : prev.job),
+        religion: mapReligion(extractedData.religion) || mapReligion(quickRegistration.religion) || prev.religion,
+        maritalStatus: extractedData.maritalStatus || quickRegistration.maritalStatus || prev.maritalStatus,
         phone: extractedData.phone || prev.phone,
         email: extractedData.email || prev.email,
-        educationLevel: extractedData.educationLevel || prev.educationLevel,
-        numberOfChildren: (quickRegistration.numberOfChildren !== undefined && quickRegistration.numberOfChildren !== null)
-          ? quickRegistration.numberOfChildren
-          : (extractedData.numberOfChildren ? parseInt(extractedData.numberOfChildren) : prev.numberOfChildren),
+        educationLevel: extractedData.educationLevel || quickRegistration.educationLevel || prev.educationLevel,
+        numberOfChildren: extractedData.numberOfChildren
+          ? parseInt(extractedData.numberOfChildren)
+          : ((quickRegistration.numberOfChildren !== undefined && quickRegistration.numberOfChildren !== null)
+            ? quickRegistration.numberOfChildren
+            : prev.numberOfChildren),
         height: extractedData.height || prev.height,
         weight: extractedData.weight || prev.weight,
         city: extractedData.city || prev.city,
         address: extractedData.address || prev.address,
-        country: extractedData.nationality ? extractedData.nationality.toUpperCase() : prev.country,
+        country: extractedData.nationality ? extractedData.nationality.toUpperCase() : (quickRegistration.nationality ? quickRegistration.nationality.toUpperCase() : prev.country),
         languages: (() => {
-          const quickLangs = quickRegistration && Array.isArray(quickRegistration.languages)
-            ? quickRegistration.languages.map((s: string) => s.toUpperCase())
-            : [];
           const cvLangs = extractedData.languages
             ? extractedData.languages.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean)
             : [];
-          const combined = Array.from(new Set([...quickLangs, ...cvLangs])).filter(lang => {
-            const l = lang.toUpperCase();
-            return l !== 'NONE' && l !== 'N/A' && l !== 'NIL' && l !== 'NULL' && l !== 'UNDEFINED';
-          });
-          return combined.length > 0 ? combined : prev.languages;
+          const quickLangs = quickRegistration && Array.isArray(quickRegistration.languages)
+            ? quickRegistration.languages.map((s: string) => s.toUpperCase())
+            : [];
+          if (cvLangs.length > 0) return cvLangs;
+          if (quickLangs.length > 0) return quickLangs;
+          return prev.languages;
         })(),
         skills: extractedData.skills ? extractedData.skills.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean) : prev.skills,
         emergencyContactName: extractedData.emergencyContactName || prev.emergencyContactName,
@@ -307,6 +309,7 @@ function RegistrationContent() {
         const data = await res.json();
         
         setQuickRegistrationId(quickRegId);
+        setQuickRegData(data);
         
         setPassportData({
           passportNumber: data.passportNumber || '',
@@ -428,6 +431,7 @@ function RegistrationContent() {
             if (quickReg.allowVideo !== undefined) {
               setAllowVideo(quickReg.allowVideo);
             }
+            setQuickRegData(quickReg);
           }
         } catch { /* ignore */ }
       }
@@ -435,17 +439,17 @@ function RegistrationContent() {
       setPassportData(prev => ({
         ...prev,
         ...data,
-        passportNumber: quickReg?.passportNumber || data.passportNumber || prev.passportNumber,
-        surname: (quickReg?.surname || data.surname || prev.surname || '').toUpperCase(),
-        givenNames: (quickReg?.givenNames || data.givenNames || prev.givenNames || '').toUpperCase(),
-        gender: quickReg?.gender || data.gender || prev.gender,
-        nationality: quickReg?.nationality || data.nationality || prev.nationality,
+        passportNumber: data.passportNumber || quickReg?.passportNumber || prev.passportNumber,
+        surname: (data.surname || quickReg?.surname || prev.surname || '').toUpperCase(),
+        givenNames: (data.givenNames || quickReg?.givenNames || prev.givenNames || '').toUpperCase(),
+        gender: data.gender || quickReg?.gender || prev.gender,
+        nationality: data.nationality || quickReg?.nationality || prev.nationality,
       }));
 
       if (quickReg) {
         setPersonalInfo(prev => ({
           ...prev,
-          idNumber: quickReg.passportNumber || prev.idNumber,
+          idNumber: data.passportNumber || quickReg.passportNumber || prev.idNumber,
           religion: quickReg.religion || prev.religion,
           maritalStatus: quickReg.maritalStatus || prev.maritalStatus,
           numberOfChildren: quickReg.numberOfChildren !== undefined ? quickReg.numberOfChildren : prev.numberOfChildren,
@@ -538,18 +542,22 @@ function RegistrationContent() {
         return dateStr;
       };
 
+      if (quickReg) {
+        setQuickRegData(quickReg);
+      }
+
       setPassportData(prev => ({
         ...prev,
-        passportNumber: quickReg?.passportNumber || data.passportNumber || prev.passportNumber,
-        givenNames: (quickReg?.givenNames || data.givenNames || prev.givenNames).toUpperCase(),
-        surname: (quickReg?.surname || data.surname || prev.surname).toUpperCase(),
-        dateOfBirth: convertDate(data.dateOfBirth) || prev.dateOfBirth,
-        nationality: quickReg?.nationality || data.nationality || prev.nationality,
-        dateOfExpiry: convertDate(data.dateOfExpiry) || prev.dateOfExpiry,
+        passportNumber: data.passportNumber || quickReg?.passportNumber || prev.passportNumber,
+        givenNames: (data.givenNames || quickReg?.givenNames || prev.givenNames).toUpperCase(),
+        surname: (data.surname || quickReg?.surname || prev.surname).toUpperCase(),
+        dateOfBirth: convertDate(data.dateOfBirth) || convertDate(quickReg?.dateOfBirth) || prev.dateOfBirth,
+        nationality: data.nationality || quickReg?.nationality || prev.nationality,
+        dateOfExpiry: convertDate(data.dateOfExpiry) || convertDate(quickReg?.dateOfExpiry) || prev.dateOfExpiry,
         dateOfIssue: convertDate(data.dateOfIssue) || prev.dateOfIssue,
         issuingCountry: data.placeOfIssue || data.issuingCountry || prev.issuingCountry,
-        gender: quickReg?.gender || data.gender || prev.gender,
-        placeOfBirth: data.placeOfBirth || data.city || prev.placeOfBirth,
+        gender: data.gender || quickReg?.gender || prev.gender,
+        placeOfBirth: data.placeOfBirth || data.city || quickReg?.placeOfBirth || prev.placeOfBirth,
       }));
 
       const mapReligion = (r?: string): string => {
@@ -565,30 +573,24 @@ function RegistrationContent() {
       };
 
       setPersonalInfo(prev => {
-        const quickLangs = quickReg && Array.isArray(quickReg.languages)
-          ? quickReg.languages.map((s: string) => s.toUpperCase())
-          : [];
         const cvLangs = data.languages
           ? data.languages.split(/[,&\/;]|\band\b/gi).map((s: string) => s.trim().toUpperCase()).filter(Boolean)
           : [];
-        const combinedLangs = Array.from(new Set([...quickLangs, ...cvLangs])).filter(lang => {
-          const l = lang.toUpperCase();
-          return l !== 'NONE' && l !== 'N/A' && l !== 'NIL' && l !== 'NULL' && l !== 'UNDEFINED';
-        });
-        const mergedLanguages = combinedLangs.length > 0 ? combinedLangs : prev.languages;
+        const quickLangs = quickReg && Array.isArray(quickReg.languages)
+          ? quickReg.languages.map((s: string) => s.toUpperCase())
+          : [];
+        const mergedLanguages = cvLangs.length > 0 ? cvLangs : (quickLangs.length > 0 ? quickLangs : prev.languages);
 
         return {
           ...prev,
-          idNumber: quickReg?.passportNumber || data.passportNumber || prev.idNumber,
-          job: data.job ? data.job.toUpperCase() : prev.job,
-          religion: mapReligion(quickReg?.religion || data.religion) || prev.religion,
-          maritalStatus: quickReg?.maritalStatus || data.maritalStatus || prev.maritalStatus,
+          idNumber: data.passportNumber || quickReg?.passportNumber || prev.idNumber,
+          job: data.job ? data.job.toUpperCase() : (quickReg?.job ? quickReg.job.toUpperCase() : prev.job),
+          religion: mapReligion(data.religion) || mapReligion(quickReg?.religion) || prev.religion,
+          maritalStatus: data.maritalStatus || quickReg?.maritalStatus || prev.maritalStatus,
           phone: data.phone || prev.phone,
           email: data.email || prev.email,
-          educationLevel: data.educationLevel || prev.educationLevel,
-          numberOfChildren: (quickReg && quickReg.numberOfChildren !== undefined && quickReg.numberOfChildren !== null)
-            ? quickReg.numberOfChildren
-            : (data.numberOfChildren ? parseInt(data.numberOfChildren) : prev.numberOfChildren),
+          educationLevel: data.educationLevel || quickReg?.educationLevel || prev.educationLevel,
+          numberOfChildren: data.numberOfChildren ? parseInt(data.numberOfChildren) : (quickReg && quickReg.numberOfChildren !== undefined && quickReg.numberOfChildren !== null ? quickReg.numberOfChildren : prev.numberOfChildren),
           height: data.height || prev.height,
           weight: data.weight || prev.weight,
           city: data.city || prev.city,
@@ -927,7 +929,7 @@ function RegistrationContent() {
                     onChange={handlePassportChange}
                     animatingFields={animatingFields}
                     isExtracted={processingComplete}
-                    disabled={Boolean(quickRegistrationId)}
+                    quickRegistrationData={quickRegData}
                   />
                 )}
               </div>
@@ -954,6 +956,7 @@ function RegistrationContent() {
             onVideoUrlChange={setVideoUrl}
             isQuickRegImport={Boolean(quickRegistrationId)}
             quickRegistrationId={quickRegistrationId}
+            quickRegistrationData={quickRegData}
           />
         )}
 

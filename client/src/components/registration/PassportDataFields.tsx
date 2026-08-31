@@ -4,13 +4,14 @@ import React from 'react';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { PassportData } from '@/types';
+import { AlertTriangle } from 'lucide-react';
 
 interface PassportDataFieldsProps {
   data: PassportData;
   onChange: (field: keyof PassportData, value: string) => void;
   animatingFields: Set<string>;
   isExtracted: boolean;
-  disabled?: boolean;
+  quickRegistrationData?: any;
 }
 
 export default function PassportDataFields({
@@ -18,7 +19,7 @@ export default function PassportDataFields({
   onChange,
   animatingFields,
   isExtracted,
-  disabled = false,
+  quickRegistrationData,
 }: PassportDataFieldsProps) {
   const fields: { key: keyof PassportData; label: string; type?: string }[] = [
     { key: 'passportNumber', label: 'Passport Number' },
@@ -29,6 +30,14 @@ export default function PassportDataFields({
     { key: 'nationality', label: 'Nationality' },
     { key: 'dateOfExpiry', label: 'Date of Expiry', type: 'date' },
   ];
+
+  const isFieldMismatched = (key: keyof PassportData, value: string) => {
+    if (!quickRegistrationData) return false;
+    const quickVal = quickRegistrationData[key];
+    if (!quickVal || typeof quickVal !== 'string' || !quickVal.trim()) return false;
+    if (!value || !value.trim()) return true;
+    return value.trim().toUpperCase() !== quickVal.trim().toUpperCase();
+  };
 
   return (
     <div className="animate-fade-in-up">
@@ -43,36 +52,45 @@ export default function PassportDataFields({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-        {fields.map((field, index) => (
-          <div
-            key={field.key}
-            className="animate-fade-in-up relative"
-            style={{ animationDelay: `${index * 80}ms`, zIndex: fields.length - index }}
-          >
-            {field.key === 'gender' ? (
-              <Select
-                label={field.label}
-                options={[
-                  { value: 'Male', label: 'Male' },
-                  { value: 'Female', label: 'Female' },
-                ]}
-                value={data.gender || ''}
-                onChange={(val) => onChange('gender', val)}
-                disabled={disabled || animatingFields.has('gender')}
-              />
-            ) : (
-              <Input
-                label={field.label}
-                type={field.type || 'text'}
-                value={data[field.key]}
-                onChange={(e) => onChange(field.key, e.target.value)}
-                animating={animatingFields.has(field.key)}
-                readOnly={disabled || animatingFields.has(field.key)}
-                disabled={disabled}
-              />
-            )}
-          </div>
-        ))}
+        {fields.map((field, index) => {
+          const isMismatched = isFieldMismatched(field.key, data[field.key] || '');
+          return (
+            <div
+              key={field.key}
+              className="animate-fade-in-up relative"
+              style={{ animationDelay: `${index * 80}ms`, zIndex: fields.length - index }}
+            >
+              {field.key === 'gender' ? (
+                <Select
+                  label={field.label}
+                  options={[
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' },
+                  ]}
+                  value={data.gender || ''}
+                  onChange={(val) => onChange('gender', val)}
+                  disabled={animatingFields.has('gender')}
+                />
+              ) : (
+                <Input
+                  label={field.label}
+                  type={field.type || 'text'}
+                  value={data[field.key]}
+                  onChange={(e) => onChange(field.key, e.target.value)}
+                  animating={animatingFields.has(field.key)}
+                  readOnly={animatingFields.has(field.key)}
+                />
+              )}
+
+              {isMismatched && (
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1.5 animate-fade-in">
+                  <AlertTriangle size={13} className="shrink-0 text-amber-500" />
+                  This field is mismatched with quick registration.
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
