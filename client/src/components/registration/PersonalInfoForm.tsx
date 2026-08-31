@@ -173,18 +173,6 @@ export default function PersonalInfoForm({
     onChange('additionalPhones', updated);
   };
 
-  const hasAnyMismatch = Boolean(quickRegistrationData) && (
-    isStringMismatch(passportData.surname, quickRegistrationData?.surname) ||
-    isStringMismatch(passportData.givenNames, quickRegistrationData?.givenNames) ||
-    isStringMismatch(passportData.passportNumber, quickRegistrationData?.passportNumber) ||
-    isStringMismatch(passportData.gender, quickRegistrationData?.gender) ||
-    isStringMismatch(data.maritalStatus, quickRegistrationData?.maritalStatus) ||
-    isReligionMismatch(data.religion, quickRegistrationData?.religion) ||
-    isNumberMismatch(data.numberOfChildren, quickRegistrationData?.numberOfChildren) ||
-    isBrokerMismatch(data.brokerId, quickRegistrationData) ||
-    isLanguagesMismatch(data.languages, quickRegistrationData?.languages)
-  );
-
   return (
     <div className="space-y-10 animate-slide-in-right max-w-5xl mx-auto">
 
@@ -193,32 +181,6 @@ export default function PersonalInfoForm({
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-text-primary">Personal Information</h3>
         </div>
-
-        {hasAnyMismatch && (
-          <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900 text-sm font-medium mb-8 animate-fade-in shadow-xs">
-            <div className="flex items-center gap-3.5">
-              <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-700 shrink-0">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <p className="font-bold text-amber-950 text-base">Quick Registration Data Mismatch</p>
-                <p className="text-xs text-amber-800/90 mt-0.5 leading-relaxed">
-                  Information filled from Musaned CV has been pre-populated and remains fully editable. Any field that differs from the Quick Registration entry is highlighted with a warning below.
-                </p>
-              </div>
-            </div>
-            {(quickRegistrationId || quickRegistrationData?.id) && (
-              <a
-                href={`/quick-registration/preview/${quickRegistrationId || quickRegistrationData?.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shrink-0 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
-              >
-                View Quick Registration
-              </a>
-            )}
-          </div>
-        )}
 
         {/* Profile Photos - Face & Full Body */}
         <div className="flex flex-col sm:flex-row items-start gap-8 mb-8">
