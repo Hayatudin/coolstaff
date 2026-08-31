@@ -646,6 +646,70 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
           )}
         </div>
       </div>
+
+      {/* Work Experience */}
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mb-4">
+        <div className="bg-gradient-to-r from-blue-500/5 to-transparent border-b border-border px-5 py-3">
+          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Work Experience</h2>
+        </div>
+        <div className="p-3 sm:p-4">
+          {(() => {
+            const rawExp = data.jobExperience || (data as any).workExperience || (data as any).personalInfo?.workExperience;
+            let expList: any[] = [];
+            if (Array.isArray(rawExp)) {
+              expList = rawExp;
+            } else if (typeof rawExp === 'string' && rawExp.trim()) {
+              try {
+                expList = JSON.parse(rawExp);
+              } catch (e) {
+                expList = [{ country: rawExp, yearsOfExperience: '', experienceStatus: 'Have experience' }];
+              }
+            }
+
+            if (!Array.isArray(expList) || expList.length === 0) {
+              return (
+                <div className="py-4 text-center text-text-tertiary text-xs font-semibold">
+                  No work experience recorded
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {expList.map((exp: any, idx: number) => {
+                  const isExp = exp.experienceStatus === 'Have experience' || (exp.country && exp.country.trim() !== '');
+                  const statusLabel = isExp ? 'Experienced' : (exp.experienceStatus || 'New');
+                  const countryVal = exp.country || exp.countryName || '—';
+                  const yearsVal = exp.yearsOfExperience || exp.years || '—';
+
+                  return (
+                    <div key={idx} className="p-3 rounded-xl bg-gray-50/80 border border-border/50 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${isExp ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                          {statusLabel}
+                        </span>
+                      </div>
+                      {isExp ? (
+                        <div className="space-y-1 text-xs">
+                          <p className="text-text-secondary font-medium">
+                            <span className="text-text-tertiary font-bold uppercase tracking-wider text-[10px]">Country:</span> <strong className="text-text-primary">{countryVal}</strong>
+                          </p>
+                          <p className="text-text-secondary font-medium">
+                            <span className="text-text-tertiary font-bold uppercase tracking-wider text-[10px]">Years:</span> <strong className="text-text-primary">{yearsVal} {yearsVal !== '—' && !yearsVal.toString().includes('year') ? (Number(yearsVal) === 1 ? 'Year' : 'Years') : ''}</strong>
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-text-tertiary font-medium">No previous experience listed.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
       {/* Uploaded Documents */}
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm mt-6">
         <div className="bg-gradient-to-r from-violet-500/5 to-transparent border-b border-border px-5 py-3 flex flex-wrap items-center justify-between gap-2">

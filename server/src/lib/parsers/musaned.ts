@@ -29,6 +29,7 @@ export interface ExtractedMusanedData {
   emergencyContactRelation?: string;
   emergencyContactPhone?: string;
   emergencyContactAddress?: string;
+  workExperience?: Array<{ experienceStatus: string; country: string; yearsOfExperience: string }>;
 }
 
 export function parseMusanedText(text: string): ExtractedMusanedData {
@@ -45,7 +46,8 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
     'Expiration date', 'Issue date', 'Issue place', 'Place of Issue', 'Passport Issue Place',
     'Country', 'City', 'Address', 'Name', 'Kinship', 'Place of birth', 'Place of Birth', 'Birth place', 'Birth Place',
     'Mobile No', 'Address Information', 'Emergency Contact',
-    'Passport Information', 'Personal Information', 'First Name', 'Last Name', 'Surname', 'Given Names'
+    'Passport Information', 'Personal Information', 'First Name', 'Last Name', 'Surname', 'Given Names',
+    'Work Experience', 'Years of Experience', 'Years of experience', 'Experience Country', 'Years of Service'
   ];
 
   let normalized = text.replace(/[\r\n]+/g, ' ');
@@ -214,6 +216,46 @@ export function parseMusanedText(text: string): ExtractedMusanedData {
     if (mobAddressMatch && mobAddressMatch[1]) {
       data.emergencyContactAddress = mobAddressMatch[1].trim();
     }
+  }
+
+  // ── Work Experience Extraction ──
+  let expCountry = extract(/(?:Work Experience\s+Country|Experience Country|Work Experience:?\s*Country)/i);
+  let expYears = extract(/(?:Years of Experience|Years of experience|Experience Years|Years of Service)/i);
+
+  if (!expCountry || !expYears) {
+    const workMatch = normalized.match(/Work Experience[\s\S]*?(?:Country:?\s*([A-Za-z\s]+?))?\s*(?:Years of Experience:?\s*(\d+))?/i);
+    if (workMatch) {
+      if (!expCountry && workMatch[1]) expCountry = workMatch[1].trim();
+      if (!expYears && workMatch[2]) expYears = workMatch[2].trim();
+    }
+  }
+
+  if (!expCountry) {
+    const countryMatch = normalized.match(/Work Experience[\s\S]*?Country:?\s*([A-Za-z\s]+?)(?=\s+(?:Years of Experience|ID number|DoB|Gender|Marital|Religion|Job|Mobile|Skills|Education|E-Mail|Languages|Height|Weight|Number of Children|Passport)|$)/i);
+    if (countryMatch && countryMatch[1]) {
+      expCountry = countryMatch[1].trim();
+    }
+  }
+
+  if (!expYears) {
+    const yearsMatch = normalized.match(/(?:Years of Experience|Years of experience|Experience Years):\s*(\d+)/i);
+    if (yearsMatch && yearsMatch[1]) {
+      expYears = yearsMatch[1].trim();
+    }
+  }
+
+  if (expCountry || (expYears && expYears !== '0')) {
+    data.workExperience = [{
+      experienceStatus: 'Have experience',
+      country: expCountry ? expCountry.toUpperCase() : '',
+      yearsOfExperience: expYears || '1',
+    }];
+  } else {
+    data.workExperience = [{
+      experienceStatus: 'New',
+      country: '',
+      yearsOfExperience: '0',
+    }];
   }
 
   return data;

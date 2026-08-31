@@ -173,6 +173,20 @@ function RegistrationContent() {
         return r;
       };
 
+        const promoWorkExp = (() => {
+          if (extractedData.workExperience && Array.isArray(extractedData.workExperience) && extractedData.workExperience.length > 0) {
+            return extractedData.workExperience;
+          }
+          const rawRegExp = quickRegistration.workExperience || quickRegistration.jobExperience || quickRegistration.personalInfo?.workExperience;
+          if (rawRegExp) {
+            try {
+              const parsed = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+          }
+          return emptyPersonalInfo.workExperience;
+        })();
+
       setPersonalInfo(prev => ({
         ...prev,
         idNumber: extractedData.passportNumber || quickRegistration.passportNumber || prev.idNumber,
@@ -216,7 +230,7 @@ function RegistrationContent() {
         candidateIdImageUrl: quickRegistration.candidateIdImageUrl || '',
         relativeIdImageUrl: quickRegistration.relativeIdImageUrl || '',
         additionalPhones: prev.additionalPhones,
-        workExperience: prev.workExperience,
+        workExperience: promoWorkExp,
       }));
 
       setPassportImage(quickRegistration.passportImageUrl || null);
@@ -324,6 +338,14 @@ function RegistrationContent() {
           placeOfBirth: '',
         });
         
+        const rawRegExp = data.workExperience || data.jobExperience || data.personalInfo?.workExperience;
+        let parsedWorkExp: any[] = [];
+        if (rawRegExp) {
+          try {
+            parsedWorkExp = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+          } catch (e) {}
+        }
+
         setPersonalInfo(prev => ({
           ...prev,
           religion: data.religion || '',
@@ -332,7 +354,7 @@ function RegistrationContent() {
           educationLevel: '',
           brokerId: data.brokerId || '',
           additionalPhones: [],
-          workExperience: [],
+          workExperience: Array.isArray(parsedWorkExp) && parsedWorkExp.length > 0 ? parsedWorkExp : prev.workExperience,
           cocDocumentUrl: data.cocDocumentUrl || '',
           labourIdUrl: data.labourIdUrl || '',
           candidateIdImageUrl: data.candidateIdImageUrl || '',
@@ -422,6 +444,7 @@ function RegistrationContent() {
           if (quickRes.ok) {
             quickReg = await quickRes.json();
             setQuickRegistrationId(quickReg.id);
+            setQuickRegData(quickReg);
             if (quickReg.passportImageUrl) {
               setPassportImage(quickReg.passportImageUrl);
             }
@@ -431,14 +454,15 @@ function RegistrationContent() {
             if (quickReg.allowVideo !== undefined) {
               setAllowVideo(quickReg.allowVideo);
             }
-            setQuickRegData(quickReg);
+            console.log('[DEBUG] Autocompleted Quick Registration details matching passport:', quickReg);
           }
-        } catch { /* ignore */ }
+        } catch (matchErr) {
+          console.warn('[DEBUG] Failed to search for quick registration record:', matchErr);
+        }
       }
 
       setPassportData(prev => ({
         ...prev,
-        ...data,
         passportNumber: data.passportNumber || quickReg?.passportNumber || prev.passportNumber,
         surname: (data.surname || quickReg?.surname || prev.surname || '').toUpperCase(),
         givenNames: (data.givenNames || quickReg?.givenNames || prev.givenNames || '').toUpperCase(),
@@ -446,23 +470,43 @@ function RegistrationContent() {
         nationality: data.nationality || quickReg?.nationality || prev.nationality,
       }));
 
-      if (quickReg) {
-        setPersonalInfo(prev => ({
+      const mapReligion = (r?: string): string => {
+        if (!r) return '';
+        const upper = r.toUpperCase();
+        if (upper.includes('NON-MUSLIM') || upper.includes('NON MUSLIM')) return 'Non muslim';
+        if (upper.includes('MUSLIM') || upper.includes('ISLAM')) return 'Muslim';
+        if (upper.includes('ORTHODOX')) return 'Orthodox Christian';
+        if (upper.includes('PROTESTANT')) return 'Protestant';
+        if (upper.includes('CATHOLIC')) return 'Catholic';
+        if (upper.includes('CHRISTIAN')) return 'Orthodox Christian';
+        return r;
+      };
+
+      setPersonalInfo(prev => {
+        const rawRegExp = quickReg?.workExperience || quickReg?.jobExperience || quickReg?.personalInfo?.workExperience;
+        let parsedWorkExp: any[] = [];
+        if (rawRegExp) {
+          try {
+            parsedWorkExp = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+          } catch (e) {}
+        }
+        return {
           ...prev,
-          idNumber: data.passportNumber || quickReg.passportNumber || prev.idNumber,
-          religion: quickReg.religion || prev.religion,
-          maritalStatus: quickReg.maritalStatus || prev.maritalStatus,
-          numberOfChildren: quickReg.numberOfChildren !== undefined ? quickReg.numberOfChildren : prev.numberOfChildren,
-          brokerId: (quickReg.brokerId || quickReg.broker?.id) || prev.brokerId,
-          cocDocumentUrl: quickReg.cocDocumentUrl || prev.cocDocumentUrl,
-          labourIdUrl: quickReg.labourIdUrl || prev.labourIdUrl,
-          candidateIdImageUrl: quickReg.candidateIdImageUrl || prev.candidateIdImageUrl,
-          relativeIdImageUrl: quickReg.relativeIdImageUrl || prev.relativeIdImageUrl,
-          languages: (quickReg.languages && quickReg.languages.length > 0)
-            ? quickReg.languages.map((l: string) => l.toUpperCase())
-            : prev.languages,
-        }));
-      }
+          idNumber: data.passportNumber || quickReg?.passportNumber || prev.idNumber,
+          job: quickReg?.job ? quickReg.job.toUpperCase() : prev.job,
+          religion: mapReligion(quickReg?.religion) || prev.religion,
+          maritalStatus: quickReg?.maritalStatus || prev.maritalStatus,
+          educationLevel: quickReg?.educationLevel || prev.educationLevel,
+          numberOfChildren: quickReg && quickReg.numberOfChildren !== undefined && quickReg.numberOfChildren !== null ? quickReg.numberOfChildren : prev.numberOfChildren,
+          languages: quickReg && Array.isArray(quickReg.languages) ? quickReg.languages.map((s: string) => s.toUpperCase()) : prev.languages,
+          brokerId: (quickReg ? (quickReg.brokerId || quickReg.broker?.id) : '') || prev.brokerId,
+          cocDocumentUrl: (quickReg ? quickReg.cocDocumentUrl : '') || prev.cocDocumentUrl || '',
+          labourIdUrl: (quickReg ? quickReg.labourIdUrl : '') || prev.labourIdUrl || '',
+          candidateIdImageUrl: (quickReg ? quickReg.candidateIdImageUrl : '') || prev.candidateIdImageUrl || '',
+          relativeIdImageUrl: (quickReg ? quickReg.relativeIdImageUrl : '') || prev.relativeIdImageUrl || '',
+          workExperience: Array.isArray(parsedWorkExp) && parsedWorkExp.length > 0 ? parsedWorkExp : prev.workExperience,
+        };
+      });
 
       setProcessingComplete(true);
     } catch (err) {
@@ -507,6 +551,7 @@ function RegistrationContent() {
           if (quickRes.ok) {
             quickReg = await quickRes.json();
             setQuickRegistrationId(quickReg.id);
+            setQuickRegData(quickReg);
             if (quickReg.passportImageUrl) {
               setPassportImage(quickReg.passportImageUrl);
             }
@@ -541,10 +586,6 @@ function RegistrationContent() {
         }
         return dateStr;
       };
-
-      if (quickReg) {
-        setQuickRegData(quickReg);
-      }
 
       setPassportData(prev => ({
         ...prev,
@@ -581,6 +622,23 @@ function RegistrationContent() {
           : [];
         const mergedLanguages = cvLangs.length > 0 ? cvLangs : (quickLangs.length > 0 ? quickLangs : prev.languages);
 
+        let finalWorkExp: any[] = [];
+        if (data.workExperience && Array.isArray(data.workExperience) && data.workExperience.length > 0) {
+          finalWorkExp = data.workExperience;
+        } else if (quickReg) {
+          const rawRegExp = quickReg.workExperience || quickReg.jobExperience || quickReg.personalInfo?.workExperience;
+          if (rawRegExp) {
+            try {
+              finalWorkExp = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+            } catch (e) {
+              console.warn('Failed to parse quickReg workExperience:', e);
+            }
+          }
+        }
+        if (!Array.isArray(finalWorkExp) || finalWorkExp.length === 0) {
+          finalWorkExp = prev.workExperience || [];
+        }
+
         return {
           ...prev,
           idNumber: data.passportNumber || quickReg?.passportNumber || prev.idNumber,
@@ -602,6 +660,7 @@ function RegistrationContent() {
           emergencyContactRelation: data.emergencyContactRelation || prev.emergencyContactRelation,
           emergencyContactPhone: data.emergencyContactPhone || prev.emergencyContactPhone,
           emergencyContactAddress: data.emergencyContactAddress || prev.emergencyContactAddress,
+          workExperience: finalWorkExp,
           
           // Merge from Quick Registration if found:
           brokerId: (quickReg ? (quickReg.brokerId || quickReg.broker?.id) : '') || prev.brokerId,

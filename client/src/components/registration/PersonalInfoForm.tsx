@@ -101,7 +101,6 @@ export default function PersonalInfoForm({
   onFullBodyPhotoChange,
   videoUrl,
   onVideoUrlChange,
-  quickRegistrationId,
   quickRegistrationData,
 }: PersonalInfoFormProps) {
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
@@ -125,8 +124,20 @@ export default function PersonalInfoForm({
   };
 
   const updateExperience = (index: number, field: keyof WorkExperienceEntry, value: string) => {
-    const updated = [...(data.workExperience || [])];
-    updated[index] = { ...updated[index], [field]: field === 'country' ? value.toUpperCase() : value };
+    const currentList = data.workExperience?.length > 0
+      ? data.workExperience
+      : [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
+    const updated = currentList.map((item, idx) => {
+      if (idx === index) {
+        const newItem = { ...item, [field]: field === 'country' ? value.toUpperCase() : value };
+        if (field === 'experienceStatus' && (value === 'New' || value === 'No experience')) {
+          newItem.country = '';
+          newItem.yearsOfExperience = '';
+        }
+        return newItem;
+      }
+      return item;
+    });
     onChange('workExperience', updated);
   };
 

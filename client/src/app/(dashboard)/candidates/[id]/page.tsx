@@ -556,6 +556,72 @@ export default function CandidateDetailPage() {
             </div>
           </div>
 
+          {/* Work Experience */}
+          <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+            <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
+              <Briefcase size={20} className="text-primary" /> Work Experience
+            </h2>
+            {(() => {
+              const rawExp = pi.workExperience || (c as any).workExperience || (c as any).jobExperience;
+              let expList: any[] = [];
+              if (Array.isArray(rawExp)) {
+                expList = rawExp;
+              } else if (typeof rawExp === 'string' && rawExp.trim()) {
+                try {
+                  expList = JSON.parse(rawExp);
+                } catch (e) {
+                  expList = [{ country: rawExp, yearsOfExperience: '', experienceStatus: 'Have experience' }];
+                }
+              }
+
+              if (!Array.isArray(expList) || expList.length === 0) {
+                return (
+                  <div className="py-6 text-center text-text-secondary bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                    <p className="text-sm font-medium">No experience recorded</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {expList.map((exp: any, idx: number) => {
+                    const isExp = exp.experienceStatus === 'Have experience' || (exp.country && exp.country.trim() !== '');
+                    const statusLabel = isExp ? 'Experienced' : (exp.experienceStatus || 'New');
+                    const countryVal = exp.country || exp.countryName || '—';
+                    const yearsVal = exp.yearsOfExperience || exp.years || '—';
+
+                    return (
+                      <div key={idx} className="group flex flex-col py-4 px-5 rounded-2xl hover:bg-primary/5 transition-colors border border-gray-100 hover:border-primary/20 min-w-0 bg-gray-50/60">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg ${isExp ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                        {isExp ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <MapPin size={13} className="text-primary/60 shrink-0" />
+                              <p className="text-[10px] text-text-tertiary uppercase tracking-wider font-bold">Country</p>
+                            </div>
+                            <p className="text-sm font-bold text-text-primary pl-5">{countryVal}</p>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <Clock size={13} className="text-primary/60 shrink-0" />
+                              <p className="text-[10px] text-text-tertiary uppercase tracking-wider font-bold">Years of Experience</p>
+                            </div>
+                            <p className="text-sm font-bold text-text-primary pl-5">{yearsVal} {yearsVal !== '—' && !yearsVal.toString().includes('year') ? (Number(yearsVal) === 1 ? 'Year' : 'Years') : ''}</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-text-tertiary font-medium">No previous overseas experience listed.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
           {/* Skills & Languages */}
           <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
             <h2 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
