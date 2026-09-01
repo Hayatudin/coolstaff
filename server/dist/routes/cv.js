@@ -123,8 +123,10 @@ router.post('/generate', async (req, res) => {
                     extension = 'jpg';
                 }
                 await browser.close();
-                res.setHeader('Content-Type', contentType);
-                res.setHeader('Content-Disposition', `attachment; filename="CV_${candidate.surname}.${extension}"`);
+                const pNo = (candidate.passportNumber || candidate.passportData?.passportNumber || '').replace(/[^a-zA-Z0-9]/g, '');
+                const candName = `${candidate.givenNames || ''}_${candidate.surname || ''}`.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+                const fn = pNo ? `${pNo}_${candName}` : candName || 'CV';
+                res.setHeader('Content-Disposition', `attachment; filename="${fn}.${extension}"`);
                 return res.send(outputBuf);
             }
             catch (err) {
@@ -352,8 +354,11 @@ router.post('/generate', async (req, res) => {
             };
             doc.render(data);
             const docxBuf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+            const pNo = (candidate.passportNumber || candidate.passportData?.passportNumber || '').replace(/[^a-zA-Z0-9]/g, '');
+            const candName = `${candidate.givenNames || ''}_${candidate.surname || ''}`.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            const fn = pNo ? `${pNo}_${candName}` : candName || 'CV';
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            res.setHeader('Content-Disposition', `attachment; filename="CV_${candidate.surname}.docx"`);
+            res.setHeader('Content-Disposition', `attachment; filename="${fn}.docx"`);
             return res.send(docxBuf);
         }
     }
