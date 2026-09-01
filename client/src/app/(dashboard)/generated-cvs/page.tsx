@@ -1427,10 +1427,10 @@ const normalizeLanguageName = (lang: string): string => {
         })}
       </div>
       <div className="space-y-6">
-        {/* Breadcrumb + Actions */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setExperienceFilter(''); setSelectedLanguages([]); setFlagFilter('all'); setSearchQuery(''); }} className="p-2 rounded-lg hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary">
+        {/* Breadcrumb + Actions Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={() => { setSelectedFolder(null); setReligionFilter(''); setExperienceFilter(''); setSelectedLanguages([]); setFlagFilter('all'); setSearchQuery(''); }} className="p-2 rounded-xl hover:bg-surface border border-border transition-colors text-text-secondary hover:text-text-primary cursor-pointer">
               <ArrowLeft size={18} />
             </button>
             <div>
@@ -1441,21 +1441,21 @@ const normalizeLanguageName = (lang: string): string => {
               </div>
               <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
                 {activeTemplate.name}
-                <span className={cn('text-sm font-semibold px-2 py-0.5 rounded-full', activeTemplate.bgLight, activeTemplate.textColor)}>
+                <span className={cn('text-sm font-semibold px-2.5 py-0.5 rounded-full', activeTemplate.bgLight, activeTemplate.textColor)}>
                   {activeCVs.length} CV{activeCVs.length !== 1 ? 's' : ''}
                 </span>
               </h1>
             </div>
 
             {/* CV Status Filter Tabs */}
-            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner ml-2">
+            <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner ml-0 sm:ml-2">
               <button
                 type="button"
                 onClick={() => setCvStatusFilter('cv-available')}
                 className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  "px-3.5 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-wider cursor-pointer",
                   cvStatusFilter === 'cv-available'
-                    ? "bg-white text-text-primary shadow-md"
+                    ? "bg-white text-text-primary shadow-sm"
                     : "text-text-tertiary hover:bg-white/50"
                 )}
               >
@@ -1465,9 +1465,9 @@ const normalizeLanguageName = (lang: string): string => {
                 type="button"
                 onClick={() => setCvStatusFilter('cv-downloaded')}
                 className={cn(
-                  "px-4 py-2.5 rounded-xl text-xs font-black transition-all uppercase tracking-widest cursor-pointer",
+                  "px-3.5 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-wider cursor-pointer",
                   cvStatusFilter === 'cv-downloaded'
-                    ? "bg-white text-text-primary shadow-md"
+                    ? "bg-white text-text-primary shadow-sm"
                     : "text-text-tertiary hover:bg-white/50"
                 )}
               >
@@ -1476,137 +1476,16 @@ const normalizeLanguageName = (lang: string): string => {
             </div>
           </div>
 
-          {/* Right side: Religion filter + Download All */}
-          <div className="flex items-center gap-3">
-            {/* Bulk action bar */}
-            {someSelected && (
-              <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
-                <span className="text-sm font-semibold text-primary">{selectedCVIds.size} selected</span>
-                <button
-                  onClick={() => setBulkChangeOpen(true)}
-                  disabled={actionLoading || isBackupFolder}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  <LayoutTemplate size={13} /> Change Template
-                </button>
-
-                {cvStatusFilter === 'cv-downloaded' && (
-                  <button
-                    onClick={handleBulkMarkAsCvAvailable}
-                    disabled={actionLoading || isBackupFolder}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 font-semibold"
-                  >
-                    <Check size={13} /> Mark as CV Available
-                  </button>
-                )}
-                <button
-                  onClick={() => setSelectedCVIds(new Set())}
-                  className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-            {/* Search Input */}
-            <div className="w-56 relative">
-              <input
-                type="text"
-                placeholder="Search candidates..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={14} />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-lg hover:bg-surface-hover transition-all"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            {/* Religion Filter */}
-            <div className="w-36">
-              <select
-                value={religionFilter}
-                onChange={e => setReligionFilter(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
-              >
-                <option value="">All Religions</option>
-                <option value="muslim">Muslim</option>
-                <option value="non-muslim">Non-Muslim</option>
-              </select>
-            </div>
-
-            {/* Experience Filter */}
-            <div className="w-36">
-              <select
-                value={experienceFilter}
-                onChange={e => setExperienceFilter(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
-              >
-                <option value="">All Experience</option>
-                <option value="experienced">Experienced</option>
-                <option value="no_experience">No Experience</option>
-              </select>
-            </div>
-
-            {/* Language MultiSelect Filter */}
-            <div className="w-48">
-              <MultiSelect
-                placeholder="Languages"
-                options={availableLanguages}
-                value={selectedLanguages}
-                onChange={setSelectedLanguages}
-                searchable={true}
-              />
-            </div>
-
-            {/* Flag Filter */}
-            <div className="w-36">
-              <select
-                value={flagFilter}
-                onChange={e => setFlagFilter(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl border border-border bg-surface text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
-              >
-                <option value="all">All Status</option>
-                <option value="flagged">Flagged Only</option>
-                <option value="unflagged">Unflagged Only</option>
-              </select>
-            </div>
-
-            {/* Age Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-text-secondary">Age:</span>
-              <div className="flex items-center gap-1 w-32 bg-surface border border-border rounded-xl px-2">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={minAgeFilter}
-                  onChange={e => setMinAgeFilter(e.target.value)}
-                  className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
-                />
-                <span className="text-text-tertiary">-</span>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={maxAgeFilter}
-                  onChange={e => setMaxAgeFilter(e.target.value)}
-                  className="w-full py-2 bg-transparent text-text-primary text-sm focus:outline-none text-center"
-                />
-              </div>
-            </div>
-
-            {/* Download */}
+          {/* Download Button (Prominent & Always Visible) */}
+          <div className="flex items-center gap-2 shrink-0">
             <div className="relative">
               <button
                 onClick={() => setDownloadAllOpen(p => !p)}
                 disabled={activeCVs.length === 0 || isDownloadingAll}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
+                  'flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border shadow-sm cursor-pointer whitespace-nowrap',
                   activeCVs.length > 0
-                    ? 'bg-primary text-white border-primary hover:bg-primary/90 shadow-md shadow-primary/20'
+                    ? 'bg-primary text-white border-primary hover:bg-primary/90 shadow-primary/20'
                     : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                 )}
               >
@@ -1627,25 +1506,166 @@ const normalizeLanguageName = (lang: string): string => {
                 <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-border rounded-xl shadow-2xl overflow-hidden z-50">
                   <button
                     onClick={() => handleDownloadAll('pdf')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors whitespace-nowrap"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-text-primary hover:bg-surface transition-colors whitespace-nowrap cursor-pointer"
                   >
                     <FileDown size={14} className="text-red-500 shrink-0" /> {selectedCVIds.size > 0 ? 'Selected as PDF' : 'All as PDF'}
                   </button>
                   <button
                     onClick={() => handleDownloadAll('jpg')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap cursor-pointer"
                   >
                     <ImageIcon size={14} className="text-emerald-500 shrink-0" /> {selectedCVIds.size > 0 ? 'Selected as JPG' : 'All as JPG'}
                   </button>
                   <button
                     onClick={() => handleDownloadAll('doc')}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap cursor-pointer"
                   >
                     <FileText size={14} className="text-blue-500 shrink-0" /> {selectedCVIds.size > 0 ? 'Selected as DOCX' : 'All as DOCX'}
                   </button>
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Filter and Control Toolbar Panel */}
+        <div className="bg-surface rounded-2xl border border-border/60 p-4 space-y-3 shadow-sm">
+          {/* Top Row: Search & Bulk Action Bar */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-between">
+            {/* Search Input */}
+            <div className="w-full sm:w-72 relative">
+              <input
+                type="text"
+                placeholder="Search candidates..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 rounded-xl border border-border bg-surface text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={14} />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary p-0.5 rounded-lg hover:bg-surface-hover transition-all cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Bulk Action Bar if items selected */}
+            {someSelected && (
+              <div className="flex flex-wrap items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-1.5 w-full sm:w-auto">
+                <span className="text-xs font-bold text-primary">{selectedCVIds.size} selected</span>
+                <button
+                  onClick={() => setBulkChangeOpen(true)}
+                  disabled={actionLoading || isBackupFolder}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  <LayoutTemplate size={13} /> Change Template
+                </button>
+
+                {cvStatusFilter === 'cv-downloaded' && (
+                  <button
+                    onClick={handleBulkMarkAsCvAvailable}
+                    disabled={actionLoading || isBackupFolder}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 font-semibold cursor-pointer"
+                  >
+                    <Check size={13} /> Mark as CV Available
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedCVIds(new Set())}
+                  className="p-1 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Row: Wrapped Filter Dropdowns */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-border/40">
+            {/* Religion Filter */}
+            <div className="w-32 sm:w-36">
+              <select
+                value={religionFilter}
+                onChange={e => setReligionFilter(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-medium"
+              >
+                <option value="">All Religions</option>
+                <option value="muslim">Muslim</option>
+                <option value="non-muslim">Non-Muslim</option>
+              </select>
+            </div>
+
+            {/* Experience Filter */}
+            <div className="w-32 sm:w-36">
+              <select
+                value={experienceFilter}
+                onChange={e => setExperienceFilter(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-medium"
+              >
+                <option value="">All Experience</option>
+                <option value="experienced">Experienced</option>
+                <option value="no_experience">No Experience</option>
+              </select>
+            </div>
+
+            {/* Language MultiSelect Filter */}
+            <div className="w-36 sm:w-44">
+              <MultiSelect
+                placeholder="Languages"
+                options={availableLanguages}
+                value={selectedLanguages}
+                onChange={setSelectedLanguages}
+                searchable={true}
+              />
+            </div>
+
+            {/* Flag Filter */}
+            <div className="w-32 sm:w-36">
+              <select
+                value={flagFilter}
+                onChange={e => setFlagFilter(e.target.value as any)}
+                className="w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface text-text-primary text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-medium"
+              >
+                <option value="all">All Status</option>
+                <option value="flagged">Flagged Only</option>
+                <option value="unflagged">Unflagged Only</option>
+              </select>
+            </div>
+
+            {/* Age Filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-text-secondary">Age:</span>
+              <div className="flex items-center gap-1 w-28 bg-surface border border-border rounded-xl px-1.5">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={minAgeFilter}
+                  onChange={e => setMinAgeFilter(e.target.value)}
+                  className="w-full py-1 bg-transparent text-text-primary text-xs focus:outline-none text-center font-medium"
+                />
+                <span className="text-text-tertiary text-xs">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={maxAgeFilter}
+                  onChange={e => setMaxAgeFilter(e.target.value)}
+                  className="w-full py-1 bg-transparent text-text-primary text-xs focus:outline-none text-center font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(religionFilter || experienceFilter || selectedLanguages.length > 0 || flagFilter !== 'all' || minAgeFilter || maxAgeFilter) && (
+              <button
+                onClick={() => { setReligionFilter(''); setExperienceFilter(''); setSelectedLanguages([]); setFlagFilter('all'); setMinAgeFilter(''); setMaxAgeFilter(''); }}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-500 hover:bg-red-50 transition-colors flex items-center gap-1 border border-red-200 cursor-pointer"
+              >
+                <X size={12} /> Clear
+              </button>
+            )}
           </div>
         </div>
 
