@@ -356,7 +356,11 @@ export default function AvailableCandidatesPage() {
       return;
     }
     const candidateId = previewCv.candidate.id;
-    const safeName = `${previewCv.candidate.passportData?.givenNames || 'candidate'}_${previewCv.candidate.passportData?.surname || 'cv'}`.replace(/\s+/g, '_');
+    const pNo = (previewCv.candidate.passportData?.passportNumber || (previewCv.candidate as any).passportNumber || '').replace(/[^a-zA-Z0-9]/g, '');
+    const givenNames = previewCv.candidate.passportData?.givenNames || (previewCv.candidate as any).givenNames || '';
+    const surname = previewCv.candidate.passportData?.surname || (previewCv.candidate as any).surname || '';
+    const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
+    const safeName = pNo ? `${pNo}_${namePart}`.replace(/[^a-zA-Z0-9_]/g, '') : namePart.replace(/[^a-zA-Z0-9_]/g, '');
     
     setIsDownloading(true);
     try {
@@ -570,7 +574,7 @@ export default function AvailableCandidatesPage() {
             const templateObj = TEMPLATES.find(t => t.id === templateId);
             const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALMERSAH';
 
-            const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+            const safeName = pNo ? `${pNo}_${namePart}_${templateName}`.replace(/[^a-zA-Z0-9_]/g, '') : `${namePart}_${templateName}`.replace(/[^a-zA-Z0-9_]/g, '');
 
             if (isCancelledRef.current) return;
             const dataUrl = await htmlToImage.toJpeg(element, {

@@ -444,8 +444,12 @@ export default function BackupPage() {
       setIsDownloading(true);
       try {
         const htmlToImage = await import('html-to-image');
-        const safeName = (downloadingCv.candidate.surname || 'CV').replace(/[^a-zA-Z0-9]/g, '');
-        const fileName = `CV_${safeName}_${downloadingCv.templateId.toUpperCase()}`;
+        const pNo = (downloadingCv.candidate?.passportNumber || downloadingCv.candidate?.passportData?.passportNumber || '').replace(/[^a-zA-Z0-9]/g, '');
+        const given = (downloadingCv.candidate?.givenNames || downloadingCv.candidate?.passportData?.givenNames || '').trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const sur = (downloadingCv.candidate?.surname || downloadingCv.candidate?.passportData?.surname || '').trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const namePart = [given, sur].filter(Boolean).join('_') || 'CV';
+        const tmplPart = downloadingCv.templateId ? downloadingCv.templateId.toUpperCase() : '';
+        const fileName = pNo ? `${pNo}_${namePart}${tmplPart ? `_${tmplPart}` : ''}` : `${namePart}${tmplPart ? `_${tmplPart}` : ''}`;
 
         const origH = el.style.height; const origO = el.style.overflow;
         el.style.height = 'auto'; el.style.overflow = 'visible';
@@ -774,7 +778,7 @@ export default function BackupPage() {
             const templateObj = TEMPLATES.find(t => t.id === templateId);
             const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALMERSAH';
 
-            const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+            const safeName = pNo ? `${pNo}_${namePart}_${templateName}`.replace(/[^a-zA-Z0-9_]/g, '') : `${namePart}_${templateName}`.replace(/[^a-zA-Z0-9_]/g, '');
 
             const dataUrl = await htmlToImage.toJpeg(element, {
               quality: 0.90,

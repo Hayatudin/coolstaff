@@ -245,11 +245,11 @@ export default function AgencyContractsPage() {
     setIsDownloading(true);
     try {
       const htmlToImage = await import('html-to-image');
-      const pNo = previewCv.candidate.passportData?.passportNumber || 'CV';
+      const pNo = (previewCv.candidate.passportData?.passportNumber || (previewCv.candidate as any).passportNumber || '').replace(/[^a-zA-Z0-9]/g, '');
       const givenNames = previewCv.candidate.passportData?.givenNames || '';
       const surname = previewCv.candidate.passportData?.surname || '';
       const namePart = `${givenNames}_${surname}`.trim().replace(/\s+/g, '_');
-      const safeName = `${namePart}_${previewCv.templateId.toUpperCase()}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+      const safeName = pNo ? `${pNo}_${namePart}_${previewCv.templateId.toUpperCase()}`.replace(/[^a-zA-Z0-9_]/g, '') : `${namePart}_${previewCv.templateId.toUpperCase()}`.replace(/[^a-zA-Z0-9_]/g, '');
 
       const downloadBlob = (blob: Blob, name: string) => {
         const url = window.URL.createObjectURL(blob);

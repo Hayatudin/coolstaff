@@ -641,8 +641,12 @@ export default function BrokerCandidatesPage() {
       try {
         if (isCancelledRef.current) throw new Error('Cancelled');
         const htmlToImage = await import('html-to-image');
-        const safeName = (downloadingCv.candidate.surname || 'CV').replace(/[^a-zA-Z0-9]/g, '');
-        const fileName = `CV_${safeName}_${downloadingCv.templateId.toUpperCase()}`;
+        const pNo = (downloadingCv.candidate?.passportNumber || downloadingCv.candidate?.passportData?.passportNumber || '').replace(/[^a-zA-Z0-9]/g, '');
+        const given = (downloadingCv.candidate?.givenNames || downloadingCv.candidate?.passportData?.givenNames || '').trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const sur = (downloadingCv.candidate?.surname || downloadingCv.candidate?.passportData?.surname || '').trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const namePart = [given, sur].filter(Boolean).join('_') || 'CV';
+        const tmplPart = downloadingCv.templateId ? downloadingCv.templateId.toUpperCase() : '';
+        const fileName = pNo ? `${pNo}_${namePart}${tmplPart ? `_${tmplPart}` : ''}` : `${namePart}${tmplPart ? `_${tmplPart}` : ''}`;
 
         const origH = el.style.height; const origO = el.style.overflow;
         el.style.height = 'auto'; el.style.overflow = 'visible';
@@ -901,7 +905,7 @@ export default function BrokerCandidatesPage() {
               const templateObj = TEMPLATES.find(t => t.id === templateId);
               const templateName = templateObj ? templateObj.name.replace(/\s+/g, '_') : 'ALMERSAH';
 
-              const safeName = `${namePart}_${templateName}_${pNo}`.replace(/[^a-zA-Z0-9_]/g, '');
+              const safeName = pNo ? `${pNo}_${namePart}_${templateName}`.replace(/[^a-zA-Z0-9_]/g, '') : `${namePart}_${templateName}`.replace(/[^a-zA-Z0-9_]/g, '');
 
               if (isCancelledRef.current) return;
               const dataUrl = await htmlToImage.toJpeg(element, {
@@ -1104,9 +1108,12 @@ export default function BrokerCandidatesPage() {
       }
 
       // 4. Flagged Filter
-      const matchesFlagged = flaggedFilter
-        ? flaggedFilter === 'flagged' ? c.isFlagged === true : c.isFlagged === false
-        : true;
+      let matchesFlagged = true;
+      if (flaggedFilter === 'flagged') {
+        matchesFlagged = Boolean(c.isFlagged);
+      } else if (flaggedFilter === 'unflagged') {
+        matchesFlagged = !c.isFlagged;
+      }
 
       // 5. Agency Filter
       const matchesAgency = agencyFilter === 'all'
