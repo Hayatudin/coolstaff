@@ -61,7 +61,7 @@ export function getCachedSession(): any | null {
     }
 
     return null;
-  } catch (_) {
+  } catch (err) {
     return null;
   }
 }
@@ -99,7 +99,7 @@ export async function signOut(options?: Parameters<typeof authClient.signOut>[0]
  */
 export function useSession() {
   const result = authClient.useSession();
-  const [cachedData, setCachedData] = React.useState<any>(() => getCachedSession());
+  const [, setCachedData] = React.useState<any>(() => getCachedSession());
 
   React.useEffect(() => {
     const valid = getCachedSession();
