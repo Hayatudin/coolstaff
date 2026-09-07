@@ -285,7 +285,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                 <tbody>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold w-[30%] ${bgLightBlue}`}>Number</td>
-                    <td className="border border-black px-2 py-1 font-black uppercase w-[50%] font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{candidate.passportData?.passportNumber}</td>
+                    <td className="border border-black px-2 py-1 font-black uppercase w-[50%] font-roboto text-[18px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '18px' }}>{candidate.passportData?.passportNumber}</td>
                     <td className={`border border-black px-2 py-1 text-right font-bold w-[20%] ${bgLightBlue}`} dir="rtl"></td>
                   </tr>
                   <tr>

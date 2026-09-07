@@ -27,7 +27,7 @@ export function TemplateClassic({ candidate, facePhoto }: TemplateProps) {
         <div><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">PERSONAL INFORMATION</h3>
           <p><strong>Date of Birth:</strong> {formatDate(p.dateOfBirth)}</p><p><strong>Gender:</strong> {p.gender}</p>
           <p><strong>Nationality:</strong> {resolvedNationality}</p><p><strong>Marital Status:</strong> {pi.maritalStatus}</p>
-          <p><strong>Religion:</strong> {pi.religion}</p><p><strong>Passport No:</strong> <span className="font-black font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{p.passportNumber}</span></p>
+          <p><strong>Religion:</strong> {pi.religion}</p><p><strong>Passport No:</strong> <span className="font-black font-roboto text-[14px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '14px' }}>{p.passportNumber}</span></p>
         </div>
         <div><h3 className="font-bold text-gray-800 border-b border-gray-300 pb-1 mb-2">PHYSICAL DETAILS</h3>
           <p><strong>Height:</strong> {pi.height}</p><p><strong>Weight:</strong> {pi.weight}</p>
@@ -64,7 +64,7 @@ export function TemplateModern({ candidate, facePhoto }: TemplateProps) {
         <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Languages</h3><div className="flex flex-wrap gap-1">{pi.languages.map(l=><span key={l} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px]">{l}</span>)}</div></div>
         <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Skills</h3><div className="flex flex-wrap gap-1">{pi.skills.map(s=><span key={s} className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-[9px]">{s}</span>)}</div></div>
         <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Experience</h3><p className="text-gray-700">{expStr}</p></div>
-        <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Passport</h3><p className="text-gray-700">No: <span className="font-black font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{p.passportNumber}</span> | Issued: {formatDate(p.dateOfIssue)} | Expires: {formatDate(p.dateOfExpiry)}</p></div>
+        <div><h3 className="text-xs font-bold text-indigo-600 uppercase mb-1">Passport</h3><p className="text-gray-700">No: <span className="font-black font-roboto text-[14px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '14px' }}>{p.passportNumber}</span> | Issued: {formatDate(p.dateOfIssue)} | Expires: {formatDate(p.dateOfExpiry)}</p></div>
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ export function TemplateProfessional({ candidate, facePhoto, fullBodyPhoto }: Te
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">EDUCATION</h3><p>{pi.educationLevel}</p></div>
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">EXPERIENCE</h3><p>{expStr}</p></div>
         <div><h3 className="text-xs font-bold text-gray-800 mb-2">SKILLS</h3><div className="flex flex-wrap gap-1">{pi.skills.map(s=><span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-[9px]">{s}</span>)}</div></div>
-        <div><h3 className="text-xs font-bold text-gray-800 mb-2">PASSPORT</h3><p>No: <span className="font-black font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{p.passportNumber}</span> | Valid: {formatDate(p.dateOfIssue)} - {formatDate(p.dateOfExpiry)}</p></div>
+        <div><h3 className="text-xs font-bold text-gray-800 mb-2">PASSPORT</h3><p>No: <span className="font-black font-roboto text-[14px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '14px' }}>{p.passportNumber}</span> | Valid: {formatDate(p.dateOfIssue)} - {formatDate(p.dateOfExpiry)}</p></div>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ export function TemplateMinimal({ candidate, facePhoto }: TemplateProps) {
             <h3 className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-1">{s.t}</h3>
             <p className="text-gray-700">
               {s.t === 'Passport' ? (
-                <><span className="font-black font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{p.passportNumber}</span> — Valid until {formatDate(p.dateOfExpiry)}</>
+                <><span className="font-black font-roboto text-[14px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '14px' }}>{p.passportNumber}</span> — Valid until {formatDate(p.dateOfExpiry)}</>
               ) : s.c}
             </p>
           </div>
@@ -160,7 +160,7 @@ export function TemplateElegant({ candidate, facePhoto, fullBodyPhoto }: Templat
           <div className="space-y-3">
             <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Languages & Skills</h3><p><em>Languages:</em> {pi.languages.join(', ')}</p><p><em>Skills:</em> {pi.skills.join(', ')}</p></div>
             <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Experience</h3><p>{expStr}</p></div>
-            <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Passport Details</h3><p>No: <span className="font-black font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{p.passportNumber}</span></p><p>Issued: {formatDate(p.dateOfIssue)}</p><p>Expires: {formatDate(p.dateOfExpiry)}</p></div>
+            <div><h3 className="text-xs font-bold text-amber-700 border-b border-amber-200 pb-1 mb-2">Passport Details</h3><p>No: <span className="font-black font-roboto text-[14px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '14px' }}>{p.passportNumber}</span></p><p>Issued: {formatDate(p.dateOfIssue)}</p><p>Expires: {formatDate(p.dateOfExpiry)}</p></div>
           </div>
         </div>
       </div>
