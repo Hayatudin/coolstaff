@@ -28,6 +28,56 @@ export const {
   updateUser,
 } = authClient;
 
+const SESSION_DURATION_MS = 60 * 60 * 1000; // 1 Hour (3,600,000 ms)
+
+/**
+ * Retrieves valid session data from localStorage if it is under 1 hour old.
+ * Automatically clears cache if 1 hour has elapsed.
+ */
+export function getCachedSession(): any | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('coolstaff_session_cache');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    const savedAt = parsed._savedAt || (parsed.session?.createdAt ? new Date(parsed.session.createdAt).getTime() : null);
+
+    if (savedAt) {
+      const elapsed = Date.now() - savedAt;
+      if (elapsed < SESSION_DURATION_MS) {
+        return parsed;
+      }
+      // Over 1 hour old — session expired!
+      console.warn('[AUTH] Session cache expired after 1 hour.');
+      localStorage.removeItem('coolstaff_session_cache');
+      return null;
+    }
+
+    // Fallback: if user data exists but no _savedAt timestamp, attach it now
+    if (parsed?.user) {
+      parsed._savedAt = Date.now();
+      localStorage.setItem('coolstaff_session_cache', JSON.stringify(parsed));
+      return parsed;
+    }
+
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Saves session data to localStorage with a timestamp for 1-hour session tracking.
+ */
+export function saveSessionToCache(sessionData: any) {
+  if (typeof window === 'undefined' || !sessionData) return;
+  const payload = {
+    ...sessionData,
+    _savedAt: Date.now(),
+  };
+  localStorage.setItem('coolstaff_session_cache', JSON.stringify(payload));
+}
+
 /**
  * Custom signOut wrapper that clears session cache from localStorage and cookies before calling authClient.signOut().
  */
@@ -44,43 +94,33 @@ export async function signOut(options?: Parameters<typeof authClient.signOut>[0]
   }
 }
 
-// Custom wrapper for useSession that uses localStorage caching ONLY for temporary network drops.
-// If the server explicitly confirms no session (data === null and !isPending), cache is cleared.
+/**
+ * Custom useSession hook that maintains session state for up to 1 hour across page navigations.
+ */
 export function useSession() {
   const result = authClient.useSession();
-  const [cachedData, setCachedData] = React.useState<any>(null);
+  const [cachedData, setCachedData] = React.useState<any>(() => getCachedSession());
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('coolstaff_session_cache');
-      if (stored) {
-        try {
-          setCachedData(JSON.parse(stored));
-        } catch (_) {}
-      }
+    const valid = getCachedSession();
+    if (valid) {
+      setCachedData(valid);
     }
   }, []);
 
   React.useEffect(() => {
     if (result.data) {
-      localStorage.setItem('coolstaff_session_cache', JSON.stringify(result.data));
-      setCachedData(result.data);
-    } else if (!result.isPending && result.data === null && !result.error) {
-      // Server explicitly returned null session (logged out or session expired)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('coolstaff_session_cache');
-      }
-      setCachedData(null);
+      saveSessionToCache(result.data);
+      setCachedData({ ...result.data, _savedAt: Date.now() });
     }
-  }, [result.data, result.isPending, result.error]);
+  }, [result.data]);
 
-  // Return cachedData if result.data is not yet available and cachedData exists
-  if (!result.data && cachedData) {
-    return {
-      ...result,
-      data: cachedData,
-    };
-  }
+  const validCache = getCachedSession();
+  const effectiveData = result.data || validCache;
 
-  return result;
+  return {
+    ...result,
+    data: effectiveData,
+    isPending: result.isPending && !effectiveData,
+  };
 }

@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, Home, LogIn } from 'lucide-react';
-import { signIn, signUp } from '@/lib/auth-client';
+import { signIn, signUp, saveSessionToCache } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
@@ -29,14 +29,29 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      // 1. Attempt Sign In
-      const { data: signInData, error: signInError } = await signIn.email({
-        email,
-        password,
-      });
+      // 1. Attempt Sign In with auto-retry resilience
+      let signInData: any = null;
+      let signInError: any = null;
 
-      if (!signInError) {
-        // Sign in success! Check role for redirection
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const res = await signIn.email({
+          email,
+          password,
+        });
+        signInData = res.data;
+        signInError = res.error;
+        if (!signInError || (signInError.status && signInError.status >= 400 && signInError.status < 500)) {
+          break;
+        }
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 500 * attempt));
+        }
+      }
+
+      if (!signInError && signInData) {
+        // Save session payload to cache for 1-hour session persistence
+        saveSessionToCache(signInData);
+
         const user = signInData.user as any;
         const role = user?.role;
         console.log("Sign in successful. User role:", role);
@@ -54,32 +69,45 @@ function LoginForm() {
       }
 
       console.error("🔒 Sign In Error Details:", {
-        message: signInError.message,
-        code: signInError.code,
-        status: signInError.status,
-        statusText: signInError.statusText,
+        message: signInError?.message,
+        code: signInError?.code,
+        status: signInError?.status,
+        statusText: signInError?.statusText,
         raw: signInError,
       });
 
-      // Show the real server error directly on screen for debugging
-      const rawDetail = (signInError as any).code || signInError.message || 'unknown';
-      const statusDetail = (signInError as any).status ? ` [${(signInError as any).status}]` : '';
-      console.error(`AUTH FAILURE — code: ${rawDetail}${statusDetail} | full:`, JSON.stringify(signInError, null, 2));
-
-      console.log("Sign in failed with:", signInError.message, ". Attempting auto-registration...");
+      console.log("Sign in failed with:", signInError?.message, ". Attempting auto-registration...");
 
       const namePrefix = email.split('@')[0];
       const displayName = namePrefix.charAt(0).toUpperCase() + namePrefix.slice(1);
 
-      const { data: signUpData, error: signUpError } = await signUp.email({
-        email,
-        password,
-        name: displayName,
-      });
+      let signUpData: any = null;
+      let signUpError: any = null;
 
-      if (!signUpError) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const res = await signUp.email({
+          email,
+          password,
+          name: displayName,
+        });
+        signUpData = res.data;
+        signUpError = res.error;
+        if (!signUpError || (signUpError.status && signUpError.status >= 400 && signUpError.status < 500)) {
+          break;
+        }
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 500 * attempt));
+        }
+      }
+
+      if (!signUpError && signUpData) {
         console.log("Auto-registration successful for new user.");
-        router.push('/');
+        saveSessionToCache(signUpData);
+        if (callbackUrl && callbackUrl.startsWith('/') && callbackUrl !== '/') {
+          router.push(callbackUrl);
+        } else {
+          router.push('/dashboard');
+        }
         return;
       }
 
