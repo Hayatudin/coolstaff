@@ -404,7 +404,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
                               })
                             ]
                           }),
-                          createDataRow("Number", candidate.passportData?.passportNumber?.toUpperCase() || "", "F4EBD0", { font: "Roboto", bold: true }),
+                          createDataRow("Number", candidate.passportData?.passportNumber?.toUpperCase() || "", "F4EBD0", { font: "Roboto", bold: true, size: 24 }),
                           createDataRow("Issue Date", formatDate(candidate.passportData?.dateOfIssue)),
                           createDataRow("Expiry Date", formatDate(candidate.passportData?.dateOfExpiry)),
                           createDataRow("Issue Place", candidate.passportData?.issuingCountry?.toUpperCase() || "ETHIOPIA"),

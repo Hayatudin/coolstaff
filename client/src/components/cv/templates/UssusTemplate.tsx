@@ -106,7 +106,7 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
             </div>
             <div>
               <span className="font-bold">PASSPORT NUMBER: </span>
-              <span className="font-bold font-roboto" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold' }}>{candidate.passportData?.passportNumber}</span>
+              <span className="font-bold font-roboto text-[15px]" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold', fontSize: '15px' }}>{candidate.passportData?.passportNumber}</span>
             </div>
           </div>
 

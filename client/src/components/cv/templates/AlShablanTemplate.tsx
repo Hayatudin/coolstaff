@@ -311,7 +311,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
                 <tbody>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold w-[45%] ${beigeBg}`}>Number</td>
-                    <td className="border border-black px-2 py-1 text-center font-bold uppercase font-roboto" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold' }}>{candidate.passportData?.passportNumber}</td>
+                    <td className="border border-black px-2 py-1 text-center font-bold uppercase font-roboto text-[15px]" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold', fontSize: '15px' }}>{candidate.passportData?.passportNumber}</td>
                   </tr>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Issue Date</td>
