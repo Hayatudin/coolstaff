@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, Home, LogIn } from 'lucide-react';
-import { signIn, signUp, saveSessionToCache } from '@/lib/auth-client';
+import { signIn, signUp } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
@@ -49,9 +49,6 @@ function LoginForm() {
       }
 
       if (!signInError && signInData) {
-        // Save session payload to cache for 1-hour session persistence
-        saveSessionToCache(signInData);
-
         const user = signInData.user as any;
         const role = user?.role;
         console.log("Sign in successful. User role:", role);
@@ -102,7 +99,6 @@ function LoginForm() {
 
       if (!signUpError && signUpData) {
         console.log("Auto-registration successful for new user.");
-        saveSessionToCache(signUpData);
         if (callbackUrl && callbackUrl.startsWith('/') && callbackUrl !== '/') {
           router.push(callbackUrl);
         } else {

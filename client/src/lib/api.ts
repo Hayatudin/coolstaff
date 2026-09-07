@@ -22,7 +22,7 @@ export class ApiError extends Error {
 function getSessionToken(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // 1. Try reading from cookie
+  // Read session token from cookie
   const cookies = document.cookie.split(';');
   for (const cookie of cookies) {
     const [name, value] = cookie.trim().split('=');
@@ -30,17 +30,6 @@ function getSessionToken(): string | null {
       return decodeURIComponent(value);
     }
   }
-
-  // 2. Try reading from cached session in localStorage
-  try {
-    const cached = localStorage.getItem('coolstaff_session_cache');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed?.session?.token) {
-        return parsed.session.token;
-      }
-    }
-  } catch (_) {}
 
   return null;
 }
@@ -87,7 +76,6 @@ export async function api(path: string, options: RequestInit = {}) {
           if (freshSession?.data?.session?.token) {
             const newToken = freshSession.data.session.token;
             (requestOptions.headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
-            localStorage.setItem('coolstaff_session_cache', JSON.stringify(freshSession.data));
             console.log('[API] Session refreshed successfully. Retrying API request...');
             const retryResponse = await fetch(url, requestOptions);
             if (retryResponse.ok) {
