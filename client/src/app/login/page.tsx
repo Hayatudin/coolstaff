@@ -119,15 +119,15 @@ function LoginForm() {
         raw: signUpError,
       });
 
-      if (signUpError.message?.toLowerCase().includes('already exists') || signUpError.code === 'USER_ALREADY_EXISTS') {
+      if (signUpError?.message?.toLowerCase().includes('already exists') || signUpError?.code === 'USER_ALREADY_EXISTS') {
         // Sign-in failed with real credentials — show the exact server error
-        const code = (signInError as any).code || '';
-        const msg = signInError.message || '';
-        const status = (signInError as any).status || '';
-        setError(`Server error: ${msg}${code ? ` (code: ${code})` : ''}${status ? ` [HTTP ${status}]` : ''}`);
+        const code = (signInError as any)?.code || '';
+        const msg = signInError?.message || 'Invalid email or password';
+        const status = (signInError as any)?.status || '';
+        setError(`Authentication error: ${msg}${code ? ` (code: ${code})` : ''}${status ? ` [HTTP ${status}]` : ''}`);
       } else {
-        const errorMessage = signUpError.message || signInError.message || 'Authentication failed';
-        setError(`Server error: ${errorMessage}`);
+        const errorMessage = signUpError?.message || signInError?.message || 'Authentication failed';
+        setError(`Authentication error: ${errorMessage}`);
       }
 
     } catch (err: any) {
