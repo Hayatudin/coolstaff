@@ -168,9 +168,9 @@ export default function AlmalaTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold w-[25%]" dir="rtl">الجنسيه</td>
                 </tr>
                 <tr>
-                  <td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Passport No.</td>
-                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center font-bold font-roboto text-[15px]" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold', fontSize: '15px' }}>{candidate.passportData?.passportNumber}</td>
-                  <td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">رقم جواز السفر</td>
+                  <td className="border-[1.5px] border-black px-2 py-1 text-[#0066cc] font-bold">Passport No.</td>
+                  <td className="border-[1.5px] border-black px-2 py-1 text-center font-black font-roboto text-[26px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '26px' }}>{candidate.passportData?.passportNumber}</td>
+                  <td className="border-[1.5px] border-black px-2 py-1 text-right font-bold" dir="rtl">رقم جواز السفر</td>
                 </tr>
                 <tr>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Religion</td>
