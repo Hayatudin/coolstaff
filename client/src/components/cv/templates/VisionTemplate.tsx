@@ -184,7 +184,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                 {/* Row 7: Passport Number */}
                 <tr>
                   <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Passport Number</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-extrabold text-[#d32f2f] uppercase">{candidate.passportData?.passportNumber}</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-extrabold text-[#d32f2f] uppercase font-roboto" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold' }}>{candidate.passportData?.passportNumber}</td>
                   <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">رقم الجواز</td>
                 </tr>
 

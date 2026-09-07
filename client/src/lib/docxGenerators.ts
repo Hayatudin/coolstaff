@@ -71,7 +71,7 @@ const BORDER_SOLID = {
   right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
 };
 
-function createText(text: string, options: { bold?: boolean, size?: number, color?: string } = {}) {
+function createText(text: string, options: { bold?: boolean, size?: number, color?: string, font?: string } = {}) {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
     children: [
@@ -79,14 +79,14 @@ function createText(text: string, options: { bold?: boolean, size?: number, colo
         text: text || '-',
         bold: options.bold || false,
         size: options.size || 24, // 24 half-points = 12pt
-        font: "Times New Roman",
+        font: options.font || "Times New Roman",
         color: options.color || "000000"
       })
     ]
   });
 }
 
-function createTextLeft(text: string, options: { bold?: boolean, size?: number } = {}) {
+function createTextLeft(text: string, options: { bold?: boolean, size?: number, font?: string } = {}) {
   return new Paragraph({
     alignment: AlignmentType.LEFT,
     children: [
@@ -94,13 +94,13 @@ function createTextLeft(text: string, options: { bold?: boolean, size?: number }
         text: text || '-',
         bold: options.bold || false,
         size: options.size || 24,
-        font: "Times New Roman"
+        font: options.font || "Times New Roman"
       })
     ]
   });
 }
 
-function createDataRow(label: string, value: string, bgColor: string = "F4EBD0") {
+function createDataRow(label: string, value: string, bgColor: string = "F4EBD0", valOptions?: { bold?: boolean, size?: number, color?: string, font?: string }) {
   return new TableRow({
     children: [
       new TableCell({
@@ -112,7 +112,7 @@ function createDataRow(label: string, value: string, bgColor: string = "F4EBD0")
         verticalAlign: VerticalAlign.CENTER
       }),
       new TableCell({
-        children: [createText(value, { bold: true, size: 20 })],
+        children: [createText(value, { bold: true, size: 20, ...valOptions })],
         margins: { top: 40, bottom: 40, left: 80, right: 80 },
         borders: BORDER_SOLID,
         width: { size: 60, type: WidthType.PERCENTAGE },
@@ -404,7 +404,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
                               })
                             ]
                           }),
-                          createDataRow("Number", candidate.passportData?.passportNumber?.toUpperCase() || ""),
+                          createDataRow("Number", candidate.passportData?.passportNumber?.toUpperCase() || "", "F4EBD0", { font: "Roboto", bold: true }),
                           createDataRow("Issue Date", formatDate(candidate.passportData?.dateOfIssue)),
                           createDataRow("Expiry Date", formatDate(candidate.passportData?.dateOfExpiry)),
                           createDataRow("Issue Place", candidate.passportData?.issuingCountry?.toUpperCase() || "ETHIOPIA"),

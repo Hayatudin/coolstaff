@@ -169,7 +169,7 @@ export default function AlmalaTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                 </tr>
                 <tr>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-[#0066cc] font-bold">Passport No.</td>
-                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center font-bold">{candidate.passportData?.passportNumber}</td>
+                  <td className="border-[1.5px] border-black px-2 py-1.5 text-center font-bold font-roboto" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold' }}>{candidate.passportData?.passportNumber}</td>
                   <td className="border-[1.5px] border-black px-2 py-1.5 text-right font-bold" dir="rtl">رقم جواز السفر</td>
                 </tr>
                 <tr>

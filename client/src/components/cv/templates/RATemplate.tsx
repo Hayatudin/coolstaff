@@ -277,7 +277,7 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
                 <tbody>
                   <tr>
                     <td className={`border border-black px-2 py-1 font-bold w-[30%] ${bgLightBlue}`}>Number</td>
-                    <td className="border border-black px-2 py-1 font-bold uppercase w-[50%]">{candidate.passportData?.passportNumber}</td>
+                    <td className="border border-black px-2 py-1 font-bold uppercase w-[50%] font-roboto" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: 'bold' }}>{candidate.passportData?.passportNumber}</td>
                     <td className={`border border-black px-2 py-1 text-right font-bold w-[20%] ${bgLightBlue}`} dir="rtl"></td>
                   </tr>
                   <tr>
