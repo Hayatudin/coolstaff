@@ -1,6 +1,5 @@
 import React from 'react';
 import { Candidate } from '@/types';
-import { getFileUrl } from '@/lib/utils';
 import { resolveCandidateNationality, resolveCandidateWorkExperience } from '@/lib/cvHelpers';
 
 interface CVTemplateProps {
@@ -13,7 +12,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
-  // Helper functions for data mapping
+  // Helper functions
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -26,381 +25,465 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
     return age;
   };
 
-  const hasLang = (lang: string) => {
-    return candidate.personalInfo?.languages?.includes(lang) ? 'YES' : 'NO';
-  };
-
-  const isExperienced = candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
-  const hasSkill = (skill: string) => {
-    const s = skill.toUpperCase();
-    if (s === 'COOKING' || s === 'ARABIC COOKING') {
-      return isExperienced ? 'YES' : 'NO';
-    }
-    if (s === 'IRONING') {
-      return isExperienced ? (candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO') : 'NO';
-    }
-    if (s === 'CLEANING' || s === 'WASHING' || s === 'BABY' || s === 'BABY SITTING' || s === 'BABY_SITTING' || s === 'CHILDREN CARE' || s === 'CHILDREN_CARE' || s === 'DISABLED CARING') {
-      return 'YES';
-    }
-    return candidate.personalInfo?.skills?.includes(skill) ? 'YES' : 'NO';
-  };
-
-  const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim();
-  const age = calculateAge(candidate.passportData?.dateOfBirth);
-
-  const formatDate = (dateString: string | undefined) => {
+  const formatDateFull = (dateString: string | undefined) => {
     if (!dateString) return '';
     try {
       const d = new Date(dateString);
-      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+      const day = String(d.getDate()).padStart(2, '0');
+      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month} ${year}`;
     } catch {
       return dateString;
     }
   };
 
-  let expPeriod = '0 YEAR';
-  let expCountry = '';
-  if (candidate.personalInfo?.workExperience && candidate.personalInfo.workExperience.length > 0) {
-    const exps = candidate.personalInfo.workExperience.filter(e => e.experienceStatus === 'Have experience');
-    if (exps.length > 0) {
-      expPeriod = exps.map(e => e.yearsOfExperience + ' YRS').join(' + ');
-      expCountry = exps.map(e => e.country).join(', ');
+  const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim() || (candidate as any).fullName || '';
+  const age = calculateAge(candidate.passportData?.dateOfBirth);
+  const isExperienced = resolvedExps.length > 0 || candidate.personalInfo?.workExperience?.some((e: any) => e.experienceStatus === 'Have experience') || false;
+
+  const hasLang = (lang: string) => {
+    return candidate.personalInfo?.languages?.some(l => l.toUpperCase().includes(lang.toUpperCase())) ? 'YES' : 'NO';
+  };
+
+  const arabicLevel = hasLang('ARABIC') === 'YES' ? (isExperienced ? 'GOOD' : 'FAIR') : 'POOR';
+  const englishLevel = hasLang('ENGLISH') === 'YES' ? (isExperienced ? 'GOOD' : 'FAIR') : 'FAIR';
+
+  const hasSkill = (skill: string): 'YES' | 'NO' => {
+    const s = skill.toUpperCase();
+    const dbSkills = (candidate.personalInfo?.skills || []).map(item => item.toUpperCase());
+
+    if (s === 'CLEANING' || s === 'WASHING' || s === 'IRONING' || s === 'CHILDREN CARE') {
+      return 'YES';
     }
-  }
+    if (s === 'COOKING' || s === 'ARABIC COOKING') {
+      return isExperienced ? 'YES' : 'NO';
+    }
+    if (s === 'BABY SITTING') {
+      return dbSkills.some(item => item.includes('BABY')) ? 'YES' : 'NO';
+    }
+    if (s === 'TUTORING') {
+      return dbSkills.includes('TUTORING') ? 'YES' : 'NO';
+    }
+    if (s === 'DISABLED CARE') {
+      return dbSkills.some(item => item.includes('DISABLED')) ? 'YES' : 'NO';
+    }
+    if (s === 'SEWING') {
+      return dbSkills.includes('SEWING') ? 'YES' : 'NO';
+    }
+    if (s === 'COMPUTERS') {
+      return dbSkills.some(item => item.includes('COMPUTER')) ? 'YES' : 'NO';
+    }
+    return dbSkills.includes(s) ? 'YES' : 'NO';
+  };
 
-  const beigeBg = "bg-[#f4ebd0]";
-  const headerBg = "bg-gray-100"; // Wait, in the image, the table headers like "Overseas Experience" have the same beige or white? They seem to have white or transparent bg, but the text "Overseas Experience" is bold on the top left of the table.
+  const getPositionArabic = (jobName: string | undefined) => {
+    const j = (jobName || '').toLowerCase();
+    if (j.includes('driver')) return 'سائق';
+    if (j.includes('cook')) return 'طباخة';
+    if (j.includes('baby') || j.includes('child')) return 'مربية أطفال';
+    if (j.includes('nurse') || j.includes('caregiver')) return 'ممرضة / رعاية';
+    return 'عاملة منزلية';
+  };
 
-  // Let's create the JSX structure accurately.
+  const positionEnglish = candidate.personalInfo?.job || 'Domestic Helper';
+  const positionArabic = getPositionArabic(candidate.personalInfo?.job);
+
+  // Candidate Code
+  const candidateCode = (candidate.personalInfo as any)?.code || (candidate.passportData?.passportNumber ? `PS – ASH: ${candidate.passportData.passportNumber}` : 'PS – ASH: 1959');
+
+  // Salary & Contract
+  const salary = candidate.salary || candidate.personalInfo?.salary || '400 USD';
+  const passportNumber = candidate.passportData?.passportNumber || '';
+  const dateOfIssue = formatDateFull(candidate.passportData?.dateOfIssue) || '';
+  const dateOfExpiry = formatDateFull(candidate.passportData?.dateOfExpiry) || '';
+  const placeOfIssue = candidate.passportData?.issuingCountry || (candidate.passportData as any)?.placeOfIssue || 'ETHIOPIA';
+  const contactNumber = candidate.personalInfo?.phone || '';
+  const nextOfKinName = candidate.personalInfo?.emergencyContactName || '';
+  const nextOfKinRelation = candidate.personalInfo?.emergencyContactRelation || 'RELATIVE';
+  const nextOfKinAddress = candidate.personalInfo?.city || candidate.personalInfo?.emergencyContactAddress || '';
+  const nextOfKinPhone = candidate.personalInfo?.emergencyContactPhone || '';
+
+  const nationality = (resolvedNationality || 'FILIPINO').toUpperCase();
+  const religion = (candidate.personalInfo?.religion || 'NON-MUSLIM').toUpperCase();
+  const dob = formatDateFull(candidate.passportData?.dateOfBirth) || '';
+  const placeOfBirth = (candidate.personalInfo?.city || candidate.passportData?.placeOfBirth || 'ADDIS ABABA').toUpperCase();
+  const livingTown = (candidate.personalInfo?.city || 'ADDIS ABABA').toUpperCase();
+
+  const maritalStatus = (candidate.personalInfo?.maritalStatus || 'SINGLE').toUpperCase();
+  const numberOfChildren = candidate.personalInfo?.numberOfChildren ?? 0;
+  const weight = candidate.personalInfo?.weight ? `${candidate.personalInfo.weight}` : '54';
+  const height = candidate.personalInfo?.height ? `${candidate.personalInfo.height}` : "5'2";
+  const complexion = ((candidate.personalInfo as any)?.complexion || 'FAIR').toUpperCase();
+  const educationLevel = (candidate.personalInfo?.educationLevel || 'HIGH SCHOOL LEVEL').toUpperCase();
+
+  // Current Date Formatted
+  const today = new Date();
+  const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  const todayDate = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
+
+  // Bio generation matching the exact format from the image
+  const bioText = `MS. ${fullName} IS A ${isExperienced ? 'EXPERIENCED WORKER' : 'FIRST TIMER'}. SHE CAPABLE OF ANY HOUSEHOLD DUTIES LIKE WASHING, IRONING CLOTHES AND CLEANING HOUSE. SHE WANTS TO LEARN HOW TO COOK ARABIC DISHES AND WILLING TO TAKE CARE OF CHILDREN. SHE CAN EASILY FOLLOW INSTRUCTION; SHE IS PATIENT AND HARDWORKING.`;
+
+  // Skills List matching exact order from the image
+  const skillsList = [
+    { name: 'Baby Sitting', val: hasSkill('BABY SITTING'), ar: 'عناية الرضع' },
+    { name: 'Children Care', val: hasSkill('CHILDREN CARE'), ar: 'عناية الاطفال' },
+    { name: 'Tutoring', val: hasSkill('TUTORING'), ar: 'تعليم الاطفال' },
+    { name: 'Disabled Care', val: hasSkill('DISABLED CARE'), ar: 'عناية كبار السن' },
+    { name: 'Cleaning', val: hasSkill('CLEANING'), ar: 'التنظيف' },
+    { name: 'Washing', val: hasSkill('WASHING'), ar: 'الغسيل' },
+    { name: 'Ironing', val: hasSkill('IRONING'), ar: 'الكوي' },
+    { name: 'Cooking', val: hasSkill('COOKING'), ar: 'الطبخ' },
+    { name: 'Arabic Cooking', val: hasSkill('ARABIC COOKING'), ar: 'الطبخ العربي' },
+    { name: 'Sewing', val: hasSkill('SEWING'), ar: 'الخياطة' },
+    { name: 'Computers', val: hasSkill('COMPUTERS'), ar: 'استخدام الكمبيوتر' },
+    { name: 'Others', val: hasSkill('OTHERS'), ar: 'خبرات اخرى' },
+  ];
+
+  // Previous Employment Rows (3 rows total)
+  const renderExpRows = () => {
+    if (resolvedExps.length > 0) {
+      const rows = [];
+      for (let i = 0; i < 3; i++) {
+        const exp = resolvedExps[i];
+        if (exp) {
+          rows.push(
+            <tr key={i}>
+              <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold w-[26%] uppercase">{exp.yearsOfExperience} {exp.yearsOfExperience === '1' ? 'YR' : 'YRS'}</td>
+              <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold w-[36%] uppercase">{exp.country}</td>
+              <td className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[38%] uppercase">{exp.position || 'HOUSE MAID'}</td>
+            </tr>
+          );
+        } else {
+          rows.push(
+            <tr key={i}>
+              <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
+              <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
+              <td className="border-b border-black px-1 py-0.5 text-center h-[20px] w-[38%]"></td>
+            </tr>
+          );
+        }
+      }
+      return rows;
+    }
+
+    return (
+      <>
+        <tr>
+          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
+          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
+          <td className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[38%] uppercase">FIRST TIMER</td>
+        </tr>
+        <tr>
+          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
+          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
+          <td className="border-b border-black px-1 py-0.5 text-center h-[20px] w-[38%]"></td>
+        </tr>
+        <tr>
+          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
+          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
+          <td className="border-b border-black px-1 py-0.5 text-center h-[20px] w-[38%]"></td>
+        </tr>
+      </>
+    );
+  };
+
   return (
-    <div className="w-[794px] mx-auto bg-white text-black font-serif shadow-lg print:shadow-none relative" dir="ltr">
+    <div className="w-[794px] min-h-[1123px] mx-auto bg-white text-black font-sans shadow-lg print:shadow-none p-3 box-border flex flex-col justify-between" dir="ltr">
 
-      {/* PAGE 1: Profile Sheet */}
-      <div className="w-[794px] h-[1123px] relative overflow-hidden page-break-after-always">
+      <div className="flex flex-col flex-1">
+        {/* TOP HEADER */}
+        <div className="w-full mb-1 flex items-center justify-between">
+          <img
+            src="/al-shablan-header.png"
+            alt="Al-Shablan Recruitment Company"
+            className="w-full h-auto max-h-[72px] object-contain object-left"
+          />
+        </div>
 
-        {/* Background Composite Image */}
-        <img
-          src="/Al-shablan.png"
-          alt="Al Shablan Background"
-          className="absolute inset-0 w-full h-full object-fill z-0"
-        />
+        {/* SECTION 1: CODE & POSITION TABLE */}
+        <table className="w-full border-collapse border border-black text-[11px] leading-tight">
+          <tbody>
+            <tr>
+              <td className="border-r border-b border-black px-2 py-0.5 font-bold text-center w-[21%] uppercase">CODE</td>
+              <td className="border-r border-b border-black px-2 py-0.5 font-extrabold text-center text-[#cc0000] w-[24%] uppercase">{candidateCode}</td>
+              <td className="border-b border-black px-2 py-0.5 font-bold text-center w-[55%]">{positionEnglish}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} className="border-r border-black px-2 py-0.5 font-bold text-center uppercase">
+                {isExperienced ? 'EX- ABROAD' : 'FIRST TIMER'}
+              </td>
+              <td className="px-2 py-0.5 font-bold text-center text-[11.5px]" dir="rtl">{positionArabic}</td>
+            </tr>
+          </tbody>
+        </table>
 
-        {/* Content Overlay */}
-        {/* Padding to fit inside the golden border and below the header */}
-        <div className="relative z-10 w-full h-full px-[50px] pt-[180px] pb-[50px] flex flex-col gap-2">
+        {/* SECTION 2: APPLICATION FOR EMPLOYMENT */}
+        <div className="w-full border-x border-b border-black text-center py-0.5 font-bold text-[13px] text-[#2e5b88] tracking-[0.14em] bg-white">
+          APPLICATION FOR EMPLOYMENT
+        </div>
 
-          {/* Top Section: Photo and Basic Info */}
-          <div className="flex gap-2">
-            {/* Face Photo */}
-            <div className="w-[220px] h-[220px] border border-black p-0 shrink-0 bg-white overflow-hidden flex items-center justify-center">
-              {facePhoto ? (
-                <img src={facePhoto} className="w-full h-full object-cover" alt="Face" />
-              ) : (
-                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-sm">Face Photo</div>
-              )}
-            </div>
+        {/* SECTION 3: FULL NAME */}
+        <table className="w-full border-collapse border-x border-b border-black text-[11px] leading-tight">
+          <tbody>
+            <tr>
+              <td className="border-r border-black px-2 py-1 font-bold text-center w-[23%] uppercase">FULL NAME</td>
+              <td className="border-r border-black px-2 py-1 font-black text-center text-[#cc0000] text-[13.5px] w-[45%] uppercase tracking-wide">{fullName}</td>
+              <td className="px-2 py-1 font-bold text-center w-[32%] text-[12px]" dir="rtl">الاسم بالكامل</td>
+            </tr>
+          </tbody>
+        </table>
 
-            {/* Basic Info Table */}
-            <div className="flex-1">
-              <table className="w-full border-collapse border border-black text-[14px] leading-tight bg-white">
-                <tbody>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold w-[35%] ${beigeBg}`}>Reference No</td>
-                    <td className="border border-black px-2 py-1.5 text-center font-bold">124764987</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Full Name</td>
-                    <td className="border border-black px-2 py-1.5 text-center font-bold uppercase">{fullName}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Religion</td>
-                    <td className="border border-black px-2 py-1.5 text-center uppercase">{candidate.personalInfo?.religion}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Position Desired</td>
-                    <td className="border border-black px-2 py-1.5 text-center uppercase">{candidate.personalInfo?.job || 'HOUSE MAID'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Salary</td>
-                    <td className="border border-black px-2 py-1.5 text-center font-bold">{candidate.salary || candidate.personalInfo?.salary || '1000SR'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Age</td>
-                    <td className="border border-black px-2 py-1.5 text-center">{age}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1.5 font-bold ${beigeBg}`}>Sex</td>
-                    <td className="border border-black px-2 py-1.5 text-center capitalize">{candidate.passportData?.gender || 'Female'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        {/* SECTION 4: PHOTO & STACKED DETAILS */}
+        <div className="w-full border-x border-b border-black flex">
+          {/* Left: Full Body Photo */}
+          <div className="w-[37%] shrink-0 border-r border-black p-1 flex items-center justify-center bg-white overflow-hidden">
+            {fullBodyPhoto || facePhoto ? (
+              <img
+                src={fullBodyPhoto || facePhoto || ''}
+                alt={fullName}
+                className="w-full h-[480px] object-contain object-center"
+              />
+            ) : (
+              <div className="w-full h-[480px] bg-gray-50 flex items-center justify-center text-gray-400 text-xs font-bold uppercase">
+                Full Body Photo
+              </div>
+            )}
           </div>
 
-          {/* Middle Section: 2 Columns */}
-          <div className="flex gap-2 flex-1">
+          {/* Right: Stacked Tables */}
+          <div className="w-[63%] flex flex-col text-[10px] leading-tight justify-between">
+            {/* Table A: Salary & Contract */}
+            <table className="w-full border-collapse border-b border-black">
+              <tbody>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium w-[36%]">Monthly Salary</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[26%]">{salary}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">الراتب الشهري</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black px-1.5 py-0.5 font-medium">Contract Period</td>
+                  <td className="border-r border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">2 YRS.</td>
+                  <td className="px-1.5 py-0.5 text-center font-bold" dir="rtl">مدة العقد</td>
+                </tr>
+              </tbody>
+            </table>
 
-            {/* Left Column */}
-            <div className="w-[56%] flex flex-col gap-2">
+            {/* Table B: PASSPORT DETAILS */}
+            <table className="w-full border-collapse border-b border-black">
+              <thead>
+                <tr>
+                  <th colSpan={2} className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">PASSPORT DETAILS</th>
+                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">بيانات جواز السفر</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 w-[36%]">Number</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-black text-[#cc0000] uppercase tracking-wider w-[26%]">{passportNumber}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">رقم الجواز</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Date of Issue</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{dateOfIssue}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">تاريخ الاصدار</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Date of Expiry</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{dateOfExpiry}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">تاريخ الانتهاء</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Place of Issue</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{placeOfIssue}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">مكان الاصدار</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Contact Numbers</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{contactNumber}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">ارقام التواصل</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Name of Next of Kin</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase leading-tight">
+                    <div>{nextOfKinName}</div>
+                    <div className="text-[8.5px]">{nextOfKinRelation}</div>
+                  </td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">اسم احد الأقارب</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black px-1.5 py-0.5">Address and Contact Numbers of Next of Kin</td>
+                  <td className="border-r border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase leading-tight">
+                    <div>{nextOfKinAddress}</div>
+                    <div>{nextOfKinPhone}</div>
+                  </td>
+                  <td className="px-1.5 py-0.5 text-center font-bold" dir="rtl">العنوان وارقام التواصل لاحد الأقارب</td>
+                </tr>
+              </tbody>
+            </table>
 
-              {/* Overseas Experience */}
-              <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
-                <thead>
-                  <tr>
-                    <th colSpan={3} className="border border-black text-left px-2 py-1 font-bold">Overseas Experience</th>
-                  </tr>
-                  <tr>
-                    <th className="border border-black px-2 py-1 font-bold">country</th>
-                    <th className="border border-black px-2 py-1 font-bold">Period</th>
-                    <th className="border border-black px-2 py-1 font-bold">position</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resolvedExps.length > 0 ? (
-                    resolvedExps.map((exp, idx) => (
-                      <tr key={idx}>
-                        <td className="border border-black px-2 py-1 text-center uppercase">{exp.country}</td>
-                        <td className="border border-black px-2 py-1 text-center">{exp.yearsOfExperience} {exp.yearsOfExperience === '1' ? 'YEAR' : 'YEARS'}</td>
-                        <td className="border border-black px-2 py-1 text-center uppercase">{exp.position || candidate.personalInfo?.job || 'HOUSE MAID'}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <>
-                      <tr>
-                        <td className="border border-black px-2 py-1 text-center h-6">-</td>
-                        <td className="border border-black px-2 py-1 text-center">-</td>
-                        <td className="border border-black px-2 py-1 text-center">-</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-black px-2 py-1 text-center h-6"></td>
-                        <td className="border border-black px-2 py-1 text-center"></td>
-                        <td className="border border-black px-2 py-1 text-center"></td>
-                      </tr>
-                    </>
-                  )}
-                </tbody>
-              </table>
+            {/* Table C: LANGUAGES & EDUCATION */}
+            <table className="w-full border-collapse border-b border-black">
+              <thead>
+                <tr>
+                  <th className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">LANGUAGES & EDUCATION</th>
+                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">اللغة والتعليم</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-bold uppercase w-[62%]">ARABIC</td>
+                  <td className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase w-[38%]">{arabicLevel}</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black px-1.5 py-0.5 font-bold uppercase">ENGLISH</td>
+                  <td className="px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{englishLevel}</td>
+                </tr>
+              </tbody>
+            </table>
 
-              {/* Personal Information */}
-              <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
-                <thead>
-                  <tr>
-                    <th colSpan={2} className="border border-black text-left px-2 py-1 font-bold">Personal Information</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold w-[45%] ${beigeBg}`}>Nationality</td>
-                    <td className="border border-black px-2 py-1 text-center uppercase">{resolvedNationality}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Date of Birth</td>
-                    <td className="border border-black px-2 py-1 text-center">{formatDate(candidate.passportData?.dateOfBirth)}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Adress</td>
-                    <td className="border border-black px-2 py-1 text-center uppercase">{candidate.personalInfo?.city || ''}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Marital Status</td>
-                    <td className="border border-black px-2 py-1 text-center capitalize">{candidate.personalInfo?.maritalStatus}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>No of Children</td>
-                    <td className="border border-black px-2 py-1 text-center">{candidate.personalInfo?.numberOfChildren}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Height</td>
-                    <td className="border border-black px-2 py-1 text-center">{candidate.personalInfo?.height}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>weight</td>
-                    <td className="border border-black px-2 py-1 text-center">{candidate.personalInfo?.weight}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Education Qualifications</td>
-                    <td className="border border-black px-2 py-1 text-center capitalize">{candidate.personalInfo?.educationLevel}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Tel.Number</td>
-                    <td className="border border-black px-2 py-1 text-center">{candidate.personalInfo?.phone}</td>
-                  </tr>
-                </tbody>
-              </table>
+            {/* Table D: PREVIOUS EMPLOYMENT ABROAD */}
+            <table className="w-full border-collapse border-b border-black">
+              <thead>
+                <tr>
+                  <th colSpan={2} className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">PREVIOUS EMPLOYMENT ABROAD</th>
+                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">الخبرات الوظيفية السابقة</th>
+                </tr>
+                <tr>
+                  <th className="border-r border-b border-black py-0.5 px-1 text-center font-bold text-[9px] w-[26%] uppercase">YEARS</th>
+                  <th className="border-r border-b border-black py-0.5 px-1 text-center font-bold text-[9px] w-[36%] uppercase">COUNTRY</th>
+                  <th className="border-b border-black py-0.5 px-1 text-center font-bold text-[9px] w-[38%] uppercase">POSITION</th>
+                </tr>
+              </thead>
+              <tbody>
+                {renderExpRows()}
+              </tbody>
+            </table>
 
-              {/* Languages */}
-              <div className="w-[60%]">
-                <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
-                  <thead>
-                    <tr>
-                      <th colSpan={2} className="border border-black text-left px-2 py-1 font-bold">Languages</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className={`border border-black px-2 py-1 font-bold w-[50%] ${beigeBg}`}>English</td>
-                      <td className="border border-black px-2 py-1 text-center">{hasLang('ENGLISH')}</td>
-                    </tr>
-                    <tr>
-                      <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Arabic</td>
-                      <td className="border border-black px-2 py-1 text-center">{hasLang('ARABIC')}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            {/* Table E: PERSONAL DATA */}
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th colSpan={2} className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">PERSONAL DATA</th>
+                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">المعلومات الشخصية</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 w-[36%]">Nationality</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase w-[26%]">{nationality}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">الجنسية</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Religion</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{religion}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">الديانة</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Date of Birth</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{dob}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">تاريخ الميلاد</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5">Place of Birth</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{placeOfBirth}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">مكان الميلاد</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black px-1.5 py-0.5">Living Town</td>
+                  <td className="border-r border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{livingTown}</td>
+                  <td className="px-1.5 py-0.5 text-center font-bold" dir="rtl">مكان العيش</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-              {/* Skills */}
-              <table className="w-full border-collapse border border-black text-[11px] leading-tight bg-white mt-auto">
-                <thead>
-                  <tr>
-                    <th colSpan={4} className="border border-black text-left px-2 py-1 font-bold">Skills</th>
+        {/* SECTION 5: LOWER HALF (SKILLS ON LEFT, STATS & BIO ON RIGHT) */}
+        <div className="w-full border-x border-b border-black flex text-[10px] leading-tight flex-1">
+          {/* Left Column: Skills (42% width) */}
+          <div className="w-[42%] shrink-0 border-r border-black flex flex-col">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[60%]">SKILLS & EXPERIENCES</th>
+                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[40%]" dir="rtl">خبرات العمل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {skillsList.map((s, idx) => (
+                  <tr key={idx}>
+                    <td className={`border-r ${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1.5 py-[2px] font-medium w-[45%]`}>{s.name}</td>
+                    <td className={`border-r ${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1 py-[2px] text-center font-black text-[10.5px] w-[18%]`}>{s.val}</td>
+                    <td className={`${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1.5 py-[2px] text-right font-bold w-[37%]`} dir="rtl">{s.ar}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>BABY SITTING</td>
-                    <td className="border border-black px-1 py-1 text-center w-[20px]">{hasSkill('BABY SITTING') === 'YES' ? '✓' : '☐'}</td>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>CHILDREN CARE</td>
-                    <td className="border border-black px-1 py-1 text-center w-[20px]">{hasSkill('CHILDREN CARE') === 'YES' ? '✓' : '☐'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>TUTORING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('TUTORING') === 'YES' ? '✓' : '☐'}</td>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>COMPUTER</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('COMPUTER') === 'YES' ? '✓' : '☐'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>CLEANING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('CLEANING') === 'YES' ? '✓' : '☐'}</td>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>WASHING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('WASHING') === 'YES' ? '✓' : '☐'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>IRONING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('IRONING') === 'YES' ? '✓' : '☐'}</td>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>COOKING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('COOKING') === 'YES' ? '✓' : '☐'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>ARABIC COOKING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('ARABIC COOKING') === 'YES' ? '✓' : '☐'}</td>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>SEWING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('SEWING') === 'YES' ? '✓' : '☐'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>DRIVING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('DRIVING') === 'YES' ? '✓' : '☐'}</td>
-                    <td className={`border border-black px-1.5 py-1 ${beigeBg}`}>DISABLED CARING</td>
-                    <td className="border border-black px-1 py-1 text-center">{hasSkill('DISABLED CARING') === 'YES' ? '✓' : '☐'}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-            </div>
-
-            {/* Right Column */}
-            <div className="w-[44%] flex flex-col gap-2">
-
-              {/* Passport Information */}
-              <table className="w-full border-collapse border border-black text-[13px] leading-tight bg-white">
-                <thead>
-                  <tr>
-                    <th colSpan={2} className="border border-black text-left px-2 py-1 font-bold">Passport Information</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold w-[45%] ${beigeBg}`}>Number</td>
-                    <td className="border border-black px-2 py-1 text-center font-black uppercase font-roboto text-[18px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '18px' }}>{candidate.passportData?.passportNumber}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Issue Date</td>
-                    <td className="border border-black px-2 py-1 text-center">{formatDate(candidate.passportData?.dateOfIssue)}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Expiry Date</td>
-                    <td className="border border-black px-2 py-1 text-center">{formatDate(candidate.passportData?.dateOfExpiry)}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Issue Place</td>
-                    <td className="border border-black px-2 py-1 text-center uppercase">{candidate.passportData?.issuingCountry || 'Ethiopia'}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Next of Kin Name</td>
-                    <td className="border border-black px-2 py-1 text-center uppercase">{candidate.personalInfo?.emergencyContactName || ''}</td>
-                  </tr>
-                  <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${beigeBg}`}>Next of Kin Number</td>
-                    <td className="border border-black px-2 py-1 text-center">{candidate.personalInfo?.emergencyContactPhone || ''}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Full Body Photo */}
-              <div className="flex-1 flex items-start justify-center mt-2 min-h-0">
-                <div className="w-[200px] h-[440px] border border-black p-0 bg-white overflow-hidden flex items-center justify-center">
-                  {fullBodyPhoto ? (
-                    <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
-                  ) : (
-                    <div className="text-gray-400 text-sm">Full Body Photo</div>
-                  )}
-                </div>
-              </div>
-
-              {/* QR Code Section */}
-              {candidate.videoUrl && (
-                <div className="mt-2 p-2 border border-black bg-white flex flex-col items-center gap-1">
-                  <p className="text-[9px] font-bold uppercase">Candidate Video</p>
-                  <div className="w-20 h-20 bg-white border border-gray-100 flex items-center justify-center">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`}
-                      alt="Video QR"
-                      className="w-full h-full"
-                    />
-                  </div>
-                </div>
-              )}
-
-            </div>
-
+                ))}
+              </tbody>
+            </table>
           </div>
 
+          {/* Right Column: Personal Stats + Bio + Date (58% width) */}
+          <div className="w-[58%] flex flex-col justify-between">
+            {/* Stats Table */}
+            <table className="w-full border-collapse border-b border-black">
+              <tbody>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium w-[36%]">Marital Status</td>
+                  <td colSpan={2} className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase w-[64%]">{maritalStatus}</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">No. of Children</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[26%]">{numberOfChildren}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">عدد الاطفال</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Weight</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{weight}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">الوزن</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Height</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{height}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">الطول</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Complexion</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{complexion}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">لون البشرة</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Age</td>
+                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{age ? `${age}y/o` : ''}</td>
+                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">العمر</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black px-1.5 py-0.5 font-medium">Education</td>
+                  <td colSpan={2} className="px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase text-[9px]">{educationLevel}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Candidate Bio / Description Box */}
+            <div className="p-2 border-b border-black text-[10.5px] font-bold uppercase leading-snug tracking-tight text-black flex-1 flex items-center">
+              {bioText}
+            </div>
+
+            {/* Date Row */}
+            <div className="flex items-center text-[10px] font-bold">
+              <div className="w-[25%] px-2 py-0.5 border-r border-black">Date</div>
+              <div className="w-[50%] py-0.5 text-center uppercase border-r border-black">{todayDate}</div>
+              <div className="w-[25%] px-2 py-0.5 text-center" dir="rtl">التاريخ</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* PAGE 2: Passport Scan */}
-      <div className="w-[794px] h-[1123px] relative break-before-page bg-white flex flex-col" style={{ paddingTop: '30px', paddingRight: '50px', paddingBottom: '50px', paddingLeft: '30px' }}>
-
-        {/* Passport image anchored to top-left with small padding */}
-        <div>
-          {candidate.passportImageUrl ? (
-            <img
-              src={getFileUrl(candidate.passportImageUrl)}
-              alt="Passport"
-              className="w-[680px] h-[490px] object-contain object-left-top"
-            />
-          ) : (
-            <div className="text-gray-400 text-sm border border-dashed border-gray-200 w-[680px] h-[490px] flex items-center justify-center">
-              Passport Image Not Available
-            </div>
-          )}
-        </div>
-
-        {/* QR Code container at bottom center */}
-        {candidate.videoUrl && (
-          <div className="mt-auto w-full flex flex-col items-center gap-2 pb-[20px]">
-            <p className="text-[12px] font-bold uppercase tracking-wider text-gray-500 font-sans">
-              Scan to Watch Introduction Video
-            </p>
-            <div className="w-28 h-28 bg-white p-1 shadow-md border border-gray-100 rounded">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(candidate.videoUrl)}`}
-                alt="Video QR"
-                className="w-full h-full"
-              />
-            </div>
-          </div>
-        )}
+      {/* SECTION 6: RED FOOTER BAR */}
+      <div className="w-full bg-[#e52421] text-white text-[9px] font-bold py-1 px-2 text-center leading-normal mt-1 rounded-[1px]" dir="rtl">
+        <div>المملكة العربية السعودية - الرياض - حي النهضة - ش سلمان الفارسي - مقابل مركز أضواء الإبتسامة لطب الأسنان</div>
+        <div>ترخيص رقم 3701140 - س.ت 1010441568 - رقم العضوية 353211 - تلفون 920002809 - جوال 0535341155</div>
       </div>
 
     </div>

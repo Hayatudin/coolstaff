@@ -162,7 +162,6 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
   const bgBuffer = await fetchImageBuffer('/Al-shablan.png');
   const faceBuffer = facePhoto ? await fetchImageBuffer(facePhoto) : null;
   const fullBodyBuffer = fullBodyPhoto ? await fetchImageBuffer(fullBodyPhoto) : null;
-  const passportBuffer = candidate.passportImageUrl ? await fetchImageBuffer(candidate.passportImageUrl) : null;
   const qrBuffer = candidate.videoUrl ? await generateQRBuffer(candidate.videoUrl) : null;
 
   const fullName = `${candidate.passportData?.givenNames || ''} ${candidate.passportData?.surname || ''}`.trim().toUpperCase();
@@ -450,28 +449,7 @@ export async function generateAlShablanNativeDocx(candidate: Candidate, facePhot
             ]
           }),
         ]
-      },
-      // Page 2: Passport Document (Only if exists)
-      ...(passportBuffer ? [{
-        properties: {
-          page: {
-            margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 },
-            size: { width: 11906, height: 16838 } // A4
-          }
-        },
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                data: passportBuffer,
-                type: "png", // fallback or use the correct format if known
-                transformation: { width: 700, height: 1000 } // Fit to A4
-              })
-            ]
-          })
-        ]
-      }] : [])
+      }
     ]
   });
 
