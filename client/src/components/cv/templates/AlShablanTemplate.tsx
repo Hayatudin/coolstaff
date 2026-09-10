@@ -123,9 +123,6 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
   const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
   const todayDate = `${today.getDate()} ${months[today.getMonth()]} ${today.getFullYear()}`;
 
-  // Bio generation matching the exact format from the image
-  const bioText = `MS. ${fullName} IS A ${isExperienced ? 'EXPERIENCED WORKER' : 'FIRST TIMER'}. SHE CAPABLE OF ANY HOUSEHOLD DUTIES LIKE WASHING, IRONING CLOTHES AND CLEANING HOUSE. SHE WANTS TO LEARN HOW TO COOK ARABIC DISHES AND WILLING TO TAKE CARE OF CHILDREN. SHE CAN EASILY FOLLOW INSTRUCTION; SHE IS PATIENT AND HARDWORKING.`;
-
   // Skills List matching exact order from the image
   const skillsList = [
     { name: 'Baby Sitting', val: hasSkill('BABY SITTING'), ar: 'عناية الرضع' },
@@ -151,17 +148,17 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
         if (exp) {
           rows.push(
             <tr key={i}>
-              <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold w-[26%] uppercase">{exp.yearsOfExperience} {exp.yearsOfExperience === '1' ? 'YR' : 'YRS'}</td>
-              <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold w-[36%] uppercase">{exp.country}</td>
-              <td className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[38%] uppercase">{exp.position || 'HOUSE MAID'}</td>
+              <td className="border-r border-b border-black px-1 py-[2px] text-center font-normal w-[26%] uppercase text-[11px]">{exp.yearsOfExperience} {exp.yearsOfExperience === '1' ? 'YR' : 'YRS'}</td>
+              <td className="border-r border-b border-black px-1 py-[2px] text-center font-normal w-[36%] uppercase text-[11px]">{exp.country}</td>
+              <td className="border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] w-[38%] uppercase text-[11.5px]">{exp.position || 'HOUSE MAID'}</td>
             </tr>
           );
         } else {
           rows.push(
             <tr key={i}>
-              <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
-              <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
-              <td className="border-b border-black px-1 py-0.5 text-center h-[20px] w-[38%]"></td>
+              <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[26%]"></td>
+              <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[36%]"></td>
+              <td className="border-b border-black px-1 py-[2px] text-center h-[20px] w-[38%]"></td>
             </tr>
           );
         }
@@ -172,66 +169,69 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
     return (
       <>
         <tr>
-          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
-          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
-          <td className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[38%] uppercase">FIRST TIMER</td>
+          <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[26%]"></td>
+          <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[36%]"></td>
+          <td className="border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] w-[38%] uppercase text-[11.5px]">FIRST TIMER</td>
         </tr>
         <tr>
-          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
-          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
-          <td className="border-b border-black px-1 py-0.5 text-center h-[20px] w-[38%]"></td>
+          <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[26%]"></td>
+          <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[36%]"></td>
+          <td className="border-b border-black px-1 py-[2px] text-center h-[20px] w-[38%]"></td>
         </tr>
         <tr>
-          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[26%]"></td>
-          <td className="border-r border-b border-black px-1 py-0.5 text-center h-[20px] w-[36%]"></td>
-          <td className="border-b border-black px-1 py-0.5 text-center h-[20px] w-[38%]"></td>
+          <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[26%]"></td>
+          <td className="border-r border-b border-black px-1 py-[2px] text-center h-[20px] w-[36%]"></td>
+          <td className="border-b border-black px-1 py-[2px] text-center h-[20px] w-[38%]"></td>
         </tr>
       </>
     );
   };
 
   return (
-    <div className="w-[794px] min-h-[1123px] mx-auto bg-white text-black font-sans shadow-lg print:shadow-none p-3 box-border flex flex-col justify-between" dir="ltr">
-
+    <div
+      className="w-[794px] min-h-[1123px] mx-auto bg-white text-black shadow-lg print:shadow-none p-3 box-border flex flex-col justify-between"
+      style={{ fontFamily: '"Times New Roman", Times, Georgia, serif' }}
+      dir="ltr"
+    >
       <div className="flex flex-col flex-1">
-        {/* TOP HEADER */}
-        <div className="w-full mb-1 flex items-center justify-between">
+        {/* TOP HEADER - Exact crop from original template */}
+        <div className="w-full mb-1">
           <img
-            src="/al-shablan-header.png"
+            src="/al-shablan-header-exact.png"
             alt="Al-Shablan Recruitment Company"
-            className="w-full h-auto max-h-[72px] object-contain object-left"
+            className="w-full h-auto object-contain block"
           />
         </div>
 
         {/* SECTION 1: CODE & POSITION TABLE */}
-        <table className="w-full border-collapse border border-black text-[11px] leading-tight">
+        <table className="w-full border-collapse border border-black text-[12px] leading-tight">
           <tbody>
             <tr>
-              <td className="border-r border-b border-black px-2 py-0.5 font-bold text-center w-[21%] uppercase">CODE</td>
-              <td className="border-r border-b border-black px-2 py-0.5 font-extrabold text-center text-[#cc0000] w-[24%] uppercase">{candidateCode}</td>
-              <td className="border-b border-black px-2 py-0.5 font-bold text-center w-[55%]">{positionEnglish}</td>
+              <td className="border-r border-b border-black px-2 py-[3px] font-bold text-center w-[22%] uppercase">CODE</td>
+              <td className="border-r border-b border-black px-2 py-[3px] font-bold text-center text-[#b30000] w-[20%] uppercase text-[12.5px]">{candidateCode}</td>
+              <td className="border-b border-black px-2 py-[3px] font-normal text-center w-[58%] text-[13px]">{positionEnglish}</td>
             </tr>
             <tr>
-              <td colSpan={2} className="border-r border-black px-2 py-0.5 font-bold text-center uppercase">
-                {isExperienced ? 'EX- ABROAD' : 'FIRST TIMER'}
+              <td colSpan={2} className="border-r border-black px-2 py-[2px] font-bold text-center uppercase text-[12px]">
+                {isExperienced ? 'EX- ABROAD' : 'EX- ABROAD'}
               </td>
-              <td className="px-2 py-0.5 font-bold text-center text-[11.5px]" dir="rtl">{positionArabic}</td>
+              <td className="px-2 py-[2px] text-center text-[12px]" dir="rtl">{positionArabic}</td>
             </tr>
           </tbody>
         </table>
 
         {/* SECTION 2: APPLICATION FOR EMPLOYMENT */}
-        <div className="w-full border-x border-b border-black text-center py-0.5 font-bold text-[13px] text-[#2e5b88] tracking-[0.14em] bg-white">
+        <div className="w-full border-x border-b border-black text-center py-[3px] text-[15px] font-normal text-[#1f4e78] tracking-[0.1em] bg-white">
           APPLICATION FOR EMPLOYMENT
         </div>
 
         {/* SECTION 3: FULL NAME */}
-        <table className="w-full border-collapse border-x border-b border-black text-[11px] leading-tight">
+        <table className="w-full border-collapse border-x border-b border-black text-[12px] leading-tight">
           <tbody>
             <tr>
-              <td className="border-r border-black px-2 py-1 font-bold text-center w-[23%] uppercase">FULL NAME</td>
-              <td className="border-r border-black px-2 py-1 font-black text-center text-[#cc0000] text-[13.5px] w-[45%] uppercase tracking-wide">{fullName}</td>
-              <td className="px-2 py-1 font-bold text-center w-[32%] text-[12px]" dir="rtl">الاسم بالكامل</td>
+              <td className="border-r border-black px-2 py-[4px] font-normal text-center w-[24%] uppercase">FULL NAME</td>
+              <td className="border-r border-black px-2 py-[4px] font-bold text-center text-[#b30000] text-[15.5px] w-[39%] uppercase tracking-wide">{fullName}</td>
+              <td className="px-2 py-[4px] font-normal text-center w-[37%] text-[12.5px]" dir="rtl">الاسم بالكامل</td>
             </tr>
           </tbody>
         </table>
@@ -239,34 +239,34 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
         {/* SECTION 4: PHOTO & STACKED DETAILS */}
         <div className="w-full border-x border-b border-black flex">
           {/* Left: Full Body Photo */}
-          <div className="w-[37%] shrink-0 border-r border-black p-1 flex items-center justify-center bg-white overflow-hidden">
+          <div className="w-[36.8%] shrink-0 border-r border-black p-1 flex items-center justify-center bg-white overflow-hidden">
             {fullBodyPhoto || facePhoto ? (
               <img
                 src={fullBodyPhoto || facePhoto || ''}
                 alt={fullName}
-                className="w-full h-[480px] object-contain object-center"
+                className="w-full h-[470px] object-contain object-center"
               />
             ) : (
-              <div className="w-full h-[480px] bg-gray-50 flex items-center justify-center text-gray-400 text-xs font-bold uppercase">
+              <div className="w-full h-[470px] bg-gray-50 flex items-center justify-center text-gray-400 text-xs font-bold uppercase">
                 Full Body Photo
               </div>
             )}
           </div>
 
           {/* Right: Stacked Tables */}
-          <div className="w-[63%] flex flex-col text-[10px] leading-tight justify-between">
+          <div className="w-[63.2%] flex flex-col text-[11px] leading-tight justify-between">
             {/* Table A: Salary & Contract */}
             <table className="w-full border-collapse border-b border-black">
               <tbody>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium w-[36%]">Monthly Salary</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[26%]">{salary}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">الراتب الشهري</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal w-[36%]">Monthly Salary</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] w-[26%] text-[11.5px]">{salary}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal w-[38%]" dir="rtl">الراتب الشهري</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black px-1.5 py-0.5 font-medium">Contract Period</td>
-                  <td className="border-r border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">2 YRS.</td>
-                  <td className="px-1.5 py-0.5 text-center font-bold" dir="rtl">مدة العقد</td>
+                  <td className="border-r border-black px-2 py-[2px] font-normal">Contract Period</td>
+                  <td className="border-r border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11.5px]">2 YRS.</td>
+                  <td className="px-2 py-[2px] text-center font-normal" dir="rtl">مدة العقد</td>
                 </tr>
               </tbody>
             </table>
@@ -275,51 +275,51 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
             <table className="w-full border-collapse border-b border-black">
               <thead>
                 <tr>
-                  <th colSpan={2} className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">PASSPORT DETAILS</th>
-                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">بيانات جواز السفر</th>
+                  <th colSpan={2} className="border-r border-b border-black py-[2px] px-2 text-center font-bold text-[11px] uppercase tracking-wider w-[62%]">PASSPORT DETAILS</th>
+                  <th className="border-b border-black py-[2px] px-2 text-center font-bold text-[11px] w-[38%]" dir="rtl">بيانات جواز السفر</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 w-[36%]">Number</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-black text-[#cc0000] uppercase tracking-wider w-[26%]">{passportNumber}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">رقم الجواز</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] w-[36%] font-normal">Number</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase tracking-wider w-[26%] text-[12px]">{passportNumber}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal w-[38%]" dir="rtl">رقم الجواز</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Date of Issue</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{dateOfIssue}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">تاريخ الاصدار</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Date of Issue</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11px]">{dateOfIssue}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">تاريخ الاصدار</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Date of Expiry</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{dateOfExpiry}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">تاريخ الانتهاء</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Date of Expiry</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11px]">{dateOfExpiry}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">تاريخ الانتهاء</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Place of Issue</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{placeOfIssue}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">مكان الاصدار</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Place of Issue</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11px]">{placeOfIssue}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">مكان الاصدار</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Contact Numbers</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{contactNumber}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">ارقام التواصل</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Contact Numbers</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11px]">{contactNumber}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">ارقام التواصل</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Name of Next of Kin</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase leading-tight">
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Name of Next of Kin</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase leading-tight text-[11px]">
                     <div>{nextOfKinName}</div>
-                    <div className="text-[8.5px]">{nextOfKinRelation}</div>
+                    <div className="text-[10px]">{nextOfKinRelation}</div>
                   </td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">اسم احد الأقارب</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">اسم احد الأقارب</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black px-1.5 py-0.5">Address and Contact Numbers of Next of Kin</td>
-                  <td className="border-r border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase leading-tight">
+                  <td className="border-r border-black px-2 py-[2px] font-normal">Address and Contact Numbers of Next of Kin</td>
+                  <td className="border-r border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase leading-tight text-[11px]">
                     <div>{nextOfKinAddress}</div>
                     <div>{nextOfKinPhone}</div>
                   </td>
-                  <td className="px-1.5 py-0.5 text-center font-bold" dir="rtl">العنوان وارقام التواصل لاحد الأقارب</td>
+                  <td className="px-2 py-[2px] text-center font-normal" dir="rtl">العنوان وارقام التواصل لاحد الأقارب</td>
                 </tr>
               </tbody>
             </table>
@@ -328,18 +328,18 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
             <table className="w-full border-collapse border-b border-black">
               <thead>
                 <tr>
-                  <th className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">LANGUAGES & EDUCATION</th>
-                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">اللغة والتعليم</th>
+                  <th className="border-r border-b border-black py-[2px] px-2 text-center font-bold text-[11px] uppercase tracking-wider w-[62%]">LANGUAGES & EDUCATION</th>
+                  <th className="border-b border-black py-[2px] px-2 text-center font-bold text-[11px] w-[38%]" dir="rtl">اللغة والتعليم</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-bold uppercase w-[62%]">ARABIC</td>
-                  <td className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase w-[38%]">{arabicLevel}</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal uppercase w-[62%]">ARABIC</td>
+                  <td className="border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase w-[38%] text-[11.5px]">{arabicLevel}</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black px-1.5 py-0.5 font-bold uppercase">ENGLISH</td>
-                  <td className="px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{englishLevel}</td>
+                  <td className="border-r border-black px-2 py-[2px] font-normal uppercase">ENGLISH</td>
+                  <td className="px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11.5px]">{englishLevel}</td>
                 </tr>
               </tbody>
             </table>
@@ -348,13 +348,13 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
             <table className="w-full border-collapse border-b border-black">
               <thead>
                 <tr>
-                  <th colSpan={2} className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">PREVIOUS EMPLOYMENT ABROAD</th>
-                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">الخبرات الوظيفية السابقة</th>
+                  <th colSpan={2} className="border-r border-b border-black py-[2px] px-2 text-center font-bold text-[11px] uppercase tracking-wider w-[62%]">PREVIOUS EMPLOYMENT ABROAD</th>
+                  <th className="border-b border-black py-[2px] px-2 text-center font-bold text-[11px] w-[38%]" dir="rtl">الخبرات الوظيفية السابقة</th>
                 </tr>
                 <tr>
-                  <th className="border-r border-b border-black py-0.5 px-1 text-center font-bold text-[9px] w-[26%] uppercase">YEARS</th>
-                  <th className="border-r border-b border-black py-0.5 px-1 text-center font-bold text-[9px] w-[36%] uppercase">COUNTRY</th>
-                  <th className="border-b border-black py-0.5 px-1 text-center font-bold text-[9px] w-[38%] uppercase">POSITION</th>
+                  <th className="border-r border-b border-black py-[2px] px-1 text-center font-normal text-[10px] w-[26%] uppercase">YEARS</th>
+                  <th className="border-r border-b border-black py-[2px] px-1 text-center font-normal text-[10px] w-[36%] uppercase">COUNTRY</th>
+                  <th className="border-b border-black py-[2px] px-1 text-center font-normal text-[10px] w-[38%] uppercase">POSITION</th>
                 </tr>
               </thead>
               <tbody>
@@ -366,35 +366,35 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th colSpan={2} className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[62%]">PERSONAL DATA</th>
-                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[38%]" dir="rtl">المعلومات الشخصية</th>
+                  <th colSpan={2} className="border-r border-b border-black py-[2px] px-2 text-center font-bold text-[11px] uppercase tracking-wider w-[62%]">PERSONAL DATA</th>
+                  <th className="border-b border-black py-[2px] px-2 text-center font-bold text-[11px] w-[38%]" dir="rtl">المعلومات الشخصية</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 w-[36%]">Nationality</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase w-[26%]">{nationality}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">الجنسية</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] w-[36%] font-normal">Nationality</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase w-[26%] text-[11.5px]">{nationality}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal w-[38%]" dir="rtl">الجنسية</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Religion</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{religion}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">الديانة</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Religion</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11.5px]">{religion}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">الديانة</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Date of Birth</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{dob}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">تاريخ الميلاد</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Date of Birth</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11px]">{dob}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">تاريخ الميلاد</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5">Place of Birth</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{placeOfBirth}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">مكان الميلاد</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Place of Birth</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11px]">{placeOfBirth}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">مكان الميلاد</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black px-1.5 py-0.5">Living Town</td>
-                  <td className="border-r border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{livingTown}</td>
-                  <td className="px-1.5 py-0.5 text-center font-bold" dir="rtl">مكان العيش</td>
+                  <td className="border-r border-black px-2 py-[2px] font-normal">Living Town</td>
+                  <td className="border-r border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11px]">{livingTown}</td>
+                  <td className="px-2 py-[2px] text-center font-normal" dir="rtl">مكان العيش</td>
                 </tr>
               </tbody>
             </table>
@@ -402,90 +402,94 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
         </div>
 
         {/* SECTION 5: LOWER HALF (SKILLS ON LEFT, STATS & BIO ON RIGHT) */}
-        <div className="w-full border-x border-b border-black flex text-[10px] leading-tight flex-1">
-          {/* Left Column: Skills (42% width) */}
-          <div className="w-[42%] shrink-0 border-r border-black flex flex-col">
+        <div className="w-full border-x border-b border-black flex text-[11px] leading-tight flex-1">
+          {/* Left Column: Skills (41.7% width) */}
+          <div className="w-[41.7%] shrink-0 border-r border-black flex flex-col">
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="border-r border-b border-black py-0.5 px-1.5 text-center font-bold text-[9.5px] uppercase tracking-wider w-[60%]">SKILLS & EXPERIENCES</th>
-                  <th className="border-b border-black py-0.5 px-1.5 text-center font-bold text-[10.5px] w-[40%]" dir="rtl">خبرات العمل</th>
+                  <th className="border-r border-b border-black py-[2px] px-2 text-center font-bold text-[11px] uppercase tracking-wider w-[55%]">SKILLS & EXPERIENCES</th>
+                  <th className="border-b border-black py-[2px] px-2 text-center font-bold text-[11px] w-[45%]" dir="rtl">خبرات العمل</th>
                 </tr>
               </thead>
               <tbody>
                 {skillsList.map((s, idx) => (
                   <tr key={idx}>
-                    <td className={`border-r ${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1.5 py-[2px] font-medium w-[45%]`}>{s.name}</td>
-                    <td className={`border-r ${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1 py-[2px] text-center font-black text-[10.5px] w-[18%]`}>{s.val}</td>
-                    <td className={`${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1.5 py-[2px] text-right font-bold w-[37%]`} dir="rtl">{s.ar}</td>
+                    <td className={`border-r ${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-2 py-[2.5px] font-normal w-[43%]`}>{s.name}</td>
+                    <td className={`border-r ${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-1 py-[2.5px] text-center font-bold text-[13px] w-[21%]`}>{s.val}</td>
+                    <td className={`${idx < skillsList.length - 1 ? 'border-b' : ''} border-black px-2 py-[2.5px] text-right font-normal w-[36%]`} dir="rtl">{s.ar}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Right Column: Personal Stats + Bio + Date (58% width) */}
-          <div className="w-[58%] flex flex-col justify-between">
+          {/* Right Column: Personal Stats + Bio + Date (58.3% width) */}
+          <div className="w-[58.3%] flex flex-col justify-between">
             {/* Stats Table */}
             <table className="w-full border-collapse border-b border-black">
               <tbody>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium w-[36%]">Marital Status</td>
-                  <td colSpan={2} className="border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase w-[64%]">{maritalStatus}</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal w-[36%]">Marital Status</td>
+                  <td colSpan={2} className="border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase w-[64%] text-[11.5px]">{maritalStatus}</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">No. of Children</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] w-[26%]">{numberOfChildren}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold w-[38%]" dir="rtl">عدد الاطفال</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">No. of Children</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] w-[26%] text-[11.5px]">{numberOfChildren}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal w-[38%]" dir="rtl">عدد الاطفال</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Weight</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{weight}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">الوزن</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Weight</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11.5px]">{weight}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">الوزن</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Height</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{height}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">الطول</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Height</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11.5px]">{height}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">الطول</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Complexion</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase">{complexion}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">لون البشرة</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Complexion</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11.5px]">{complexion}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">لون البشرة</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-b border-black px-1.5 py-0.5 font-medium">Age</td>
-                  <td className="border-r border-b border-black px-1 py-0.5 text-center font-bold text-[#cc0000]">{age ? `${age}y/o` : ''}</td>
-                  <td className="border-b border-black px-1.5 py-0.5 text-center font-bold" dir="rtl">العمر</td>
+                  <td className="border-r border-b border-black px-2 py-[2px] font-normal">Age</td>
+                  <td className="border-r border-b border-black px-1 py-[2px] text-center font-bold text-[#b30000] text-[11.5px]">{age ? `${age}y/o` : ''}</td>
+                  <td className="border-b border-black px-2 py-[2px] text-center font-normal" dir="rtl">العمر</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black px-1.5 py-0.5 font-medium">Education</td>
-                  <td colSpan={2} className="px-1 py-0.5 text-center font-bold text-[#cc0000] uppercase text-[9px]">{educationLevel}</td>
+                  <td className="border-r border-black px-2 py-[2px] font-normal">Education</td>
+                  <td colSpan={2} className="px-1 py-[2px] text-center font-bold text-[#b30000] uppercase text-[11px]">{educationLevel}</td>
                 </tr>
               </tbody>
             </table>
 
             {/* Candidate Bio / Description Box */}
-            <div className="p-2 border-b border-black text-[10.5px] font-bold uppercase leading-snug tracking-tight text-black flex-1 flex items-center">
-              {bioText}
+            <div className="p-2 border-b border-black text-[12.5px] font-bold uppercase leading-[1.35] tracking-tight text-black flex-1 flex items-center">
+              <div>
+                MS. <span className="text-[#b30000]">{fullName}</span> IS A {isExperienced ? 'EXPERIENCED WORKER' : 'FIRST TIMER'}. SHE CAPABLE OF ANY HOUSEHOLD DUTIES LIKE WASHING, IRONING CLOTHES AND CLEANING HOUSE. SHE WANTS TO LEARN HOW TO COOK ARABIC DISHES AND WILLING TO TAKE CARE OF CHILDREN. SHE CAN EASILY FOLLOW INSTRUCTION; SHE IS PATIENT AND HARDWORKING.
+              </div>
             </div>
 
             {/* Date Row */}
-            <div className="flex items-center text-[10px] font-bold">
-              <div className="w-[25%] px-2 py-0.5 border-r border-black">Date</div>
-              <div className="w-[50%] py-0.5 text-center uppercase border-r border-black">{todayDate}</div>
-              <div className="w-[25%] px-2 py-0.5 text-center" dir="rtl">التاريخ</div>
+            <div className="flex items-center text-[11px] font-normal">
+              <div className="w-[25%] px-2 py-[3px] border-r border-black">Date</div>
+              <div className="w-[50%] py-[3px] text-center uppercase border-r border-black font-bold text-[12px] text-black">{todayDate}</div>
+              <div className="w-[25%] px-2 py-[3px] text-center" dir="rtl">التاريخ</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* SECTION 6: RED FOOTER BAR */}
-      <div className="w-full bg-[#e52421] text-white text-[9px] font-bold py-1 px-2 text-center leading-normal mt-1 rounded-[1px]" dir="rtl">
-        <div>المملكة العربية السعودية - الرياض - حي النهضة - ش سلمان الفارسي - مقابل مركز أضواء الإبتسامة لطب الأسنان</div>
-        <div>ترخيص رقم 3701140 - س.ت 1010441568 - رقم العضوية 353211 - تلفون 920002809 - جوال 0535341155</div>
+      {/* SECTION 6: EXACT RED FOOTER BAR */}
+      <div className="w-full mt-1.5">
+        <img
+          src="/al-shablan-footer-exact.png"
+          alt="Al-Shablan Branch Details"
+          className="w-full h-auto object-contain block"
+        />
       </div>
-
     </div>
   );
 }
