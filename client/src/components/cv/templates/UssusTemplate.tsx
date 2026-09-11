@@ -84,29 +84,29 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
         />
 
         {/* Content Overlay */}
-        <div className="relative z-10 w-full h-full text-[17px] font-medium text-[#1c2a39]">
+        <div className="relative z-10 w-full h-full text-[17.5px] font-semibold text-[#1c2a39]">
           
           {/* Top Left: Basic Information */}
           <div className="absolute top-[180px] left-[75px] flex flex-col gap-[28px] uppercase">
             <div>
-              <span className="font-bold">NAME: </span>
-              {fullName}
+              <span className="font-black">NAME: </span>
+              <span className="font-bold">{fullName}</span>
             </div>
             <div>
-              <span className="font-bold">AGE: </span>
-              {age} YEARS
+              <span className="font-black">AGE: </span>
+              <span className="font-bold">{age} YEARS</span>
             </div>
             <div>
-              <span className="font-bold">NATIONALITY: </span>
-              {resolvedNationality}
+              <span className="font-black">NATIONALITY: </span>
+              <span className="font-bold">{resolvedNationality}</span>
             </div>
             <div>
-              <span className="font-bold">RELIGION: </span>
-              {candidate.personalInfo?.religion}
+              <span className="font-black">RELIGION: </span>
+              <span className="font-bold">{candidate.personalInfo?.religion}</span>
             </div>
             <div>
-              <span className="font-bold">PASSPORT NUMBER: </span>
-              <span className="font-black font-roboto text-[18px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '18px' }}>{candidate.passportData?.passportNumber}</span>
+              <span className="font-black text-[18px]">PASSPORT NUMBER: </span>
+              <span className="font-black font-roboto text-[22px] tracking-wider text-[#d32f2f]" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '22px' }}>{candidate.passportData?.passportNumber}</span>
             </div>
           </div>
 

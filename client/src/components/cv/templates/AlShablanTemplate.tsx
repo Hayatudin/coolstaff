@@ -282,7 +282,7 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
               <tbody>
                 <tr>
                   <td className="border-r-2 border-b-2 border-black px-2 py-[2.5px] w-[35%] font-extrabold text-[12.5px]">Number</td>
-                  <td className="border-r-2 border-b-2 border-black px-1 py-[2.5px] text-center font-black text-[#b30000] uppercase tracking-wider w-[27%] text-[14px]">{passportNumber}</td>
+                  <td className="border-r-2 border-b-2 border-black px-1 py-[2.5px] text-center font-black text-[#b30000] uppercase tracking-wider w-[27%] font-roboto text-[20px]" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '20px' }}>{passportNumber}</td>
                   <td className="border-b-2 border-black px-2 py-[2.5px] text-center font-black text-[12.5px]" dir="rtl">رقم الجواز</td>
                 </tr>
                 <tr>

@@ -81,11 +81,11 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
           {/* Unified Core Details Table */}
           <div className="flex-grow min-h-0">
-            <table className={`w-full border-collapse border-[1.5px] ${borderTeal} text-[11px] leading-tight text-black`}>
+            <table className={`w-full border-collapse border-[1.5px] ${borderTeal} text-[12px] leading-tight text-black`}>
               <tbody>
                 {/* 1. APPLICATION FOR EMPLOYMENT HEADER ROW */}
-                <tr className="h-[32px]">
-                  <td colSpan={7} className="border-b border-[#0a5c4e] text-center font-extrabold text-[14px] uppercase text-black" style={{ background: 'linear-gradient(to right, #8a6f27, #c5a85c, #8a6f27)' }}>
+                <tr className="h-[34px]">
+                  <td colSpan={7} className="border-b border-[#0a5c4e] text-center font-black text-[15px] uppercase text-black" style={{ background: 'linear-gradient(to right, #8a6f27, #c5a85c, #8a6f27)' }}>
                     APPLICATION FOR EMPLOYMENT
                   </td>
                 </tr>
@@ -109,11 +109,11 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
                       {/* Contact Us Card */}
                       <div className={`w-[220px] ${bgTeal} text-white p-2.5 rounded-sm border border-white shadow-sm flex flex-col gap-2 text-left`}>
-                        <div className="text-center font-bold text-[11px] border-b border-white/30 pb-1 flex flex-col leading-tight">
+                        <div className="text-center font-bold text-[11.5px] border-b border-white/30 pb-1 flex flex-col leading-tight">
                           <span>CONTACT US</span>
-                          <span dir="rtl" className="text-[10px] font-medium font-serif">تواصل معنا</span>
+                          <span dir="rtl" className="text-[11px] font-bold font-serif">تواصل معنا</span>
                         </div>
-                        <div className="flex flex-col gap-1.5 text-[10px] font-bold">
+                        <div className="flex flex-col gap-1.5 text-[11px] font-bold">
                           <div className="flex items-center gap-1.5">
                             <span>📧</span>
                             <span className="truncate">Alrooaya@gmail.com</span>
@@ -133,25 +133,25 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
                   {/* RIGHT DATA COLUMNS (each right row has 6 cells of equal width, colspanned as needed) */}
                   {/* Row 1: Full Name */}
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1.5 font-extrabold text-[10.5px] text-black bg-[#e8f5e9] w-[20%]">FULL NAME</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-center font-extrabold text-[13px] text-black uppercase w-[60%]">{fullName}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1.5 text-right font-extrabold text-[11px] text-black font-serif bg-[#e8f5e9] w-[20%]" dir="rtl">الإسم الكامل</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1.5 font-black text-[12px] text-black bg-[#e8f5e9] w-[20%]">FULL NAME</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-center font-black text-[14.5px] text-black uppercase w-[60%]">{fullName}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1.5 text-right font-black text-[12px] text-black font-serif bg-[#e8f5e9] w-[20%]" dir="rtl">الإسم الكامل</td>
                 </tr>
 
                 {/* Row 2: Monthly Salary & Contract Period */}
                 <tr>
-                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 font-bold text-black bg-slate-50 w-[15%]">Monthly Salary</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-center font-extrabold text-black bg-[#e8f5e9] w-[15%]">
+                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 font-extrabold text-black bg-slate-50 w-[15%] text-[11.5px]">Monthly Salary</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-center font-black text-black bg-[#e8f5e9] w-[15%] text-[12.5px]">
                     {candidate.salary || candidate.personalInfo?.salary || '1000SAR'}
                   </td>
-                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-right font-bold text-black bg-slate-50 font-serif w-[15%]" dir="rtl">الراتب الشهري</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 font-bold text-black bg-slate-50 w-[18%]">Contract Period</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-center font-bold text-black w-[15%]">2 YEARS</td>
-                  <td className="border-b border-[#0a5c4e] px-2 py-1.5 text-right font-bold text-black bg-slate-50 font-serif w-[22%]" dir="rtl">مدة العقد</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-right font-extrabold text-black bg-slate-50 font-serif w-[15%] text-[11.5px]" dir="rtl">الراتب الشهري</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 font-extrabold text-black bg-slate-50 w-[18%] text-[11.5px]">Contract Period</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-2 py-1.5 text-center font-black text-black w-[15%] text-[12px]">2 YEARS</td>
+                  <td className="border-b border-[#0a5c4e] px-2 py-1.5 text-right font-extrabold text-black bg-slate-50 font-serif w-[22%] text-[11.5px]" dir="rtl">مدة العقد</td>
                 </tr>
 
                 {/* Row 3: LANGUAGES & EDUCATION Header */}
-                <tr className="bg-[#0a5c4e] text-white font-bold text-[11px] h-[24px]">
+                <tr className="bg-[#0a5c4e] text-white font-extrabold text-[12px] h-[25px]">
                   <td colSpan={6} className="px-2 border-b border-[#0a5c4e]">
                     <div className="flex justify-between items-center">
                       <span>LANGUAGES & EDUCATION</span>
@@ -162,41 +162,41 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
                 {/* Row 4: English */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">English</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black">{hasLang('ENGLISH')}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الإنجليزية</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">English</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black text-[12.5px]">{hasLang('ENGLISH')}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">الإنجليزية</td>
                 </tr>
 
                 {/* Row 5: Arabic */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Arabic</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black">{hasLang('ARABIC')}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">العربية</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Arabic</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black text-[12.5px]">{hasLang('ARABIC')}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">العربية</td>
                 </tr>
 
                 {/* Row 6: Education (Course) */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Education (Course)</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{candidate.personalInfo?.educationLevel || 'SECONDARY'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">المستوى التعليمي</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Education (Course)</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black uppercase text-[12px]">{candidate.personalInfo?.educationLevel || 'SECONDARY'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">المستوى التعليمي</td>
                 </tr>
 
-                {/* Row 7: Passport Number */}
+                {/* Row 7: Passport Number - Extra Bold & Specially Increased */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Passport Number</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-[#d32f2f] uppercase font-roboto text-[18px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '18px' }}>{candidate.passportData?.passportNumber}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">رقم الجواز</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-black text-black bg-slate-50 text-[12px]">Passport Number</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-[#d32f2f] uppercase font-roboto text-[21px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '21px' }}>{candidate.passportData?.passportNumber}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-black text-black bg-slate-50 font-serif text-[12px]" dir="rtl">رقم الجواز</td>
                 </tr>
 
                 {/* Row 8: Previous Employment */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Previous Employment</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{expCountry !== '-' ? `${expCountry} (${expPeriod})` : 'NONE'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">خبرة خارج البلاد</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Previous Employment</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black uppercase text-[12px]">{expCountry !== '-' ? `${expCountry} (${expPeriod})` : 'NONE'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">خبرة خارج البلاد</td>
                 </tr>
 
                 {/* Row 9: PERSONAL DATA Header */}
-                <tr className="bg-[#0a5c4e] text-white font-bold text-[11px] h-[24px]">
+                <tr className="bg-[#0a5c4e] text-white font-extrabold text-[12px] h-[25px]">
                   <td colSpan={6} className="px-2 border-b border-[#0a5c4e]">
                     <div className="flex justify-between items-center">
                       <span>PERSONAL DATA</span>
@@ -207,62 +207,62 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
                 {/* Row 10: Nationality */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Nationality</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{resolvedNationality}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الجنسية</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Nationality</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black uppercase text-[12px]">{resolvedNationality}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">الجنسية</td>
                 </tr>
 
                 {/* Row 11: Religion */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Religion</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{candidate.personalInfo?.religion || 'MUSLIM'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الديانة</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Religion</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black uppercase text-[12px]">{candidate.personalInfo?.religion || 'MUSLIM'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">الديانة</td>
                 </tr>
 
                 {/* Row 12: Marital Status */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Marital Status</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black uppercase">{candidate.personalInfo?.maritalStatus || 'SINGLE'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الحالة الاجتماعية</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Marital Status</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black uppercase text-[12px]">{candidate.personalInfo?.maritalStatus || 'SINGLE'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">الحالة الاجتماعية</td>
                 </tr>
 
                 {/* Row 13: No. of Children */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">No. of Children</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black">{candidate.personalInfo?.numberOfChildren || 0}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">عدد الأطفال</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">No. of Children</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black text-[12px]">{candidate.personalInfo?.numberOfChildren || 0}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">عدد الأطفال</td>
                 </tr>
 
                 {/* Row 14: Age */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Age</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black">{age}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">العمر</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Age</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black text-[12px]">{age}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">العمر</td>
                 </tr>
 
                 {/* Row 15: Weight */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Weight</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black">{candidate.personalInfo?.weight ? `${candidate.personalInfo.weight} KG` : '-'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الوزن</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Weight</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black text-[12px]">{candidate.personalInfo?.weight ? `${candidate.personalInfo.weight} KG` : '-'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">الوزن</td>
                 </tr>
 
                 {/* Row 16: Height */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Height</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-bold text-black">{candidate.personalInfo?.height ? `${candidate.personalInfo.height} CM` : '-'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">الطول</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Height</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black text-[12px]">{candidate.personalInfo?.height ? `${candidate.personalInfo.height} CM` : '-'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">الطول</td>
                 </tr>
 
                 {/* Row 17: Place of Birth */}
                 <tr>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-bold text-black bg-slate-50">Place of Birth</td>
-                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-extrabold text-black uppercase">{candidate.passportData?.placeOfBirth || candidate.personalInfo?.city || '-'}</td>
-                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-bold text-black bg-slate-50 font-serif" dir="rtl">مكان الميلاد</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 font-extrabold text-black bg-slate-50 text-[11.5px]">Place of Birth</td>
+                  <td colSpan={2} className="border-b border-r border-[#0a5c4e] px-2 py-1 text-center font-black text-black uppercase text-[12px]">{candidate.passportData?.placeOfBirth || candidate.personalInfo?.city || '-'}</td>
+                  <td colSpan={2} className="border-b border-[#0a5c4e] px-2 py-1 text-right font-extrabold text-black bg-slate-50 font-serif text-[11.5px]" dir="rtl">مكان الميلاد</td>
                 </tr>
 
                 {/* Row 18: SKILLS & EXPERIENCES Header */}
-                <tr className="bg-[#0a5c4e] text-white font-bold text-[11px] h-[24px]">
+                <tr className="bg-[#0a5c4e] text-white font-extrabold text-[12px] h-[25px]">
                   <td colSpan={6} className="px-2 border-b border-[#0a5c4e]">
                     <div className="flex justify-between items-center">
                       <span>SKILLS & EXPERIENCES</span>
@@ -273,7 +273,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
 
                 {/* Row 19: Total Experience highlight row */}
                 <tr className="h-[22px] bg-[#fcf9f0]">
-                  <td colSpan={6} className="text-center font-extrabold text-[11px] text-[#a68a3c] border-b border-[#0a5c4e]">
+                  <td colSpan={6} className="text-center font-black text-[12px] text-[#a68a3c] border-b border-[#0a5c4e]">
                     {totalYears > 0 ? `${totalYears} YEARS TOTAL EXPERIENCE` : '0 YEAR EXPERIENCE'}
                   </td>
                 </tr>
@@ -281,46 +281,46 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                 {/* Skills Grid Rows */}
                 {/* Row 20: Children Care & Washing */}
                 <tr>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px] w-[18%]">Children Care</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-extrabold text-[9.5px] w-[10%] ${hasSkill('CHILDREN_CARE') === 'YES' || hasSkill('BABY_SITTING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('CHILDREN_CARE') === 'YES' || hasSkill('BABY_SITTING') === 'YES' ? 'YES' : 'NO'}</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif w-[22%]" dir="rtl">عناية الأطفال</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px] w-[18%]">Children Care</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] w-[10%] ${hasSkill('CHILDREN_CARE') === 'YES' || hasSkill('BABY_SITTING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('CHILDREN_CARE') === 'YES' || hasSkill('BABY_SITTING') === 'YES' ? 'YES' : 'NO'}</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif w-[22%]" dir="rtl">عناية الأطفال</td>
                   
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px] w-[18%]">Washing</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-extrabold text-[9.5px] w-[10%] ${hasSkill('WASHING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('WASHING')}</td>
-                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif w-[22%]" dir="rtl">الغسيل</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px] w-[18%]">Washing</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] w-[10%] ${hasSkill('WASHING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('WASHING')}</td>
+                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif w-[22%]" dir="rtl">الغسيل</td>
                 </tr>
 
                 {/* Row 21: Tutoring & Ironing */}
                 <tr>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px]">Tutoring</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-bold text-[9.5px] ${hasSkill('TUTORING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('TUTORING')}</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif" dir="rtl">تعليم الأطفال</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px]">Tutoring</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] ${hasSkill('TUTORING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('TUTORING')}</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif" dir="rtl">تعليم الأطفال</td>
                   
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px]">Ironing</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-bold text-[9.5px] ${hasSkill('IRONING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('IRONING')}</td>
-                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif" dir="rtl">الكوي</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px]">Ironing</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] ${hasSkill('IRONING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('IRONING')}</td>
+                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif" dir="rtl">الكوي</td>
                 </tr>
 
                 {/* Row 22: Disabled Care & Cooking */}
                 <tr>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px]">Disabled Care</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-bold text-[9.5px] ${hasSkill('DISABLED_CARE') === 'YES' || hasSkill('CAREGIVER') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('DISABLED_CARE') === 'YES' || hasSkill('CAREGIVER') === 'YES' ? 'YES' : 'NO'}</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif" dir="rtl">عناية العجزة</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px]">Disabled Care</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] ${hasSkill('DISABLED_CARE') === 'YES' || hasSkill('CAREGIVER') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('DISABLED_CARE') === 'YES' || hasSkill('CAREGIVER') === 'YES' ? 'YES' : 'NO'}</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif" dir="rtl">عناية العجزة</td>
                   
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px]">Cooking</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-extrabold text-[9.5px] ${hasSkill('COOKING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('COOKING')}</td>
-                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif" dir="rtl">الطبخ</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px]">Cooking</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] ${hasSkill('COOKING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('COOKING')}</td>
+                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif" dir="rtl">الطبخ</td>
                 </tr>
 
                 {/* Row 23: Cleaning & Baby Sitting */}
                 <tr>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px]">Cleaning</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-extrabold text-[9.5px] ${hasSkill('CLEANING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('CLEANING')}</td>
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif" dir="rtl">التنظيف</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px]">Cleaning</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] ${hasSkill('CLEANING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('CLEANING')}</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif" dir="rtl">التنظيف</td>
                   
-                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-bold text-black text-[9.5px]">Baby Sitting</td>
-                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-extrabold text-[9.5px] ${hasSkill('BABY_SITTING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('BABY_SITTING')}</td>
-                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-bold text-black text-[9.5px] font-serif" dir="rtl">عناية الرضع</td>
+                  <td className="border-b border-r border-[#0a5c4e] px-1.5 py-1 font-extrabold text-black text-[11px]">Baby Sitting</td>
+                  <td className={`border-b border-r border-[#0a5c4e] px-1 py-1 text-center font-black text-[11px] ${hasSkill('BABY_SITTING') === 'YES' ? 'text-emerald-800 bg-[#e8f5e9]' : 'text-red-700 bg-red-50'}`}>{hasSkill('BABY_SITTING')}</td>
+                  <td className="border-b border-[#0a5c4e] px-1.5 py-1 text-right font-extrabold text-black text-[11px] font-serif" dir="rtl">عناية الرضع</td>
                 </tr>
               </tbody>
             </table>

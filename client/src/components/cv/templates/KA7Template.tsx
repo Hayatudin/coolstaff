@@ -95,7 +95,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
         </div>
 
         {/* Main Content Border Wrapper */}
-        <div className="w-full border-2 border-black flex flex-col text-[12px] leading-[1.25] font-serif">
+        <div className="w-full border-2 border-black flex flex-col text-[13px] leading-[1.25] font-serif">
           
           {/* Top Table */}
           <table className="w-full border-collapse border-b-2 border-black">
@@ -108,39 +108,39 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                     <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] font-sans">Photo</div>
                   )}
                 </td>
-                <td className={`border border-black px-2 py-1 font-bold w-[25%] ${bgLightBlue}`}>Reference Number</td>
-                <td className="border border-black px-2 py-1 w-[40%] font-bold"></td>
-                <td className={`border border-black px-2 py-1 text-right font-bold w-[11%] ${bgLightBlue}`}></td>
+                <td className={`border border-black px-2 py-1 font-extrabold w-[25%] ${bgLightBlue} text-[12.5px]`}>Reference Number</td>
+                <td className="border border-black px-2 py-1 w-[40%] font-black text-[13.5px]"></td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold w-[11%] ${bgLightBlue}`}></td>
               </tr>
               <tr>
-                <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Full Name</td>
-                <td className="border border-black px-2 py-1 font-bold uppercase">{fullName}</td>
-                <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الاسم</td>
+                <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Full Name</td>
+                <td className="border border-black px-2 py-1 font-black uppercase text-[15px]">{fullName}</td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الاسم</td>
               </tr>
               <tr>
-                <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Religion</td>
-                <td className="border border-black px-2 py-1 font-bold uppercase text-[#dc2626] underline decoration-[#dc2626] decoration-wavy underline-offset-2">{candidate.personalInfo?.religion}</td>
-                <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الديانة</td>
+                <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Religion</td>
+                <td className="border border-black px-2 py-1 font-black uppercase text-[#dc2626] underline decoration-[#dc2626] decoration-wavy underline-offset-2 text-[13.5px]">{candidate.personalInfo?.religion}</td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الديانة</td>
               </tr>
               <tr>
-                <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Position Desired</td>
-                <td className="border border-black px-2 py-1 font-bold uppercase">{candidate.personalInfo?.job || 'HOUSEMAID'}</td>
-                <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الوظيفة</td>
+                <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Position Desired</td>
+                <td className="border border-black px-2 py-1 font-black uppercase text-[14px]">{candidate.personalInfo?.job || 'HOUSEMAID'}</td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الوظيفة</td>
               </tr>
               <tr>
-                <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Salary</td>
-                <td className="border border-black px-2 py-1 font-bold uppercase">{candidate.salary || candidate.personalInfo?.salary || '1000SR'}</td>
-                <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الراتب</td>
+                <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Salary</td>
+                <td className="border border-black px-2 py-1 font-black uppercase text-[13.5px]">{candidate.salary || candidate.personalInfo?.salary || '1000SR'}</td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الراتب</td>
               </tr>
               <tr>
-                <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Age</td>
-                <td className="border border-black px-2 py-1 font-bold">{age}</td>
-                <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">العمر</td>
+                <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Age</td>
+                <td className="border border-black px-2 py-1 font-black text-[13.5px]">{age}</td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">العمر</td>
               </tr>
               <tr>
-                <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Sex</td>
-                <td className="border border-black px-2 py-1 font-bold uppercase">{candidate.passportData?.gender}</td>
-                <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الجنس</td>
+                <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Sex</td>
+                <td className="border border-black px-2 py-1 font-black uppercase text-[13.5px]">{candidate.passportData?.gender}</td>
+                <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الجنس</td>
               </tr>
             </tbody>
           </table>
@@ -153,7 +153,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
               <table className="w-full border-collapse mt-[-2px]">
                 <thead>
                   <tr>
-                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-bold">
+                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-black text-[13.5px]">
                       <div className="flex justify-between items-center w-full">
                         <span>Personal Information</span>
                         <span dir="rtl">معلومات شخصيه</span>
@@ -162,14 +162,14 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className={`border border-black px-2 py-1 font-bold w-[38%] ${bgLightBlue}`}>Nationality</td><td className="border border-black px-2 py-1 uppercase font-bold w-[42%]">{resolvedNationality}</td><td className={`border border-black px-2 py-1 text-right font-bold w-[20%] ${bgLightBlue}`} dir="rtl">الجنسية</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Date of Birth</td><td className="border border-black px-2 py-1 font-bold">{formatDateFull(candidate.passportData?.dateOfBirth)}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">تاريخ الميلاد</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Address</td><td className="border border-black px-2 py-1 uppercase font-bold text-[11px] leading-tight">{candidate.personalInfo?.city || candidate.passportData?.placeOfBirth}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">العنوان</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Marital Status</td><td className="border border-black px-2 py-1 uppercase font-bold">{candidate.personalInfo?.maritalStatus}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الحالة الاجتماعية</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>No. of Children</td><td className="border border-black px-2 py-1 font-bold text-center">{candidate.personalInfo?.numberOfChildren || 0}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">عدد الأطفال</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Height/Weight</td><td className="border border-black p-0 uppercase font-bold"><div className="flex w-full h-full"><div className="w-1/2 border-r border-black px-1 py-1 text-center">{candidate.personalInfo?.height ? `${candidate.personalInfo.height}CM` : ''}</div><div className="w-1/2 px-1 py-1 text-center">{candidate.personalInfo?.weight ? `${candidate.personalInfo.weight}KG` : ''}</div></div></td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الوزن والطول</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Education<br/>Qualifications</td><td className="border border-black px-2 py-1 uppercase font-bold text-[11px] leading-tight">{candidate.personalInfo?.educationLevel}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">المستوى التعليمي</td></tr>
-                  <tr><td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Tel. Number</td><td className="border border-black px-2 py-1 font-bold">+{candidate.personalInfo?.phone?.replace(/\D/g, '') || ''}</td><td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">رقم التواصل</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold w-[38%] ${bgLightBlue} text-[12.5px]`}>Nationality</td><td className="border border-black px-2 py-1 uppercase font-bold w-[42%] text-[12.5px]">{resolvedNationality}</td><td className={`border border-black px-2 py-1 text-right font-extrabold w-[20%] ${bgLightBlue} text-[12.5px]`} dir="rtl">الجنسية</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Date of Birth</td><td className="border border-black px-2 py-1 font-bold text-[12.5px]">{formatDateFull(candidate.passportData?.dateOfBirth)}</td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">تاريخ الميلاد</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Address</td><td className="border border-black px-2 py-1 uppercase font-bold text-[12px] leading-tight">{candidate.personalInfo?.city || candidate.passportData?.placeOfBirth}</td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">العنوان</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Marital Status</td><td className="border border-black px-2 py-1 uppercase font-bold text-[12.5px]">{candidate.personalInfo?.maritalStatus}</td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الحالة الاجتماعية</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>No. of Children</td><td className="border border-black px-2 py-1 font-bold text-center text-[12.5px]">{candidate.personalInfo?.numberOfChildren || 0}</td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">عدد الأطفال</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Height/Weight</td><td className="border border-black p-0 uppercase font-bold text-[12.5px]"><div className="flex w-full h-full"><div className="w-1/2 border-r border-black px-1 py-1 text-center">{candidate.personalInfo?.height ? `${candidate.personalInfo.height}CM` : ''}</div><div className="w-1/2 px-1 py-1 text-center">{candidate.personalInfo?.weight ? `${candidate.personalInfo.weight}KG` : ''}</div></div></td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">الوزن والطول</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Education<br/>Qualifications</td><td className="border border-black px-2 py-1 uppercase font-bold text-[12px] leading-tight">{candidate.personalInfo?.educationLevel}</td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">المستوى التعليمي</td></tr>
+                  <tr><td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12.5px]`}>Tel. Number</td><td className="border border-black px-2 py-1 font-bold text-[12.5px]">+{candidate.personalInfo?.phone?.replace(/\D/g, '') || ''}</td><td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12.5px]`} dir="rtl">رقم التواصل</td></tr>
                 </tbody>
               </table>
 
@@ -177,7 +177,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
               <table className="w-full border-collapse mt-[-1px]">
                 <thead>
                   <tr>
-                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-bold">
+                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-black text-[13.5px]">
                       <div className="flex justify-between items-center w-full">
                         <span>Overseas Experience</span>
                         <span dir="rtl">خبرات سابقه</span>
@@ -185,13 +185,13 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                     </th>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-0.5 font-bold ${bgLightBlue} w-[25%]`}>Country</td>
-                    <td className={`border border-black px-2 py-0.5 font-bold ${bgLightBlue} w-[25%]`}>Period</td>
-                    <td className={`border border-black px-2 py-0.5 font-bold ${bgLightBlue} w-[50%]`}>Position</td>
+                    <td className={`border border-black px-2 py-0.5 font-extrabold ${bgLightBlue} w-[25%] text-[12px]`}>Country</td>
+                    <td className={`border border-black px-2 py-0.5 font-extrabold ${bgLightBlue} w-[25%] text-[12px]`}>Period</td>
+                    <td className={`border border-black px-2 py-0.5 font-extrabold ${bgLightBlue} w-[50%] text-[12px]`}>Position</td>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className="border border-black px-2 py-1 font-bold text-center h-[24px]">{expCountry}</td><td className="border border-black px-2 py-1 font-bold text-center">{expPeriod}</td><td className="border border-black px-2 py-1 font-bold text-center">{expPosition}</td></tr>
+                  <tr><td className="border border-black px-2 py-1 font-bold text-center h-[24px] text-[12.5px]">{expCountry}</td><td className="border border-black px-2 py-1 font-bold text-center text-[12.5px]">{expPeriod}</td><td className="border border-black px-2 py-1 font-bold text-center text-[12.5px]">{expPosition}</td></tr>
                 </tbody>
               </table>
 
@@ -199,7 +199,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
               <table className="w-full border-collapse mt-[15px]">
                 <thead>
                   <tr>
-                    <th colSpan={6} className="border border-black px-2 py-1 bg-white font-bold">
+                    <th colSpan={6} className="border border-black px-2 py-1 bg-white font-black text-[13.5px]">
                       <div className="flex justify-between items-center w-full">
                         <span>Skills</span>
                         <span dir="rtl">المهارات</span>
@@ -209,28 +209,28 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                 </thead>
                 <tbody>
                   <tr>
-                    <td className={`border border-black px-1 py-1 font-bold ${bgLightBlue} w-[18%]`}>Cooking</td>
-                    <td className="border border-black p-0 text-center font-bold w-[10%] text-sm">{hasSkill('COOKING') ? renderCheckmark() : 'NO'}</td>
-                    <td className={`border border-black px-1 py-1 font-bold text-center ${bgLightBlue} w-[22%] text-[11px]`} dir="rtl">الطبخ</td>
-                    <td className={`border border-black px-1 py-1 font-bold ${bgLightBlue} w-[20%]`}>Baby<br/>Sitting</td>
-                    <td className="border border-black p-0 text-center font-bold w-[10%] text-sm">{hasSkill('BABY') ? renderCheckmark() : 'NO'}</td>
-                    <td className={`border border-black px-1 py-1 font-bold text-center ${bgLightBlue} w-[20%] text-[10px] leading-tight`} dir="rtl">التعامل مع الاطفال</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold ${bgLightBlue} w-[18%] text-[11.5px]`}>Cooking</td>
+                    <td className="border border-black p-0 text-center font-black w-[10%] text-sm">{hasSkill('COOKING') ? renderCheckmark() : 'NO'}</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold text-center ${bgLightBlue} w-[22%] text-[11.5px]`} dir="rtl">الطبخ</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold ${bgLightBlue} w-[20%] text-[11.5px]`}>Baby<br/>Sitting</td>
+                    <td className="border border-black p-0 text-center font-black w-[10%] text-sm">{hasSkill('BABY') ? renderCheckmark() : 'NO'}</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold text-center ${bgLightBlue} w-[20%] text-[10.5px] leading-tight`} dir="rtl">التعامل مع الاطفال</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-1 py-1 font-bold ${bgLightBlue}`}>Washing</td>
-                    <td className="border border-black p-0 text-center font-bold text-sm">{hasSkill('WASHING') ? renderCheckmark() : 'NO'}</td>
-                    <td className={`border border-black px-1 py-1 font-bold text-center ${bgLightBlue} text-[11px]`} dir="rtl">الغسيل</td>
-                    <td className={`border border-black px-1 py-1 font-bold ${bgLightBlue}`}>Sewing</td>
-                    <td className="border border-black p-0 text-center font-bold text-sm">{hasSkill('SEWING') ? renderCheckmark() : 'NO'}</td>
-                    <td className={`border border-black px-1 py-1 font-bold text-center ${bgLightBlue} text-[11px]`} dir="rtl">الخياطة</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold ${bgLightBlue} text-[11.5px]`}>Washing</td>
+                    <td className="border border-black p-0 text-center font-black text-sm">{hasSkill('WASHING') ? renderCheckmark() : 'NO'}</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold text-center ${bgLightBlue} text-[11.5px]`} dir="rtl">الغسيل</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold ${bgLightBlue} text-[11.5px]`}>Sewing</td>
+                    <td className="border border-black p-0 text-center font-black text-sm">{hasSkill('SEWING') ? renderCheckmark() : 'NO'}</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold text-center ${bgLightBlue} text-[11.5px]`} dir="rtl">الخياطة</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-1 py-1 font-bold ${bgLightBlue}`}>Cleaning</td>
-                    <td className="border border-black p-0 text-center font-bold text-sm">{hasSkill('CLEANING') ? renderCheckmark() : 'NO'}</td>
-                    <td className={`border border-black px-1 py-1 font-bold text-center ${bgLightBlue} text-[11px]`} dir="rtl">التنظيف</td>
-                    <td className={`border border-black px-1 py-1 font-bold ${bgLightBlue}`}>Driving</td>
-                    <td className="border border-black p-0 text-center font-bold text-sm">{hasSkill('DRIVING') ? renderCheckmark() : 'NO'}</td>
-                    <td className={`border border-black px-1 py-1 font-bold text-center ${bgLightBlue} text-[11px]`} dir="rtl">سائق</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold ${bgLightBlue} text-[11.5px]`}>Cleaning</td>
+                    <td className="border border-black p-0 text-center font-black text-sm">{hasSkill('CLEANING') ? renderCheckmark() : 'NO'}</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold text-center ${bgLightBlue} text-[11.5px]`} dir="rtl">التنظيف</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold ${bgLightBlue} text-[11.5px]`}>Driving</td>
+                    <td className="border border-black p-0 text-center font-black text-sm">{hasSkill('DRIVING') ? renderCheckmark() : 'NO'}</td>
+                    <td className={`border border-black px-1 py-1 font-extrabold text-center ${bgLightBlue} text-[11.5px]`} dir="rtl">سائق</td>
                   </tr>
                 </tbody>
               </table>
@@ -239,7 +239,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
               <table className="w-full border-collapse mt-[15px]">
                 <thead>
                   <tr>
-                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-bold">
+                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-black text-[13.5px]">
                       <div className="flex justify-between items-center w-full">
                         <span>Languages</span>
                         <span dir="rtl">اللغات</span>
@@ -248,20 +248,20 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                   </tr>
                   <tr>
                     <td className="border border-black px-2 py-0.5 w-[33%] bg-[#eef3f8]"></td>
-                    <td className={`border border-black px-2 py-0.5 font-bold text-center ${bgLightBlue} w-[33%] leading-tight`}>English<br/><span dir="rtl">الانجليزية</span></td>
-                    <td className={`border border-black px-2 py-0.5 font-bold text-center ${bgLightBlue} w-[34%] leading-tight`}>Arabic<br/><span dir="rtl">العربية</span></td>
+                    <td className={`border border-black px-2 py-0.5 font-extrabold text-center ${bgLightBlue} w-[33%] leading-tight text-[12px]`}>English<br/><span dir="rtl">الانجليزية</span></td>
+                    <td className={`border border-black px-2 py-0.5 font-extrabold text-center ${bgLightBlue} w-[34%] leading-tight text-[12px]`}>Arabic<br/><span dir="rtl">العربية</span></td>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Good</td>
-                    <td className="border border-black px-2 py-1 font-bold text-center">{hasLang('ENGLISH') ? 'YES' : 'NO'}</td>
-                    <td className="border border-black px-2 py-1 font-bold text-center">{hasLang('ARABIC') ? 'YES' : 'NO'}</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12px]`}>Good</td>
+                    <td className="border border-black px-2 py-1 font-bold text-center text-[12px]">{hasLang('ENGLISH') ? 'YES' : 'NO'}</td>
+                    <td className="border border-black px-2 py-1 font-bold text-center text-[12px]">{hasLang('ARABIC') ? 'YES' : 'NO'}</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Fluent</td>
-                    <td className="border border-black px-2 py-1 font-bold text-center">NO</td>
-                    <td className="border border-black px-2 py-1 font-bold text-center">NO</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12px]`}>Fluent</td>
+                    <td className="border border-black px-2 py-1 font-bold text-center text-[12px]">NO</td>
+                    <td className="border border-black px-2 py-1 font-bold text-center text-[12px]">NO</td>
                   </tr>
                 </tbody>
               </table>
@@ -274,7 +274,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
               <table className="w-full border-collapse mt-[-2px]">
                 <thead>
                   <tr>
-                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-bold">
+                    <th colSpan={3} className="border border-black px-2 py-1 bg-white font-black text-[13.5px]">
                       <div className="flex justify-between items-center w-full">
                         <span>Passport Information</span>
                         <span dir="rtl">معلومات الجواز</span>
@@ -284,34 +284,34 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
                 </thead>
                 <tbody>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold w-[30%] ${bgLightBlue}`}>Number</td>
-                    <td className="border border-black px-2 py-1 font-black uppercase w-[50%] font-roboto text-[18px] tracking-wider" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '18px' }}>{candidate.passportData?.passportNumber}</td>
-                    <td className={`border border-black px-2 py-1 text-right font-bold w-[20%] ${bgLightBlue}`} dir="rtl"></td>
+                    <td className={`border border-black px-2 py-1 font-extrabold w-[30%] ${bgLightBlue} text-[12px]`}>Number</td>
+                    <td className="border border-black px-2 py-1 font-black uppercase w-[50%] font-roboto text-[21px] tracking-wider text-[#dc2626]" style={{ fontFamily: "'Roboto', sans-serif", fontWeight: '900', fontSize: '21px' }}>{candidate.passportData?.passportNumber}</td>
+                    <td className={`border border-black px-2 py-1 text-right font-extrabold w-[20%] ${bgLightBlue}`} dir="rtl"></td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Issue Date</td>
-                    <td className="border border-black px-2 py-1 font-bold">{formatDateFull(candidate.passportData?.dateOfIssue)}</td>
-                    <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الإصدار</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12px]`}>Issue Date</td>
+                    <td className="border border-black px-2 py-1 font-bold text-[12.5px]">{formatDateFull(candidate.passportData?.dateOfIssue)}</td>
+                    <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12px]`} dir="rtl">الإصدار</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Expiry Date</td>
-                    <td className="border border-black px-2 py-1 font-bold">{formatDateFull(candidate.passportData?.dateOfExpiry)}</td>
-                    <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الانتهاء</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12px]`}>Expiry Date</td>
+                    <td className="border border-black px-2 py-1 font-bold text-[12.5px]">{formatDateFull(candidate.passportData?.dateOfExpiry)}</td>
+                    <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12px]`} dir="rtl">الانتهاء</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue}`}>Issue place</td>
-                    <td className="border border-black px-2 py-1 font-bold uppercase">{candidate.passportData?.issuingCountry}</td>
-                    <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">الاصدار</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[12px]`}>Issue place</td>
+                    <td className="border border-black px-2 py-1 font-bold uppercase text-[12.5px]">{candidate.passportData?.issuingCountry}</td>
+                    <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12px]`} dir="rtl">الاصدار</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue} text-[11px] leading-tight`}>Next of Kin<br/>name</td>
-                    <td className="border border-black px-2 py-1 font-bold uppercase text-[11px] leading-tight">{candidate.personalInfo?.emergencyContactName || ''}</td>
-                    <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">خص</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[11.5px] leading-tight`}>Next of Kin<br/>name</td>
+                    <td className="border border-black px-2 py-1 font-bold uppercase text-[12px] leading-tight">{candidate.personalInfo?.emergencyContactName || ''}</td>
+                    <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12px]`} dir="rtl">خص</td>
                   </tr>
                   <tr>
-                    <td className={`border border-black px-2 py-1 font-bold ${bgLightBlue} text-[11px] leading-tight`}>Next of Kin<br/>number</td>
-                    <td className="border border-black px-2 py-1 font-bold">{candidate.personalInfo?.emergencyContactPhone || ''}</td>
-                    <td className={`border border-black px-2 py-1 text-right font-bold ${bgLightBlue}`} dir="rtl">رتب</td>
+                    <td className={`border border-black px-2 py-1 font-extrabold ${bgLightBlue} text-[11.5px] leading-tight`}>Next of Kin<br/>number</td>
+                    <td className="border border-black px-2 py-1 font-bold text-[12.5px]">{candidate.personalInfo?.emergencyContactPhone || ''}</td>
+                    <td className={`border border-black px-2 py-1 text-right font-extrabold ${bgLightBlue} text-[12px]`} dir="rtl">رتب</td>
                   </tr>
                 </tbody>
               </table>
@@ -329,7 +329,7 @@ export function KA7Layout({ candidate, facePhoto, fullBodyPhoto, headerImage }: 
         </div>
 
         {/* Remarks Box */}
-        <div className={`w-full mt-1 px-2 py-1 border-2 border-black ${bgLightBlue} text-[10px] font-bold uppercase text-center`}>
+        <div className={`w-full mt-1 px-2 py-1 border-2 border-black ${bgLightBlue} text-[11px] font-black uppercase text-center`}>
           Remarks: SHE IS HARDWORKING, NEAT, ORGANISED, SMART, DISCIPLINED, CARING, HAS A GOOD ATTITUDE, SPEAKS GOOD ENGLISH AND LOVES TAKING CARE OF CHILDREN.
         </div>
 
