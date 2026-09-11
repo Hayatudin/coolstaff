@@ -128,7 +128,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
       try {
         const page = await browser.newPage();
-        const clientTemplateRoute = (templateRef === 'CV Al-shablan.docx' ? 'al-shablan' : (templateRef === 'CV Ussus.docx' ? 'ussus' : templateRef));
+        const clientTemplateRoute = templateId.replace('tmpl-', '').toLowerCase();
         const printUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/cv-print/${candidateId}/${clientTemplateRoute}`;
 
         await page.goto(printUrl, { waitUntil: 'networkidle' });
