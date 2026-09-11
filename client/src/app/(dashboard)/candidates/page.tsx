@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy, Plus } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -13,6 +13,7 @@ import { cn, getFileUrl, getApiBaseUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { authClient } from '@/lib/auth-client';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useCandidates } from '@/hooks/useCandidates';
 
@@ -30,6 +31,7 @@ const TEMPLATES = [
 
 export default function CandidatesPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
   const isSuperAdmin = (session?.user as any)?.role === 'super_admin';
   const { candidates, isLoading, error, mutate: setCandidates } = useCandidates();
@@ -149,6 +151,8 @@ const normalizeLanguageName = (lang: string): string => {
         ...c,
         laborID: insertLaborIdInput.trim()
       } : c));
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['candidate', insertLaborIdModalId] });
       setInsertLaborIdModalId(null);
       setInsertLaborIdInput('');
       // Trigger refresh
@@ -696,25 +700,67 @@ const normalizeLanguageName = (lang: string): string => {
                           >
                             <Copy size={13} />
                           </button>
+                          {(candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewDoc(candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl);
+                              }}
+                              className="p-1 rounded text-primary hover:bg-primary/10 transition-all cursor-pointer"
+                              title="View Labor ID Image"
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInsertLaborIdModalId(candidate.id);
+                              setInsertLaborIdInput(candidate.laborID || '');
+                            }}
+                            className="p-1 rounded text-text-tertiary hover:bg-gray-100 hover:text-primary transition-all cursor-pointer opacity-0 group-hover/copy:opacity-100 focus:opacity-100"
+                            title="Edit Labor ID"
+                          >
+                            <Edit3 size={12} />
+                          </button>
+                        </div>
+                      ) : (candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl) ? (
+                        <div className="flex items-center gap-2 group/labor">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewDoc(candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl);
+                            }}
+                            className="p-1.5 rounded-lg border shadow-sm inline-flex items-center transition-all text-primary bg-primary/10 hover:bg-primary hover:text-white border-primary/20 cursor-pointer"
+                            title="View Labor ID Image"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInsertLaborIdModalId(candidate.id);
+                              setInsertLaborIdInput('');
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-text-secondary hover:text-primary hover:bg-primary/5 border border-dashed border-border hover:border-primary/30 transition-all cursor-pointer"
+                            title="Add Text Labor ID"
+                          >
+                            <Plus size={12} />
+                            <span className="text-[11px]">Add Text</span>
+                          </button>
                         </div>
                       ) : (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (candidate.labourIdUrl) {
-                              setViewDoc(candidate.labourIdUrl);
-                            }
+                            setInsertLaborIdModalId(candidate.id);
+                            setInsertLaborIdInput('');
                           }}
-                          disabled={!candidate.labourIdUrl}
-                          className={cn(
-                            "p-1.5 rounded-lg border shadow-sm inline-flex items-center transition-all",
-                            candidate.labourIdUrl 
-                              ? "text-primary bg-primary/10 hover:bg-primary hover:text-white border-primary/20 cursor-pointer" 
-                              : "text-gray-300 bg-gray-50 border-gray-100 cursor-not-allowed opacity-60"
-                          )}
-                          title={candidate.labourIdUrl ? "View Labor ID Image" : "No Labor ID Image"}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white border border-primary/20 transition-all shadow-sm hover:shadow cursor-pointer"
+                          title="Add Labor ID"
                         >
-                          <Eye size={16} />
+                          <Plus size={13} />
+                          <span>Add Labor ID</span>
                         </button>
                       )}
                     </td>
@@ -1095,7 +1141,7 @@ const normalizeLanguageName = (lang: string): string => {
           <div className="bg-white rounded-[1.5rem] shadow-2xl max-w-md w-full overflow-hidden scale-in" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-border bg-gray-50">
               <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
-                <FileText className="text-primary" size={20} /> Insert Labor ID
+                <FileText className="text-primary" size={20} /> Add Labor ID
               </h3>
               <button onClick={() => setInsertLaborIdModalId(null)} className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-gray-200 transition-colors">✕</button>
             </div>
@@ -1105,7 +1151,13 @@ const normalizeLanguageName = (lang: string): string => {
                 autoFocus
                 placeholder="e.g. LAB-123456" 
                 value={insertLaborIdInput} 
-                onChange={(e) => setInsertLaborIdInput(e.target.value)} 
+                onChange={(e) => setInsertLaborIdInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && insertLaborIdInput.trim() && !isSavingLaborId) {
+                    e.preventDefault();
+                    handleSaveLaborId();
+                  }
+                }}
                 className="w-full"
               />
             </div>
