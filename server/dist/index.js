@@ -44,6 +44,7 @@ const fs_1 = __importDefault(require("fs"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 4000;
+app.set('trust proxy', 1);
 // 1. ULTIMATE CORS FIX - Allow everything correctly with credentials
 app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -149,9 +150,15 @@ app.use('/api/files', files_1.default);
 app.use('/api/deployments', deployments_1.default);
 app.use('/api/agency', agency_1.default);
 app.use('/api/passports', passports_1.default);
-// Root route
+// Root route & health check
 app.get('/', (req, res) => {
     res.json({ message: 'API is running' });
+});
+app.get('/api', (req, res) => {
+    res.json({ message: 'API is running' });
+});
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', message: 'API is running' });
 });
 // --- GLOBAL ERROR HANDLER ---
 app.use((err, req, res, next) => {
