@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy, Plus } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy, Plus, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -48,6 +49,66 @@ export default function CandidatesPage() {
   const [agencyFilter, setAgencyFilter] = useState('all');
   const [callingFilter, setCallingFilter] = useState(false);
   const [regTabFilter, setRegTabFilter] = useState<'all' | 'new' | 'flagged'>('all');
+  const [isExporting, setIsExporting] = useState(false);
+
+  // All candidates who are unflagged and whose visa status is not selected
+  const exportableCandidates = useMemo(() => {
+    return candidates.filter(
+      (c) => !c.isFlagged && !c.isRequested && !c.visaSelected && c.status !== 'visa selected'
+    );
+  }, [candidates]);
+
+  const handleExportExcel = () => {
+    if (exportableCandidates.length === 0) {
+      alert('No candidates found matching the export criteria (unflagged with no visa selected).');
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+
+      // Sort consistently (newest first or based on current sortOrder)
+      const sorted = [...exportableCandidates].sort((a, b) => {
+        const dA = new Date(a.registeredAt).getTime(), dB = new Date(b.registeredAt).getTime();
+        return sortOrder === 'new_to_old' ? dB - dA : dA - dB;
+      });
+
+      const rows = sorted.map((c, index) => {
+        const fullName = `${c.passportData?.givenNames || ''} ${c.passportData?.surname || ''}`.trim().toUpperCase();
+        return {
+          'Number': index + 1,
+          'Name': fullName,
+          'Passport number': c.passportData?.passportNumber || '',
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+
+      // Calculate maximum length of names to ensure ample width with no truncation
+      const maxNameLength = rows.reduce((max, r) => Math.max(max, (r['Name'] || '').length), 0);
+
+      // Column widths:
+      // Number (roll number): 12
+      // Name: Math.max(35, maxNameLength + 6) -> increased width so it never cuts off any names
+      // Passport number: 22
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: Math.max(35, maxNameLength + 6) },
+        { wch: 22 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `candidates_unflagged_pending_visa_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Export to Excel error:', err);
+      alert('Failed to export to Excel. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
 const normalizeLanguageName = (lang: string): string => {
   if (!lang) return '';
@@ -470,20 +531,37 @@ const normalizeLanguageName = (lang: string): string => {
           <p className="text-text-secondary mt-1 ml-12">Manage and track all registered candidates</p>
         </div>
         
-        {/* Dynamic Counter */}
+        {/* Actions & Dynamic Counter */}
         {!isLoading && !error && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-xl border border-primary/10 self-start md:self-auto">
-            <span className="text-2xl font-black text-primary leading-none">{filtered.length}</span>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary/60 leading-none mb-0.5">Showing</span>
-              <span className="text-xs font-semibold text-primary leading-none">Candidates</span>
-            </div>
-            {filtered.length !== candidates.length && (
-              <div className="ml-3 pl-3 border-l border-primary/20">
-                <span className="text-[10px] font-bold text-primary/60 uppercase tracking-wider">Total</span>
-                <p className="text-sm font-black text-primary/80 leading-none">{candidates.length}</p>
+          <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+            {/* Export to Excel Button */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExporting || exportableCandidates.length === 0}
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs"
+              title="Download all candidates who are unflagged and whose visa status is not selected"
+            >
+              {isExporting ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+              <span>Export to Excel</span>
+              <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-black rounded-full bg-white/20 text-white">
+                {exportableCandidates.length}
+              </span>
+            </button>
+
+            <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">
+              <span className="text-2xl font-black text-primary leading-none">{filtered.length}</span>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary/60 leading-none mb-0.5">Showing</span>
+                <span className="text-xs font-semibold text-primary leading-none">Candidates</span>
               </div>
-            )}
+              {filtered.length !== candidates.length && (
+                <div className="ml-3 pl-3 border-l border-primary/20">
+                  <span className="text-[10px] font-bold text-primary/60 uppercase tracking-wider">Total</span>
+                  <p className="text-sm font-black text-primary/80 leading-none">{candidates.length}</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
