@@ -23,7 +23,7 @@ import Button from '@/components/ui/Button';
 const TEMPLATES: any[] = [
   { id: 'ussus', name: 'USSUS', category: 'minimal', description: 'USSUS template layout', thumbnail: '/Ussus.png' },
   { id: 'al-shablan', name: 'AL-Shablan', category: 'elegant', description: 'AL-Shablan template layout', thumbnail: '/Al-shablan.png' },
-  { id: 'alm', name: 'ALMERSAH', category: 'classic', description: 'Standard ALMERSAH CV layout', thumbnail: '/header.png' },
+  { id: 'alm', name: 'ALMERSAH', category: 'classic', description: 'Standard ALMERSAH CV layout', thumbnail: '/Almersah-header.png' },
   { id: 'almala', name: 'ALMALA', category: 'classic', description: 'Standard ALMALA CV layout', thumbnail: '/almala-header.png' },
   { id: 'ka7', name: 'KA-7 Layout', category: 'professional', description: 'KA-7 template format', thumbnail: '/KA-7.png' },
   { id: 'ku2', name: 'KU-2 Format', category: 'minimal', description: 'Clean KU-2 design', thumbnail: '/KU2.png' },
