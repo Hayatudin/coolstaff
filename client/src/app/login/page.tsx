@@ -29,22 +29,30 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      // 1. Attempt Sign In with auto-retry resilience
+      // 1. Attempt Sign In with auto-retry resilience against slow networks and packet drops
       let signInData: any = null;
       let signInError: any = null;
 
       for (let attempt = 1; attempt <= 3; attempt++) {
-        const res = await signIn.email({
-          email,
-          password,
-        });
-        signInData = res.data;
-        signInError = res.error;
-        if (!signInError || (signInError.status && signInError.status >= 400 && signInError.status < 500)) {
-          break;
+        try {
+          const res = await signIn.email({
+            email,
+            password,
+          });
+          signInData = res.data;
+          signInError = res.error;
+          if (!signInError || (signInError.status && signInError.status >= 400 && signInError.status < 500)) {
+            break;
+          }
+        } catch (callErr: any) {
+          console.warn(`[Login] Sign in attempt ${attempt} network error:`, callErr);
+          signInError = { message: callErr?.message || 'Network error' };
+          if (attempt === 3) {
+            throw callErr;
+          }
         }
         if (attempt < 3) {
-          await new Promise(r => setTimeout(r, 500 * attempt));
+          await new Promise((r) => setTimeout(r, 600 * attempt));
         }
       }
 
@@ -82,18 +90,26 @@ function LoginForm() {
       let signUpError: any = null;
 
       for (let attempt = 1; attempt <= 3; attempt++) {
-        const res = await signUp.email({
-          email,
-          password,
-          name: displayName,
-        });
-        signUpData = res.data;
-        signUpError = res.error;
-        if (!signUpError || (signUpError.status && signUpError.status >= 400 && signUpError.status < 500)) {
-          break;
+        try {
+          const res = await signUp.email({
+            email,
+            password,
+            name: displayName,
+          });
+          signUpData = res.data;
+          signUpError = res.error;
+          if (!signUpError || (signUpError.status && signUpError.status >= 400 && signUpError.status < 500)) {
+            break;
+          }
+        } catch (callErr: any) {
+          console.warn(`[Login] Sign up attempt ${attempt} network error:`, callErr);
+          signUpError = { message: callErr?.message || 'Network error' };
+          if (attempt === 3) {
+            throw callErr;
+          }
         }
         if (attempt < 3) {
-          await new Promise(r => setTimeout(r, 500 * attempt));
+          await new Promise((r) => setTimeout(r, 600 * attempt));
         }
       }
 
@@ -108,10 +124,10 @@ function LoginForm() {
       }
 
       console.error("🔒 Sign Up Error Details:", {
-        message: signUpError.message,
-        code: signUpError.code,
-        status: signUpError.status,
-        statusText: signUpError.statusText,
+        message: signUpError?.message,
+        code: signUpError?.code,
+        status: signUpError?.status,
+        statusText: signUpError?.statusText,
         raw: signUpError,
       });
 
@@ -128,8 +144,18 @@ function LoginForm() {
 
     } catch (err: any) {
       console.error("Critical Auth Error:", err);
-      if (err.message === 'Failed to fetch') {
-        setError('Network error: Could not reach the server. Please check your internet or server connection.');
+      const isNet =
+        err?.name === 'TypeError' ||
+        err?.name === 'AbortError' ||
+        err?.message === 'Failed to fetch' ||
+        err?.message?.includes('fetch') ||
+        err?.message?.includes('network') ||
+        err?.message?.includes('Network') ||
+        err?.message?.includes('timeout') ||
+        err?.message?.includes('timed out');
+
+      if (isNet) {
+        setError('Network error: Could not reach the server after multiple attempts. Please check your internet connection or try again in a moment.');
       } else {
         setError(err.message || 'An error occurred during authentication');
       }

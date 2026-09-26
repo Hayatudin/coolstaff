@@ -26,6 +26,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
   res.header('Access-Control-Allow-Credentials', 'true');
   
+  // Disable HTTP/3 Alt-Svc to prevent QUIC UDP packet drop on slower networks / desktop hotspots
+  res.header('Alt-Svc', 'clear');
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).send();
   }
@@ -46,6 +49,7 @@ app.all('/api/auth/*', async (req: Request, res: Response, next: NextFunction) =
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Alt-Svc', 'clear');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).send();
@@ -155,6 +159,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Alt-Svc', 'clear');
   
   res.status(500).json({ 
     error: 'Internal Server Error', 
@@ -164,7 +169,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Server ready at http://localhost:${PORT}`);
   
   // 1. Run database self-healing checks to inject missing tables/columns
@@ -175,3 +180,8 @@ app.listen(PORT, async () => {
     console.error('❌ Failed to run database self-healing check on startup:', dbErr);
   }
 });
+
+// Configure keep-alive timeout to be greater than client/reverse-proxy timeout (prevents ECONNRESET / Failed to fetch on desktop)
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+

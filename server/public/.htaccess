@@ -1,0 +1,6 @@
+# Disable HTTP/3 Alt-Svc header to prevent QUIC UDP packet drop on slower desktop networks and hotspots
+<IfModule mod_headers.c>
+    Header unset Alt-Svc
+    Header always set Alt-Svc "clear"
+    Header set Connection "keep-alive"
+</IfModule>
