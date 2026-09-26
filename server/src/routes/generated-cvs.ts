@@ -119,18 +119,46 @@ router.get('/', async (req: Request, res: Response) => {
       ? await db.select().from(candidateTable).where(inArray(candidateTable.id, candidateIds))
       : [];
 
+    let videoProfileMap = new Map<string, any>();
+    try {
+      const [videoProfiles]: any = await pool.query(
+        'SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile`'
+      );
+      for (const vp of videoProfiles || []) {
+        if (vp.passportNumber) {
+          videoProfileMap.set(vp.passportNumber.trim().toUpperCase(), vp);
+        }
+      }
+    } catch (_) {}
+
     const brokerIds = candidatesList.map(c => c.brokerId).filter(Boolean) as string[];
     const brokersList = brokerIds.length > 0
       ? await db.select().from(brokerTable).where(inArray(brokerTable.id, brokerIds))
       : [];
 
     const brokerMap = new Map(brokersList.map(b => [b.id, b]));
-    const candMap = new Map(candidatesList.map(c => [c.id, { ...c, broker: c.brokerId ? brokerMap.get(c.brokerId) || null : null }]));
-
-    const generatedCVs = cvRowsList.map(cv => ({
-      ...cv,
-      candidate: candMap.get(cv.candidateId) || null,
+    const candMap = new Map(candidatesList.map(c => {
+      const pNum = (c.passportNumber || '').trim().toUpperCase();
+      const profile = videoProfileMap.get(pNum);
+      const facePhotoUrl = profile?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl || '';
+      const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || c.fullBodyPhotoUrl || '';
+      return [c.id, { 
+        ...c, 
+        facePhotoUrl,
+        fullBodyPhotoUrl,
+        broker: c.brokerId ? brokerMap.get(c.brokerId) || null : null 
+      }];
     }));
+
+    const generatedCVs = cvRowsList.map(cv => {
+      const candObj = candMap.get(cv.candidateId) || null;
+      return {
+        ...cv,
+        facePhotoUrl: cv.facePhotoUrl || candObj?.facePhotoUrl || candObj?.passportImageUrl || null,
+        fullBodyPhotoUrl: cv.fullBodyPhotoUrl || candObj?.fullBodyPhotoUrl || null,
+        candidate: candObj,
+      };
+    });
 
     try {
       const candidatesWithAgency = await db
@@ -141,16 +169,26 @@ router.get('/', async (req: Request, res: Response) => {
       const existingCandidateIds = new Set(generatedCVs.map(cv => cv.candidateId));
       for (const cand of candidatesWithAgency) {
         if (!existingCandidateIds.has(cand.id)) {
+          const pNum = (cand.passportNumber || '').trim().toUpperCase();
+          const profile = videoProfileMap.get(pNum);
+          const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
+          const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
           const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
+          const mergedCand = {
+            ...cand,
+            facePhotoUrl: facePhotoUrl || '',
+            fullBodyPhotoUrl: fullBodyPhotoUrl || '',
+            broker: brokerObj
+          };
           generatedCVs.push({
             id: `dummy-${cand.id}`,
             candidateId: cand.id,
             templateId: cand.agency!.toLowerCase(),
-            facePhotoUrl: cand.facePhotoUrl || cand.passportImageUrl || null,
-            fullBodyPhotoUrl: cand.fullBodyPhotoUrl || null,
+            facePhotoUrl: facePhotoUrl,
+            fullBodyPhotoUrl: fullBodyPhotoUrl,
             createdAt: cand.registeredAt || new Date(),
             updatedAt: cand.registeredAt || new Date(),
-            candidate: { ...cand, broker: brokerObj }
+            candidate: mergedCand
           } as any);
         }
       }
@@ -211,19 +249,26 @@ router.post('/', async (req: Request, res: Response) => {
     deadline.setDate(deadline.getDate() + 30);
     const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
 
-    if (duplicateCV) {
-      await db.update(generatedCvTable).set({ templateId }).where(eq(generatedCvTable.id, duplicateCV.id));
-      await db.update(candidateTable).set({ cvDeadline: deadline, agency: cleanTemplateId }).where(eq(candidateTable.id, candidateId));
-      
-      const [updatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, duplicateCV.id));
-      return res.json(updatedCV);
-    }
-    
     const [faceUrl, fullBodyUrl] = await Promise.all([
       uploadToLocal(facePhotoUrl, 'faces'),
       uploadToLocal(fullBodyPhotoUrl, 'fullbody')
     ]);
 
+    if (duplicateCV) {
+      const cvUpdate: any = { templateId };
+      if (faceUrl) cvUpdate.facePhotoUrl = faceUrl;
+      if (fullBodyUrl) cvUpdate.fullBodyPhotoUrl = fullBodyUrl;
+      await db.update(generatedCvTable).set(cvUpdate).where(eq(generatedCvTable.id, duplicateCV.id));
+
+      const candUpdate: any = { cvDeadline: deadline, agency: cleanTemplateId };
+      if (faceUrl) candUpdate.facePhotoUrl = faceUrl;
+      if (fullBodyUrl) candUpdate.fullBodyPhotoUrl = fullBodyUrl;
+      await db.update(candidateTable).set(candUpdate).where(eq(candidateTable.id, candidateId));
+      
+      const [updatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, duplicateCV.id));
+      return res.json(updatedCV);
+    }
+    
     const newCvId = generateId();
     await db.insert(generatedCvTable).values({
       id: newCvId,
@@ -233,7 +278,10 @@ router.post('/', async (req: Request, res: Response) => {
       fullBodyPhotoUrl: fullBodyUrl
     });
 
-    await db.update(candidateTable).set({ cvDeadline: deadline, agency: cleanTemplateId }).where(eq(candidateTable.id, candidateId));
+    const candUpdate: any = { cvDeadline: deadline, agency: cleanTemplateId };
+    if (faceUrl) candUpdate.facePhotoUrl = faceUrl;
+    if (fullBodyUrl) candUpdate.fullBodyPhotoUrl = fullBodyUrl;
+    await db.update(candidateTable).set(candUpdate).where(eq(candidateTable.id, candidateId));
     
     const [generatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, newCvId));
     res.json(generatedCV);

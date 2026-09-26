@@ -365,7 +365,19 @@ export default function AvailableCandidatesPage() {
     setIsDownloading(true);
     try {
       if (format === 'doc') {
-        const response = await api(`/api/candidates/${candidateId}/export/docx`);
+        const payload = {
+          candidateId: previewCv.candidate.id,
+          templateId: `tmpl-${previewCv.templateId || (previewCv.candidate as any).latestCVTemplate || 'alm'}`,
+          format: 'doc',
+          deadline: (previewCv.candidate as any).cvDeadline || new Date().toISOString().split('T')[0],
+          facePhoto: getFileUrl(previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl),
+          fullBodyPhoto: getFileUrl(previewCv.candidate.fullBodyPhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)
+        };
+        const response = await api('/api/cv/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
         if (!response.ok) throw new Error('DOCX export failed');
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -546,7 +558,7 @@ export default function AvailableCandidatesPage() {
           await Promise.all(chunk.map(async (candidate: any) => {
             const correspondingCv = candidate.generatedCVs?.[0] || {};
             const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
-            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
+            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || faceUrl;
             const [face, body] = await Promise.all([
               convertImageToBase64(faceUrl),
               convertImageToBase64(bodyUrl)
@@ -682,7 +694,7 @@ export default function AvailableCandidatesPage() {
     (async () => {
       setIsDlPreloading(true);
       const faceUrl = previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl;
-      const bodyUrl = previewCv.candidate.fullBodyPhotoUrl;
+      const bodyUrl = previewCv.candidate.fullBodyPhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl;
 
       const [face, body] = await Promise.all([
         convertImageToBase64(faceUrl),
@@ -906,7 +918,7 @@ export default function AvailableCandidatesPage() {
               <FolderTemplate
                 candidate={c}
                 facePhoto={bulkB64Images[c.id]?.face || getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
-                fullBodyPhoto={bulkB64Images[c.id]?.body || getFileUrl(c.fullBodyPhotoUrl)}
+                fullBodyPhoto={bulkB64Images[c.id]?.body || getFileUrl(c.fullBodyPhotoUrl || c.facePhotoUrl || c.passportImageUrl)}
               />
             </div>
           );
@@ -1444,7 +1456,7 @@ export default function AvailableCandidatesPage() {
                   <PrevTemplate
                     candidate={previewCv.candidate}
                     facePhoto={dlFaceB64 || getFileUrl(previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
-                    fullBodyPhoto={dlBodyB64 || getFileUrl(previewCv.candidate.fullBodyPhotoUrl)}
+                    fullBodyPhoto={dlBodyB64 || getFileUrl(previewCv.candidate.fullBodyPhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
                   />
                 </div>
               </div>

@@ -162,7 +162,7 @@ function ChangeTemplateModal({
                       <TC
                         candidate={cv.candidate}
                         facePhoto={cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
-                        fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl}
+                        fullBodyPhoto={cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl || cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl}
                       />
                     </div>
                     {isSelected && (
@@ -414,7 +414,7 @@ export default function BackupPage() {
     (async () => {
       setIsDlPreloading(true);
       const faceUrl = downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl;
-      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl;
+      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl || faceUrl;
 
       const [face, body] = await Promise.all([
         convertImageToBase64(faceUrl),
@@ -473,7 +473,7 @@ export default function BackupPage() {
             format: 'doc',
             deadline: downloadingCv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
             facePhoto: downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl,
-            fullBodyPhoto: downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl
+            fullBodyPhoto: downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl || downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl
           };
 
           const response = await api('/api/cv/generate', {
@@ -751,7 +751,7 @@ export default function BackupPage() {
           await Promise.all(chunk.map(async (candidate: any) => {
             const correspondingCv = candidate.generatedCVs?.[0] || {};
             const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
-            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
+            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || faceUrl;
             const [face, body] = await Promise.all([
               convertImageToBase64(faceUrl),
               convertImageToBase64(bodyUrl)
@@ -854,7 +854,7 @@ export default function BackupPage() {
           const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
           const facePhoto = bulkB64Images[c.id]?.face || getFileUrl(correspondingCv?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl);
-          const fullBodyPhoto = bulkB64Images[c.id]?.body || getFileUrl(correspondingCv?.fullBodyPhotoUrl || c.fullBodyPhotoUrl);
+          const fullBodyPhoto = bulkB64Images[c.id]?.body || getFileUrl(correspondingCv?.fullBodyPhotoUrl || c.fullBodyPhotoUrl || correspondingCv?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl);
 
           return (
             <div key={c.id} id={`bulk-render-${c.id}`} style={{ width: '210mm', backgroundColor: '#ffffff' }}>
@@ -1128,7 +1128,7 @@ export default function BackupPage() {
                 <DlTemplate
                   candidate={downloadingCv.candidate}
                   facePhoto={dlFaceB64 || getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
-                  fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
+                  fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl || downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
                 />
               </div>
             </div>
@@ -1149,7 +1149,7 @@ export default function BackupPage() {
                 <PrevTemplate
                   candidate={previewCv.candidate}
                   facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
-                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl)}
+                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl || previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
                 />
               </div>
             </div>

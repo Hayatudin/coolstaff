@@ -23,6 +23,9 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
+  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
+
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -66,7 +69,7 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
           <img src="/KU2.png" alt="KU2 Agency Header" className="w-full h-full object-contain object-center" />
         </div>
         <div className="flex gap-2 mb-2">
-          <div className="w-[160px] shrink-0"><div className="border-[1.5px] border-black h-[190px] w-full p-1 bg-white">{facePhoto ? <img src={facePhoto} className="w-full h-full object-cover border border-gray-200" alt="Face" /> : <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af]">Face Photo</div>}</div></div>
+          <div className="w-[160px] shrink-0"><div className="border-[1.5px] border-black h-[190px] w-full p-1 bg-white">{resolvedFace ? <img src={resolvedFace} className="w-full h-full object-cover border border-gray-200" alt="Face" /> : <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af]">Face Photo</div>}</div></div>
           <div className="flex-1">
             <table className="w-full border-collapse border-[1.5px] border-black text-[13.5px] leading-tight">
               <thead><tr><th colSpan={3} className="border-[1.5px] border-black text-center text-[#0066cc] font-black text-[19px] py-1.5 uppercase">APPLICATION FOR EMPLOYMENT</th></tr></thead>
@@ -81,7 +84,7 @@ function KU2Layout({ candidate, facePhoto, fullBodyPhoto }: CVTemplateProps) {
           </div>
         </div>
         <div className="flex gap-2 items-stretch">
-          <div className="w-[270px] shrink-0 flex flex-col"><div className="border-[1.5px] border-black p-0 bg-white flex-1 relative min-h-0 overflow-hidden">{fullBodyPhoto ? <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" /> : <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] font-bold">Full Body Photo</div>}</div></div>
+          <div className="w-[270px] shrink-0 flex flex-col"><div className="border-[1.5px] border-black p-0 bg-white flex-1 relative min-h-0 overflow-hidden">{resolvedFullBody ? <img src={resolvedFullBody} className="w-full h-full object-cover" alt="Full Body" /> : <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] font-bold">Full Body Photo</div>}</div></div>
           <div className="flex-1 flex flex-col gap-0">
             <table className="w-full border-collapse border-[1.5px] border-black text-[13.5px] leading-tight mb-[-1.5px]">
               <thead><tr className="bg-[#b0c4de]"><th colSpan={3} className="border-[1.5px] border-black text-center font-black py-1.5 text-[14px]">Details of Applicant <span dir="rtl" className="ml-2 font-black">بيانات مقدم الطلب</span></th></tr></thead>

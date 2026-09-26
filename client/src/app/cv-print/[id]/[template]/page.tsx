@@ -40,7 +40,7 @@ export default function CVPrintPage({ params }: { params: Promise<{ id: string; 
         
         // Preload images to Base64 to ensure they are fully loaded before rendering
         const faceUrl = getFileUrl(data.facePhotoUrl || data.passportImageUrl);
-        const bodyUrl = getFileUrl(data.fullBodyPhotoUrl);
+        const bodyUrl = getFileUrl(data.fullBodyPhotoUrl || data.facePhotoUrl || data.passportImageUrl);
         const passportUrl = getFileUrl(data.passportImageUrl);
 
         const [face, body, passport] = await Promise.all([
@@ -91,7 +91,7 @@ export default function CVPrintPage({ params }: { params: Promise<{ id: string; 
         <TemplateComponent 
           candidate={candidate} 
           facePhoto={images.face || getFileUrl(candidate.facePhotoUrl || candidate.passportImageUrl)} 
-          fullBodyPhoto={images.body || getFileUrl(candidate.fullBodyPhotoUrl)} 
+          fullBodyPhoto={images.body || getFileUrl(candidate.fullBodyPhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl)} 
         />
       </div>
     </div>

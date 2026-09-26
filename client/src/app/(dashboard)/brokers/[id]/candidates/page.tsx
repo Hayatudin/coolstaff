@@ -611,7 +611,7 @@ export default function BrokerCandidatesPage() {
     (async () => {
       setIsDlPreloading(true);
       const faceUrl = downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl;
-      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl;
+      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl || faceUrl;
 
       const [face, body] = await Promise.all([
         convertImageToBase64(faceUrl),
@@ -678,7 +678,7 @@ export default function BrokerCandidatesPage() {
             format: 'doc',
             deadline: downloadingCv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
             facePhoto: getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl),
-            fullBodyPhoto: getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)
+            fullBodyPhoto: getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl || downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)
           };
 
           const response = await api('/api/cv/generate', {
@@ -872,7 +872,7 @@ export default function BrokerCandidatesPage() {
           await Promise.all(chunk.map(async (candidate: any) => {
             const correspondingCv = candidate.generatedCVs?.[0] || {};
             const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
-            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
+            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || faceUrl;
             const [face, body] = await Promise.all([
               convertImageToBase64(faceUrl),
               convertImageToBase64(bodyUrl)
@@ -1152,7 +1152,7 @@ export default function BrokerCandidatesPage() {
               <FolderTemplate
                 candidate={c}
                 facePhoto={bulkB64Images[c.id]?.face || getFileUrl(c.facePhotoUrl || c.passportImageUrl)}
-                fullBodyPhoto={bulkB64Images[c.id]?.body || getFileUrl(c.fullBodyPhotoUrl)}
+                fullBodyPhoto={bulkB64Images[c.id]?.body || getFileUrl(c.fullBodyPhotoUrl || c.facePhotoUrl || c.passportImageUrl)}
               />
             </div>
           );
@@ -1887,7 +1887,7 @@ export default function BrokerCandidatesPage() {
                 <PrevTemplate
                   candidate={previewCv.candidate}
                   facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
-                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl)}
+                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl || previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
                 />
               </div>
             </div>
@@ -1904,7 +1904,7 @@ export default function BrokerCandidatesPage() {
               <DlTemplate
                 candidate={downloadingCv.candidate}
                 facePhoto={dlFaceB64 || getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
-                fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
+                fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl || downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
               />
             </div>
           </div>

@@ -22,6 +22,9 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
+  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
+
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -79,8 +82,8 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
         <div className="flex gap-2 mb-2">
           <div className="w-[160px] shrink-0">
             <div className="border-[1.5px] border-black h-[190px] w-full p-1 bg-white">
-              {facePhoto ? (
-                <img src={facePhoto} className="w-full h-full object-cover border border-gray-200" alt="Face" />
+              {resolvedFace ? (
+                <img src={resolvedFace} className="w-full h-full object-cover border border-gray-200" alt="Face" />
               ) : (
                 <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] text-center">Face Photo</div>
               )}
@@ -130,8 +133,8 @@ function ALMLayoutWithHeader({ candidate, facePhoto, fullBodyPhoto, headerImage 
         <div className="flex gap-2 items-stretch">
           <div className="w-[270px] shrink-0 flex flex-col">
             <div className="border-[1.5px] border-black p-0 bg-white flex-1 relative min-h-0 overflow-hidden">
-              {fullBodyPhoto ? (
-                <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
+              {resolvedFullBody ? (
+                <img src={resolvedFullBody} className="w-full h-full object-cover" alt="Full Body" />
               ) : (
                 <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] text-center font-bold">Full Body Photo</div>
               )}

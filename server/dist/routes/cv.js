@@ -92,6 +92,20 @@ router.post('/generate', async (req, res) => {
             return res.status(404).json({ error: 'Candidate not found' });
         }
         const candidate = cands[0];
+        if (candidate.passportNumber) {
+            try {
+                const [vps] = await db_1.pool.query('SELECT facePhotoUrl, fullBodyPhotoUrl, videoUrl FROM `UploadedVideoProfile` WHERE UPPER(`passportNumber`) = ? LIMIT 1', [candidate.passportNumber.trim().toUpperCase()]);
+                if (vps && vps.length > 0) {
+                    if (!candidate.facePhotoUrl)
+                        candidate.facePhotoUrl = vps[0].facePhotoUrl;
+                    if (!candidate.fullBodyPhotoUrl)
+                        candidate.fullBodyPhotoUrl = vps[0].fullBodyPhotoUrl;
+                    if (!candidate.videoUrl)
+                        candidate.videoUrl = vps[0].videoUrl;
+                }
+            }
+            catch (_) { }
+        }
         if (candidate.brokerName === 'Calling') {
             return res.status(400).json({ error: 'CV is not available for Calling candidates.' });
         }
@@ -256,9 +270,11 @@ router.post('/generate', async (req, res) => {
                 return skillsArray.some((s) => s.toLowerCase().includes(kw)) ? 'Yes' : 'No';
             };
             const hasLang = (keyword) => langsArray.some((l) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
+            const resolvedFaceUrl = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || '';
+            const resolvedBodyUrl = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFaceUrl;
             const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
-                fetchImageAsBase64(facePhoto || candidate.passportImageUrl || ''),
-                fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || ''),
+                fetchImageAsBase64(resolvedFaceUrl),
+                fetchImageAsBase64(resolvedBodyUrl),
                 fetchImageAsBase64(candidate.passportImageUrl || '')
             ]);
             const finalVideoUrl = candidate.Youtube_URL || candidate.videoUrl || null;
@@ -387,6 +403,28 @@ router.post('/bulk-generate', async (req, res) => {
             try {
                 const dbCandidates = await db_1.db.select().from(db_1.candidate).where((0, drizzle_orm_1.inArray)(db_1.candidate.id, candidateIds));
                 const candidates = dbCandidates.filter(c => c.isLocked !== true);
+                let videoProfileMap = new Map();
+                try {
+                    const [videoProfiles] = await db_1.pool.query('SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile`');
+                    for (const vp of videoProfiles || []) {
+                        if (vp.passportNumber) {
+                            videoProfileMap.set(vp.passportNumber.trim().toUpperCase(), vp);
+                        }
+                    }
+                }
+                catch (_) { }
+                for (const c of candidates) {
+                    const pNum = (c.passportNumber || '').trim().toUpperCase();
+                    const profile = videoProfileMap.get(pNum);
+                    if (profile) {
+                        if (!c.facePhotoUrl)
+                            c.facePhotoUrl = profile.facePhotoUrl;
+                        if (!c.fullBodyPhotoUrl)
+                            c.fullBodyPhotoUrl = profile.fullBodyPhotoUrl;
+                        if (!c.videoUrl)
+                            c.videoUrl = profile.videoUrl;
+                    }
+                }
                 if (format === 'doc' || format === 'docx') {
                     const BATCH_SIZE = 20;
                     const errors = [];
@@ -424,11 +462,11 @@ router.post('/bulk-generate', async (req, res) => {
                                     }
                                     candidateZip.file('word/document.xml', docXml);
                                 }
-                                const facePhotoUrl = firstCv ? firstCv.facePhotoUrl : candidate.facePhotoUrl;
-                                const fullBodyPhotoUrl = firstCv ? firstCv.fullBodyPhotoUrl : candidate.fullBodyPhotoUrl;
+                                const resolvedFaceUrl = (firstCv ? firstCv.facePhotoUrl : null) || candidate.facePhotoUrl || candidate.passportImageUrl || '';
+                                const resolvedBodyUrl = (firstCv ? firstCv.fullBodyPhotoUrl : null) || candidate.fullBodyPhotoUrl || resolvedFaceUrl;
                                 const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
-                                    fetchImageAsBase64(facePhotoUrl || candidate.passportImageUrl || ''),
-                                    fetchImageAsBase64(fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || ''),
+                                    fetchImageAsBase64(resolvedFaceUrl),
+                                    fetchImageAsBase64(resolvedBodyUrl),
                                     fetchImageAsBase64(candidate.passportImageUrl || '')
                                 ]);
                                 const finalVideoUrl = candidate.videoUrl || null;

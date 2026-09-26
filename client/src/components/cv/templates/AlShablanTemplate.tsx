@@ -12,6 +12,10 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
+  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
+  const hasBothPhotos = !!resolvedFace && !!resolvedFullBody && resolvedFace !== resolvedFullBody;
+
   // Helper functions
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -238,17 +242,36 @@ export default function AlShablanTemplate({ candidate, facePhoto, fullBodyPhoto 
 
         {/* SECTION 4: PHOTO & STACKED DETAILS */}
         <div className="w-full border-x-2 border-b-2 border-black flex">
-          {/* Left: Full Body Photo */}
-          <div className="w-[36.8%] shrink-0 border-r-2 border-black p-1 flex items-center justify-center bg-white overflow-hidden">
-            {fullBodyPhoto || facePhoto ? (
-              <img
-                src={fullBodyPhoto || facePhoto || ''}
-                alt={fullName}
-                className="w-full h-[475px] object-contain object-center"
-              />
+          {/* Left: Photos Column (Face Photo + Full Body Photo) */}
+          <div className="w-[36.8%] shrink-0 border-r-2 border-black flex flex-col bg-white overflow-hidden">
+            {hasBothPhotos ? (
+              <>
+                <div className="w-full h-[165px] border-b-2 border-black p-1 flex items-center justify-center bg-white overflow-hidden shrink-0">
+                  <img
+                    src={resolvedFace!}
+                    alt="Face Photo"
+                    className="w-full h-full object-contain object-center"
+                  />
+                </div>
+                <div className="w-full h-[310px] p-1 flex items-center justify-center bg-white overflow-hidden shrink-0">
+                  <img
+                    src={resolvedFullBody!}
+                    alt={fullName}
+                    className="w-full h-full object-contain object-center"
+                  />
+                </div>
+              </>
+            ) : (resolvedFullBody || resolvedFace) ? (
+              <div className="w-full h-[475px] p-1 flex items-center justify-center bg-white overflow-hidden">
+                <img
+                  src={resolvedFullBody || resolvedFace || ''}
+                  alt={fullName}
+                  className="w-full h-full object-contain object-center"
+                />
+              </div>
             ) : (
               <div className="w-full h-[475px] bg-gray-50 flex items-center justify-center text-gray-400 text-sm font-bold uppercase">
-                Full Body Photo
+                Photo
               </div>
             )}
           </div>

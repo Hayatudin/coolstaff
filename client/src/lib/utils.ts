@@ -100,6 +100,7 @@ export async function compressImage(dataUrl: string, maxWidth = 1200, quality = 
 
 export async function convertImageToBase64(url?: string): Promise<string | null> {
   if (!url) return null;
+  if (url.startsWith('data:')) return url;
   try {
     const absoluteUrl = getFileUrl(url);
     const res = await fetch(absoluteUrl);

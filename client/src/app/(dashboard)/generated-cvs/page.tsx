@@ -212,7 +212,7 @@ function ChangeTemplateModal({
                       <TC
                         candidate={cv.candidate}
                         facePhoto={getFileUrl(cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
-                        fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl)}
+                        fullBodyPhoto={getFileUrl(cv.fullBodyPhotoUrl || cv.candidate.fullBodyPhotoUrl || cv.facePhotoUrl || cv.candidate.facePhotoUrl || cv.candidate.passportImageUrl)}
                       />
                     </div>
                     {isSelected && (
@@ -776,8 +776,8 @@ const normalizeLanguageName = (lang: string): string => {
     (async () => {
       setIsDlPreloading(true);
       const faceUrl = downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl;
-      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl;
-      const passportUrl = downloadingCv.candidate?.passportImageUrl;
+      const bodyUrl = downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl || faceUrl;
+      const passportUrl = downloadingCv.candidate?.passportImageUrl || faceUrl;
 
       const [face, body, passport] = await Promise.all([
         convertImageToBase64(faceUrl),
@@ -846,8 +846,8 @@ const normalizeLanguageName = (lang: string): string => {
             templateId: `tmpl-${downloadingCv.templateId}`,
             format: 'doc',
             deadline: downloadingCv.candidate.cvDeadline || new Date().toISOString().split('T')[0],
-            facePhoto: getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl),
-            fullBodyPhoto: getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)
+            facePhoto: getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl),
+            fullBodyPhoto: getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl || downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl)
           };
 
           const response = await api('/api/cv/generate', {
@@ -1260,8 +1260,8 @@ const normalizeLanguageName = (lang: string): string => {
           await Promise.all(chunk.map(async (candidate: any) => {
             const correspondingCv = cvs.find(cv => cv.candidateId === candidate.id);
             const faceUrl = correspondingCv?.facePhotoUrl || candidate.facePhotoUrl || candidate.passportImageUrl;
-            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl;
-            const passportUrl = candidate.passportImageUrl;
+            const bodyUrl = correspondingCv?.fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || faceUrl;
+            const passportUrl = candidate.passportImageUrl || faceUrl;
             const [face, body, passport] = await Promise.all([
               convertImageToBase64(faceUrl),
               convertImageToBase64(bodyUrl),
@@ -1409,7 +1409,7 @@ const normalizeLanguageName = (lang: string): string => {
           const templateId = rawTemplateId.replace('tmpl-', '').toLowerCase();
           const FolderTemplate = TEMPLATES.find(t => t.id === templateId)?.component || ALMTemplate;
           const facePhoto = bulkB64Images[c.id]?.face || getFileUrl(correspondingCv?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl);
-          const fullBodyPhoto = bulkB64Images[c.id]?.body || getFileUrl(correspondingCv?.fullBodyPhotoUrl || c.fullBodyPhotoUrl);
+          const fullBodyPhoto = bulkB64Images[c.id]?.body || getFileUrl(correspondingCv?.fullBodyPhotoUrl || c.fullBodyPhotoUrl || correspondingCv?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl);
           const candidateWithPassport = {
             ...c,
             passportImageUrl: bulkB64Images[c.id]?.passport || getFileUrl(c.passportImageUrl)
@@ -1979,8 +1979,8 @@ const normalizeLanguageName = (lang: string): string => {
               <div ref={cvRenderRef}>
                 <DlTemplate
                   candidate={candidateWithB64Passport}
-                  facePhoto={dlFaceB64 || getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate.facePhotoUrl || downloadingCv.candidate.passportImageUrl)}
-                  fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate.fullBodyPhotoUrl)}
+                  facePhoto={dlFaceB64 || getFileUrl(downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl)}
+                  fullBodyPhoto={dlBodyB64 || getFileUrl(downloadingCv.fullBodyPhotoUrl || downloadingCv.candidate?.fullBodyPhotoUrl || downloadingCv.facePhotoUrl || downloadingCv.candidate?.facePhotoUrl || downloadingCv.candidate?.passportImageUrl)}
                 />
               </div>
             </div>
@@ -2037,8 +2037,8 @@ const normalizeLanguageName = (lang: string): string => {
                           <div className="origin-top-left scale-[0.22] w-[800px] absolute top-0 left-0 pointer-events-none">
                             <TC
                               candidate={sampleCv.candidate}
-                              facePhoto={getFileUrl(sampleCv.facePhotoUrl || sampleCv.candidate.facePhotoUrl)}
-                              fullBodyPhoto={getFileUrl(sampleCv.fullBodyPhotoUrl || sampleCv.candidate.fullBodyPhotoUrl)}
+                              facePhoto={getFileUrl(sampleCv.facePhotoUrl || sampleCv.candidate.facePhotoUrl || sampleCv.candidate.passportImageUrl)}
+                              fullBodyPhoto={getFileUrl(sampleCv.fullBodyPhotoUrl || sampleCv.candidate.fullBodyPhotoUrl || sampleCv.facePhotoUrl || sampleCv.candidate.facePhotoUrl || sampleCv.candidate.passportImageUrl)}
                             />
                           </div>
                         )}
@@ -2081,8 +2081,8 @@ const normalizeLanguageName = (lang: string): string => {
               <div className="w-[800px] shrink-0 bg-white shadow-xl relative">
                 <PrevTemplate
                   candidate={previewCv.candidate}
-                  facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate.facePhotoUrl || previewCv.candidate.passportImageUrl)}
-                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate.fullBodyPhotoUrl)}
+                  facePhoto={getFileUrl(previewCv.facePhotoUrl || previewCv.candidate?.facePhotoUrl || previewCv.candidate?.passportImageUrl)}
+                  fullBodyPhoto={getFileUrl(previewCv.fullBodyPhotoUrl || previewCv.candidate?.fullBodyPhotoUrl || previewCv.facePhotoUrl || previewCv.candidate?.facePhotoUrl || previewCv.candidate?.passportImageUrl)}
                 />
               </div>
             </div>

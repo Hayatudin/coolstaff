@@ -14,6 +14,9 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
+  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
+
   // Helper functions for data mapping
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -112,8 +115,8 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
 
           {/* Top Right: Face Photo */}
           <div className="absolute top-[160px] right-[85px] w-[210px] h-[240px] bg-white flex items-center justify-center p-0 shadow-sm overflow-hidden">
-            {facePhoto ? (
-              <img src={facePhoto} className="w-full h-full object-cover" alt="Face" />
+            {resolvedFace ? (
+              <img src={resolvedFace} className="w-full h-full object-cover" alt="Face" />
             ) : (
               <div className="text-gray-400 text-sm">Face Photo</div>
             )}
@@ -121,8 +124,8 @@ export default function UssusTemplate({ candidate, facePhoto, fullBodyPhoto }: C
 
           {/* Bottom Left: Full Body Photo */}
           <div className="absolute bottom-[90px] left-[75px] w-[290px] h-[480px] bg-white flex items-center justify-center shadow-sm p-0 overflow-hidden">
-            {fullBodyPhoto ? (
-              <img src={fullBodyPhoto} className="h-full w-auto mx-auto block max-w-none" alt="Full Body" />
+            {resolvedFullBody ? (
+              <img src={resolvedFullBody} className="h-full w-auto mx-auto block max-w-none" alt="Full Body" />
             ) : (
               <div className="text-gray-400 text-sm">Full Body Photo</div>
             )}

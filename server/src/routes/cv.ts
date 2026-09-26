@@ -111,6 +111,20 @@ router.post('/generate', async (req: Request, res: Response) => {
     }
     const candidate = cands[0];
 
+    if (candidate.passportNumber) {
+      try {
+        const [vps]: any = await pool.query(
+          'SELECT facePhotoUrl, fullBodyPhotoUrl, videoUrl FROM `UploadedVideoProfile` WHERE UPPER(`passportNumber`) = ? LIMIT 1',
+          [candidate.passportNumber.trim().toUpperCase()]
+        );
+        if (vps && vps.length > 0) {
+          if (!candidate.facePhotoUrl) candidate.facePhotoUrl = vps[0].facePhotoUrl;
+          if (!candidate.fullBodyPhotoUrl) candidate.fullBodyPhotoUrl = vps[0].fullBodyPhotoUrl;
+          if (!candidate.videoUrl) candidate.videoUrl = vps[0].videoUrl;
+        }
+      } catch (_) {}
+    }
+
     if (candidate.brokerName === 'Calling') {
       return res.status(400).json({ error: 'CV is not available for Calling candidates.' });
     }
@@ -264,9 +278,12 @@ router.post('/generate', async (req: Request, res: Response) => {
       };
       const hasLang = (keyword: string) => langsArray.some((l: string) => l.toLowerCase().includes(keyword.toLowerCase())) ? 'Yes' : 'No';
 
+      const resolvedFaceUrl = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || '';
+      const resolvedBodyUrl = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFaceUrl;
+
       const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
-        fetchImageAsBase64(facePhoto || candidate.passportImageUrl || ''),
-        fetchImageAsBase64(fullBodyPhoto || candidate.fullBodyPhotoUrl || ''),
+        fetchImageAsBase64(resolvedFaceUrl),
+        fetchImageAsBase64(resolvedBodyUrl),
         fetchImageAsBase64(candidate.passportImageUrl || '')
       ]);
 
@@ -415,6 +432,28 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
 
         const candidates = dbCandidates.filter(c => c.isLocked !== true);
 
+        let videoProfileMap = new Map<string, any>();
+        try {
+          const [videoProfiles]: any = await pool.query(
+            'SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile`'
+          );
+          for (const vp of videoProfiles || []) {
+            if (vp.passportNumber) {
+              videoProfileMap.set(vp.passportNumber.trim().toUpperCase(), vp);
+            }
+          }
+        } catch (_) {}
+
+        for (const c of candidates) {
+          const pNum = (c.passportNumber || '').trim().toUpperCase();
+          const profile = videoProfileMap.get(pNum);
+          if (profile) {
+            if (!c.facePhotoUrl) c.facePhotoUrl = profile.facePhotoUrl;
+            if (!c.fullBodyPhotoUrl) c.fullBodyPhotoUrl = profile.fullBodyPhotoUrl;
+            if (!c.videoUrl) c.videoUrl = profile.videoUrl;
+          }
+        }
+
         if (format === 'doc' || format === 'docx') {
           const BATCH_SIZE = 20;
           const errors: string[] = [];
@@ -464,12 +503,12 @@ router.post('/bulk-generate', async (req: Request, res: Response) => {
                   candidateZip.file('word/document.xml', docXml);
                 }
 
-                const facePhotoUrl = firstCv ? firstCv.facePhotoUrl : candidate.facePhotoUrl;
-                const fullBodyPhotoUrl = firstCv ? firstCv.fullBodyPhotoUrl : candidate.fullBodyPhotoUrl;
+                const resolvedFaceUrl = (firstCv ? firstCv.facePhotoUrl : null) || candidate.facePhotoUrl || candidate.passportImageUrl || '';
+                const resolvedBodyUrl = (firstCv ? firstCv.fullBodyPhotoUrl : null) || candidate.fullBodyPhotoUrl || resolvedFaceUrl;
 
                 const [facePhotoData, fullBodyPhotoData, passportPhotoData] = await Promise.all([
-                  fetchImageAsBase64(facePhotoUrl || candidate.passportImageUrl || ''),
-                  fetchImageAsBase64(fullBodyPhotoUrl || candidate.fullBodyPhotoUrl || ''),
+                  fetchImageAsBase64(resolvedFaceUrl),
+                  fetchImageAsBase64(resolvedBodyUrl),
                   fetchImageAsBase64(candidate.passportImageUrl || '')
                 ]);
 

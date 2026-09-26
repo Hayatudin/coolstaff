@@ -149,9 +149,12 @@ function CVGeneratorContent() {
         }
       };
 
+      const faceUrl = selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl;
+      const bodyUrl = selectedCandidate.fullBodyPhotoUrl || selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl;
+
       const [face, body, passport] = await Promise.all([
-        convert(selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl),
-        convert(selectedCandidate.fullBodyPhotoUrl),
+        convert(faceUrl),
+        convert(bodyUrl),
         convert(selectedCandidate.passportImageUrl)
       ]);
       setFacePhotoB64(face);
@@ -164,15 +167,15 @@ function CVGeneratorContent() {
   }, [selectedCandidate]);
 
   const facePhoto = getFileUrl(selectedCandidate?.facePhotoUrl || selectedCandidate?.passportImageUrl);
-  const fullBodyPhoto = getFileUrl(selectedCandidate?.fullBodyPhotoUrl);
+  const fullBodyPhoto = getFileUrl(selectedCandidate?.fullBodyPhotoUrl || selectedCandidate?.facePhotoUrl || selectedCandidate?.passportImageUrl);
   const passportImageUrl = getFileUrl(selectedCandidate?.passportImageUrl);
 
   // We should also update the candidate object passed to templates to have full URLs
   const candidateWithFullUrls = selectedCandidate ? {
     ...selectedCandidate,
     passportImageUrl: passportPhotoB64 || getFileUrl(selectedCandidate.passportImageUrl),
-    facePhotoUrl: getFileUrl(selectedCandidate.facePhotoUrl),
-    fullBodyPhotoUrl: getFileUrl(selectedCandidate.fullBodyPhotoUrl),
+    facePhotoUrl: getFileUrl(selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl),
+    fullBodyPhotoUrl: getFileUrl(selectedCandidate.fullBodyPhotoUrl || selectedCandidate.facePhotoUrl || selectedCandidate.passportImageUrl),
     cocDocumentUrl: getFileUrl(selectedCandidate.cocDocumentUrl),
     medicalDocumentUrl: getFileUrl(selectedCandidate.medicalDocumentUrl),
   } as Candidate : null;

@@ -18,6 +18,9 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
+  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
+
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
     const birthDate = new Date(dob);
@@ -94,8 +97,8 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
             <tbody>
               <tr>
                 <td rowSpan={7} className="border border-black p-0 w-[24%] align-top h-[180px]">
-                  {facePhoto ? (
-                    <img src={facePhoto} className="w-full h-full object-cover" alt="Face" />
+                  {resolvedFace ? (
+                    <img src={resolvedFace} className="w-full h-full object-cover" alt="Face" />
                   ) : (
                     <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] font-sans">Photo</div>
                   )}
@@ -310,8 +313,8 @@ export function RALayout({ candidate, facePhoto, fullBodyPhoto, headerImage }: C
 
               {/* Full Body Photo container fills the rest */}
               <div className="flex-1 w-full border-l-0 border-r-0 border-b-0 p-1 flex items-center justify-center bg-white min-h-0 relative">
-                {fullBodyPhoto ? (
-                  <img src={fullBodyPhoto} className="absolute inset-1 w-[calc(100%-8px)] h-[calc(100%-8px)] object-contain object-top" alt="Full Body" />
+                {resolvedFullBody ? (
+                  <img src={resolvedFullBody} className="absolute inset-1 w-[calc(100%-8px)] h-[calc(100%-8px)] object-contain object-top" alt="Full Body" />
                 ) : (
                   <div className="text-xs text-[#9ca3af] font-sans">Full Body Photo</div>
                 )}

@@ -14,6 +14,9 @@ export default function ALMTemplate({ candidate, facePhoto, fullBodyPhoto }: CVT
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
+  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
+
   // Helper functions for data mapping
   const calculateAge = (dob: string | undefined) => {
     if (!dob) return '';
@@ -86,8 +89,8 @@ export default function ALMTemplate({ candidate, facePhoto, fullBodyPhoto }: CVT
           {/* Face Photo */}
           <div className="w-[160px] shrink-0">
             <div className="border-[1.5px] border-black h-[190px] w-full p-1 bg-white">
-              {facePhoto ? (
-                <img src={facePhoto} className="w-full h-full object-cover border border-gray-200" alt="Face" />
+              {resolvedFace ? (
+                <img src={resolvedFace} className="w-full h-full object-cover border border-gray-200" alt="Face" />
               ) : (
                 <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] text-center">Face Photo<br />(160x190)</div>
               )}
@@ -142,8 +145,8 @@ export default function ALMTemplate({ candidate, facePhoto, fullBodyPhoto }: CVT
           {/* Full body photo */}
           <div className="w-[270px] shrink-0 flex flex-col">
             <div className="border-[1.5px] border-black p-0 bg-white flex-1 relative min-h-0 overflow-hidden">
-              {fullBodyPhoto ? (
-                <img src={fullBodyPhoto} className="w-full h-full object-cover" alt="Full Body" />
+              {resolvedFullBody ? (
+                <img src={resolvedFullBody} className="w-full h-full object-cover" alt="Full Body" />
               ) : (
                 <div className="w-full h-full bg-[#f3f4f6] flex items-center justify-center text-xs text-[#9ca3af] text-center font-bold">Full Body Photo<br />(190x565)</div>
               )}
