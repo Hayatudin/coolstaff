@@ -15,9 +15,7 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
   const resolvedExps = resolveCandidateWorkExperience(candidate);
   const resolvedNationality = resolveCandidateNationality(candidate);
 
-  const resolvedFace = facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
-  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || resolvedFace;
-  const hasBothPhotos = !!resolvedFace && !!resolvedFullBody && resolvedFace !== resolvedFullBody;
+  const resolvedFullBody = fullBodyPhoto || candidate.fullBodyPhotoUrl || facePhoto || candidate.facePhotoUrl || candidate.passportImageUrl || null;
 
   // Helper for Age calculation
   const calculateAge = (dob: string | undefined) => {
@@ -99,25 +97,14 @@ export default function VisionTemplate({ candidate, facePhoto, fullBodyPhoto }: 
                   {/* LEFT PHOTO COLUMN (rowspan spanning all 22 right-side rows!) */}
                   <td rowSpan={22} className="border-r border-[#0a5c4e] p-2 bg-slate-50 w-[270px] align-top text-center">
                     <div className="flex flex-col gap-2 items-center">
-                      {/* Photos Container (Face Photo + Full Body Photo) */}
-                      {hasBothPhotos ? (
-                        <div className="flex flex-col gap-1.5 w-[235px]">
-                          <div className={`border-2 ${borderTeal} w-full h-[160px] p-0.5 bg-white relative flex items-center justify-center overflow-hidden`}>
-                            <img src={resolvedFace!} className="w-full h-full object-contain" alt="Candidate Face" />
-                          </div>
-                          <div className={`border-2 ${borderTeal} w-full h-[352px] p-0.5 bg-white relative flex items-center justify-center overflow-hidden`}>
-                            <img src={resolvedFullBody!} className="w-full h-full object-contain" alt="Candidate Full Body" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className={`border-2 ${borderTeal} w-[235px] h-[520px] p-0.5 bg-white relative flex items-center justify-center overflow-hidden`}>
-                          {(resolvedFullBody || resolvedFace) ? (
-                            <img src={resolvedFullBody || resolvedFace || ''} className="w-full h-full object-contain" alt="Candidate Photo" />
-                          ) : (
-                            <div className="text-gray-400 text-xs text-center font-bold">Photo</div>
-                          )}
-                        </div>
-                      )}
+                      {/* Full Body Photo */}
+                      <div className={`border-2 ${borderTeal} w-[235px] h-[520px] p-0.5 bg-white relative flex items-center justify-center overflow-hidden`}>
+                        {resolvedFullBody ? (
+                          <img src={resolvedFullBody} className="w-full h-full object-contain" alt="Candidate Full Body" />
+                        ) : (
+                          <div className="text-gray-400 text-xs text-center font-bold">Full Body Photo</div>
+                        )}
+                      </div>
                       
                       {/* Spacer to push Contact Us Card to bottom */}
                       <div className="h-[15px]"></div>
