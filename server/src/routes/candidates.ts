@@ -40,31 +40,60 @@ router.get('/', async (req: Request, res: Response) => {
     const [brokers]: any = await pool.query('SELECT `id`, `name`, `isLocked` FROM `Broker`').catch(() => [[]]);
     const brokerMap = new Map((brokers || []).map((b: any) => [b.id, { id: b.id, name: b.name, isLocked: b.isLocked === 1 || b.isLocked === true }]));
 
-    const [invoices]: any = await pool.query('SELECT `candidateId`, `isDelivered` FROM `Invoice`').catch(() => [[]]);
+    const candidateIds = (dbCandidates || []).map((c: any) => c.id).filter(Boolean);
+    const passportNumbers = (dbCandidates || [])
+      .map((c: any) => (c.passportNumber || '').trim().toUpperCase())
+      .filter(Boolean);
+
     const invoiceMap = new Map<string, any[]>();
-    for (const inv of (invoices || [])) {
-      const list = invoiceMap.get(inv.candidateId) || [];
-      list.push({ isDelivered: inv.isDelivered === 1 || inv.isDelivered === true });
-      invoiceMap.set(inv.candidateId, list);
-    }
-
-    const [cvs]: any = await pool.query('SELECT `id`, `candidateId`, `templateId` FROM `GeneratedCV` ORDER BY `createdAt` DESC').catch(() => [[]]);
     const cvMap = new Map<string, any[]>();
-    for (const cv of (cvs || [])) {
-      const list = cvMap.get(cv.candidateId) || [];
-      list.push({ id: cv.id, templateId: cv.templateId });
-      cvMap.set(cv.candidateId, list);
+    const videoProfileMap = new Map<string, any>();
+
+    if (candidateIds.length > 0) {
+      const CHUNK_SIZE = 800;
+      for (let i = 0; i < candidateIds.length; i += CHUNK_SIZE) {
+        const idChunk = candidateIds.slice(i, i + CHUNK_SIZE);
+
+        const [invoices]: any = await pool
+          .query('SELECT `candidateId`, `isDelivered` FROM `Invoice` WHERE `candidateId` IN (?)', [idChunk])
+          .catch(() => [[]]);
+        for (const inv of invoices || []) {
+          const list = invoiceMap.get(inv.candidateId) || [];
+          list.push({ isDelivered: inv.isDelivered === 1 || inv.isDelivered === true });
+          invoiceMap.set(inv.candidateId, list);
+        }
+
+        const [cvs]: any = await pool
+          .query(
+            'SELECT `id`, `candidateId`, `templateId` FROM `GeneratedCV` WHERE `candidateId` IN (?) ORDER BY `createdAt` DESC',
+            [idChunk]
+          )
+          .catch(() => [[]]);
+        for (const cv of cvs || []) {
+          const list = cvMap.get(cv.candidateId) || [];
+          list.push({ id: cv.id, templateId: cv.templateId });
+          cvMap.set(cv.candidateId, list);
+        }
+      }
     }
 
-    let videoProfileMap = new Map<string, any>();
-    try {
-      const [profiles]: any = await pool.query(
-        'SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != \'\''
-      );
-      for (const p of profiles) {
-        videoProfileMap.set(p.passportNumber.trim().toUpperCase(), p);
+    if (passportNumbers.length > 0) {
+      const CHUNK_SIZE = 800;
+      for (let i = 0; i < passportNumbers.length; i += CHUNK_SIZE) {
+        const pChunk = passportNumbers.slice(i, i + CHUNK_SIZE);
+        const [profiles]: any = await pool
+          .query(
+            'SELECT `passportNumber`, `videoUrl`, `facePhotoUrl`, `fullBodyPhotoUrl` FROM `UploadedVideoProfile` WHERE UPPER(TRIM(`passportNumber`)) IN (?) AND `videoUrl` IS NOT NULL AND `videoUrl` != \'\'',
+            [pChunk]
+          )
+          .catch(() => [[]]);
+        for (const p of profiles || []) {
+          if (p.passportNumber) {
+            videoProfileMap.set(p.passportNumber.trim().toUpperCase(), p);
+          }
+        }
       }
-    } catch (_) {}
+    }
 
     const parseJsonField = (field: any) => {
       if (!field) return [];
@@ -103,6 +132,18 @@ router.get('/', async (req: Request, res: Response) => {
         videoUrlVal = '';
       }
       const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true);
+
+      const sanitizeDataUrl = (val: any) => {
+        if (typeof val === 'string' && val.startsWith('data:') && val.length > 20000) {
+          return '';
+        }
+        return val;
+      };
+
+      let quickVideoVal = c.quickVideoUrl || null;
+      if (typeof quickVideoVal === 'string' && quickVideoVal.startsWith('data:') && quickVideoVal.length > 10000) {
+        quickVideoVal = null;
+      }
 
       return {
         id: c.id,
@@ -150,21 +191,21 @@ router.get('/', async (req: Request, res: Response) => {
           emergencyContactAddress: c.emergencyContactAddress || null,
           additionalPhones: parseJsonField(c.additionalPhones),
           brokerId: c.brokerId || '',
-          cocDocumentUrl: encryptPath(c.cocDocumentUrl),
-          medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
-          candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
-          relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
-          labourIdUrl: encryptPath(actualLabourIdUrl),
+          cocDocumentUrl: encryptPath(sanitizeDataUrl(c.cocDocumentUrl)),
+          medicalDocumentUrl: encryptPath(sanitizeDataUrl(c.medicalDocumentUrl)),
+          candidateIdImageUrl: encryptPath(sanitizeDataUrl(c.candidateIdImageUrl)),
+          relativeIdImageUrl: encryptPath(sanitizeDataUrl(c.relativeIdImageUrl)),
+          labourIdUrl: encryptPath(sanitizeDataUrl(actualLabourIdUrl)),
           salary: c.salary || '1000SR',
         },
         passportImageUrl: encryptPath(c.passportImageUrl),
         facePhotoUrl: encryptPath(facePhotoUrlVal),
         fullBodyPhotoUrl: encryptPath(fullBodyPhotoUrlVal),
-        cocDocumentUrl: encryptPath(c.cocDocumentUrl),
-        medicalDocumentUrl: encryptPath(c.medicalDocumentUrl),
-        candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
-        relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
-        labourIdUrl: encryptPath(actualLabourIdUrl),
+        cocDocumentUrl: encryptPath(sanitizeDataUrl(c.cocDocumentUrl)),
+        medicalDocumentUrl: encryptPath(sanitizeDataUrl(c.medicalDocumentUrl)),
+        candidateIdImageUrl: encryptPath(sanitizeDataUrl(c.candidateIdImageUrl)),
+        relativeIdImageUrl: encryptPath(sanitizeDataUrl(c.relativeIdImageUrl)),
+        labourIdUrl: encryptPath(sanitizeDataUrl(actualLabourIdUrl)),
         laborID: laborIdText || null,
         status: c.status || 'pending',
         isRequested: c.isRequested === 1 || c.isRequested === true,
@@ -189,7 +230,7 @@ router.get('/', async (req: Request, res: Response) => {
         agency: c.agency || 'daera',
         agencyStatus: c.agencyStatus || 'On process',
         allowVideo: allowVideoVal,
-        quickVideoUrl: encryptPath(c.quickVideoUrl || null)
+        quickVideoUrl: encryptPath(quickVideoVal)
       };
     });
 

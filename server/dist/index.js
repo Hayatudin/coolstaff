@@ -41,19 +41,33 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
+// Preserve Passenger's injected port before loading dotenv
+const PASSENGER_PORT = process.env.PORT;
 dotenv_1.default.config();
+const PORT = PASSENGER_PORT || process.env.PORT || 4000;
+// Process-level error sinks to prevent cPanel crashes on socket drop
+process.on('uncaughtException', (err) => {
+    console.error('🛡️ [Process Guard] Uncaught Exception:', err?.code, err?.message || err);
+    const isTransientSocketError = err?.code === 'ECONNRESET' ||
+        err?.code === 'EPIPE' ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ECANCELED' ||
+        err?.message?.includes('socket') ||
+        err?.message?.includes('aborted');
+    if (isTransientSocketError) {
+        return;
+    }
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('🛡️ [Process Guard] Unhandled Rejection:', reason?.code, reason?.message || reason);
+});
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 4000;
 app.set('trust proxy', 1);
 // 1. ULTIMATE CORS FIX - Allow everything correctly with credentials
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin) {
         res.header('Access-Control-Allow-Origin', origin);
-    }
-    else {
-        // Fallback for requests without Origin header (like same-origin or direct)
-        // We don't use '*' because it breaks with Credentials: true
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
@@ -66,10 +80,9 @@ app.use((req, res, next) => {
     next();
 });
 app.use((0, cookie_parser_1.default)());
-// Better Auth handler — MUST come before body parsers
+// Better Auth handler — MUST come before body parsers (which drain the stream)
 const auth_1 = require("./lib/auth");
-const node_1 = require("better-auth/node");
-app.all('/api/auth/*', async (req, res, next) => {
+app.all('/api/auth/*', async (req, res) => {
     const origin = req.headers.origin;
     if (origin) {
         res.header('Access-Control-Allow-Origin', origin);
@@ -82,14 +95,70 @@ app.all('/api/auth/*', async (req, res, next) => {
         return res.status(200).send();
     }
     try {
-        return await (0, node_1.toNodeHandler)(auth_1.auth)(req, res);
+        // Construct standard Web Request to avoid Express writeHead conflicts
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+        const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:4000';
+        const fullUrl = `${protocol}://${host}${req.originalUrl || req.url}`;
+        let body = undefined;
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            if (req.body && Object.keys(req.body).length > 0) {
+                body = JSON.stringify(req.body);
+            }
+            else {
+                const chunks = [];
+                for await (const chunk of req) {
+                    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+                }
+                if (chunks.length > 0) {
+                    body = Buffer.concat(chunks);
+                }
+            }
+        }
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(req.headers)) {
+            if (value !== undefined) {
+                if (Array.isArray(value)) {
+                    value.forEach((v) => headers.append(key, v));
+                }
+                else {
+                    headers.set(key, value);
+                }
+            }
+        }
+        const webRequest = new Request(fullUrl, {
+            method: req.method,
+            headers,
+            body,
+            // @ts-ignore
+            duplex: 'half',
+        });
+        const response = await auth_1.auth.handler(webRequest);
+        res.status(response.status);
+        response.headers.forEach((value, key) => {
+            if (key.toLowerCase() === 'set-cookie') {
+                const rawSetCookie = response.headers.getSetCookie?.() || [value];
+                res.setHeader('Set-Cookie', rawSetCookie);
+            }
+            else {
+                res.setHeader(key, value);
+            }
+        });
+        if (origin) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        if (response.body) {
+            const buffer = Buffer.from(await response.arrayBuffer());
+            return res.send(buffer);
+        }
+        return res.end();
     }
     catch (err) {
         console.error('🔥 Better Auth Error:', err);
         return res.status(500).json({ error: err?.message || 'Authentication error', details: String(err) });
     }
 });
-// Body parsers — AFTER auth handler (express.json drains the stream)
+// Body parsers — AFTER auth handler
 app.use(express_1.default.json({ limit: '80mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '80mb' }));
 const crypto_1 = require("./lib/crypto");
@@ -101,7 +170,6 @@ app.get('/api/assets/*', (req, res) => {
     if (assetPath.startsWith('ENC-')) {
         assetPath = (0, crypto_1.decryptPath)(assetPath);
     }
-    // Strip leading slash to prevent joining issues
     const cleanAssetPath = assetPath.startsWith('/') ? assetPath.substring(1) : assetPath;
     const fullPath = path_1.default.join(process.cwd(), 'public', cleanAssetPath);
     if (fs_1.default.existsSync(fullPath)) {
@@ -166,7 +234,6 @@ app.get('/health', (req, res) => {
 // --- GLOBAL ERROR HANDLER ---
 app.use((err, req, res, next) => {
     console.error('SERVER ERROR:', err);
-    // Ensure CORS headers are present even on error
     const origin = req.headers.origin;
     if (origin) {
         res.header('Access-Control-Allow-Origin', origin);
@@ -182,7 +249,7 @@ app.use((err, req, res, next) => {
 // Start server
 const server = app.listen(PORT, async () => {
     console.log(`🚀 Server ready at http://localhost:${PORT}`);
-    // 1. Run database self-healing checks to inject missing tables/columns
+    // Run database self-healing checks to inject missing tables/columns
     try {
         const { ensureDatabaseSchema } = await Promise.resolve().then(() => __importStar(require('./lib/db-healing')));
         await ensureDatabaseSchema();
@@ -191,6 +258,6 @@ const server = app.listen(PORT, async () => {
         console.error('❌ Failed to run database self-healing check on startup:', dbErr);
     }
 });
-// Configure keep-alive timeout to be greater than client/reverse-proxy timeout (prevents ECONNRESET / Failed to fetch on desktop)
+// Configure keep-alive timeout to prevent ECONNRESET / socket drop on desktop
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;

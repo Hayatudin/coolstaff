@@ -23,28 +23,49 @@ router.get('/', async (req, res) => {
         const userMap = new Map((users || []).map((u) => [u.id, u.name]));
         const [brokers] = await db_1.pool.query('SELECT `id`, `name`, `isLocked` FROM `Broker`').catch(() => [[]]);
         const brokerMap = new Map((brokers || []).map((b) => [b.id, { id: b.id, name: b.name, isLocked: b.isLocked === 1 || b.isLocked === true }]));
-        const [invoices] = await db_1.pool.query('SELECT `candidateId`, `isDelivered` FROM `Invoice`').catch(() => [[]]);
+        const candidateIds = (dbCandidates || []).map((c) => c.id).filter(Boolean);
+        const passportNumbers = (dbCandidates || [])
+            .map((c) => (c.passportNumber || '').trim().toUpperCase())
+            .filter(Boolean);
         const invoiceMap = new Map();
-        for (const inv of (invoices || [])) {
-            const list = invoiceMap.get(inv.candidateId) || [];
-            list.push({ isDelivered: inv.isDelivered === 1 || inv.isDelivered === true });
-            invoiceMap.set(inv.candidateId, list);
-        }
-        const [cvs] = await db_1.pool.query('SELECT `id`, `candidateId`, `templateId` FROM `GeneratedCV` ORDER BY `createdAt` DESC').catch(() => [[]]);
         const cvMap = new Map();
-        for (const cv of (cvs || [])) {
-            const list = cvMap.get(cv.candidateId) || [];
-            list.push({ id: cv.id, templateId: cv.templateId });
-            cvMap.set(cv.candidateId, list);
-        }
-        let videoProfileMap = new Map();
-        try {
-            const [profiles] = await db_1.pool.query('SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != \'\'');
-            for (const p of profiles) {
-                videoProfileMap.set(p.passportNumber.trim().toUpperCase(), p);
+        const videoProfileMap = new Map();
+        if (candidateIds.length > 0) {
+            const CHUNK_SIZE = 800;
+            for (let i = 0; i < candidateIds.length; i += CHUNK_SIZE) {
+                const idChunk = candidateIds.slice(i, i + CHUNK_SIZE);
+                const [invoices] = await db_1.pool
+                    .query('SELECT `candidateId`, `isDelivered` FROM `Invoice` WHERE `candidateId` IN (?)', [idChunk])
+                    .catch(() => [[]]);
+                for (const inv of invoices || []) {
+                    const list = invoiceMap.get(inv.candidateId) || [];
+                    list.push({ isDelivered: inv.isDelivered === 1 || inv.isDelivered === true });
+                    invoiceMap.set(inv.candidateId, list);
+                }
+                const [cvs] = await db_1.pool
+                    .query('SELECT `id`, `candidateId`, `templateId` FROM `GeneratedCV` WHERE `candidateId` IN (?) ORDER BY `createdAt` DESC', [idChunk])
+                    .catch(() => [[]]);
+                for (const cv of cvs || []) {
+                    const list = cvMap.get(cv.candidateId) || [];
+                    list.push({ id: cv.id, templateId: cv.templateId });
+                    cvMap.set(cv.candidateId, list);
+                }
             }
         }
-        catch (_) { }
+        if (passportNumbers.length > 0) {
+            const CHUNK_SIZE = 800;
+            for (let i = 0; i < passportNumbers.length; i += CHUNK_SIZE) {
+                const pChunk = passportNumbers.slice(i, i + CHUNK_SIZE);
+                const [profiles] = await db_1.pool
+                    .query('SELECT `passportNumber`, `videoUrl`, `facePhotoUrl`, `fullBodyPhotoUrl` FROM `UploadedVideoProfile` WHERE UPPER(TRIM(`passportNumber`)) IN (?) AND `videoUrl` IS NOT NULL AND `videoUrl` != \'\'', [pChunk])
+                    .catch(() => [[]]);
+                for (const p of profiles || []) {
+                    if (p.passportNumber) {
+                        videoProfileMap.set(p.passportNumber.trim().toUpperCase(), p);
+                    }
+                }
+            }
+        }
         const parseJsonField = (field) => {
             if (!field)
                 return [];
@@ -82,6 +103,16 @@ router.get('/', async (req, res) => {
                 videoUrlVal = '';
             }
             const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true);
+            const sanitizeDataUrl = (val) => {
+                if (typeof val === 'string' && val.startsWith('data:') && val.length > 20000) {
+                    return '';
+                }
+                return val;
+            };
+            let quickVideoVal = c.quickVideoUrl || null;
+            if (typeof quickVideoVal === 'string' && quickVideoVal.startsWith('data:') && quickVideoVal.length > 10000) {
+                quickVideoVal = null;
+            }
             return {
                 id: c.id,
                 shelfId: c.shelfId || null,
@@ -128,21 +159,21 @@ router.get('/', async (req, res) => {
                     emergencyContactAddress: c.emergencyContactAddress || null,
                     additionalPhones: parseJsonField(c.additionalPhones),
                     brokerId: c.brokerId || '',
-                    cocDocumentUrl: (0, crypto_1.encryptPath)(c.cocDocumentUrl),
-                    medicalDocumentUrl: (0, crypto_1.encryptPath)(c.medicalDocumentUrl),
-                    candidateIdImageUrl: (0, crypto_1.encryptPath)(c.candidateIdImageUrl),
-                    relativeIdImageUrl: (0, crypto_1.encryptPath)(c.relativeIdImageUrl),
-                    labourIdUrl: (0, crypto_1.encryptPath)(actualLabourIdUrl),
+                    cocDocumentUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.cocDocumentUrl)),
+                    medicalDocumentUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.medicalDocumentUrl)),
+                    candidateIdImageUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.candidateIdImageUrl)),
+                    relativeIdImageUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.relativeIdImageUrl)),
+                    labourIdUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(actualLabourIdUrl)),
                     salary: c.salary || '1000SR',
                 },
                 passportImageUrl: (0, crypto_1.encryptPath)(c.passportImageUrl),
                 facePhotoUrl: (0, crypto_1.encryptPath)(facePhotoUrlVal),
                 fullBodyPhotoUrl: (0, crypto_1.encryptPath)(fullBodyPhotoUrlVal),
-                cocDocumentUrl: (0, crypto_1.encryptPath)(c.cocDocumentUrl),
-                medicalDocumentUrl: (0, crypto_1.encryptPath)(c.medicalDocumentUrl),
-                candidateIdImageUrl: (0, crypto_1.encryptPath)(c.candidateIdImageUrl),
-                relativeIdImageUrl: (0, crypto_1.encryptPath)(c.relativeIdImageUrl),
-                labourIdUrl: (0, crypto_1.encryptPath)(actualLabourIdUrl),
+                cocDocumentUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.cocDocumentUrl)),
+                medicalDocumentUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.medicalDocumentUrl)),
+                candidateIdImageUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.candidateIdImageUrl)),
+                relativeIdImageUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(c.relativeIdImageUrl)),
+                labourIdUrl: (0, crypto_1.encryptPath)(sanitizeDataUrl(actualLabourIdUrl)),
                 laborID: laborIdText || null,
                 status: c.status || 'pending',
                 isRequested: c.isRequested === 1 || c.isRequested === true,
@@ -167,7 +198,7 @@ router.get('/', async (req, res) => {
                 agency: c.agency || 'daera',
                 agencyStatus: c.agencyStatus || 'On process',
                 allowVideo: allowVideoVal,
-                quickVideoUrl: (0, crypto_1.encryptPath)(c.quickVideoUrl || null)
+                quickVideoUrl: (0, crypto_1.encryptPath)(quickVideoVal)
             };
         });
         res.json(candidates);

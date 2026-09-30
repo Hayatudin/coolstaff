@@ -45,6 +45,20 @@ const isProduction = process.env.NODE_ENV === 'production' ||
     process.env.BETTER_AUTH_URL?.includes('coolstaffagency.com') ||
     process.env.HOME?.includes('coolstou') ||
     process.env.USER === 'coolstou';
+const defaultOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://coolstaffagency.com',
+    'https://www.coolstaffagency.com',
+    'https://api.coolstaffagency.com',
+    'https://coolstaffagencyyy.vercel.app',
+    'https://daera-agency.vercel.app',
+];
+const envOrigins = (process.env.TRUSTED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+const trustedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 exports.auth = (0, better_auth_1.betterAuth)({
     secret: process.env.BETTER_AUTH_SECRET || '74RzhyeAPZVictmFaCAA/1TPEkfdE+469xOQtWgrPbI=',
     baseURL: process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com',
@@ -64,20 +78,15 @@ exports.auth = (0, better_auth_1.betterAuth)({
             maxAge: 3600, // 1 hour client-side caching
         },
     },
-    trustedOrigins: [
-        'http://localhost:3000',
-        'https://coolstaffagency.com',
-        'https://www.coolstaffagency.com',
-        'https://coolstaffagencyyy.vercel.app',
-        'https://daera-agency.vercel.app',
-    ],
+    trustedOrigins,
     advanced: {
         basePath: '/api/auth',
         disableCSRFCheck: true,
         useSecureCookies: isProduction,
         defaultCookieAttributes: {
-            sameSite: isProduction ? "none" : "lax",
+            sameSite: isProduction ? 'none' : 'lax',
             secure: isProduction,
+            domain: process.env.BETTER_AUTH_URL?.startsWith('https://') ? '.coolstaffagency.com' : undefined,
         },
     },
     user: {

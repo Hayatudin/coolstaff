@@ -5,10 +5,31 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
+// Preserve Passenger's injected port before loading dotenv
+const PASSENGER_PORT = process.env.PORT;
 dotenv.config();
+const PORT = PASSENGER_PORT || process.env.PORT || 4000;
+
+// Process-level error sinks to prevent cPanel crashes on socket drop
+process.on('uncaughtException', (err: any) => {
+  console.error('🛡️ [Process Guard] Uncaught Exception:', err?.code, err?.message || err);
+  const isTransientSocketError =
+    err?.code === 'ECONNRESET' ||
+    err?.code === 'EPIPE' ||
+    err?.code === 'ETIMEDOUT' ||
+    err?.code === 'ECANCELED' ||
+    err?.message?.includes('socket') ||
+    err?.message?.includes('aborted');
+  if (isTransientSocketError) {
+    return;
+  }
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  console.error('🛡️ [Process Guard] Unhandled Rejection:', reason?.code, reason?.message || reason);
+});
 
 const app = express();
-const PORT = process.env.PORT || 4000;
 
 app.set('trust proxy', 1);
 
@@ -17,9 +38,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   if (origin) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    // Fallback for requests without Origin header (like same-origin or direct)
-    // We don't use '*' because it breaks with Credentials: true
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
@@ -37,11 +55,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use(cookieParser());
 
-// Better Auth handler — MUST come before body parsers
+// Better Auth handler — MUST come before body parsers (which drain the stream)
 import { auth } from './lib/auth';
-import { toNodeHandler } from 'better-auth/node';
 
-app.all('/api/auth/*', async (req: Request, res: Response, next: NextFunction) => {
+app.all('/api/auth/*', async (req: Request, res: Response) => {
   const origin = req.headers.origin;
   if (origin) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -56,14 +73,75 @@ app.all('/api/auth/*', async (req: Request, res: Response, next: NextFunction) =
   }
 
   try {
-    return await toNodeHandler(auth)(req, res);
+    // Construct standard Web Request to avoid Express writeHead conflicts
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:4000';
+    const fullUrl = `${protocol}://${host}${req.originalUrl || req.url}`;
+
+    let body: any = undefined;
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if (req.body && Object.keys(req.body).length > 0) {
+        body = JSON.stringify(req.body);
+      } else {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+        }
+        if (chunks.length > 0) {
+          body = Buffer.concat(chunks);
+        }
+      }
+    }
+
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value !== undefined) {
+        if (Array.isArray(value)) {
+          value.forEach((v) => headers.append(key, v));
+        } else {
+          headers.set(key, value);
+        }
+      }
+    }
+
+    const webRequest = new Request(fullUrl, {
+      method: req.method,
+      headers,
+      body,
+      // @ts-ignore
+      duplex: 'half',
+    });
+
+    const response = await auth.handler(webRequest);
+
+    res.status(response.status);
+
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') {
+        const rawSetCookie = (response.headers as any).getSetCookie?.() || [value];
+        res.setHeader('Set-Cookie', rawSetCookie);
+      } else {
+        res.setHeader(key, value);
+      }
+    });
+
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (response.body) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      return res.send(buffer);
+    }
+    return res.end();
   } catch (err: any) {
     console.error('🔥 Better Auth Error:', err);
     return res.status(500).json({ error: err?.message || 'Authentication error', details: String(err) });
   }
 });
 
-// Body parsers — AFTER auth handler (express.json drains the stream)
+// Body parsers — AFTER auth handler
 app.use(express.json({ limit: '80mb' }));
 app.use(express.urlencoded({ extended: true, limit: '80mb' }));
 
@@ -80,7 +158,6 @@ app.get('/api/assets/*', (req: Request, res: Response) => {
     assetPath = decryptPath(assetPath);
   }
   
-  // Strip leading slash to prevent joining issues
   const cleanAssetPath = assetPath.startsWith('/') ? assetPath.substring(1) : assetPath;
   const fullPath = path.join(process.cwd(), 'public', cleanAssetPath);
   
@@ -153,7 +230,6 @@ app.get('/health', (req: Request, res: Response) => {
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('SERVER ERROR:', err);
   
-  // Ensure CORS headers are present even on error
   const origin = req.headers.origin;
   if (origin) {
     res.header('Access-Control-Allow-Origin', origin);
@@ -172,7 +248,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 const server = app.listen(PORT, async () => {
   console.log(`🚀 Server ready at http://localhost:${PORT}`);
   
-  // 1. Run database self-healing checks to inject missing tables/columns
+  // Run database self-healing checks to inject missing tables/columns
   try {
     const { ensureDatabaseSchema } = await import('./lib/db-healing');
     await ensureDatabaseSchema();
@@ -181,7 +257,6 @@ const server = app.listen(PORT, async () => {
   }
 });
 
-// Configure keep-alive timeout to be greater than client/reverse-proxy timeout (prevents ECONNRESET / Failed to fetch on desktop)
+// Configure keep-alive timeout to prevent ECONNRESET / socket drop on desktop
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
-

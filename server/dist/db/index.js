@@ -43,7 +43,7 @@ exports.pool = exports.db = void 0;
 const mysql2_1 = require("drizzle-orm/mysql2");
 const promise_1 = __importDefault(require("mysql2/promise"));
 const schema = __importStar(require("./schema"));
-const getDatabaseUrl = () => {
+const getDatabaseConfig = () => {
     let dbUrl = process.env.DATABASE_URL;
     // FAIL-SAFE: Automatically swap to the local cPanel MySQL database
     // if running in the production cPanel environment to prevent firewall hangs/timeouts.
@@ -56,9 +56,58 @@ const getDatabaseUrl = () => {
         console.log('🤖 Auto-detect: Running on cPanel production. Swapping to local TCP database connection...');
         dbUrl = 'mysql://coolstou_coolstaff:%40Cool132435@127.0.0.1:3306/coolstou_db';
     }
-    return dbUrl || 'mysql://root:password@127.0.0.1:3306/daera';
+    const rawUrl = dbUrl || 'mysql://root:password@127.0.0.1:3306/daera';
+    // Base options for maximum resilience, preventing socket hangs and pool exhaustion
+    const baseOptions = {
+        waitForConnections: true,
+        connectionLimit: 25,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+        maxIdle: 20,
+        idleTimeout: 60000,
+        connectTimeout: 20000,
+    };
+    try {
+        const parsed = new URL(rawUrl);
+        const host = parsed.hostname;
+        const port = parsed.port ? parseInt(parsed.port, 10) : 3306;
+        const user = decodeURIComponent(parsed.username || '');
+        const password = decodeURIComponent(parsed.password || '');
+        const database = parsed.pathname ? parsed.pathname.replace(/^\//, '') : '';
+        // If on cPanel or connecting to localhost, strip SSL to avoid self-signed / rejectUnauthorized crashes
+        const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+        let sslConfig = undefined;
+        if (!isCPanel && !isLocalhost && (rawUrl.includes('ssl=') || rawUrl.includes('aivencloud.com'))) {
+            sslConfig = { rejectUnauthorized: false };
+        }
+        const config = {
+            ...baseOptions,
+            host,
+            port,
+            user,
+            password,
+            database,
+            ssl: sslConfig,
+        };
+        // Unix socket fallback on cPanel if TCP port 3306 is blocked or socket is preferred
+        const cpanelSocketPath = '/var/lib/mysql/mysql.sock';
+        if (isCPanel && process.env.USE_UNIX_SOCKET === 'true') {
+            config.socketPath = cpanelSocketPath;
+            delete config.host;
+            delete config.port;
+        }
+        return config;
+    }
+    catch (err) {
+        console.warn('[DB] Failed to parse DATABASE_URL as URL. Using raw string with pool options.');
+        return {
+            uri: rawUrl,
+            ...baseOptions,
+        };
+    }
 };
-const poolConnection = promise_1.default.createPool(getDatabaseUrl());
+const poolConnection = promise_1.default.createPool(getDatabaseConfig());
 exports.db = (0, mysql2_1.drizzle)(poolConnection, { schema, mode: 'default' });
 exports.pool = poolConnection;
 __exportStar(require("./schema"), exports);

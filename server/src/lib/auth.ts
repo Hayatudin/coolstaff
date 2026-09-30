@@ -9,6 +9,23 @@ const isProduction =
   process.env.HOME?.includes('coolstou') ||
   process.env.USER === 'coolstou';
 
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://coolstaffagency.com',
+  'https://www.coolstaffagency.com',
+  'https://api.coolstaffagency.com',
+  'https://coolstaffagencyyy.vercel.app',
+  'https://daera-agency.vercel.app',
+];
+
+const envOrigins = (process.env.TRUSTED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const trustedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET || '74RzhyeAPZVictmFaCAA/1TPEkfdE+469xOQtWgrPbI=',
   baseURL: process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com',
@@ -31,21 +48,16 @@ export const auth = betterAuth({
     },
   },
 
-  trustedOrigins: [
-    'http://localhost:3000',
-    'https://coolstaffagency.com',
-    'https://www.coolstaffagency.com',
-    'https://coolstaffagencyyy.vercel.app',
-    'https://daera-agency.vercel.app',
-  ],
+  trustedOrigins,
 
   advanced: {
     basePath: '/api/auth',
     disableCSRFCheck: true,
     useSecureCookies: isProduction,
     defaultCookieAttributes: {
-      sameSite: isProduction ? ("none" as const) : ("lax" as const),
+      sameSite: isProduction ? ('none' as const) : ('lax' as const),
       secure: isProduction,
+      domain: process.env.BETTER_AUTH_URL?.startsWith('https://') ? '.coolstaffagency.com' : undefined,
     },
   },
 

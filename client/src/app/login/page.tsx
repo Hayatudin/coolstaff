@@ -3,17 +3,31 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, Home, LogIn } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, Loader2, AlertCircle, Home, LogIn, UserPlus } from 'lucide-react';
 import { signIn, signUp } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
+
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs = 25000): Promise<T> => {
+  let timer: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error('Connection timed out. Please check your network and try again.'));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+};
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard';
 
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -29,135 +43,84 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      // 1. Attempt Sign In with auto-retry resilience against slow networks and packet drops
-      let signInData: any = null;
-      let signInError: any = null;
-
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const res = await signIn.email({
-            email,
+      if (mode === 'signin') {
+        const res = await withTimeout(
+          signIn.email({
+            email: email.trim(),
             password,
-          });
-          signInData = res.data;
-          signInError = res.error;
-          if (!signInError || (signInError.status && signInError.status >= 400 && signInError.status < 500)) {
-            break;
+          }),
+          25000
+        );
+
+        if (res.error) {
+          const msg = res.error.message?.toLowerCase() || '';
+          const status = (res.error as any).status;
+
+          if (status === 401 || msg.includes('invalid') || msg.includes('credential') || msg.includes('password')) {
+            setError('Invalid email or password. Please verify your credentials.');
+          } else if (status === 404 || msg.includes('user not found') || msg.includes('not found')) {
+            setError('No account found with this email address.');
+          } else if (status >= 500 || msg.includes('database') || msg.includes('econnrefused') || msg.includes('connect')) {
+            setError('Database unreachable or server temporarily unavailable. Please try again shortly.');
+          } else {
+            setError(res.error.message || 'Failed to sign in. Please try again.');
           }
-        } catch (callErr: any) {
-          console.warn(`[Login] Sign in attempt ${attempt} network error:`, callErr);
-          signInError = { message: callErr?.message || 'Network error' };
-          if (attempt === 3) {
-            throw callErr;
+          return;
+        }
+
+        if (res.data) {
+          const user = res.data.user as any;
+          const role = user?.role;
+
+          if (callbackUrl && callbackUrl !== '/dashboard' && callbackUrl.startsWith('/')) {
+            router.push(callbackUrl);
+          } else if (role === 'agency') {
+            router.push('/agency/contracts');
+          } else if (DASHBOARD_ROLES.includes(role)) {
+            router.push('/dashboard');
+          } else {
+            router.push('/');
           }
         }
-        if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, 600 * attempt));
-        }
-      }
-
-      if (!signInError && signInData) {
-        const user = signInData.user as any;
-        const role = user?.role;
-        console.log("Sign in successful. User role:", role);
-
-        if (callbackUrl && callbackUrl !== '/dashboard' && callbackUrl.startsWith('/')) {
-          router.push(callbackUrl);
-        } else if (role === 'agency') {
-          router.push('/agency/contracts');
-        } else if (DASHBOARD_ROLES.includes(role)) {
-          router.push('/dashboard');
-        } else {
-          router.push('/');
-        }
-        return;
-      }
-
-      console.error("🔒 Sign In Error Details:", {
-        message: signInError?.message,
-        code: signInError?.code,
-        status: signInError?.status,
-        statusText: signInError?.statusText,
-        raw: signInError,
-      });
-
-      console.log("Sign in failed with:", signInError?.message, ". Attempting auto-registration...");
-
-      const namePrefix = email.split('@')[0];
-      const displayName = namePrefix.charAt(0).toUpperCase() + namePrefix.slice(1);
-
-      let signUpData: any = null;
-      let signUpError: any = null;
-
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const res = await signUp.email({
-            email,
+      } else {
+        // Sign Up Mode
+        const displayName = name.trim() || email.split('@')[0];
+        const res = await withTimeout(
+          signUp.email({
+            email: email.trim(),
             password,
             name: displayName,
-          });
-          signUpData = res.data;
-          signUpError = res.error;
-          if (!signUpError || (signUpError.status && signUpError.status >= 400 && signUpError.status < 500)) {
-            break;
+          }),
+          25000
+        );
+
+        if (res.error) {
+          const msg = res.error.message?.toLowerCase() || '';
+          if (msg.includes('already exists') || (res.error as any).code === 'USER_ALREADY_EXISTS') {
+            setError('An account with this email already exists. Please sign in instead.');
+          } else {
+            setError(res.error.message || 'Failed to create account.');
           }
-        } catch (callErr: any) {
-          console.warn(`[Login] Sign up attempt ${attempt} network error:`, callErr);
-          signUpError = { message: callErr?.message || 'Network error' };
-          if (attempt === 3) {
-            throw callErr;
+          return;
+        }
+
+        if (res.data) {
+          if (callbackUrl && callbackUrl.startsWith('/') && callbackUrl !== '/') {
+            router.push(callbackUrl);
+          } else {
+            router.push('/dashboard');
           }
         }
-        if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, 600 * attempt));
-        }
       }
-
-      if (!signUpError && signUpData) {
-        console.log("Auto-registration successful for new user.");
-        if (callbackUrl && callbackUrl.startsWith('/') && callbackUrl !== '/') {
-          router.push(callbackUrl);
-        } else {
-          router.push('/dashboard');
-        }
-        return;
-      }
-
-      console.error("🔒 Sign Up Error Details:", {
-        message: signUpError?.message,
-        code: signUpError?.code,
-        status: signUpError?.status,
-        statusText: signUpError?.statusText,
-        raw: signUpError,
-      });
-
-      if (signUpError?.message?.toLowerCase().includes('already exists') || signUpError?.code === 'USER_ALREADY_EXISTS') {
-        // Sign-in failed with real credentials — show the exact server error
-        const code = (signInError as any)?.code || '';
-        const msg = signInError?.message || 'Invalid email or password';
-        const status = (signInError as any)?.status || '';
-        setError(`Authentication error: ${msg}${code ? ` (code: ${code})` : ''}${status ? ` [HTTP ${status}]` : ''}`);
-      } else {
-        const errorMessage = signUpError?.message || signInError?.message || 'Authentication failed';
-        setError(`Authentication error: ${errorMessage}`);
-      }
-
     } catch (err: any) {
-      console.error("Critical Auth Error:", err);
-      const isNet =
-        err?.name === 'TypeError' ||
-        err?.name === 'AbortError' ||
-        err?.message === 'Failed to fetch' ||
-        err?.message?.includes('fetch') ||
-        err?.message?.includes('network') ||
-        err?.message?.includes('Network') ||
-        err?.message?.includes('timeout') ||
-        err?.message?.includes('timed out');
-
-      if (isNet) {
-        setError('Network error: Could not reach the server after multiple attempts. Please check your internet connection or try again in a moment.');
+      console.error('Authentication Error:', err);
+      const isTimeout = err?.message?.includes('timed out');
+      if (isTimeout) {
+        setError('Connection timed out after 25s. The server may be waking up or slow to respond.');
+      } else if (err?.message?.includes('Failed to fetch') || err?.name === 'TypeError') {
+        setError('Cannot connect to the authentication server. Please check your internet connection.');
       } else {
-        setError(err.message || 'An error occurred during authentication');
+        setError(err?.message || 'An error occurred during authentication.');
       }
     } finally {
       setIsLoading(false);
@@ -188,17 +151,49 @@ function LoginForm() {
           <span>Back to Home</span>
         </Link>
 
-        {/* Main Login Card */}
+        {/* Main Card */}
         <div className="w-full bg-white rounded-[2rem] shadow-xl border border-white/70 p-8 sm:p-10">
           {/* Card Icon */}
           <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <LogIn size={20} />
+            {mode === 'signin' ? <LogIn size={20} /> : <UserPlus size={20} />}
+          </div>
+
+          {/* Mode Switch Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
+            <button
+              type="button"
+              onClick={() => { setMode('signin'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                mode === 'signin'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+                mode === 'signup'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Sign Up
+            </button>
           </div>
 
           {/* Title & Subtitle */}
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in with email</h1>
-            <p className="text-slate-400 text-xs font-medium mt-1.5">Welcome back to the Coolstaff agency portal.</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              {mode === 'signin' ? 'Sign in with email' : 'Create an account'}
+            </h1>
+            <p className="text-slate-400 text-xs font-medium mt-1.5">
+              {mode === 'signin'
+                ? 'Welcome back to the Coolstaff agency portal.'
+                : 'Join the Coolstaff agency platform.'}
+            </p>
           </div>
 
           {/* Error Banner */}
@@ -211,6 +206,25 @@ function LoginForm() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name for Sign Up */}
+            {mode === 'signup' && (
+              <div className="relative">
+                <User
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Full Name"
+                  required
+                  disabled={isLoading}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/10 transition-all disabled:opacity-50 font-medium"
+                />
+              </div>
+            )}
+
             {/* Email Field */}
             <div className="relative">
               <Mail
@@ -253,49 +267,67 @@ function LoginForm() {
                 </button>
               </div>
 
-              {/* Forgot password link */}
-              <div className="text-right mt-2">
-                <button
-                  type="button"
-                  onClick={() => alert("Please contact administrator to reset your password.")}
-                  className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors cursor-pointer"
-                >
-                  Forgot password?
-                </button>
-              </div>
+              {mode === 'signin' && (
+                <div className="text-right mt-2">
+                  <button
+                    type="button"
+                    onClick={() => alert('Please contact administrator to reset your password.')}
+                    className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading || !email || !password}
-              className="w-full py-3.5 mt-2 rounded-2xl bg-slate-500 hover:bg-slate-600 disabled:bg-slate-300 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 mt-2 rounded-2xl bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
             >
               {isLoading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Signing in…
+                  {mode === 'signin' ? 'Signing in…' : 'Creating account…'}
                 </>
+              ) : mode === 'signin' ? (
+                'Sign In'
               ) : (
-                'Get Started'
+                'Create Account'
               )}
             </button>
           </form>
 
-          {/* Sign Up Footer inside Card */}
+          {/* Toggle Footer inside Card */}
           <div className="text-center text-xs text-slate-500 mt-6 font-medium">
-            <span>Don't have an account? </span>
-            <button
-              type="button"
-              onClick={() => alert("Please contact administrator for account registration.")}
-              className="text-blue-600 hover:underline font-semibold cursor-pointer"
-            >
-              Sign up
-            </button>
+            {mode === 'signin' ? (
+              <>
+                <span>Don't have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => { setMode('signup'); setError(''); }}
+                  className="text-sky-600 hover:underline font-semibold cursor-pointer"
+                >
+                  Sign up
+                </button>
+              </>
+            ) : (
+              <>
+                <span>Already have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => { setMode('signin'); setError(''); }}
+                  className="text-sky-600 hover:underline font-semibold cursor-pointer"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* System Footer Text below card */}
+        {/* System Footer Text */}
         <p className="text-center text-sky-700/60 text-xs font-semibold mt-6 tracking-wide">
           Coolstaff Foreign Employment Agency System
         </p>
