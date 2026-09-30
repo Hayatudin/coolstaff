@@ -196,6 +196,14 @@ export async function api(path: string, options: RequestInit = {}) {
         continue;
       }
 
+      // Fallback if same-origin Next.js proxy route fails
+      if (isNetworkError && typeof window !== 'undefined' && (targetUrl.startsWith('/') || targetUrl.startsWith(window.location.origin))) {
+        console.warn(`[API] Same-origin proxy route failed. Falling back directly to https://api.coolstaffagency.com...`);
+        const relativePath = targetUrl.startsWith('/') ? targetUrl : targetUrl.replace(window.location.origin, '');
+        targetUrl = `https://api.coolstaffagency.com${relativePath}`;
+        continue;
+      }
+
       if (!(err instanceof ApiError) && (isNetworkError || isServerTemporarilyDown) && attempt < maxRetries) {
         console.warn(`[API] Attempt ${attempt} failed on slow network. Retrying in ${delay}ms...`, err?.message || err);
         await new Promise(resolve => setTimeout(resolve, delay));

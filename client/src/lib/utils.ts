@@ -16,18 +16,18 @@ export function formatDate(dateString: string): string {
 }
 
 export function getApiBaseUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-  
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
-        return 'https://api.coolstaffagency.com';
-      }
-      return envUrl.replace(/\/$/, '');
+      // In production browser, use window.location.origin so all /api requests
+      // route seamlessly through the Next.js rewrite proxy.
+      // This completely eliminates CORS preflight, cross-origin cookie restrictions,
+      // and desktop UDP/QUIC HTTP/3 packet drop stalls.
+      return window.location.origin;
     }
   }
 
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
   if (process.env.NODE_ENV === 'production' && (!envUrl || envUrl.includes('localhost'))) {
     return 'https://api.coolstaffagency.com';
   }

@@ -72,6 +72,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
     // Disable HTTP/3 Alt-Svc to prevent QUIC UDP packet drop on slower networks / desktop hotspots
     res.header('Alt-Svc', 'clear');
     if (req.method === 'OPTIONS') {
@@ -90,15 +91,16 @@ app.all('/api/auth/*', async (req, res) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
     res.header('Alt-Svc', 'clear');
     if (req.method === 'OPTIONS') {
         return res.status(200).send();
     }
     try {
-        // Construct standard Web Request to avoid Express writeHead conflicts
-        const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-        const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:4000';
-        const fullUrl = `${protocol}://${host}${req.originalUrl || req.url}`;
+        // Construct standard Web Request with stable Better-Auth base URL
+        const authBase = process.env.BETTER_AUTH_URL || 'https://api.coolstaffagency.com';
+        const cleanUrl = req.originalUrl || req.url;
+        const fullUrl = `${authBase.replace(/\/$/, '')}${cleanUrl}`;
         let body = undefined;
         if (req.method !== 'GET' && req.method !== 'HEAD') {
             if (req.body && Object.keys(req.body).length > 0) {
@@ -134,8 +136,20 @@ app.all('/api/auth/*', async (req, res) => {
         });
         const response = await auth_1.auth.handler(webRequest);
         res.status(response.status);
+        const ignoredHeaders = new Set([
+            'transfer-encoding',
+            'content-encoding',
+            'content-length',
+            'connection',
+            'keep-alive',
+            'alt-svc',
+        ]);
         response.headers.forEach((value, key) => {
-            if (key.toLowerCase() === 'set-cookie') {
+            const lowerKey = key.toLowerCase();
+            if (ignoredHeaders.has(lowerKey)) {
+                return;
+            }
+            if (lowerKey === 'set-cookie') {
                 const rawSetCookie = response.headers.getSetCookie?.() || [value];
                 res.setHeader('Set-Cookie', rawSetCookie);
             }
@@ -147,6 +161,8 @@ app.all('/api/auth/*', async (req, res) => {
             res.setHeader('Access-Control-Allow-Origin', origin);
         }
         res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Max-Age', '86400');
+        res.setHeader('Alt-Svc', 'clear');
         if (response.body) {
             const buffer = Buffer.from(await response.arrayBuffer());
             return res.send(buffer);

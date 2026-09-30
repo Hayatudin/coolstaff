@@ -9,7 +9,7 @@ import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
 
-const withTimeout = <T,>(promise: Promise<T>, timeoutMs = 25000): Promise<T> => {
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs = 12000): Promise<T> => {
   let timer: any;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -44,13 +44,24 @@ function LoginForm() {
 
     try {
       if (mode === 'signin') {
-        const res = await withTimeout(
-          signIn.email({
-            email: email.trim(),
-            password,
-          }),
-          25000
-        );
+        const executeSignIn = async () => {
+          return await withTimeout(
+            signIn.email({
+              email: email.trim(),
+              password,
+            }),
+            12000
+          );
+        };
+
+        let res: any;
+        try {
+          res = await executeSignIn();
+        } catch (firstErr: any) {
+          console.warn('[Login] Initial attempt stalled or timed out, retrying immediately...', firstErr);
+          await new Promise((r) => setTimeout(r, 400));
+          res = await executeSignIn();
+        }
 
         if (res.error) {
           const msg = res.error.message?.toLowerCase() || '';
@@ -85,14 +96,25 @@ function LoginForm() {
       } else {
         // Sign Up Mode
         const displayName = name.trim() || email.split('@')[0];
-        const res = await withTimeout(
-          signUp.email({
-            email: email.trim(),
-            password,
-            name: displayName,
-          }),
-          25000
-        );
+        const executeSignUp = async () => {
+          return await withTimeout(
+            signUp.email({
+              email: email.trim(),
+              password,
+              name: displayName,
+            }),
+            12000
+          );
+        };
+
+        let res: any;
+        try {
+          res = await executeSignUp();
+        } catch (firstErr: any) {
+          console.warn('[Signup] Initial attempt stalled or timed out, retrying immediately...', firstErr);
+          await new Promise((r) => setTimeout(r, 400));
+          res = await executeSignUp();
+        }
 
         if (res.error) {
           const msg = res.error.message?.toLowerCase() || '';
@@ -116,7 +138,7 @@ function LoginForm() {
       console.error('Authentication Error:', err);
       const isTimeout = err?.message?.includes('timed out');
       if (isTimeout) {
-        setError('Connection timed out after 25s. The server may be waking up or slow to respond.');
+        setError('Connection timed out. The server took too long to respond. Please check your network and try again.');
       } else if (err?.message?.includes('Failed to fetch') || err?.name === 'TypeError') {
         setError('Cannot connect to the authentication server. Please check your internet connection.');
       } else {
