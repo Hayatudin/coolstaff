@@ -6,11 +6,11 @@ import { Candidate } from '@/types';
 import {
   ArrowLeft, Edit3, Trash2, Calendar, MapPin, Phone, Mail, User, Briefcase,
   Heart, GraduationCap, Globe, FileText, Eye, Loader2, Clock, Download, ExternalLink,
-  Lock, Video, Upload, ArrowRightLeft, CheckCircle
+  Lock, Video, Upload, ArrowRightLeft, CheckCircle, Check, Copy, Plus
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
-import { getFileUrl, getDownloadUrl } from '@/lib/utils';
+import { cn, getFileUrl, getDownloadUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/auth-client';
 import { resolveCandidateNationality } from '@/lib/cvHelpers';
@@ -52,6 +52,7 @@ export default function CandidateDetailPage() {
   const [editLaborIdModalOpen, setEditLaborIdModalOpen] = useState(false);
   const [editLaborIdInput, setEditLaborIdInput] = useState('');
   const [isSavingLaborId, setIsSavingLaborId] = useState(false);
+  const [copiedLaborId, setCopiedLaborId] = useState(false);
 
   useEffect(() => {
     if (fetchedCandidate) {
@@ -520,37 +521,103 @@ export default function CandidateDetailPage() {
                   </button>
                 </div>
                 <div className="pl-5 pt-1">
-                  {c.laborID ? (
-                    <div className="flex items-center gap-2 group/copy">
-                      <p className="text-[15px] text-text-primary font-semibold break-all whitespace-normal select-all">
-                        {c.laborID}
-                      </p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(c.laborID || '');
-                        }}
-                        className="p-1 rounded text-text-tertiary hover:bg-gray-200 hover:text-primary transition-all cursor-pointer opacity-0 group-hover/copy:opacity-100 focus:opacity-100"
-                        title="Copy Labor ID"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                      </button>
-                    </div>
-                  ) : (c.labourIdUrl || pi.labourIdUrl) ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setViewDoc((c.labourIdUrl || pi.labourIdUrl)!);
-                      }}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all border border-primary/20 shadow-sm font-semibold text-xs cursor-pointer"
-                    >
-                      <Eye size={14} /> View Labor ID Image
-                    </button>
-                  ) : (
-                    <p className="text-[15px] text-text-tertiary font-semibold">
-                      —
-                    </p>
-                  )}
+                  {(() => {
+                    const displayLaborId = c.laborID || pi.laborID || null;
+                    const laborDocUrl = c.labourIdUrl || pi.labourIdUrl;
+
+                    if (displayLaborId) {
+                      return (
+                        <div className="flex items-center gap-2 group/copy">
+                          <p 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(displayLaborId);
+                              setCopiedLaborId(true);
+                              setTimeout(() => setCopiedLaborId(false), 2000);
+                            }}
+                            className="text-[15px] text-text-primary font-semibold break-all whitespace-normal select-all cursor-pointer hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-primary/5"
+                            title="Click to copy Labor ID"
+                          >
+                            {displayLaborId}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(displayLaborId);
+                              setCopiedLaborId(true);
+                              setTimeout(() => setCopiedLaborId(false), 2000);
+                            }}
+                            className={cn(
+                              "p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-xs",
+                              copiedLaborId ? "text-emerald-600 bg-emerald-50" : "text-text-tertiary hover:bg-gray-200 hover:text-primary"
+                            )}
+                            title={copiedLaborId ? "Copied!" : "Copy Labor ID"}
+                          >
+                            {copiedLaborId ? (
+                              <>
+                                <Check size={14} className="text-emerald-500" />
+                                <span className="text-emerald-600 font-semibold text-xs">Copied!</span>
+                              </>
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                          </button>
+                          {laborDocUrl && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewDoc(laborDocUrl);
+                              }}
+                              className="p-1 rounded text-primary hover:bg-primary/10 transition-all cursor-pointer ml-1"
+                              title="View Labor ID Image"
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    if (laborDocUrl) {
+                      return (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewDoc(laborDocUrl);
+                            }}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all border border-primary/20 shadow-sm font-semibold text-xs cursor-pointer"
+                          >
+                            <Eye size={14} /> View Labor ID Image
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditLaborIdInput('');
+                              setEditLaborIdModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-text-secondary hover:text-primary hover:bg-primary/5 border border-dashed border-border rounded-lg cursor-pointer"
+                          >
+                            <Plus size={12} /> Add Text ID
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex items-center gap-3">
+                        <span className="text-[15px] text-text-tertiary font-semibold">—</span>
+                        <button
+                          onClick={() => {
+                            setEditLaborIdInput('');
+                            setEditLaborIdModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white rounded-lg transition-all border border-primary/20 cursor-pointer"
+                        >
+                          <Plus size={12} /> Add Labor ID
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

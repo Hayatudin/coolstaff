@@ -85,6 +85,7 @@ export default function ReviewSubmit({ passportData, personalInfo, facePhoto, pa
         <Section title="Personal Details" icon={<User size={16} className="text-primary" />}>
           <div className="grid grid-cols-2 gap-4">
             <Field label="ID Number" value={personalInfo.idNumber || passportData.passportNumber} />
+            <Field label="Labor ID" value={personalInfo.laborID || '—'} />
             <Field label="Religion" value={personalInfo.religion} />
             <Field label="Marital Status" value={personalInfo.maritalStatus} />
             <Field label="Number of Children" value={personalInfo.numberOfChildren} />

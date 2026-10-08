@@ -345,6 +345,7 @@ export default function QuickRegistrationPage() {
               brokerId: 'calling-broker', // Backend handles auto-connecting to 'Calling' broker
               cocDocumentUrl,
               labourIdUrl,
+              laborID: laborID || null,
               candidateIdImageUrl,
               relativeIdImageUrl,
               medicalStatus: 'Pending',
@@ -364,6 +365,7 @@ export default function QuickRegistrationPage() {
                     yearsOfExperience: '0'
                   }],
             },
+            laborID: laborID || null,
             passportImageUrl: passportImage,
             facePhotoUrl: facePhotoUrl,
             videoUrl: null,

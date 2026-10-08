@@ -19,6 +19,7 @@ export interface WorkExperienceEntry {
 
 export interface CandidatePersonalInfo {
   idNumber: string;
+  laborID?: string | null;
   job: string;
   maritalStatus: string;
   numberOfChildren: number;

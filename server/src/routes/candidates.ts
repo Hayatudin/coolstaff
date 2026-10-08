@@ -95,6 +95,29 @@ router.get('/', async (req: Request, res: Response) => {
       }
     }
 
+    const quickLaborMap = new Map<string, { laborID: string; labourIdUrl?: string }>();
+    if (passportNumbers.length > 0 || candidateIds.length > 0) {
+      const CHUNK_SIZE = 800;
+      for (let i = 0; i < Math.max(passportNumbers.length, candidateIds.length); i += CHUNK_SIZE) {
+        const pChunk = passportNumbers.slice(i, i + CHUNK_SIZE);
+        const idChunk = candidateIds.slice(i, i + CHUNK_SIZE);
+        const [qrs]: any = await pool
+          .query(
+            'SELECT UPPER(TRIM(`passportNumber`)) as pNum, `promotedCandidateId`, `laborID`, `labourIdUrl` FROM `QuickRegistration` WHERE (`laborID` IS NOT NULL AND `laborID` != \'\') AND (UPPER(TRIM(`passportNumber`)) IN (?) OR `promotedCandidateId` IN (?))',
+            [pChunk.length > 0 ? pChunk : ['__none__'], idChunk.length > 0 ? idChunk : ['__none__']]
+          )
+          .catch(() => [[]]);
+        for (const qr of qrs || []) {
+          if (qr.pNum && qr.laborID) {
+            quickLaborMap.set(qr.pNum, { laborID: qr.laborID, labourIdUrl: qr.labourIdUrl });
+          }
+          if (qr.promotedCandidateId && qr.laborID) {
+            quickLaborMap.set(qr.promotedCandidateId, { laborID: qr.laborID, labourIdUrl: qr.labourIdUrl });
+          }
+        }
+      }
+    }
+
     const parseJsonField = (field: any) => {
       if (!field) return [];
       if (typeof field === 'object') return field;
@@ -117,6 +140,7 @@ router.get('/', async (req: Request, res: Response) => {
     const candidates = (dbCandidates || []).map((c: any) => {
       const pNum = (c.passportNumber || '').trim().toUpperCase();
       const profile = videoProfileMap.get(pNum);
+      const qrData = quickLaborMap.get(pNum) || quickLaborMap.get(c.id);
 
       let facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
       if (facePhotoUrlVal && facePhotoUrlVal.startsWith('data:') && facePhotoUrlVal.length > 50000) {
@@ -126,8 +150,13 @@ router.get('/', async (req: Request, res: Response) => {
       let fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
       let videoUrlVal = profile ? profile.videoUrl : (c.videoUrl || (c as any).Youtube_URL);
       
-      let laborIdText = c.laborID;
-      let actualLabourIdUrl = c.labourIdUrl || null;
+      let laborIdText = c.laborID || qrData?.laborID || null;
+      let actualLabourIdUrl = c.labourIdUrl || qrData?.labourIdUrl || null;
+
+      // Auto-heal Candidate record if laborID was found from QuickRegistration
+      if (!c.laborID && qrData?.laborID) {
+        pool.query('UPDATE `Candidate` SET `laborID` = ? WHERE `id` = ?', [qrData.laborID, c.id]).catch(() => {});
+      }
       if (videoUrlVal && videoUrlVal.startsWith('data:') && videoUrlVal.length > 50000) {
         videoUrlVal = '';
       }
@@ -196,6 +225,7 @@ router.get('/', async (req: Request, res: Response) => {
           candidateIdImageUrl: encryptPath(sanitizeDataUrl(c.candidateIdImageUrl)),
           relativeIdImageUrl: encryptPath(sanitizeDataUrl(c.relativeIdImageUrl)),
           labourIdUrl: encryptPath(sanitizeDataUrl(actualLabourIdUrl)),
+          laborID: laborIdText || null,
           salary: c.salary || '1000SR',
         },
         passportImageUrl: encryptPath(c.passportImageUrl),
@@ -384,6 +414,38 @@ router.post('/', async (req: Request, res: Response) => {
       uploadToLocal(body.videoUrl, 'videos')
     ]);
 
+    let laborIdVal = body.laborID || body.personalInfo?.laborID || null;
+    let resolvedLabourIdUrl = labourIdUrl || null;
+
+    if (!laborIdVal || !resolvedLabourIdUrl) {
+      try {
+        let qrRows: any[] = [];
+        if (body.quickRegistrationId) {
+          const [rows]: any = await pool.query(
+            'SELECT `laborID`, `labourIdUrl` FROM `QuickRegistration` WHERE `id` = ? LIMIT 1',
+            [body.quickRegistrationId]
+          );
+          qrRows = rows;
+        } else if (body.passportData?.passportNumber) {
+          const [rows]: any = await pool.query(
+            'SELECT `laborID`, `labourIdUrl` FROM `QuickRegistration` WHERE UPPER(TRIM(`passportNumber`)) = UPPER(TRIM(?)) ORDER BY `createdAt` DESC LIMIT 1',
+            [body.passportData.passportNumber]
+          );
+          qrRows = rows;
+        }
+        if (qrRows && qrRows.length > 0) {
+          if (!laborIdVal && qrRows[0].laborID) {
+            laborIdVal = qrRows[0].laborID;
+          }
+          if (!resolvedLabourIdUrl && qrRows[0].labourIdUrl) {
+            resolvedLabourIdUrl = qrRows[0].labourIdUrl;
+          }
+        }
+      } catch (qrErr) {
+        console.warn('Failed to lookup laborID from QuickRegistration during candidate creation:', qrErr);
+      }
+    }
+
     const fs = require('fs');
     const path = require('path');
     const counterFilePath = path.join(process.cwd(), 'shelf_counter.json');
@@ -494,7 +556,8 @@ router.post('/', async (req: Request, res: Response) => {
       medicalDocumentUrl: medicalDocumentUrl || null,
       candidateIdImageUrl: candidateIdImageUrl || null,
       relativeIdImageUrl: relativeIdImageUrl || null,
-      labourIdUrl: labourIdUrl || null,
+      labourIdUrl: resolvedLabourIdUrl || null,
+      laborID: laborIdVal || null,
       status: body.status || 'pending',
       salary: body.personalInfo?.salary || '1000SR',
       agency: body.agency || 'daera',
@@ -531,12 +594,16 @@ router.post('/', async (req: Request, res: Response) => {
     if (body.quickRegistrationId) {
       try {
         const [qrRows]: any = await pool.query(
-          `SELECT \`allowVideo\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
+          `SELECT \`allowVideo\`, \`laborID\` FROM \`QuickRegistration\` WHERE \`id\` = ?`,
           [body.quickRegistrationId]
         );
         if (qrRows && qrRows.length > 0) {
           const qrAllowVideo = qrRows[0].allowVideo === 1 || qrRows[0].allowVideo === true;
-          await db.update(candidateTable).set({ allowVideo: qrAllowVideo }).where(eq(candidateTable.id, candidateId));
+          const candUpdates: any = { allowVideo: qrAllowVideo };
+          if (qrRows[0].laborID && !laborIdVal) {
+            candUpdates.laborID = qrRows[0].laborID;
+          }
+          await db.update(candidateTable).set(candUpdates).where(eq(candidateTable.id, candidateId));
         }
 
         await pool.query(
@@ -546,6 +613,13 @@ router.post('/', async (req: Request, res: Response) => {
       } catch (promotionError) {
         console.error(`Failed to update QuickRegistration promotion:`, promotionError);
       }
+    } else if (body.passportData?.passportNumber) {
+      try {
+        await pool.query(
+          `UPDATE \`QuickRegistration\` SET \`promotedAt\` = NOW(), \`promotedCandidateId\` = ?, \`verificationStatus\` = 'promoted' WHERE UPPER(TRIM(\`passportNumber\`)) = UPPER(TRIM(?)) AND \`promotedCandidateId\` IS NULL`,
+          [candidateId, body.passportData.passportNumber]
+        );
+      } catch (_) {}
     }
 
     const [createdCand]: any = await pool.query('SELECT * FROM `Candidate` WHERE `id` = ? LIMIT 1', [candidateId]);
@@ -671,6 +745,24 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     let laborIdText = c.laborID;
     let actualLabourIdUrl = c.labourIdUrl || null;
+    if (!laborIdText || !actualLabourIdUrl) {
+      try {
+        const [qrs]: any = await pool.query(
+          'SELECT `laborID`, `labourIdUrl` FROM `QuickRegistration` WHERE `promotedCandidateId` = ? OR UPPER(TRIM(`passportNumber`)) = UPPER(TRIM(?)) ORDER BY `createdAt` DESC LIMIT 1',
+          [c.id, c.passportNumber || '']
+        );
+        if (qrs && qrs.length > 0) {
+          if (!laborIdText && qrs[0].laborID) {
+            laborIdText = qrs[0].laborID;
+            pool.query('UPDATE `Candidate` SET `laborID` = ? WHERE `id` = ?', [laborIdText, c.id]).catch(() => {});
+          }
+          if (!actualLabourIdUrl && qrs[0].labourIdUrl) {
+            actualLabourIdUrl = qrs[0].labourIdUrl;
+            pool.query('UPDATE `Candidate` SET `labourIdUrl` = ? WHERE `id` = ?', [actualLabourIdUrl, c.id]).catch(() => {});
+          }
+        }
+      } catch (_) {}
+    }
 
     const candidate = {
       id: c.id,
@@ -723,6 +815,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         candidateIdImageUrl: encryptPath(c.candidateIdImageUrl),
         relativeIdImageUrl: encryptPath(c.relativeIdImageUrl),
         labourIdUrl: encryptPath(actualLabourIdUrl),
+        laborID: laborIdText || null,
         salary: c.salary || '1000SR',
       },
       passportImageUrl: encryptPath(c.passportImageUrl),
@@ -772,7 +865,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     delete body.price;
     if (body.personalInfo) delete body.personalInfo.price;
 
-    const laborIdVal = body.laborID;
+    const laborIdVal = body.laborID !== undefined ? body.laborID : body.personalInfo?.laborID;
     delete body.laborID;
     if (body.personalInfo) delete body.personalInfo.laborID;
 
@@ -962,7 +1055,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     let isLockedVal = body.isLocked !== undefined ? Boolean(body.isLocked) : undefined;
     let cvDownloadedVal = body.cvDownloaded !== undefined ? Boolean(body.cvDownloaded) : undefined;
     let priceVal = body.price;
-    let laborIdVal = body.laborID;
+    let laborIdVal = body.laborID !== undefined ? body.laborID : body.personalInfo?.laborID;
     let videoUrlVal = body.videoUrl;
     let allowVideoVal = body.allowVideo;
     let deployedDateVal = body.deployedDate;

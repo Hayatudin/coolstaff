@@ -58,7 +58,7 @@ const emptyPassportData: PassportData = {
 };
 
 const emptyPersonalInfo: CandidatePersonalInfo = {
-  idNumber: '', job: '', maritalStatus: '', numberOfChildren: 0, religion: '', bloodType: '',
+  idNumber: '', laborID: '', job: '', maritalStatus: '', numberOfChildren: 0, religion: '', bloodType: '',
   height: '160', weight: '55', phone: '', email: '', address: '', city: '',
   state: '', country: '', educationLevel: '', languages: [],
   workExperience: [], skills: [], medicalStatus: 'Pending', knownConditions: '',
@@ -227,6 +227,7 @@ function RegistrationContent() {
         brokerId: quickRegistration.brokerId || quickRegistration.broker?.id || prev.brokerId,
         cocDocumentUrl: quickRegistration.cocDocumentUrl || '',
         labourIdUrl: quickRegistration.labourIdUrl || '',
+        laborID: quickRegistration.laborID || quickRegistration.laborId || '',
         candidateIdImageUrl: quickRegistration.candidateIdImageUrl || '',
         relativeIdImageUrl: quickRegistration.relativeIdImageUrl || '',
         additionalPhones: prev.additionalPhones,
@@ -279,7 +280,7 @@ function RegistrationContent() {
         const c = await res.json();
         if (c && isMounted) {
           setPassportData(c.passportData || emptyPassportData);
-          setPersonalInfo(c.personalInfo || emptyPersonalInfo);
+          setPersonalInfo({ ...(c.personalInfo || emptyPersonalInfo), laborID: c.laborID || c.personalInfo?.laborID || '' });
           setPassportImage(c.passportImageUrl || null);
           setFacePhoto(c.facePhotoUrl || null);
           setFullBodyPhoto(c.fullBodyPhotoUrl || null);
@@ -297,7 +298,7 @@ function RegistrationContent() {
         const c = candidates.find((x: any) => x.id === editId);
         if (c) {
           setPassportData(c.passportData);
-          setPersonalInfo(c.personalInfo);
+          setPersonalInfo({ ...(c.personalInfo || emptyPersonalInfo), laborID: c.laborID || c.personalInfo?.laborID || '' });
           setPassportImage(c.passportImageUrl || null);
           setFacePhoto(c.facePhotoUrl || null);
           setFullBodyPhoto(c.fullBodyPhotoUrl || null);
@@ -357,6 +358,7 @@ function RegistrationContent() {
           workExperience: Array.isArray(parsedWorkExp) && parsedWorkExp.length > 0 ? parsedWorkExp : prev.workExperience,
           cocDocumentUrl: data.cocDocumentUrl || '',
           labourIdUrl: data.labourIdUrl || '',
+          laborID: data.laborID || data.laborId || '',
           candidateIdImageUrl: data.candidateIdImageUrl || '',
           relativeIdImageUrl: data.relativeIdImageUrl || '',
           languages: Array.isArray(data.languages) ? data.languages : [],
@@ -502,6 +504,7 @@ function RegistrationContent() {
           brokerId: (quickReg ? (quickReg.brokerId || quickReg.broker?.id) : '') || prev.brokerId,
           cocDocumentUrl: (quickReg ? quickReg.cocDocumentUrl : '') || prev.cocDocumentUrl || '',
           labourIdUrl: (quickReg ? quickReg.labourIdUrl : '') || prev.labourIdUrl || '',
+          laborID: (quickReg ? (quickReg.laborID || quickReg.laborId) : '') || prev.laborID || '',
           candidateIdImageUrl: (quickReg ? quickReg.candidateIdImageUrl : '') || prev.candidateIdImageUrl || '',
           relativeIdImageUrl: (quickReg ? quickReg.relativeIdImageUrl : '') || prev.relativeIdImageUrl || '',
           workExperience: Array.isArray(parsedWorkExp) && parsedWorkExp.length > 0 ? parsedWorkExp : prev.workExperience,
@@ -666,6 +669,7 @@ function RegistrationContent() {
           brokerId: (quickReg ? (quickReg.brokerId || quickReg.broker?.id) : '') || prev.brokerId,
           cocDocumentUrl: (quickReg ? quickReg.cocDocumentUrl : '') || prev.cocDocumentUrl || '',
           labourIdUrl: (quickReg ? quickReg.labourIdUrl : '') || prev.labourIdUrl || '',
+          laborID: (quickReg ? (quickReg.laborID || quickReg.laborId) : '') || prev.laborID || '',
           candidateIdImageUrl: (quickReg ? quickReg.candidateIdImageUrl : '') || prev.candidateIdImageUrl || '',
           relativeIdImageUrl: (quickReg ? quickReg.relativeIdImageUrl : '') || prev.relativeIdImageUrl || '',
         };
@@ -710,7 +714,8 @@ function RegistrationContent() {
       const compressedCandidateId = personalInfo.candidateIdImageUrl ? await compressImage(personalInfo.candidateIdImageUrl, 1200, 0.7) : null;
       const compressedRelativeId = personalInfo.relativeIdImageUrl ? await compressImage(personalInfo.relativeIdImageUrl, 1200, 0.7) : null;
 
-      const { cocDocumentUrl, medicalDocumentUrl, candidateIdImageUrl, relativeIdImageUrl, labourIdUrl, ...cleanPersonalInfo } = personalInfo;
+      const { cocDocumentUrl, medicalDocumentUrl, candidateIdImageUrl, relativeIdImageUrl, labourIdUrl, laborID, ...cleanPersonalInfo } = personalInfo;
+      const finalLaborId = (laborID || quickRegData?.laborID || '').trim() || null;
 
       const url = isEditMode ? `/api/candidates/${editId}` : '/api/candidates';
       const method = isEditMode ? 'PUT' : 'POST';
@@ -725,12 +730,14 @@ function RegistrationContent() {
           },
           personalInfo: {
             ...cleanPersonalInfo,
+            laborID: finalLaborId,
             cocDocumentUrl: compressedCoc,
             medicalDocumentUrl: compressedMedical,
             candidateIdImageUrl: compressedCandidateId,
             relativeIdImageUrl: compressedRelativeId,
             labourIdUrl: labourIdUrl || null,
           },
+          laborID: finalLaborId,
           passportImageUrl: compressedPassport,
           facePhotoUrl: compressedFace,
           fullBodyPhotoUrl: compressedFullBody,

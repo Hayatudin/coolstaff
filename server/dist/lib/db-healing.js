@@ -702,5 +702,42 @@ async function ensureDatabaseSchema() {
     catch (backfillErr) {
         console.warn('⚠️ Auto-backfill of QuickRegistration registeredById failed:', backfillErr.message || backfillErr);
     }
+    // Backfill candidate laborID & labourIdUrl from QuickRegistration
+    try {
+        console.log('🔄 Running auto-backfill of laborID and labourIdUrl for Candidate records...');
+        const [result] = await db_1.pool.query(`
+      UPDATE \`Candidate\` c 
+      INNER JOIN \`QuickRegistration\` q ON UPPER(TRIM(c.passportNumber)) = UPPER(TRIM(q.passportNumber)) 
+      SET c.laborID = q.laborID 
+      WHERE (c.laborID IS NULL OR c.laborID = '') AND (q.laborID IS NOT NULL AND q.laborID != '')
+    `);
+        const count1 = result?.affectedRows || 0;
+        const [result2] = await db_1.pool.query(`
+      UPDATE \`Candidate\` c 
+      INNER JOIN \`QuickRegistration\` q ON q.promotedCandidateId = c.id 
+      SET c.laborID = q.laborID 
+      WHERE (c.laborID IS NULL OR c.laborID = '') AND (q.laborID IS NOT NULL AND q.laborID != '')
+    `);
+        const count2 = result2?.affectedRows || 0;
+        const [result3] = await db_1.pool.query(`
+      UPDATE \`Candidate\` c 
+      INNER JOIN \`QuickRegistration\` q ON UPPER(TRIM(c.passportNumber)) = UPPER(TRIM(q.passportNumber)) 
+      SET c.labourIdUrl = q.labourIdUrl 
+      WHERE (c.labourIdUrl IS NULL OR c.labourIdUrl = '') AND (q.labourIdUrl IS NOT NULL AND q.labourIdUrl != '')
+    `);
+        const count3 = result3?.affectedRows || 0;
+        if (count1 + count2 > 0) {
+            console.log(`✅ Successfully backfilled laborID for ${count1 + count2} Candidate records!`);
+        }
+        else {
+            console.log('ℹ️ No Candidate records needed laborID backfilling.');
+        }
+        if (count3 > 0) {
+            console.log(`✅ Successfully backfilled labourIdUrl for ${count3} Candidate records!`);
+        }
+    }
+    catch (laborBackfillErr) {
+        console.warn('⚠️ Auto-backfill of candidate laborID failed:', laborBackfillErr.message || laborBackfillErr);
+    }
     console.log('✅ Database self-healing complete.');
 }

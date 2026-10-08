@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy, Plus, FileSpreadsheet } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, Search, MoreVertical, Edit3, Trash2, ShieldAlert, Eye, Loader2, Link as LinkIcon, Flag, Filter, Lock, ArrowRight, Video, Copy, Plus, FileSpreadsheet, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
@@ -192,6 +192,7 @@ const normalizeLanguageName = (lang: string): string => {
   const [insertLaborIdModalId, setInsertLaborIdModalId] = useState<string | null>(null);
   const [insertLaborIdInput, setInsertLaborIdInput] = useState('');
   const [isSavingLaborId, setIsSavingLaborId] = useState(false);
+  const [copiedLaborId, setCopiedLaborId] = useState<string | null>(null);
 
   const handleSaveLaborId = async () => {
     if (!insertLaborIdModalId) return;
@@ -763,84 +764,112 @@ const normalizeLanguageName = (lang: string): string => {
 
                     {/* Labor ID */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.laborID ? (
-                        <div className="flex items-center gap-1.5 group/copy">
-                          <span className="text-sm font-semibold text-text-primary font-mono select-all">
-                            {candidate.laborID}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(candidate.laborID || '');
-                            }}
-                            className="p-1 rounded text-text-tertiary hover:bg-gray-100 hover:text-primary transition-all cursor-pointer"
-                            title="Copy Labor ID"
-                          >
-                            <Copy size={13} />
-                          </button>
-                          {(candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl) && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setViewDoc(candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl);
-                              }}
-                              className="p-1 rounded text-primary hover:bg-primary/10 transition-all cursor-pointer"
-                              title="View Labor ID Image"
-                            >
-                              <Eye size={14} />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setInsertLaborIdModalId(candidate.id);
-                              setInsertLaborIdInput(candidate.laborID || '');
-                            }}
-                            className="p-1 rounded text-text-tertiary hover:bg-gray-100 hover:text-primary transition-all cursor-pointer opacity-0 group-hover/copy:opacity-100 focus:opacity-100"
-                            title="Edit Labor ID"
-                          >
-                            <Edit3 size={12} />
-                          </button>
-                        </div>
-                      ) : (candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl) ? (
-                        <div className="flex items-center gap-2 group/labor">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewDoc(candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl);
-                            }}
-                            className="p-1.5 rounded-lg border shadow-sm inline-flex items-center transition-all text-primary bg-primary/10 hover:bg-primary hover:text-white border-primary/20 cursor-pointer"
-                            title="View Labor ID Image"
-                          >
-                            <Eye size={16} />
-                          </button>
+                      {(() => {
+                        const displayLaborId = candidate.laborID || (candidate.personalInfo as any)?.laborID || null;
+                        const isCopied = copiedLaborId === candidate.id;
+                        const laborDocUrl = candidate.labourIdUrl || (candidate.personalInfo as any)?.labourIdUrl;
+
+                        if (displayLaborId) {
+                          return (
+                            <div className="flex items-center gap-1.5 group/copy">
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(displayLaborId);
+                                  setCopiedLaborId(candidate.id);
+                                  setTimeout(() => setCopiedLaborId(prev => prev === candidate.id ? null : prev), 2000);
+                                }}
+                                className="text-sm font-semibold text-text-primary font-mono select-all cursor-pointer hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-primary/5"
+                                title="Click to copy Labor ID"
+                              >
+                                {displayLaborId}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(displayLaborId);
+                                  setCopiedLaborId(candidate.id);
+                                  setTimeout(() => setCopiedLaborId(prev => prev === candidate.id ? null : prev), 2000);
+                                }}
+                                className={cn(
+                                  "p-1 rounded transition-all cursor-pointer",
+                                  isCopied ? "text-emerald-600 bg-emerald-50" : "text-text-tertiary hover:bg-gray-100 hover:text-primary"
+                                )}
+                                title={isCopied ? "Copied!" : "Copy Labor ID"}
+                              >
+                                {isCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                              </button>
+                              {laborDocUrl && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewDoc(laborDocUrl);
+                                  }}
+                                  className="p-1 rounded text-primary hover:bg-primary/10 transition-all cursor-pointer"
+                                  title="View Labor ID Image"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setInsertLaborIdModalId(candidate.id);
+                                  setInsertLaborIdInput(displayLaborId);
+                                }}
+                                className="p-1 rounded text-text-tertiary hover:bg-gray-100 hover:text-primary transition-all cursor-pointer opacity-0 group-hover/copy:opacity-100 focus:opacity-100"
+                                title="Edit Labor ID"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        if (laborDocUrl) {
+                          return (
+                            <div className="flex items-center gap-2 group/labor">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewDoc(laborDocUrl);
+                                }}
+                                className="p-1.5 rounded-lg border shadow-sm inline-flex items-center transition-all text-primary bg-primary/10 hover:bg-primary hover:text-white border-primary/20 cursor-pointer"
+                                title="View Labor ID Image"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setInsertLaborIdModalId(candidate.id);
+                                  setInsertLaborIdInput('');
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-text-secondary hover:text-primary hover:bg-primary/5 border border-dashed border-border hover:border-primary/30 transition-all cursor-pointer"
+                                title="Add Text Labor ID"
+                              >
+                                <Plus size={12} />
+                                <span className="text-[11px]">Add Text</span>
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setInsertLaborIdModalId(candidate.id);
                               setInsertLaborIdInput('');
                             }}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-text-secondary hover:text-primary hover:bg-primary/5 border border-dashed border-border hover:border-primary/30 transition-all cursor-pointer"
-                            title="Add Text Labor ID"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white border border-primary/20 transition-all shadow-sm hover:shadow cursor-pointer"
+                            title="Add Labor ID"
                           >
-                            <Plus size={12} />
-                            <span className="text-[11px]">Add Text</span>
+                            <Plus size={13} />
+                            <span>Add Labor ID</span>
                           </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInsertLaborIdModalId(candidate.id);
-                            setInsertLaborIdInput('');
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-white border border-primary/20 transition-all shadow-sm hover:shadow cursor-pointer"
-                          title="Add Labor ID"
-                        >
-                          <Plus size={13} />
-                          <span>Add Labor ID</span>
-                        </button>
-                      )}
+                        );
+                      })()}
                     </td>
 
                     {/* CV Agency */}

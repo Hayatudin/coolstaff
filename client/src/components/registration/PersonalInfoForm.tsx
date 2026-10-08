@@ -293,6 +293,10 @@ export default function PersonalInfoForm({
             <Input label="ID Number" value={data.idNumber || passportData.passportNumber} onChange={e => handleChangeUpper('idNumber', e.target.value)} required />
             {isStringMismatch(data.idNumber || passportData.passportNumber, quickRegistrationData?.passportNumber) && <MismatchAlert />}
           </div>
+          <div>
+            <Input label="Labor ID" value={data.laborID || ''} onChange={e => handleChangeUpper('laborID', e.target.value)} placeholder="e.g. EF12839474" />
+            {isStringMismatch(data.laborID, quickRegistrationData?.laborID) && <MismatchAlert />}
+          </div>
 
           {/* Main Mobile Number */}
           <div className="space-y-2">
