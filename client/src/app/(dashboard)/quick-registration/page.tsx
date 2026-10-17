@@ -8,7 +8,7 @@ import { getApiBaseUrl } from '@/lib/utils';
 import PassportUploader from '@/components/registration/PassportUploader';
 import PassportDataFields from '@/components/registration/PassportDataFields';
 import { PassportData, WorkExperienceEntry, Broker } from '@/types';
-import { Save, Loader2, Trash2, Plus, Phone, Video } from 'lucide-react';
+import { Save, Loader2, Trash2, Plus, Phone } from 'lucide-react';
 import { allCountries } from '@/data/countries';
 import Select from '@/components/ui/Select';
 import BrokerSelect from '@/components/ui/BrokerSelect';
@@ -99,7 +99,6 @@ export default function QuickRegistrationPage() {
   const [labourIdUrl, setLabourIdUrl] = useState<string | null>(null);
   const [candidateIdImageUrl, setCandidateIdImageUrl] = useState<string | null>(null);
   const [relativeIdImageUrl, setRelativeIdImageUrl] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [allowVideo, setAllowVideo] = useState(false);
   const [laborID, setLaborID] = useState('');
   const [agency, setAgency] = useState('');
@@ -121,34 +120,6 @@ export default function QuickRegistrationPage() {
   const [hasExperience, setHasExperience] = useState('no');
   const [experienceCountry, setExperienceCountry] = useState('');
   const [experienceYears, setExperienceYears] = useState('');
-
-  // Pre-registered video auto-fill
-  const [matchedVideoBadge, setMatchedVideoBadge] = useState<string | null>(null);
-
-  useEffect(() => {
-    const passportNumber = passportData.passportNumber?.trim();
-    if (!passportNumber || passportNumber.length < 5) {
-      setMatchedVideoBadge(null);
-      return;
-    }
-
-    const delayDebounce = setTimeout(async () => {
-      try {
-        const response = await fetch(`${getApiBaseUrl()}/api/video-uploads/match?passportNumber=${encodeURIComponent(passportNumber)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.matchFound && data.videoUrl) {
-            setVideoUrl(data.videoUrl);
-            setMatchedVideoBadge(`🎥 Pre-registered Video Auto-Matched!`);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to match pre-registered video:', err);
-      }
-    }, 600);
-
-    return () => clearTimeout(delayDebounce);
-  }, [passportData.passportNumber]);
 
   // Fetch brokers on mount
   useEffect(() => {
@@ -282,8 +253,8 @@ export default function QuickRegistrationPage() {
     }
 
     if (!isCalling) {
-      if (!cocDocumentUrl || !laborID || !candidateIdImageUrl || !relativeIdImageUrl || !videoUrl) {
-        setError('All documents (COC, Labor ID, Candidate ID, Relative ID, and Video) are required.');
+      if (!laborID || !candidateIdImageUrl || !relativeIdImageUrl) {
+        setError('Documents (Labor ID, Candidate ID, and Relative ID) are required.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
@@ -399,7 +370,7 @@ export default function QuickRegistrationPage() {
             laborID,
             candidateIdImageUrl,
             relativeIdImageUrl,
-            videoUrl,
+            videoUrl: null,
             allowVideo,
             agency,
             passportType,
@@ -754,8 +725,8 @@ export default function QuickRegistrationPage() {
               preview={cocDocumentUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCocDocumentUrl(base64))}
               onClear={() => setCocDocumentUrl(null)}
-              helperText="COC Document — Max 50MB"
-              required={!isCalling}
+              helperText="COC Document — Max 50MB (Optional)"
+              required={false}
             />
             <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm flex flex-col gap-2">
               <label className="text-xs font-bold text-text-primary uppercase tracking-wider">Labor ID</label>
@@ -789,53 +760,6 @@ export default function QuickRegistrationPage() {
               helperText="Relative ID Image — Max 50MB"
               required={!isCalling}
             />
-            {!isCalling && (
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">Candidate Video <span className="text-red-500">*</span></label>
-                {videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) ? (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input
-                        placeholder="Video Token / Path"
-                        value={videoUrl}
-                        onChange={e => setVideoUrl(e.target.value)}
-                        className="pr-10"
-                      />
-                      <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
-                    </div>
-                    {matchedVideoBadge && (
-                      <p className="text-xs font-semibold text-emerald-650 animate-scale-pop">
-                        {matchedVideoBadge}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVideoUrl(null);
-                        setMatchedVideoBadge(null);
-                      }}
-                      className="text-xs font-bold text-red-650 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block"
-                    >
-                      Clear Path & Upload File Instead
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <FileUpload
-                      label="Candidate Video"
-                      accept="video/*"
-                      shape="rect"
-                      compact
-                      preview={videoUrl}
-                      onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setVideoUrl(base64), 50 * 1024 * 1024)}
-                      onClear={() => setVideoUrl(null)}
-                      helperText="MP4, WebM or MOV — Max 50MB"
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-            )}
             <FileUpload
               label="Passport Image"
               shape="rect"

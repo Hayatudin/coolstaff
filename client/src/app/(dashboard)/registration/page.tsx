@@ -235,7 +235,7 @@ function RegistrationContent() {
       }));
 
       setPassportImage(quickRegistration.passportImageUrl || null);
-      setVideoUrl(quickRegistration.videoUrl && quickRegistration.videoUrl.startsWith('http') ? quickRegistration.videoUrl : '');
+      setVideoUrl(quickRegistration.videoUrl || '');
       setProcessingComplete(true);
       setMusanedSuccess(true);
       setStep(2); // Go straight to filling personal info
@@ -284,7 +284,7 @@ function RegistrationContent() {
           setPassportImage(c.passportImageUrl || null);
           setFacePhoto(c.facePhotoUrl || null);
           setFullBodyPhoto(c.fullBodyPhotoUrl || null);
-          setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
+          setVideoUrl(c.videoUrl || '');
           setAllowVideo(c.allowVideo || false);
           setProcessingComplete(true);
           initializedRef.current = editId;
@@ -302,7 +302,7 @@ function RegistrationContent() {
           setPassportImage(c.passportImageUrl || null);
           setFacePhoto(c.facePhotoUrl || null);
           setFullBodyPhoto(c.fullBodyPhotoUrl || null);
-          setVideoUrl(c.videoUrl && c.videoUrl.startsWith('http') ? c.videoUrl : '');
+          setVideoUrl(c.videoUrl || '');
           setAllowVideo(c.allowVideo || false);
           setProcessingComplete(true);
           initializedRef.current = editId;
@@ -388,7 +388,7 @@ function RegistrationContent() {
         if (response.ok) {
           const data = await response.json();
           if (data.matchFound) {
-            if (data.videoUrl && data.videoUrl.startsWith('http')) setVideoUrl(data.videoUrl);
+            if (data.videoUrl) setVideoUrl(data.videoUrl);
             if (data.facePhotoUrl && !facePhoto) setFacePhoto(data.facePhotoUrl);
             if (data.fullBodyPhotoUrl && !fullBodyPhoto) setFullBodyPhoto(data.fullBodyPhotoUrl);
             console.log(`🎥 Pre-registered video/photos auto-matched for passport ${passportNumber}`);
@@ -450,7 +450,7 @@ function RegistrationContent() {
             if (quickReg.passportImageUrl) {
               setPassportImage(quickReg.passportImageUrl);
             }
-            if (quickReg.videoUrl && quickReg.videoUrl.startsWith('http')) {
+            if (quickReg.videoUrl) {
               setVideoUrl(quickReg.videoUrl);
             }
             if (quickReg.allowVideo !== undefined) {
@@ -700,8 +700,8 @@ function RegistrationContent() {
       console.log('SUBMITTING CANDIDATE. Session user ID:', session?.user?.id);
       setIsSubmitting(true);
 
-      if (!facePhoto || !fullBodyPhoto) {
-        alert('Face Photo and Full Body Photo are required.');
+      if (!facePhoto || !fullBodyPhoto || !videoUrl) {
+        alert('Face Photo, Full Body Photo, and Candidate Video are required.');
         setIsSubmitting(false);
         return;
       }

@@ -10,7 +10,7 @@ import {
   educationLevels, languageOptions, skillOptions, religionOptions
 } from '@/data/mockData';
 import { allCountries } from '@/data/countries';
-import { Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Video } from 'lucide-react';
 import { getFileUrl } from '@/lib/utils';
 import FileUpload from '@/components/ui/FileUpload';
 
@@ -103,6 +103,8 @@ export default function PersonalInfoForm({
   onVideoUrlChange,
   quickRegistrationData,
 }: PersonalInfoFormProps) {
+  const [isLinkMode, setIsLinkMode] = React.useState(false);
+
   const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
     if (file.size > 50 * 1024 * 1024) {
       alert('Max file size is 50MB');
@@ -193,8 +195,8 @@ export default function PersonalInfoForm({
           <h3 className="text-xl font-bold text-text-primary">Personal Information</h3>
         </div>
 
-        {/* Profile Photos - Face & Full Body */}
-        <div className="flex flex-col sm:flex-row items-start gap-8 mb-8">
+        {/* Profile Photos & Video - Face, Full Body & Video */}
+        <div className="flex flex-col sm:flex-row items-start gap-8 mb-8 flex-wrap">
           {/* Face Photo */}
           <FileUpload
             label="Face Photo *"
@@ -215,6 +217,58 @@ export default function PersonalInfoForm({
             onClear={onFullBodyPhotoChange ? () => onFullBodyPhotoChange('') : undefined}
             helperText="Rectangle — Max 50MB"
           />
+
+          {/* Candidate Video */}
+          {onVideoUrlChange && (
+            <div className="w-full sm:w-64 space-y-2">
+              {isLinkMode || (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://') || videoUrl.startsWith('ENC-'))) ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">Candidate Video <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <Input
+                      placeholder="e.g. https://... or ENC-xxxx"
+                      value={videoUrl || ''}
+                      onChange={e => onVideoUrlChange(e.target.value)}
+                      className="pr-10"
+                      required
+                    />
+                    <Video className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" size={16} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLinkMode(false);
+                      onVideoUrlChange('');
+                    }}
+                    className="text-xs font-bold text-red-650 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block cursor-pointer"
+                  >
+                    Clear & Upload File Instead
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <FileUpload
+                    label="Candidate Video *"
+                    accept="video/*"
+                    shape="rect"
+                    compact
+                    preview={videoUrl ? getFileUrl(videoUrl) : null}
+                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onVideoUrlChange(base64))}
+                    onClear={() => onVideoUrlChange('')}
+                    helperText="MP4, WebM or MOV — Max 50MB"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsLinkMode(true)}
+                    className="text-[11px] font-semibold text-primary hover:underline transition-colors block cursor-pointer"
+                  >
+                    Enter video URL / token instead
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
@@ -357,16 +411,6 @@ export default function PersonalInfoForm({
             />
             {isBrokerMismatch(data.brokerId, quickRegistrationData) && <MismatchAlert />}
           </div>
-
-          {/* Video Token / Path */}
-          {onVideoUrlChange && (
-            <Input
-              label="Video Token / Path"
-              value={videoUrl || ''}
-              onChange={e => onVideoUrlChange(e.target.value)}
-              placeholder="e.g. ENC-xxxx or /uploads/videos/..."
-            />
-          )}
         </div>
       </section>
 
