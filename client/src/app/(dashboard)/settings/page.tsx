@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings as SettingsIcon, 
   User, 
@@ -10,7 +10,20 @@ import {
   Save,
   CheckCircle2,
   DollarSign,
-  BarChart3
+  BarChart3,
+  ShieldCheck,
+  CheckSquare,
+  Square,
+  RotateCcw,
+  Search,
+  AlertCircle,
+  Info,
+  Check,
+  SlidersHorizontal,
+  ClipboardList,
+  Users as UsersIcon,
+  Video,
+  ShieldAlert
 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
@@ -18,19 +31,52 @@ import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useSession, authClient } from '@/lib/auth-client';
-import { useEffect } from 'react';
+import { 
+  ALL_ROLES, 
+  SYSTEM_PAGES, 
+  DEFAULT_ROLE_PERMISSIONS, 
+  ROLE_CONFIG, 
+  type Role 
+} from '@/lib/role-config';
+import { useRolePermissionsQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
+
+const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  super_admin: 'Full system administrator with permanent, unrestricted access to all modules, settings, and user management.',
+  genaral: 'General operations staff with broad access across registrations, candidate directories, CVs, and passport management.',
+  registrar: 'Front-desk intake staff handling candidate entry, records, deployments, and broker listings.',
+  processor: 'Data processing staff responsible for candidate verification, full registrations, CV generation, and deployments.',
+  coordinator: 'Candidate coordination team managing interviews, fit verification, visa selection, and deployments.',
+  accountant: 'Financial team managing candidate invoices, billing statements, payments, and deployment accounting.',
+  video_uploader: 'Media staff dedicated to recording and uploading candidate interview videos.',
+  agency: 'External agency client account with access to browse available candidates and view contracts.',
+  calling: 'Call center and outreach staff performing candidate phone verifications and quick registrations.',
+  user: 'Standard candidate or basic external account with limited dashboard privileges.',
+};
+
+const CATEGORY_ICONS: Record<string, any> = {
+  'Overview': SlidersHorizontal,
+  'Registrations & Passports': ClipboardList,
+  'Candidates & CVs': UsersIcon,
+  'Agency & Deployments': Globe,
+  'Media': Video,
+  'Administration': ShieldCheck,
+};
 
 // Helper component for Toggle Switch
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange?: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
-      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      onClick={() => {
+        if (!disabled && onChange) onChange(!checked);
+      }}
       className={cn(
         "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-        checked ? "bg-primary" : "bg-gray-200"
+        checked ? "bg-primary" : "bg-gray-200",
+        disabled && "opacity-60 cursor-not-allowed"
       )}
     >
       <span
@@ -46,7 +92,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 export default function SettingsPage() {
   const { data: session, isPending } = useSession();
-  const [activeTab, setActiveTab] = useState<'profile' | 'agency' | 'notifications' | 'preferences' | 'analytics'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'agency' | 'roles' | 'notifications' | 'preferences' | 'analytics'>('profile');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -214,6 +260,107 @@ export default function SettingsPage() {
     }
   };
 
+  // Role Permissions Query & State
+  const { data: serverPermissions } = useRolePermissionsQuery();
+  const invalidateQueries = useInvalidateQueries();
+
+  const [permissionsState, setPermissionsState] = useState<Record<string, string[]>>({});
+  const [selectedRole, setSelectedRole] = useState<Role>('genaral');
+  const [rolePageSearch, setRolePageSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
+  useEffect(() => {
+    const merged: Record<string, string[]> = {};
+    for (const r of ALL_ROLES) {
+      if (r === 'super_admin') {
+        merged[r] = SYSTEM_PAGES.map(p => p.path);
+      } else if (serverPermissions && Array.isArray(serverPermissions[r])) {
+        merged[r] = [...serverPermissions[r]];
+      } else if (DEFAULT_ROLE_PERMISSIONS[r]) {
+        merged[r] = [...DEFAULT_ROLE_PERMISSIONS[r]];
+      } else {
+        merged[r] = [];
+      }
+    }
+    setPermissionsState(merged);
+  }, [serverPermissions]);
+
+  const handleTogglePageRoute = (role: Role, pagePath: string) => {
+    if (role === 'super_admin') return;
+    setPermissionsState(prev => {
+      const current = prev[role] || DEFAULT_ROLE_PERMISSIONS[role] || [];
+      const exists = current.includes(pagePath);
+      const updated = exists ? current.filter(p => p !== pagePath) : [...current, pagePath];
+      return { ...prev, [role]: updated };
+    });
+  };
+
+  const handleSelectAllForRole = (role: Role) => {
+    if (role === 'super_admin') return;
+    setPermissionsState(prev => ({
+      ...prev,
+      [role]: SYSTEM_PAGES.map(p => p.path),
+    }));
+  };
+
+  const handleDeselectAllForRole = (role: Role) => {
+    if (role === 'super_admin') return;
+    setPermissionsState(prev => ({
+      ...prev,
+      [role]: [],
+    }));
+  };
+
+  const handleSaveRolePermissions = async () => {
+    setIsSaving(true);
+    try {
+      const res = await api('/api/settings/role-permissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: permissionsState }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update role permissions');
+      invalidateQueries('rolePermissions');
+      showToast('Role permissions updated and applied successfully');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleResetRolePermissions = async (roleToReset?: Role) => {
+    const targetName = roleToReset ? (ROLE_CONFIG[roleToReset]?.label || roleToReset) : 'all roles';
+    if (!confirm(`Are you sure you want to reset page access for ${targetName} back to system defaults?`)) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await api('/api/settings/role-permissions/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roleToReset ? { role: roleToReset } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset role permissions');
+      invalidateQueries('rolePermissions');
+      if (roleToReset) {
+        setPermissionsState(prev => ({
+          ...prev,
+          [roleToReset]: [...(DEFAULT_ROLE_PERMISSIONS[roleToReset] || [])],
+        }));
+      } else {
+        setPermissionsState({ ...DEFAULT_ROLE_PERMISSIONS });
+      }
+      showToast(data.message || 'Role permissions reset to default');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   let tabs = [
     { id: 'profile', label: 'Profile Settings', icon: User },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -222,12 +369,14 @@ export default function SettingsPage() {
   
   if (profile.role === 'super_admin') {
     tabs.splice(1, 0, { id: 'agency', label: 'Agency Price', icon: DollarSign });
+    tabs.splice(2, 0, { id: 'roles', label: 'Role Management', icon: ShieldCheck });
     tabs.push({ id: 'analytics', label: 'User Analytics', icon: BarChart3 });
   }
 
   const getSaveHandler = () => {
     if (activeTab === 'profile') return handleSaveProfile;
     if (activeTab === 'agency') return handleSavePrices;
+    if (activeTab === 'roles') return handleSaveRolePermissions;
     return () => showToast('Settings saved');
   };
 
@@ -359,6 +508,378 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Role Management (Super Admins Only) */}
+          {activeTab === 'roles' && profile.role === 'super_admin' && (
+            <div className="space-y-8 animate-fade-in">
+              {/* Header */}
+              <div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                      <ShieldCheck size={20} className="text-primary" />
+                      Role Management & Page Access Control
+                    </h2>
+                    <p className="text-sm text-text-secondary mt-1">
+                      Configure page access rules for each role. Changes update sidebar navigation and dynamic route protection immediately.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleResetRolePermissions(selectedRole)}
+                      disabled={isSaving || selectedRole === 'super_admin'}
+                      icon={<RotateCcw size={14} />}
+                      className="text-xs"
+                    >
+                      Reset Role to Default
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveRolePermissions}
+                      disabled={isSaving}
+                      icon={isSaving ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={14} />}
+                      className="text-xs"
+                    >
+                      {isSaving ? 'Saving...' : 'Save Role Permissions'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 1: Role Selector Grid */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                    1. Select a Role to Configure ({ALL_ROLES.length} System Roles)
+                  </label>
+                  <span className="text-xs text-text-tertiary">
+                    Click a role to view and toggle its page permissions
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {ALL_ROLES.map((r) => {
+                    const isSelected = selectedRole === r;
+                    const rConfig = ROLE_CONFIG[r];
+                    const currentPages = permissionsState[r] ?? DEFAULT_ROLE_PERMISSIONS[r] ?? [];
+                    const pageCount = r === 'super_admin' ? SYSTEM_PAGES.length : currentPages.length;
+                    const totalPages = SYSTEM_PAGES.length;
+                    const percent = Math.round((pageCount / totalPages) * 100);
+
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setSelectedRole(r)}
+                        className={cn(
+                          "flex flex-col text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer relative group",
+                          isSelected 
+                            ? "bg-primary/5 border-primary shadow-sm ring-2 ring-primary/20" 
+                            : "bg-white hover:bg-gray-50/80 border-border hover:border-gray-300"
+                        )}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-md text-xs font-bold border",
+                            rConfig?.badgeBg || "bg-gray-100",
+                            rConfig?.badgeText || "text-gray-700",
+                            rConfig?.badgeBorder || "border-gray-200"
+                          )}>
+                            {rConfig?.label || r}
+                          </span>
+                          {r === 'super_admin' ? (
+                            <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              Full
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-text-secondary">
+                              {pageCount}/{totalPages}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-text-tertiary line-clamp-1 mt-0.5">
+                          {ROLE_DESCRIPTIONS[r]}
+                        </p>
+
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden mt-2">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all duration-300",
+                              r === 'super_admin' ? "bg-amber-500" : pageCount === 0 ? "bg-gray-300" : "bg-primary"
+                            )}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 2: Page Access Control Area for Selected Role */}
+              <div className="bg-gray-50/50 border border-border rounded-xl p-5 space-y-6">
+                {/* Active Role Meta & Quick Actions */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded-xl bg-white border border-border shadow-sm text-primary shrink-0">
+                      <ShieldCheck size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base font-bold text-text-primary">
+                          {ROLE_CONFIG[selectedRole]?.label || selectedRole} Page Permissions
+                        </h3>
+                        <span className={cn(
+                          "px-2.5 py-0.5 rounded-full text-xs font-bold border",
+                          ROLE_CONFIG[selectedRole]?.badgeBg,
+                          ROLE_CONFIG[selectedRole]?.badgeText,
+                          ROLE_CONFIG[selectedRole]?.badgeBorder
+                        )}>
+                          {ROLE_CONFIG[selectedRole]?.label || selectedRole}
+                        </span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white border border-border text-text-secondary">
+                          {(selectedRole === 'super_admin' 
+                            ? SYSTEM_PAGES.length 
+                            : (permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? []).length
+                          )} of {SYSTEM_PAGES.length} pages allowed
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-secondary mt-1 max-w-2xl">
+                        {ROLE_DESCRIPTIONS[selectedRole]}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedRole !== 'super_admin' && (
+                    <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectAllForRole(selectedRole)}
+                        icon={<CheckSquare size={14} />}
+                        className="text-xs bg-white"
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeselectAllForRole(selectedRole)}
+                        icon={<Square size={14} />}
+                        className="text-xs bg-white text-rose-600 hover:text-rose-700 hover:border-rose-300"
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Super Admin Notice */}
+                {selectedRole === 'super_admin' && (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
+                    <Info size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                    <div className="text-xs leading-relaxed">
+                      <p className="font-bold text-amber-950">Super Admin Has Full Unrestricted Access</p>
+                      <p className="text-amber-800 mt-0.5">
+                        The Super Admin role is the root system administrator and is granted access to all 22 system pages and administrative functions by design. These permissions cannot be restricted to prevent accidental administrative lockout.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Search & Category Filter */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                    <input
+                      type="text"
+                      placeholder="Filter pages by name or route (e.g. candidates, cv, users)..."
+                      value={rolePageSearch}
+                      onChange={(e) => setRolePageSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-white border border-border rounded-xl text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                    {['All', 'Overview', 'Registrations & Passports', 'Candidates & CVs', 'Agency & Deployments', 'Media', 'Administration'].map((cat) => {
+                      const isCatActive = selectedCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer",
+                            isCatActive 
+                              ? "bg-primary text-white shadow-sm" 
+                              : "bg-white text-text-secondary hover:bg-gray-100 border border-border"
+                          )}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Page Access Categorized Groups */}
+                <div className="space-y-6">
+                  {(() => {
+                    const filteredPages = SYSTEM_PAGES.filter(p => {
+                      const matchesSearch = 
+                        p.name.toLowerCase().includes(rolePageSearch.toLowerCase()) ||
+                        p.path.toLowerCase().includes(rolePageSearch.toLowerCase()) ||
+                        p.category.toLowerCase().includes(rolePageSearch.toLowerCase());
+                      const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
+                      return matchesSearch && matchesCat;
+                    });
+
+                    if (filteredPages.length === 0) {
+                      return (
+                        <div className="py-12 text-center bg-white rounded-xl border border-dashed border-border">
+                          <AlertCircle size={28} className="mx-auto text-text-tertiary mb-2" />
+                          <p className="text-sm font-semibold text-text-secondary">No pages match your search filter</p>
+                          <p className="text-xs text-text-tertiary mt-1">Try clearing the search box or selecting &apos;All&apos; categories.</p>
+                        </div>
+                      );
+                    }
+
+                    // Group filtered pages by category
+                    const grouped: Record<string, typeof SYSTEM_PAGES[number][]> = {};
+                    filteredPages.forEach(p => {
+                      if (!grouped[p.category]) grouped[p.category] = [];
+                      grouped[p.category].push(p);
+                    });
+
+                    const currentRolePages = permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? [];
+
+                    return Object.entries(grouped).map(([categoryName, pages]) => {
+                      const CatIcon = CATEGORY_ICONS[categoryName] || SlidersHorizontal;
+                      const enabledInCategory = pages.filter(p => 
+                        selectedRole === 'super_admin' ? true : currentRolePages.includes(p.path)
+                      ).length;
+
+                      return (
+                        <div key={categoryName} className="space-y-3">
+                          <div className="flex items-center justify-between px-1">
+                            <div className="flex items-center gap-2">
+                              <CatIcon size={16} className="text-primary" />
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-text-primary">
+                                {categoryName}
+                              </h4>
+                              <span className="text-[11px] text-text-tertiary font-medium">
+                                ({pages.length} {pages.length === 1 ? 'page' : 'pages'})
+                              </span>
+                            </div>
+                            <span className="text-xs font-semibold text-text-secondary bg-white px-2 py-0.5 rounded-md border border-border">
+                              {enabledInCategory} of {pages.length} enabled
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {pages.map((page) => {
+                              const isAllowed = selectedRole === 'super_admin' 
+                                ? true 
+                                : currentRolePages.includes(page.path);
+
+                              return (
+                                <div
+                                  key={page.path}
+                                  className={cn(
+                                    "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 bg-white shadow-xs",
+                                    isAllowed 
+                                      ? "border-emerald-200/80 hover:border-emerald-300" 
+                                      : "border-gray-200 hover:border-gray-300 opacity-90"
+                                  )}
+                                >
+                                  <div className="pr-3 min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-sm font-semibold text-text-primary">
+                                        {page.name}
+                                      </span>
+                                      <code className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+                                        {page.path}
+                                      </code>
+                                    </div>
+                                    <p className="text-xs text-text-secondary mt-1 line-clamp-1">
+                                      {page.description}
+                                    </p>
+                                    <div className="mt-2 flex items-center gap-1.5">
+                                      {isAllowed ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                          <Check size={11} className="stroke-[3]" /> Access Granted
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
+                                          <Lock size={11} /> Access Restricted
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="shrink-0 pl-2">
+                                    <Toggle
+                                      checked={isAllowed}
+                                      disabled={selectedRole === 'super_admin'}
+                                      onChange={() => handleTogglePageRoute(selectedRole, page.path)}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Bottom Bar for Role */}
+                <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-xs text-text-secondary">
+                    Role &apos;<strong className="text-text-primary">{ROLE_CONFIG[selectedRole]?.label || selectedRole}</strong>&apos; currently has{' '}
+                    <strong className="text-primary font-bold">
+                      {selectedRole === 'super_admin' 
+                        ? SYSTEM_PAGES.length 
+                        : (permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? []).length
+                      }
+                    </strong>{' '}
+                    out of {SYSTEM_PAGES.length} pages accessible.
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleResetRolePermissions(selectedRole)}
+                      disabled={isSaving || selectedRole === 'super_admin'}
+                      icon={<RotateCcw size={14} />}
+                      className="text-xs bg-white"
+                    >
+                      Reset This Role
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveRolePermissions}
+                      disabled={isSaving}
+                      icon={isSaving ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={14} />}
+                      className="text-xs"
+                    >
+                      {isSaving ? 'Saving Changes...' : 'Save Role Permissions'}
+                    </Button>
                   </div>
                 </div>
               </div>

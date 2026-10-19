@@ -367,3 +367,11 @@ export const passport = mysqlTable('Passport', {
   passportNumberIdx: index('passportNumber_idx').on(table.passportNumber),
   statusIdx: index('status_idx').on(table.status),
 }));
+
+// ── RolePermission ──────────────────────────────────────────────────────────
+export const rolePermission = mysqlTable('RolePermission', {
+  role: varchar('role', { length: 64 }).primaryKey(),
+  allowedRoutes: json('allowedRoutes').$type<string[]>().notNull(),
+  updatedAt: datetime('updatedAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+

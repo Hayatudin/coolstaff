@@ -43,23 +43,115 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/available-passport': ['super_admin', 'genaral'],
 };
 
-// Helper: check if a role can access a specific route
-export function canAccess(role: string, route: string): boolean {
-  // Super admin can access everything
+// All valid roles in the system
+export const ALL_ROLES: Role[] = [
+  'super_admin',
+  'genaral',
+  'registrar',
+  'processor',
+  'coordinator',
+  'accountant',
+  'video_uploader',
+  'agency',
+  'calling',
+  'user',
+];
+
+export interface SystemPageInfo {
+  path: string;
+  name: string;
+  category: 'Overview' | 'Registrations & Passports' | 'Candidates & CVs' | 'Agency & Deployments' | 'Media' | 'Administration';
+  description: string;
+}
+
+export const SYSTEM_PAGES: SystemPageInfo[] = [
+  // Overview
+  { path: '/dashboard', name: 'Dashboard', category: 'Overview', description: 'System overview, statistics, and quick metrics' },
+  { path: '/settings', name: 'Settings', category: 'Overview', description: 'System settings, user preferences, and role permissions' },
+
+  // Registrations & Passports
+  { path: '/quick-registration', name: 'Entry (Quick Registration)', category: 'Registrations & Passports', description: 'Fast-track candidate entry and passport scanning' },
+  { path: '/quick-registered', name: 'Records (Quick Registered)', category: 'Registrations & Passports', description: 'Directory and verification of quick-registered candidates' },
+  { path: '/passport-registration', name: 'Passport Registration', category: 'Registrations & Passports', description: 'Assign physical shelf locations and register passports' },
+  { path: '/available-passport', name: 'Available Passports', category: 'Registrations & Passports', description: 'Track physical passport statuses and inventory' },
+  { path: '/registration', name: 'Full Registration', category: 'Registrations & Passports', description: 'Detailed full candidate registration form' },
+
+  // Candidates & CVs
+  { path: '/candidates', name: 'Candidates List', category: 'Candidates & CVs', description: 'Primary directory and detailed profiles of candidates' },
+  { path: '/cv-generator', name: 'CV Generator', category: 'Candidates & CVs', description: 'Generate formatted candidate CVs with custom agency templates' },
+  { path: '/generated-cvs', name: 'Generated CVs', category: 'Candidates & CVs', description: 'Library and download center for exported candidate CVs' },
+  { path: '/fit-candidates', name: 'Fit Candidates', category: 'Candidates & CVs', description: 'Candidates with verified medical and biometric clearance' },
+  { path: '/requested', name: 'Visa Selected', category: 'Candidates & CVs', description: 'Candidates selected for visa processing' },
+  { path: '/flagged', name: 'Flagged Candidates', category: 'Candidates & CVs', description: 'Candidates with alerts, rejections, or blacklist flags' },
+
+  // Agency & Deployments
+  { path: '/agency/available-candidates', name: 'Agency Candidates', category: 'Agency & Deployments', description: 'Browse and select available candidates for client agencies' },
+  { path: '/agency/contracts', name: 'Contracts', category: 'Agency & Deployments', description: 'Agency candidate contracts, terms, and agreement tracking' },
+  { path: '/invoice', name: 'Invoice', category: 'Agency & Deployments', description: 'Billing statements and receipts for candidate deployments' },
+  { path: '/deployments', name: 'Candidate Deployment', category: 'Agency & Deployments', description: 'Flight scheduling, travel dates, and departure status' },
+  { path: '/brokers', name: 'Brokers', category: 'Agency & Deployments', description: 'Broker management, commission tracking, and leader assignment' },
+
+  // Media
+  { path: '/video-uploads', name: 'Video Uploads', category: 'Media', description: 'Candidate interview video upload and recording tool' },
+  { path: '/uploaded-videos', name: 'Uploaded Videos', category: 'Media', description: 'Media gallery of pre-registered candidate interview videos' },
+
+  // Administration
+  { path: '/users', name: 'Users', category: 'Administration', description: 'Manage system users, login credentials, and user accounts' },
+  { path: '/backup', name: 'Backup CVs', category: 'Administration', description: 'Database backup creation, recovery, and data security' },
+];
+
+// Helper to compute system default allowed routes for each role
+export const DEFAULT_ROLE_PERMISSIONS: Record<Role, string[]> = ALL_ROLES.reduce((acc, role) => {
+  if (role === 'super_admin') {
+    acc[role] = SYSTEM_PAGES.map(p => p.path);
+  } else {
+    acc[role] = SYSTEM_PAGES
+      .filter(p => ROUTE_ACCESS[p.path]?.includes(role))
+      .map(p => p.path);
+  }
+  return acc;
+}, {} as Record<Role, string[]>);
+
+// Helper: check if a role can access a specific route, taking into account dynamic DB permissions
+export function canRoleAccessRoute(
+  role: string,
+  route: string,
+  customPermissions?: Record<string, string[]> | null
+): boolean {
+  // Super admin always retains unrestricted access
   if (role === 'super_admin') return true;
 
-  // Find the matching route (exact or prefix match)
-  const exactMatch = ROUTE_ACCESS[route];
-  if (exactMatch) return exactMatch.includes(role as Role);
+  // Clean path to ignore query parameters
+  const cleanRoute = route.split('?')[0].split('#')[0];
 
-  // Prefix match for nested routes like /candidates/[id]
+  // If custom permissions are provided from the database
+  if (customPermissions && Array.isArray(customPermissions[role])) {
+    const allowed = customPermissions[role];
+    if (allowed.includes(cleanRoute)) return true;
+    // Prefix matching for sub-routes (e.g., /candidates/uuid matches /candidates)
+    return allowed.some(p => cleanRoute === p || (cleanRoute.startsWith(p) && cleanRoute.charAt(p.length) === '/'));
+  }
+
+  // Fallback to default ROUTE_ACCESS
+  const exactMatch = ROUTE_ACCESS[cleanRoute];
+  if (exactMatch && exactMatch.includes(role as Role)) return true;
+
   for (const [path, roles] of Object.entries(ROUTE_ACCESS)) {
-    if (route.startsWith(path)) {
-      return roles.includes(role as Role);
+    if (cleanRoute === path || (cleanRoute.startsWith(path) && cleanRoute.charAt(path.length) === '/')) {
+      if (roles.includes(role as Role)) return true;
     }
   }
 
   return false;
+}
+
+// Backwards-compatible alias
+export function canAccess(
+  role: string,
+  route: string,
+  customPermissions?: Record<string, string[]> | null
+): boolean {
+  return canRoleAccessRoute(role, route, customPermissions);
 }
 
 // Role display configuration for UI

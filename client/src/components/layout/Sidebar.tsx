@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSession, signOut } from '@/lib/auth-client';
-import { ROUTE_ACCESS, ROLE_CONFIG, type Role } from '@/lib/role-config';
+import { ROUTE_ACCESS, ROLE_CONFIG, canRoleAccessRoute, type Role } from '@/lib/role-config';
+import { useRolePermissionsQuery } from '@/hooks/useQueryHooks';
 import {
   LayoutDashboard,
   UserPlus,
@@ -78,17 +79,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobile, onNavig
 
   const sessionRole = (session?.user as any)?.role as string | undefined;
   const effectiveRole = sessionRole || 'super_admin';
+  const { data: customPermissions } = useRolePermissionsQuery();
 
-  // Filter nav items based on effective role
+  // Filter nav items based on effective role and dynamic DB permissions
   let navItems = allNavItems.filter(item => {
-    const allowedRoles = ROUTE_ACCESS[item.href];
-    if (!allowedRoles) return false;
-    return allowedRoles.includes(effectiveRole as Role);
+    return canRoleAccessRoute(effectiveRole, item.href, customPermissions);
   });
-
-  if (navItems.length === 0) {
-    navItems = allNavItems;
-  }
 
   const handleLogout = async () => {
     await signOut();

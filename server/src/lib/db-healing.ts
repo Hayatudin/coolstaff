@@ -548,6 +548,21 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Passport table check warning:', e.message || e);
   }
 
+  // 10. Create RolePermission Table
+  try {
+    await executeRaw(`
+      CREATE TABLE IF NOT EXISTS \`RolePermission\` (
+        \`role\` VARCHAR(64) NOT NULL,
+        \`allowedRoutes\` JSON NOT NULL,
+        \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`role\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    `);
+    console.log(`✅ Verified/Created 'RolePermission' table.`);
+  } catch (e: any) {
+    console.warn('⚠️ RolePermission table check warning:', e.message || e);
+  }
+
   const candidateColumns = [
     { name: 'registeredById', type: 'VARCHAR(191) NULL' },
     { name: 'visaDate', type: 'DATETIME(3) NULL' },

@@ -13,6 +13,7 @@ export const QUERY_KEYS = {
   passports: ['passports'],
   users: ['users'],
   notifications: ['notifications'],
+  rolePermissions: ['rolePermissions'],
 };
 
 // --- API Fetchers ---
@@ -166,6 +167,26 @@ export function useNotificationsQuery() {
     queryKey: QUERY_KEYS.notifications,
     queryFn: fetchNotificationsApi,
     staleTime: 1000 * 60 * 2,
+  });
+}
+
+export async function fetchRolePermissionsApi(): Promise<Record<string, string[]>> {
+  try {
+    const res = await api('/api/settings/role-permissions', { cache: 'no-store' });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data?.permissions || {};
+  } catch (err) {
+    console.warn('Failed to fetch role permissions:', err);
+    return {};
+  }
+}
+
+export function useRolePermissionsQuery() {
+  return useQuery({
+    queryKey: QUERY_KEYS.rolePermissions,
+    queryFn: fetchRolePermissionsApi,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 }
 

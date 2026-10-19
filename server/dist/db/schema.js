@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.passport = exports.preRegisteredVideo = exports.invoiceRelations = exports.invoice = exports.quickRegistrationRelations = exports.quickRegistration = exports.verification = exports.accountRelations = exports.account = exports.sessionRelations = exports.session = exports.userRelations = exports.user = exports.notification = exports.generatedCvRelations = exports.generatedCv = exports.candidateRelations = exports.candidate = exports.leaderRelations = exports.leader = exports.brokerRelations = exports.broker = exports.generateId = void 0;
+exports.rolePermission = exports.passport = exports.preRegisteredVideo = exports.invoiceRelations = exports.invoice = exports.quickRegistrationRelations = exports.quickRegistration = exports.verification = exports.accountRelations = exports.account = exports.sessionRelations = exports.session = exports.userRelations = exports.user = exports.notification = exports.generatedCvRelations = exports.generatedCv = exports.candidateRelations = exports.candidate = exports.leaderRelations = exports.leader = exports.brokerRelations = exports.broker = exports.generateId = void 0;
 const mysql_core_1 = require("drizzle-orm/mysql-core");
 const drizzle_orm_1 = require("drizzle-orm");
 const crypto_1 = __importDefault(require("crypto"));
@@ -340,3 +340,9 @@ exports.passport = (0, mysql_core_1.mysqlTable)('Passport', {
     passportNumberIdx: (0, mysql_core_1.index)('passportNumber_idx').on(table.passportNumber),
     statusIdx: (0, mysql_core_1.index)('status_idx').on(table.status),
 }));
+// ── RolePermission ──────────────────────────────────────────────────────────
+exports.rolePermission = (0, mysql_core_1.mysqlTable)('RolePermission', {
+    role: (0, mysql_core_1.varchar)('role', { length: 64 }).primaryKey(),
+    allowedRoutes: (0, mysql_core_1.json)('allowedRoutes').$type().notNull(),
+    updatedAt: (0, mysql_core_1.datetime)('updatedAt').notNull().default((0, drizzle_orm_1.sql) `CURRENT_TIMESTAMP`),
+});

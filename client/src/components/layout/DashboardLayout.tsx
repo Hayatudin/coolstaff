@@ -7,18 +7,20 @@ import Topbar from './Topbar';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/lib/auth-client';
 import { DASHBOARD_ROLES, canAccess, Role } from '@/lib/role-config';
+import { useRolePermissionsQuery } from '@/hooks/useQueryHooks';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const { data: session, isPending } = useSession();
+  const { data: customPermissions, isLoading: isPermissionsLoading } = useRolePermissionsQuery();
   const router = useRouter();
   const pathname = usePathname();
 
   // Authentication & Role Authorization Guard
   useEffect(() => {
-    if (isPending) return;
+    if (isPending || isPermissionsLoading) return;
 
     if (!session?.user) {
       // User is unauthenticated — redirect to login page
@@ -35,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     // Role-based route access check
-    if (!canAccess(role, pathname)) {
+    if (!canAccess(role, pathname, customPermissions)) {
       if (role === 'agency') {
         router.replace('/agency/contracts');
       } else if (role === 'video_uploader') {
@@ -44,7 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace('/dashboard');
       }
     }
-  }, [session, isPending, router, pathname]);
+  }, [session, isPending, isPermissionsLoading, customPermissions, router, pathname]);
 
   // Close mobile sidebar on route change or resize to desktop
   useEffect(() => {
