@@ -154,6 +154,27 @@ export function canAccess(
   return canRoleAccessRoute(role, route, customPermissions);
 }
 
+// Helper: get the primary allowed route for a role to prevent infinite redirect loops
+export function getFirstAllowedRoute(
+  role: string,
+  customPermissions?: Record<string, string[]> | null
+): string {
+  if (role === 'super_admin') return '/dashboard';
+  if (role === 'agency') return '/agency/contracts';
+  if (role === 'video_uploader') return '/video-uploads';
+
+  if (customPermissions && Array.isArray(customPermissions[role]) && customPermissions[role].length > 0) {
+    if (customPermissions[role].includes('/dashboard')) return '/dashboard';
+    return customPermissions[role][0];
+  }
+
+  const defaults = DEFAULT_ROLE_PERMISSIONS[role as Role] || [];
+  if (defaults.includes('/dashboard')) return '/dashboard';
+  if (defaults.length > 0) return defaults[0];
+
+  return '/dashboard';
+}
+
 // Role display configuration for UI
 export const ROLE_CONFIG: Record<Role, { label: string; color: string; badgeBg: string; badgeText: string; badgeBorder: string }> = {
   super_admin: { label: 'Super Admin', color: 'amber', badgeBg: 'bg-amber-100', badgeText: 'text-amber-700', badgeBorder: 'border-amber-200' },

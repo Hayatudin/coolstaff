@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail, User, Loader2, AlertCircle, Home, LogIn, UserPlus } from 'lucide-react';
-import { signIn, signUp } from '@/lib/auth-client';
+import { signIn, signUp, saveSessionToCache } from '@/lib/auth-client';
 import { DASHBOARD_ROLES } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
@@ -80,18 +80,25 @@ function LoginForm() {
         }
 
         if (res.data) {
+          saveSessionToCache(res.data);
           const user = res.data.user as any;
           const role = user?.role;
 
+          let targetUrl = '/dashboard';
           if (callbackUrl && callbackUrl !== '/dashboard' && callbackUrl.startsWith('/')) {
-            router.push(callbackUrl);
+            targetUrl = callbackUrl;
           } else if (role === 'agency') {
-            router.push('/agency/contracts');
+            targetUrl = '/agency/contracts';
+          } else if (role === 'video_uploader') {
+            targetUrl = '/video-uploads';
           } else if (DASHBOARD_ROLES.includes(role)) {
-            router.push('/dashboard');
+            targetUrl = '/dashboard';
           } else {
-            router.push('/');
+            targetUrl = '/';
           }
+
+          window.location.href = targetUrl;
+          return;
         }
       } else {
         // Sign Up Mode
@@ -127,11 +134,13 @@ function LoginForm() {
         }
 
         if (res.data) {
+          saveSessionToCache(res.data);
+          let targetUrl = '/dashboard';
           if (callbackUrl && callbackUrl.startsWith('/') && callbackUrl !== '/') {
-            router.push(callbackUrl);
-          } else {
-            router.push('/dashboard');
+            targetUrl = callbackUrl;
           }
+          window.location.href = targetUrl;
+          return;
         }
       }
     } catch (err: any) {

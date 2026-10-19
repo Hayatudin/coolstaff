@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   images: {
@@ -14,7 +16,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://api.coolstaffagency.com/api/:path*',
+        destination: `${apiUrl}/api/:path*`,
       },
     ];
   },

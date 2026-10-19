@@ -80,14 +80,19 @@ if (typeof window !== 'undefined') {
 
 /**
  * Resolves session token:
- * 1) Multi-pattern cookie check
- * 2) In-memory cached token (4-minute TTL)
- * 3) Live fallback to Better-Auth getSession
+ * 1) In-memory cached token (4-minute TTL)
+ * 2) Multi-pattern cookie check
+ * 3) Direct localStorage session cache check (synchronous)
+ * 4) Live fallback to Better-Auth getSession
  */
 export async function resolveSessionToken(forceFresh = false): Promise<string | null> {
   if (typeof window === 'undefined') return null;
 
   if (!forceFresh) {
+    if (cachedToken && Date.now() < tokenExpiresAt) {
+      return cachedToken;
+    }
+
     const cookieToken = getCookieToken();
     if (cookieToken) {
       cachedToken = cookieToken;
@@ -95,12 +100,48 @@ export async function resolveSessionToken(forceFresh = false): Promise<string | 
       return cookieToken;
     }
 
-    if (cachedToken && Date.now() < tokenExpiresAt) {
-      return cachedToken;
-    }
+    // Check localStorage directly for immediate token availability
+    try {
+      const directToken = localStorage.getItem('coolstaff_token');
+      if (directToken) {
+        cachedToken = directToken;
+        tokenExpiresAt = Date.now() + 4 * 60 * 1000;
+        return directToken;
+      }
+
+      const raw = localStorage.getItem('coolstaff_user_session');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const token = parsed?.data?.session?.token;
+        if (token) {
+          cachedToken = token;
+          tokenExpiresAt = Date.now() + 4 * 60 * 1000;
+          return token;
+        }
+      }
+    } catch (_) {}
   }
 
   return await fetchFreshToken();
+}
+
+/**
+ * Safely parses JSON from a Response and intercepts unexpected HTML responses
+ */
+async function safeParseResponseJson(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return {};
+  }
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<') || trimmed.toLowerCase().startsWith('<!doctype')) {
+    throw new Error('Server returned an unexpected HTML response instead of JSON. Please try again.');
+  }
+  try {
+    return JSON.parse(text);
+  } catch (err: any) {
+    throw new Error(`Invalid response format: ${err.message || 'JSON parse error'}`);
+  }
 }
 
 export async function api(path: string, options: RequestInit = {}) {
@@ -123,11 +164,8 @@ export async function api(path: string, options: RequestInit = {}) {
     credentials: 'include',
   };
 
-  console.log(`[API] ${options.method || 'GET'} ${url}`);
-
-  let targetUrl = url;
   const maxRetries = 3;
-  let delay = 600; // ms
+  let delay = 500; // ms
   let retried401 = false;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -138,11 +176,11 @@ export async function api(path: string, options: RequestInit = {}) {
         const controller = new AbortController();
         timeoutId = setTimeout(() => {
           controller.abort(new Error('API request timed out'));
-        }, 25000);
+        }, 30000);
         signal = controller.signal;
       }
 
-      const response = await fetch(targetUrl, {
+      const response = await fetch(url, {
         ...requestOptions,
         signal,
       });
@@ -151,21 +189,30 @@ export async function api(path: string, options: RequestInit = {}) {
       // Handle 401 Unauthorized with single auto-retry after forced live session refresh
       if (response.status === 401 && !retried401) {
         retried401 = true;
-        console.warn('[API] Received 401 Unauthorized. Attempting forced live session refresh...');
+        console.warn('[API] Received 401 Unauthorized. Refreshing live session...');
         const freshToken = await resolveSessionToken(true);
         if (freshToken) {
           (requestOptions.headers as Record<string, string>)['Authorization'] = `Bearer ${freshToken}`;
-          console.log('[API] Session refreshed successfully. Retrying API request...');
-          const retryResponse = await fetch(targetUrl, requestOptions);
+          const retryResponse = await fetch(url, requestOptions);
           if (retryResponse.ok) {
+            // Attach safe JSON parser
+            const originalRetryJson = retryResponse.json.bind(retryResponse);
+            retryResponse.json = () => safeParseResponseJson(retryResponse).catch(originalRetryJson);
             return retryResponse;
           }
         }
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        let message = errorData.error || `API error: ${response.statusText}`;
+        let errorData: any = {};
+        try {
+          const text = await response.text();
+          if (text && !text.trim().startsWith('<')) {
+            errorData = JSON.parse(text);
+          }
+        } catch (_) {}
+
+        let message = errorData.error || errorData.message || `API error: ${response.statusText || response.status}`;
         if (errorData.details) {
           message += ` | Details: ${errorData.details}`;
         }
@@ -176,9 +223,18 @@ export async function api(path: string, options: RequestInit = {}) {
         );
       }
       
+      // Attach safe JSON parser to prevent "doctype is not valid JSON" errors
+      const originalJson = response.json.bind(response);
+      response.json = () => safeParseResponseJson(response).catch(originalJson);
+
       return response;
     } catch (err: any) {
       if (timeoutId) clearTimeout(timeoutId);
+
+      if (err instanceof ApiError) {
+        throw err;
+      }
+
       const isNetworkError =
         err instanceof TypeError ||
         err.name === 'AbortError' ||
@@ -188,24 +244,9 @@ export async function api(path: string, options: RequestInit = {}) {
         err.message?.includes('network') ||
         err.message?.includes('timed out');
       const isServerTemporarilyDown = err.message?.includes('502') || err.message?.includes('503') || err.message?.includes('504');
-      
-      // Fallback if local backend is unreachable
-      if (isNetworkError && (targetUrl.includes('localhost:4000') || targetUrl.includes('127.0.0.1:4000'))) {
-        console.warn(`[API] Local backend on port 4000 is unreachable. Switching to https://api.coolstaffagency.com...`);
-        targetUrl = targetUrl.replace(/http:\/\/(localhost|127\.0\.0\.1):4000/, 'https://api.coolstaffagency.com');
-        continue;
-      }
 
-      // Fallback if same-origin Next.js proxy route fails
-      if (isNetworkError && typeof window !== 'undefined' && (targetUrl.startsWith('/') || targetUrl.startsWith(window.location.origin))) {
-        console.warn(`[API] Same-origin proxy route failed. Falling back directly to https://api.coolstaffagency.com...`);
-        const relativePath = targetUrl.startsWith('/') ? targetUrl : targetUrl.replace(window.location.origin, '');
-        targetUrl = `https://api.coolstaffagency.com${relativePath}`;
-        continue;
-      }
-
-      if (!(err instanceof ApiError) && (isNetworkError || isServerTemporarilyDown) && attempt < maxRetries) {
-        console.warn(`[API] Attempt ${attempt} failed on slow network. Retrying in ${delay}ms...`, err?.message || err);
+      if ((isNetworkError || isServerTemporarilyDown) && attempt < maxRetries) {
+        console.warn(`[API] Attempt ${attempt} failed (${err?.message || 'network delay'}). Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // exponential backoff
         continue;

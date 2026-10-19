@@ -258,8 +258,9 @@ function AgencySelectModal({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: queryUsers, isLoading, isError, refetch } = useUsersQuery();
+  const invalidateQueries = useInvalidateQueries();
+
   const [search, setSearch] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
@@ -268,27 +269,12 @@ export default function UsersPage() {
   const [agencyModalTarget, setAgencyModalTarget] = useState<{ userId: string; role: Role; currentAgency?: string | null } | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
+  const users: UserRow[] = Array.isArray(queryUsers) ? (queryUsers as UserRow[]) : [];
+
   const showMsg = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
-
-  const fetchUsers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await api('/api/users');
-      if (!res.ok) throw new Error();
-      setUsers(await res.json());
-    } catch {
-      showMsg('Failed to load users', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
 
   // Close menu on outside click, scroll, or resize
   useEffect(() => {
@@ -324,10 +310,10 @@ export default function UsersPage() {
         body: JSON.stringify({ role, agency: role === 'agency' ? agency : null }),
       });
       if (!res.ok) throw new Error();
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role, agency: role === 'agency' ? (agency || null) : null } : u));
+      invalidateQueries('users');
       showMsg('Role updated successfully');
-    } catch {
-      showMsg('Failed to update role', 'error');
+    } catch (err: any) {
+      showMsg(err.message || 'Failed to update role', 'error');
     }
     setOpenMenuId(null);
     setAgencyModalTarget(null);
@@ -338,10 +324,10 @@ export default function UsersPage() {
     try {
       const res = await api(`/api/users/${userId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      invalidateQueries('users');
       showMsg('User deleted');
-    } catch {
-      showMsg('Failed to delete user', 'error');
+    } catch (err: any) {
+      showMsg(err.message || 'Failed to delete user', 'error');
     }
     setOpenMenuId(null);
   };
@@ -363,7 +349,7 @@ export default function UsersPage() {
           <p className="text-gray-500 mt-1 ml-12">Manage all registered users and their roles</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={fetchUsers} className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-gray-500" title="Refresh">
+          <button onClick={() => { invalidateQueries('users'); refetch(); }} className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-gray-500" title="Refresh">
             <RefreshCw size={16} />
           </button>
           <button
@@ -535,7 +521,10 @@ export default function UsersPage() {
       {showCreate && (
         <CreateUserModal
           onClose={() => setShowCreate(false)}
-          onCreated={fetchUsers}
+          onCreated={() => {
+            invalidateQueries('users');
+            refetch();
+          }}
         />
       )}
 

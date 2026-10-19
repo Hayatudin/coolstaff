@@ -6,12 +6,14 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/lib/auth-client';
-import { DASHBOARD_ROLES, canAccess, Role } from '@/lib/role-config';
+import { DASHBOARD_ROLES, canAccess, getFirstAllowedRoute, ROLE_CONFIG, Role } from '@/lib/role-config';
 import { useRolePermissionsQuery } from '@/hooks/useQueryHooks';
+import { ShieldAlert } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isAccessDenied, setIsAccessDenied] = useState(false);
 
   const { data: session, isPending } = useSession();
   const { data: customPermissions, isLoading: isPermissionsLoading } = useRolePermissionsQuery();
@@ -38,13 +40,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Role-based route access check
     if (!canAccess(role, pathname, customPermissions)) {
-      if (role === 'agency') {
-        router.replace('/agency/contracts');
-      } else if (role === 'video_uploader') {
-        router.replace('/video-uploads');
-      } else {
-        router.replace('/dashboard');
+      const allowedHome = getFirstAllowedRoute(role, customPermissions);
+
+      // If user landed on /dashboard upon login but doesn't have /dashboard permission:
+      if (pathname === '/dashboard' && allowedHome !== '/dashboard') {
+        router.replace(allowedHome);
+        return;
       }
+
+      setIsAccessDenied(true);
+      return;
+    } else {
+      setIsAccessDenied(false);
     }
   }, [session, isPending, isPermissionsLoading, customPermissions, router, pathname]);
 
@@ -122,7 +129,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div id="main-scroll-container" className="flex-1 flex flex-col h-screen relative overflow-y-auto scroll-smooth">
         <Topbar onMobileMenuToggle={() => setIsMobileOpen(!isMobileOpen)} />
         <main className="flex-1 p-3 sm:p-4 md:p-8">
-          {children}
+          {isAccessDenied ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+              <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-border shadow-sm space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
+                  <ShieldAlert size={28} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-900">Access Restricted</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Your role (<span className="font-bold text-gray-700">{ROLE_CONFIG[((session?.user as any)?.role as Role)]?.label || (session?.user as any)?.role || 'user'}</span>) does not have permission to view <code className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-mono text-xs">{pathname}</code>.
+                  </p>
+                </div>
+                <div className="pt-2 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => router.push(getFirstAllowedRoute((session?.user as any)?.role || 'super_admin', customPermissions))}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-600 transition-colors cursor-pointer shadow-sm"
+                  >
+                    Go to Allowed Main Page
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
     </div>

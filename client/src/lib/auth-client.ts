@@ -31,6 +31,9 @@ export function saveSessionToCache(sessionData: any) {
       _savedAt: Date.now(),
     };
     localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(payload));
+    if (sessionData.session?.token) {
+      localStorage.setItem('coolstaff_token', sessionData.session.token);
+    }
   } catch (e) {
     console.warn('Failed to save session to cache', e);
   }
@@ -47,6 +50,7 @@ export function getCachedSession(): any | null {
     // Check if 1 hour has elapsed
     if (Date.now() - parsed._savedAt > SESSION_CACHE_TTL) {
       localStorage.removeItem(SESSION_CACHE_KEY);
+      localStorage.removeItem('coolstaff_token');
       return null;
     }
     return parsed.data;
@@ -59,6 +63,7 @@ export function clearCachedSession() {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(SESSION_CACHE_KEY);
+    localStorage.removeItem('coolstaff_token');
   } catch (e) {}
 }
 
@@ -99,7 +104,10 @@ export function useSession() {
     };
   }
 
-  return nativeSession;
+  return {
+    ...nativeSession,
+    isPending: nativeSession.isPending ?? true,
+  };
 }
 
 // Override authClient.useSession so components accessing authClient directly also benefit
