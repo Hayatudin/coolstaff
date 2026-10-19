@@ -17,6 +17,37 @@ interface FileUploadProps {
   required?: boolean;
 }
 
+function validateUploadedFile(file: File, accept: string): { valid: boolean; error?: string } {
+  const isVideoAccept = accept.includes('video');
+  const isImageAccept = accept.includes('image');
+
+  const fileType = (file.type || '').toLowerCase();
+  const fileName = (file.name || '').toLowerCase();
+
+  const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+  const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif|svg)$/i.test(fileName);
+  const isPdf = fileType === 'application/pdf' || /\.pdf$/i.test(fileName);
+
+  if (isVideoAccept && !isImageAccept) {
+    if (!isVideo) {
+      return { valid: false, error: 'Only video files (MP4, WebM, MOV) are allowed for this upload.' };
+    }
+    return { valid: true };
+  }
+
+  if (isImageAccept && !isVideoAccept) {
+    if (isVideo) {
+      return { valid: false, error: 'Videos are not allowed here. Please upload an image file (JPG, PNG, WebP).' };
+    }
+    if (!isImage && !(accept.includes('pdf') && isPdf)) {
+      return { valid: false, error: 'Please upload an image file (JPG, PNG, WebP).' };
+    }
+    return { valid: true };
+  }
+
+  return { valid: true };
+}
+
 export default function FileUpload({
   label,
   accept = 'image/*',
@@ -45,13 +76,29 @@ export default function FileUpload({
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) onFileSelect(file);
-  }, [onFileSelect]);
+    if (!file) return;
+    const check = validateUploadedFile(file, accept);
+    if (!check.valid) {
+      alert(check.error);
+      return;
+    }
+    onFileSelect(file);
+  }, [accept, onFileSelect]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) onFileSelect(file);
-  }, [onFileSelect]);
+    if (!file) return;
+    const check = validateUploadedFile(file, accept);
+    if (!check.valid) {
+      alert(check.error);
+      if (e.target) e.target.value = '';
+      return;
+    }
+    onFileSelect(file);
+    if (e.target) e.target.value = '';
+  }, [accept, onFileSelect]);
+
+  const isVideoField = accept.includes('video');
 
   if (preview) {
     return (
@@ -65,7 +112,7 @@ export default function FileUpload({
           compact && shape !== 'circle' && 'h-40',
           !compact && shape !== 'circle' && 'h-52'
         )}>
-          {preview.startsWith('data:video/') || preview.match(/\.(mp4|webm|mov|avi|ogg)/i) || preview.includes('/videos/') ? (
+          {isVideoField ? (
             <video
               src={preview}
               controls
@@ -92,6 +139,12 @@ export default function FileUpload({
     );
   }
 
+  const resolvedAccept = accept === 'image/*' 
+    ? 'image/png,image/jpeg,image/jpg,image/webp,image/*' 
+    : accept === 'video/*' 
+    ? 'video/mp4,video/webm,video/quicktime,video/*' 
+    : accept;
+
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -113,7 +166,7 @@ export default function FileUpload({
       >
         <input
           type="file"
-          accept={accept}
+          accept={resolvedAccept}
           onChange={handleFileInput}
           className="hidden"
         />

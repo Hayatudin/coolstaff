@@ -70,6 +70,16 @@ export default function InvoicePage() {
   const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (value: any) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    if (isVideo) {
+      alert('Videos are not allowed here. Please upload an image or PDF document.');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setter({

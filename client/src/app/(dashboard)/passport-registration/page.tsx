@@ -65,6 +65,21 @@ export default function PassportRegistrationPage() {
       alert('File is too large. Max size is 50MB');
       return;
     }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    if (isVideo) {
+      alert('Videos are not allowed here. Please upload a passport image (JPG, PNG).');
+      return;
+    }
+
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|bmp|gif|avif)$/i.test(fileName);
+    if (!isImage) {
+      alert('Please upload a valid passport image (JPG, PNG).');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {

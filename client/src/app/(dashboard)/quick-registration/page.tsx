@@ -162,6 +162,21 @@ export default function QuickRegistrationPage() {
       alert(`Max file size is ${maxBytes / (1024 * 1024)}MB`);
       return;
     }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    if (isVideo) {
+      alert('Videos are not allowed here. Please upload an image file (JPG, PNG, WebP).');
+      return;
+    }
+
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|bmp|gif|avif)$/i.test(fileName) || fileType === 'application/pdf' || /\.pdf$/i.test(fileName);
+    if (!isImage) {
+      alert('Please upload an image file (JPG, PNG, WebP).');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       if (ev.target?.result) {
@@ -711,6 +726,7 @@ export default function QuickRegistrationPage() {
                 label="Face Photo"
                 shape="rect"
                 compact
+                accept="image/*"
                 preview={facePhotoUrl}
                 onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setFacePhotoUrl(base64))}
                 onClear={() => setFacePhotoUrl(null)}
@@ -722,6 +738,7 @@ export default function QuickRegistrationPage() {
               label="COC (Certificate of Competence)"
               shape="rect"
               compact
+              accept="image/*,application/pdf"
               preview={cocDocumentUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCocDocumentUrl(base64))}
               onClear={() => setCocDocumentUrl(null)}
@@ -744,6 +761,7 @@ export default function QuickRegistrationPage() {
               label="Candidate ID"
               shape="rect"
               compact
+              accept="image/*"
               preview={candidateIdImageUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setCandidateIdImageUrl(base64))}
               onClear={() => setCandidateIdImageUrl(null)}
@@ -754,6 +772,7 @@ export default function QuickRegistrationPage() {
               label="Relative ID"
               shape="rect"
               compact
+              accept="image/*"
               preview={relativeIdImageUrl}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setRelativeIdImageUrl(base64))}
               onClear={() => setRelativeIdImageUrl(null)}
@@ -764,6 +783,7 @@ export default function QuickRegistrationPage() {
               label="Passport Image"
               shape="rect"
               compact
+              accept="image/*"
               preview={passportImage}
               onFileSelect={(file) => handleFileAsDataURL(file, (base64) => setPassportImage(base64))}
               onClear={() => setPassportImage(null)}

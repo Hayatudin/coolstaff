@@ -322,6 +322,41 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
 
   const handleEditFileChange = (field: string, file: File | null) => {
     if (!file) return;
+    const limit = 50 * 1024 * 1024;
+    if (file.size > limit) {
+      alert(`Max file size is ${limit / (1024 * 1024)}MB`);
+      return;
+    }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    const isPdf = fileType === 'application/pdf' || /\.pdf$/i.test(fileName);
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+
+    if (field === 'videoUrl') {
+      if (!isVideo) {
+        alert('Only video files (MP4, WebM, MOV) are allowed for Candidate Video.');
+        return;
+      }
+    } else {
+      if (isVideo) {
+        alert('Videos are not allowed here. Please upload an image file (JPG, PNG).');
+        return;
+      }
+      if (field === 'cocDocumentUrl') {
+        if (!isImage && !isPdf) {
+          alert('Please upload an image file (JPG, PNG) or PDF document.');
+          return;
+        }
+      } else {
+        if (!isImage) {
+          alert('Please upload an image file (JPG, PNG, WebP).');
+          return;
+        }
+      }
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
@@ -482,6 +517,36 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
       alert(`Max file size is ${limit / (1024 * 1024)}MB`);
       return;
     }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    const isPdf = fileType === 'application/pdf' || /\.pdf$/i.test(fileName);
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+
+    if (field === 'video') {
+      if (!isVideo) {
+        alert('Only video files (MP4, WebM, MOV) are allowed for Candidate Video.');
+        return;
+      }
+    } else {
+      if (isVideo) {
+        alert('Videos are not allowed here. Please upload an image file (JPG, PNG).');
+        return;
+      }
+      if (field === 'coc' || field === 'labour') {
+        if (!isImage && !isPdf) {
+          alert('Please upload an image file (JPG, PNG) or PDF document.');
+          return;
+        }
+      } else {
+        if (!isImage) {
+          alert('Please upload an image file (JPG, PNG, WebP).');
+          return;
+        }
+      }
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       if (ev.target?.result) {
@@ -774,11 +839,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 {passportDoc ? 'Replace' : 'Upload Passport'}
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/*"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileChange('passport', file);
+                    if (e.target) e.target.value = '';
                   }}
                 />
               </label>
@@ -921,11 +987,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 {candidateIdImg ? 'Change File' : 'Upload Document'}
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/*"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileChange('candidateId', file);
+                    if (e.target) e.target.value = '';
                   }}
                 />
               </label>
@@ -977,11 +1044,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 {relativeIdImg ? 'Change File' : 'Upload Document'}
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/*"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileChange('relativeId', file);
+                    if (e.target) e.target.value = '';
                   }}
                 />
               </label>
@@ -1013,8 +1081,6 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 {videoFile ? (
                   videoFile.startsWith('data:video/') || videoFile.match(/\.(mp4|webm|mov|avi|ogg)/i) || videoFile.includes('/videos/') ? (
                     <video src={getFileUrl(videoFile)} controls className="w-full h-full object-contain" />
-                  ) : videoFile.startsWith('data:image') || videoFile.startsWith('http') || videoFile.startsWith('/uploads') ? (
-                    <img src={getFileUrl(videoFile)} alt="Video thumbnail" className="w-full h-full object-contain" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-xs text-text-secondary p-2 text-center">
                       <Video className="text-primary/40" size={24} />
@@ -1035,11 +1101,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                 {videoFile ? 'Change Video' : 'Upload Video'}
                 <input
                   type="file"
-                  accept="video/*"
+                  accept="video/mp4,video/webm,video/quicktime,video/*"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileChange('video', file);
+                    if (e.target) e.target.value = '';
                   }}
                 />
               </label>
@@ -1308,11 +1375,11 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
-                      { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/*' },
-                      { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'application/pdf,image/*' },
-                      { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/*' },
-                      { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/*' },
-                      { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/*' },
+                      { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                      { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*,application/pdf' },
+                      { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                      { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                      { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/mp4,video/webm,video/quicktime,video/*' },
                     ].map(doc => {
                       const isStaged = (editForm as any)[doc.field] !== undefined;
                       return (
@@ -1345,7 +1412,10 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                               type="file"
                               accept={doc.accept}
                               className="hidden"
-                              onChange={e => handleEditFileChange(doc.field, e.target.files?.[0] || null)}
+                              onChange={e => {
+                                handleEditFileChange(doc.field, e.target.files?.[0] || null);
+                                if (e.target) e.target.value = '';
+                              }}
                             />
                             Replace File
                           </label>

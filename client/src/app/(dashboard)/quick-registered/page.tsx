@@ -178,6 +178,41 @@ export default function QuickRegisteredPage() {
 
   const handleFileChange = (field: string, file: File | null) => {
     if (!file) return;
+    const limit = 50 * 1024 * 1024;
+    if (file.size > limit) {
+      alert(`Max file size is ${limit / (1024 * 1024)}MB`);
+      return;
+    }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    const isPdf = fileType === 'application/pdf' || /\.pdf$/i.test(fileName);
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+
+    if (field === 'videoUrl') {
+      if (!isVideo) {
+        alert('Only video files (MP4, WebM, MOV) are allowed for Candidate Video.');
+        return;
+      }
+    } else {
+      if (isVideo) {
+        alert('Videos are not allowed here. Please upload an image file (JPG, PNG).');
+        return;
+      }
+      if (field === 'cocDocumentUrl') {
+        if (!isImage && !isPdf) {
+          alert('Please upload an image file (JPG, PNG) or PDF document.');
+          return;
+        }
+      } else {
+        if (!isImage) {
+          alert('Please upload an image file (JPG, PNG, WebP).');
+          return;
+        }
+      }
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
@@ -1198,11 +1233,11 @@ export default function QuickRegisteredPage() {
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
-                      { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/*' },
-                      { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'application/pdf,image/*' },
-                      { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/*' },
-                      { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/*' },
-                      { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/*' },
+                      { label: 'Passport Image', field: 'passportImageUrl', current: editTarget?.passportImageUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                      { label: 'COC Document', field: 'cocDocumentUrl', current: editTarget?.cocDocumentUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*,application/pdf' },
+                      { label: 'Candidate ID Image', field: 'candidateIdImageUrl', current: editTarget?.candidateIdImageUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                      { label: 'Relative ID Image', field: 'relativeIdImageUrl', current: editTarget?.relativeIdImageUrl, accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                      { label: 'Candidate Video', field: 'videoUrl', current: editTarget?.videoUrl, accept: 'video/mp4,video/webm,video/quicktime,video/*' },
                     ].map(doc => {
                       const isStaged = (editForm as any)[doc.field] !== undefined;
                       return (
@@ -1235,7 +1270,10 @@ export default function QuickRegisteredPage() {
                               type="file"
                               accept={doc.accept}
                               className="hidden"
-                              onChange={e => handleFileChange(doc.field, e.target.files?.[0] || null)}
+                              onChange={e => {
+                                handleFileChange(doc.field, e.target.files?.[0] || null);
+                                if (e.target) e.target.value = '';
+                              }}
                             />
                             Replace File
                           </label>

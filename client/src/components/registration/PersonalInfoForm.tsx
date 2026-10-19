@@ -105,11 +105,37 @@ export default function PersonalInfoForm({
 }: PersonalInfoFormProps) {
   const [isLinkMode, setIsLinkMode] = React.useState(false);
 
-  const handleFileAsDataURL = (file: File, callback: (base64: string) => void) => {
+  const handleFileAsDataURL = (
+    file: File,
+    callback: (base64: string) => void,
+    expectedType: 'image' | 'video' = 'image'
+  ) => {
     if (file.size > 50 * 1024 * 1024) {
       alert('Max file size is 50MB');
       return;
     }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+
+    if (expectedType === 'image') {
+      if (isVideo) {
+        alert('Videos are not allowed here. Please upload an image file (JPG, PNG, WebP).');
+        return;
+      }
+      if (!isImage) {
+        alert('Please upload an image file (JPG, PNG, WebP).');
+        return;
+      }
+    } else if (expectedType === 'video') {
+      if (!isVideo) {
+        alert('Only video files (MP4, WebM, MOV) are allowed.');
+        return;
+      }
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       if (ev.target?.result) {
@@ -202,7 +228,7 @@ export default function PersonalInfoForm({
             label="Face Photo *"
             shape="circle"
             preview={facePhoto ? getFileUrl(facePhoto) : null}
-            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFacePhotoChange?.(base64))}
+            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFacePhotoChange?.(base64), 'image')}
             onClear={onFacePhotoChange ? () => onFacePhotoChange('') : undefined}
             helperText="Circle — Max 50MB"
           />
@@ -213,7 +239,7 @@ export default function PersonalInfoForm({
             shape="rect"
             compact
             preview={fullBodyPhoto ? getFileUrl(fullBodyPhoto) : null}
-            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFullBodyPhotoChange?.(base64))}
+            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onFullBodyPhotoChange?.(base64), 'image')}
             onClear={onFullBodyPhotoChange ? () => onFullBodyPhotoChange('') : undefined}
             helperText="Rectangle — Max 50MB"
           />
@@ -253,7 +279,7 @@ export default function PersonalInfoForm({
                     shape="rect"
                     compact
                     preview={videoUrl ? getFileUrl(videoUrl) : null}
-                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onVideoUrlChange(base64))}
+                    onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onVideoUrlChange(base64), 'video')}
                     onClear={() => onVideoUrlChange('')}
                     helperText="MP4, WebM or MOV — Max 50MB"
                     required
@@ -484,7 +510,7 @@ export default function PersonalInfoForm({
             shape="rect"
             compact
             preview={passportImage ? getFileUrl(passportImage) : null}
-            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onPassportImageChange?.(base64))}
+            onFileSelect={(file) => handleFileAsDataURL(file, (base64) => onPassportImageChange?.(base64), 'image')}
             onClear={onPassportImageChange ? () => onPassportImageChange('') : undefined}
             helperText="Passport Image — Max 50MB"
           />

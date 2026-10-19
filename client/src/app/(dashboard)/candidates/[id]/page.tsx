@@ -191,6 +191,36 @@ export default function CandidateDetailPage() {
       alert(`Max file size is ${limit / (1024 * 1024)}MB`);
       return;
     }
+
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    const isPdf = fileType === 'application/pdf' || /\.pdf$/i.test(fileName);
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+
+    if (field === 'quickVideoUrl' || field === 'videoUrl') {
+      if (!isVideo) {
+        alert('Only video files (MP4, WebM, MOV) are allowed for Candidate Video.');
+        return;
+      }
+    } else {
+      if (isVideo) {
+        alert('Videos are not allowed here. Please upload an image or PDF document.');
+        return;
+      }
+      if (field === 'passportImageUrl' || field === 'candidateIdImageUrl' || field === 'relativeIdImageUrl') {
+        if (!isImage) {
+          alert('Please upload an image file (JPG, PNG, WebP).');
+          return;
+        }
+      } else {
+        if (!isImage && !isPdf) {
+          alert('Please upload an image file (JPG, PNG) or PDF document.');
+          return;
+        }
+      }
+    }
+
     setIsImporting(field);
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -833,13 +863,13 @@ export default function CandidateDetailPage() {
             </h2>
             <div className="space-y-3">
               {[
-                { label: 'COC Certificate', url: c.cocDocumentUrl, field: 'cocDocumentUrl', color: 'primary', accept: 'image/*,application/pdf' },
-                { label: 'Medical Report', url: c.medicalDocumentUrl, field: 'medicalDocumentUrl', color: 'emerald', accept: 'image/*,application/pdf' },
-                { label: 'Passport Scan', url: c.passportImageUrl, field: 'passportImageUrl', color: 'primary', accept: 'image/*,application/pdf' },
-                { label: 'Candidate ID', url: c.candidateIdImageUrl, field: 'candidateIdImageUrl', color: 'blue', accept: 'image/*,application/pdf' },
-                { label: 'Relative ID', url: c.relativeIdImageUrl, field: 'relativeIdImageUrl', color: 'amber', accept: 'image/*,application/pdf' },
-                { label: 'Labour ID', url: c.labourIdUrl || undefined, field: 'labourIdUrl', color: 'violet', accept: 'image/*,application/pdf' },
-                { label: 'Candidate Video', url: c.quickVideoUrl, field: 'quickVideoUrl', color: 'pink', accept: 'video/*' },
+                { label: 'COC Certificate', url: c.cocDocumentUrl, field: 'cocDocumentUrl', color: 'primary', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*,application/pdf' },
+                { label: 'Medical Report', url: c.medicalDocumentUrl, field: 'medicalDocumentUrl', color: 'emerald', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*,application/pdf' },
+                { label: 'Passport Scan', url: c.passportImageUrl, field: 'passportImageUrl', color: 'primary', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                { label: 'Candidate ID', url: c.candidateIdImageUrl, field: 'candidateIdImageUrl', color: 'blue', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                { label: 'Relative ID', url: c.relativeIdImageUrl, field: 'relativeIdImageUrl', color: 'amber', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*' },
+                { label: 'Labour ID', url: c.labourIdUrl || undefined, field: 'labourIdUrl', color: 'violet', accept: 'image/png,image/jpeg,image/jpg,image/webp,image/*,application/pdf' },
+                { label: 'Candidate Video', url: c.quickVideoUrl, field: 'quickVideoUrl', color: 'pink', accept: 'video/mp4,video/webm,video/quicktime,video/*' },
               ].map((doc) => (
                 <div key={doc.field} className="flex items-center justify-between p-4 bg-gray-50/80 rounded-[1.25rem] border border-transparent hover:border-gray-200/50 transition-colors">
                   <span className="text-[14px] font-bold text-text-primary">{doc.label}</span>
@@ -885,6 +915,7 @@ export default function CandidateDetailPage() {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleImportFile(doc.field, file);
+                              if (e.target) e.target.value = '';
                             }}
                           />
                         </label>
@@ -907,6 +938,7 @@ export default function CandidateDetailPage() {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handleImportFile(doc.field, file);
+                            if (e.target) e.target.value = '';
                           }}
                         />
                       </label>

@@ -576,6 +576,18 @@ export default function UploadedVideosPage() {
                   accept="video/*"
                   preview={editVideoUrl ? getFileUrl(editVideoUrl) : null}
                   onFileSelect={(file) => {
+                    const limit = 50 * 1024 * 1024;
+                    if (file.size > limit) {
+                      alert(`Max file size is ${limit / (1024 * 1024)}MB`);
+                      return;
+                    }
+                    const fileType = (file.type || '').toLowerCase();
+                    const fileName = (file.name || '').toLowerCase();
+                    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+                    if (!isVideo) {
+                      alert('Only video files (MP4, WebM, MOV) are allowed.');
+                      return;
+                    }
                     const reader = new FileReader();
                     reader.onload = (ev) => {
                       if (ev.target?.result) {

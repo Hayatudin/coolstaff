@@ -88,6 +88,13 @@ export default function VideoUploadsPage() {
       alert("Max file size is 50MB");
       return;
     }
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    if (!isVideo) {
+      alert('Only video files (MP4, WebM, MOV) are allowed.');
+      return;
+    }
     if (videoPreview) URL.revokeObjectURL(videoPreview);
     setVideoFile(file);
     setVideoPreview(URL.createObjectURL(file) + '#.mp4');
@@ -98,6 +105,18 @@ export default function VideoUploadsPage() {
       alert("Max file size is 50MB");
       return;
     }
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    if (isVideo) {
+      alert('Videos are not allowed here. Please upload a face photo (JPG, PNG).');
+      return;
+    }
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+    if (!isImage) {
+      alert('Please upload an image file (JPG, PNG, WebP).');
+      return;
+    }
     if (facePhotoPreview) URL.revokeObjectURL(facePhotoPreview);
     setFacePhotoFile(file);
     setFacePhotoPreview(URL.createObjectURL(file));
@@ -106,6 +125,18 @@ export default function VideoUploadsPage() {
   const handleFullBodySelect = (file: File) => {
     if (file.size > 50 * 1024 * 1024) {
       alert("Max file size is 50MB");
+      return;
+    }
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+    const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+    if (isVideo) {
+      alert('Videos are not allowed here. Please upload a full body photo (JPG, PNG).');
+      return;
+    }
+    const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fileName);
+    if (!isImage) {
+      alert('Please upload an image file (JPG, PNG, WebP).');
       return;
     }
     if (fullBodyPhotoPreview) URL.revokeObjectURL(fullBodyPhotoPreview);
@@ -458,10 +489,24 @@ export default function VideoUploadsPage() {
                     Import Passport Image
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          const fileType = (file.type || '').toLowerCase();
+                          const fileName = (file.name || '').toLowerCase();
+                          const isVideo = fileType.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv|m4v|3gp|wmv)$/i.test(fileName);
+                          if (isVideo) {
+                            alert('Videos are not allowed here. Please upload a passport image (JPG, PNG).');
+                            if (e.target) e.target.value = '';
+                            return;
+                          }
+                          const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|webp|bmp|gif|avif)$/i.test(fileName);
+                          if (!isImage) {
+                            alert('Please upload a valid passport image (JPG, PNG).');
+                            if (e.target) e.target.value = '';
+                            return;
+                          }
                           const reader = new FileReader();
                           reader.onload = (ev) => {
                             if (ev.target?.result) {
@@ -470,6 +515,7 @@ export default function VideoUploadsPage() {
                           };
                           reader.readAsDataURL(file);
                         }
+                        if (e.target) e.target.value = '';
                       }}
                       className="hidden"
                     />
