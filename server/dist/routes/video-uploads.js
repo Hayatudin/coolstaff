@@ -12,6 +12,7 @@ const multer_1 = __importDefault(require("multer"));
 const crypto_2 = __importDefault(require("crypto"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const leader_sync_1 = require("../lib/leader-sync");
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
         let folder = 'videos';
@@ -172,8 +173,15 @@ router.post('/save', upload.fields([
             await db_1.pool.query(`UPDATE \`Candidate\` 
          SET \`Youtube_URL\` = ?, \`facePhotoUrl\` = ?, \`fullBodyPhotoUrl\` = ?, \`allowVideo\` = 1 
          WHERE UPPER(\`passportNumber\`) = ?`, [finalVideoUrl, facePhoto || null, fullBodyPhoto || null, resolvedPassportNumber]);
+            // Check and move candidate to DAERA OFFICE 2 if in DAERA OFFICE
+            const [matchedCands] = await db_1.pool.query('SELECT id FROM `Candidate` WHERE UPPER(`passportNumber`) = ?', [resolvedPassportNumber]);
+            for (const mc of matchedCands || []) {
+                await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(mc.id);
+            }
         }
-        catch (_) { }
+        catch (moveErr) {
+            console.warn('[VIDEO-UPLOAD] Failed to check and move candidate to DAERA OFFICE 2:', moveErr);
+        }
         try {
             await db_1.pool.query(`UPDATE \`QuickRegistration\` 
          SET \`videoUrl\` = ?, \`allowVideo\` = 1 

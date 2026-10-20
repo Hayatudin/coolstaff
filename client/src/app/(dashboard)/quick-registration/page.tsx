@@ -116,10 +116,40 @@ export default function QuickRegistrationPage() {
   const [phone, setPhone] = useState('');
   const [additionalPhones, setAdditionalPhones] = useState<string[]>([]);
 
-  // Experience states (only for Calling role)
-  const [hasExperience, setHasExperience] = useState('no');
-  const [experienceCountry, setExperienceCountry] = useState('');
-  const [experienceYears, setExperienceYears] = useState('');
+  // Work Experience entries
+  const [experiences, setExperiences] = useState<WorkExperienceEntry[]>([
+    { experienceStatus: 'New', country: '', yearsOfExperience: '' }
+  ]);
+
+  const addExperience = () => {
+    const newExp: WorkExperienceEntry = { experienceStatus: 'Have experience', country: '', yearsOfExperience: '' };
+    setExperiences(prev => [...prev, newExp]);
+  };
+
+  const updateExperience = (index: number, field: keyof WorkExperienceEntry, value: string) => {
+    setExperiences(prev => {
+      const currentList = prev.length > 0 ? prev : [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
+      return currentList.map((item, idx) => {
+        if (idx === index) {
+          const newItem = { ...item, [field]: field === 'country' ? value.toUpperCase() : value };
+          if (field === 'experienceStatus' && (value === 'New' || value === 'No experience')) {
+            newItem.country = '';
+            newItem.yearsOfExperience = '';
+          }
+          return newItem;
+        }
+        return item;
+      });
+    });
+  };
+
+  const removeExperience = (index: number) => {
+    setExperiences(prev => {
+      const updated = [...prev];
+      updated.splice(index, 1);
+      return updated.length > 0 ? updated : [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
+    });
+  };
 
   // Fetch brokers on mount
   useEffect(() => {
@@ -230,17 +260,11 @@ export default function QuickRegistrationPage() {
       return;
     }
 
-    if (isCalling && hasExperience === 'yes') {
-      if (!experienceCountry) {
-        setError('Country of experience is required.');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
-      if (!experienceYears.trim()) {
-        setError('Years of experience is required.');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
+    const invalidExp = experiences.find(e => e.experienceStatus === 'Have experience' && (!e.country || !e.yearsOfExperience?.trim()));
+    if (invalidExp) {
+      setError('Please specify both Country and Years of experience for your work experience entry.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
 
     if (!isCalling && !selectedBrokerId) {
@@ -339,17 +363,11 @@ export default function QuickRegistrationPage() {
               job: 'Calling',
               educationLevel: 'None',
               skills: [],
-              workExperience: hasExperience === 'yes'
-                ? [{
-                    experienceStatus: 'Have experience',
-                    country: experienceCountry.toUpperCase(),
-                    yearsOfExperience: experienceYears.trim()
-                  }]
-                : [{
-                    experienceStatus: 'No experience',
-                    country: '',
-                    yearsOfExperience: '0'
-                  }],
+              workExperience: experiences.map(e => ({
+                experienceStatus: e.experienceStatus,
+                country: e.country ? e.country.toUpperCase() : '',
+                yearsOfExperience: e.yearsOfExperience || '0'
+              })),
             },
             laborID: laborID || null,
             passportImageUrl: passportImage,
@@ -373,7 +391,11 @@ export default function QuickRegistrationPage() {
             issuingCountry: passportData.issuingCountry,
             placeOfBirth: passportData.placeOfBirth,
             educationLevel: null,
-            jobExperience: null,
+            jobExperience: JSON.stringify(experiences.map(e => ({
+              experienceStatus: e.experienceStatus,
+              country: e.country ? e.country.toUpperCase() : '',
+              yearsOfExperience: e.yearsOfExperience || '0'
+            }))),
             maritalStatus,
             numberOfChildren,
             passportImageUrl: passportImage,
@@ -651,65 +673,83 @@ export default function QuickRegistrationPage() {
               </div>
             )}
 
-            {/* Experience Section (only for Calling role) */}
-            {isCalling && (
-              <div className="sm:col-span-2 space-y-4 pt-4 border-t border-border/60">
-                <div>
-                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                    Do you have Work Experience? <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={hasExperience}
-                    onChange={e => {
-                      setHasExperience(e.target.value);
-                      if (e.target.value === 'no') {
-                        setExperienceCountry('');
-                        setExperienceYears('');
-                      }
-                    }}
-                    className="w-full h-12 px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
-                  >
-                    <option value="no">No</option>
-                    <option value="yes">Yes</option>
-                  </select>
-                </div>
+            {/* Work Experience Section */}
+            <div className="sm:col-span-2 space-y-4 pt-4 border-t border-border/60">
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Work Experience
+              </label>
 
-                {hasExperience === 'yes' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+              <div className="space-y-4">
+                {experiences.map((exp, index) => (
+                  <div key={index} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-xl border border-border/50 bg-gray-50/50 relative animate-fade-in">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
-                        Country of Experience <span className="text-red-500">*</span>
+                        Experience
                       </label>
                       <select
-                        value={experienceCountry}
-                        onChange={e => setExperienceCountry(e.target.value)}
-                        className="w-full h-12 px-4 py-2.5 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer"
-                        required
+                        value={exp.experienceStatus}
+                        onChange={e => updateExperience(index, 'experienceStatus', e.target.value)}
+                        className="w-full h-11 px-3 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
                       >
-                        <option value="" disabled>Select country...</option>
-                        {allCountries.map(c => (
-                          <option key={c} value={c.toUpperCase()}>
-                            {c.toUpperCase()}
-                          </option>
-                        ))}
+                        <option value="New">New</option>
+                        <option value="Have experience">Have experience</option>
                       </select>
                     </div>
 
-                    <div>
-                      <Input
-                        label="Years of Experience"
-                        type="number"
-                        min="1"
-                        value={experienceYears}
-                        onChange={e => setExperienceYears(e.target.value)}
-                        placeholder="e.g. 2"
-                        required
-                      />
-                    </div>
+                    {exp.experienceStatus === 'Have experience' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+                            Country <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={exp.country}
+                            onChange={e => updateExperience(index, 'country', e.target.value)}
+                            className="w-full h-11 px-3 py-2 text-sm rounded-xl border border-border bg-white text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                            required
+                          >
+                            <option value="" disabled>Select Country...</option>
+                            {allCountries.map(c => (
+                              <option key={c} value={c.toUpperCase()}>{c.toUpperCase()}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="relative">
+                          <Input
+                            label="Years Of Experience"
+                            type="number"
+                            min="1"
+                            value={exp.yearsOfExperience}
+                            onChange={e => updateExperience(index, 'yearsOfExperience', e.target.value)}
+                            placeholder="e.g. 2"
+                            required
+                          />
+                          {experiences.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeExperience(index)}
+                              className="absolute right-0 -top-6 text-red-500 hover:text-red-700 p-1 cursor-pointer"
+                              title="Remove Experience"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addExperience}
+                  className="flex items-center gap-1.5 text-primary hover:underline text-xs font-bold pt-1 cursor-pointer"
+                >
+                  <Plus size={14} /> Add another experience
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

@@ -26,6 +26,7 @@ export interface ExtractedMusanedData {
   emergencyContactRelation?: string;
   emergencyContactPhone?: string;
   emergencyContactAddress?: string;
+  workExperience?: Array<{ experienceStatus: string; country: string; yearsOfExperience: string }>;
 }
 
 export function parseMusanedText(text: string): ExtractedMusanedData {

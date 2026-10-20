@@ -5,6 +5,7 @@ const db_1 = require("../db");
 const drizzle_orm_1 = require("drizzle-orm");
 const upload_1 = require("../lib/upload");
 const auth_helper_1 = require("../lib/auth-helper");
+const leader_sync_1 = require("../lib/leader-sync");
 function formatDbError(error) {
     if (!error)
         return 'Unknown error';
@@ -117,6 +118,15 @@ router.post('/', async (req, res) => {
             (0, upload_1.uploadToLocal)(body.videoUrl, 'videos'),
         ]);
         const qrId = (0, db_1.generateId)();
+        let resolvedBrokerId = body.brokerId || null;
+        if (resolvedBrokerId) {
+            try {
+                resolvedBrokerId = await (0, leader_sync_1.ensureBrokerInDaera1)(resolvedBrokerId);
+            }
+            catch (ebErr) {
+                console.warn('Failed to ensure broker in DAERA OFFICE on quick registration:', ebErr);
+            }
+        }
         await db_1.db.insert(db_1.quickRegistration).values({
             id: qrId,
             passportNumber: body.passportNumber || '',
@@ -134,7 +144,7 @@ router.post('/', async (req, res) => {
             numberOfChildren: parseInt(body.numberOfChildren) || 0,
             passportImageUrl,
             religion: body.religion || null,
-            brokerId: body.brokerId || null,
+            brokerId: resolvedBrokerId,
             cocDocumentUrl: cocDocumentUrl || null,
             labourIdUrl: labourIdUrl || null,
             laborID: body.laborID || null,

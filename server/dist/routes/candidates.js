@@ -6,6 +6,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const upload_1 = require("../lib/upload");
 const auth_helper_1 = require("../lib/auth-helper");
 const crypto_1 = require("../lib/crypto");
+const leader_sync_1 = require("../lib/leader-sync");
 const router = (0, express_1.Router)();
 function formatDbError(error) {
     if (!error)
@@ -432,6 +433,14 @@ router.post('/', async (req, res) => {
                 console.error('Failed to resolve or create Calling broker:', brokerErr);
             }
         }
+        if (finalBrokerId) {
+            try {
+                finalBrokerId = await (0, leader_sync_1.ensureBrokerInDaera1)(finalBrokerId);
+            }
+            catch (ebErr) {
+                console.warn('Failed to ensure broker in DAERA OFFICE:', ebErr);
+            }
+        }
         const candidateId = (0, db_1.generateId)();
         const candidateValues = {
             id: candidateId,
@@ -535,6 +544,13 @@ router.post('/', async (req, res) => {
                 await db_1.pool.query(`UPDATE \`QuickRegistration\` SET \`promotedAt\` = NOW(), \`promotedCandidateId\` = ?, \`verificationStatus\` = 'promoted' WHERE UPPER(TRIM(\`passportNumber\`)) = UPPER(TRIM(?)) AND \`promotedCandidateId\` IS NULL`, [candidateId, body.passportData.passportNumber]);
             }
             catch (_) { }
+        }
+        // Check if candidate has both image & video to move to DAERA OFFICE 2
+        try {
+            await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(candidateId);
+        }
+        catch (moveErr) {
+            console.warn('Failed to check and move candidate to DAERA OFFICE 2 on create:', moveErr);
         }
         const [createdCand] = await db_1.pool.query('SELECT * FROM `Candidate` WHERE `id` = ? LIMIT 1', [candidateId]);
         res.status(201).json(createdCand[0]);
@@ -887,6 +903,13 @@ router.put('/:id', async (req, res) => {
                 await db_1.db.update(db_1.generatedCv).set(cvUpdate).where((0, drizzle_orm_1.eq)(db_1.generatedCv.candidateId, id));
             }
             catch (_) { }
+        }
+        // Check if candidate has both image & video to move to DAERA OFFICE 2
+        try {
+            await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(id);
+        }
+        catch (moveErr) {
+            console.warn('Failed to check and move candidate to DAERA OFFICE 2 on update:', moveErr);
         }
         const [updatedRows] = await db_1.pool.query('SELECT * FROM Candidate WHERE id = ? LIMIT 1', [id]);
         res.json(updatedRows[0]);

@@ -79,6 +79,25 @@ const isLanguagesMismatch = (fieldLangs?: string[], quickLangs?: string[]) => {
   return false;
 };
 
+const isExperienceMismatch = (currentExp?: WorkExperienceEntry[], quickRegObj?: any) => {
+  if (!quickRegObj) return false;
+  const rawRegExp = quickRegObj.workExperience || quickRegObj.jobExperience || quickRegObj.personalInfo?.workExperience;
+  if (!rawRegExp) return false;
+  try {
+    const parsed = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+    if (!Array.isArray(parsed) || parsed.length === 0) return false;
+    const qHasExp = parsed.some((p: any) => p.experienceStatus === 'Have experience' || Boolean(p.country));
+    const cHasExp = (currentExp || []).some(c => c.experienceStatus === 'Have experience' || Boolean(c.country));
+    if (qHasExp !== cHasExp) return true;
+    if (qHasExp) {
+      const qCountries = parsed.map((p: any) => (p.country || '').trim().toUpperCase()).filter(Boolean).sort().join(',');
+      const cCountries = (currentExp || []).map(c => (c.country || '').trim().toUpperCase()).filter(Boolean).sort().join(',');
+      if (qCountries !== cCountries) return true;
+    }
+  } catch (_) {}
+  return false;
+};
+
 const MismatchAlert = () => (
   <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1.5 animate-fade-in">
     <AlertTriangle size={13} className="shrink-0 text-amber-500" />
@@ -442,7 +461,10 @@ export default function PersonalInfoForm({
 
       {/* 2. Work Experience */}
       <section className="pt-4 border-t border-slate-100">
-        <h3 className="text-xl font-bold text-text-primary mb-6">Work Experience</h3>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <h3 className="text-xl font-bold text-text-primary">Work Experience</h3>
+          {isExperienceMismatch(data.workExperience, quickRegistrationData) && <MismatchAlert />}
+        </div>
 
         <div className="space-y-6">
           {experiences.map((exp, index) => (

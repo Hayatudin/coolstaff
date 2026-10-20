@@ -12,11 +12,13 @@ exports.generateId = generateId;
 // ── Broker ─────────────────────────────────────────────────────────────────
 exports.broker = (0, mysql_core_1.mysqlTable)('Broker', {
     id: (0, mysql_core_1.varchar)('id', { length: 255 }).primaryKey().$defaultFn(() => (0, exports.generateId)()),
-    name: (0, mysql_core_1.varchar)('name', { length: 255 }).notNull().unique(),
+    name: (0, mysql_core_1.varchar)('name', { length: 255 }).notNull(),
     isLocked: (0, mysql_core_1.boolean)('isLocked').notNull().default(false),
     createdAt: (0, mysql_core_1.datetime)('createdAt').notNull().default((0, drizzle_orm_1.sql) `CURRENT_TIMESTAMP`),
     leaderId: (0, mysql_core_1.varchar)('leaderId', { length: 255 }),
-});
+}, (table) => ({
+    nameLeaderIdx: (0, mysql_core_1.index)('Broker_name_leaderId_idx').on(table.name, table.leaderId),
+}));
 exports.brokerRelations = (0, drizzle_orm_1.relations)(exports.broker, ({ one, many }) => ({
     leader: one(exports.leader, {
         fields: [exports.broker.leaderId],

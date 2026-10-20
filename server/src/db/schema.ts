@@ -18,11 +18,13 @@ export const generateId = () => 'c' + crypto.randomBytes(12).toString('hex');
 // ── Broker ─────────────────────────────────────────────────────────────────
 export const broker = mysqlTable('Broker', {
   id: varchar('id', { length: 255 }).primaryKey().$defaultFn(() => generateId()),
-  name: varchar('name', { length: 255 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
   isLocked: boolean('isLocked').notNull().default(false),
   createdAt: datetime('createdAt').notNull().default(sql`CURRENT_TIMESTAMP`),
   leaderId: varchar('leaderId', { length: 255 }),
-});
+}, (table) => ({
+  nameLeaderIdx: index('Broker_name_leaderId_idx').on(table.name, table.leaderId),
+}));
 
 export const brokerRelations = relations(broker, ({ one, many }) => ({
   leader: one(leader, {

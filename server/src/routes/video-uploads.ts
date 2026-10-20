@@ -13,6 +13,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { checkAndMoveCandidateToDaera2 } from '../lib/leader-sync';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -212,7 +213,18 @@ router.post('/save', upload.fields([
          WHERE UPPER(\`passportNumber\`) = ?`,
         [finalVideoUrl, facePhoto || null, fullBodyPhoto || null, resolvedPassportNumber]
       );
-    } catch (_) {}
+
+      // Check and move candidate to DAERA OFFICE 2 if in DAERA OFFICE
+      const [matchedCands]: any = await pool.query(
+        'SELECT id FROM `Candidate` WHERE UPPER(`passportNumber`) = ?',
+        [resolvedPassportNumber]
+      );
+      for (const mc of matchedCands || []) {
+        await checkAndMoveCandidateToDaera2(mc.id);
+      }
+    } catch (moveErr) {
+      console.warn('[VIDEO-UPLOAD] Failed to check and move candidate to DAERA OFFICE 2:', moveErr);
+    }
 
     try {
       await pool.query(

@@ -626,20 +626,29 @@ function RegistrationContent() {
         const mergedLanguages = cvLangs.length > 0 ? cvLangs : (quickLangs.length > 0 ? quickLangs : prev.languages);
 
         let finalWorkExp: any[] = [];
-        if (data.workExperience && Array.isArray(data.workExperience) && data.workExperience.length > 0) {
-          finalWorkExp = data.workExperience;
-        } else if (quickReg) {
+        // 1. Check Quick Registration experience first (just like other quick registration info)
+        if (quickReg) {
           const rawRegExp = quickReg.workExperience || quickReg.jobExperience || quickReg.personalInfo?.workExperience;
           if (rawRegExp) {
             try {
-              finalWorkExp = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+              const parsed = typeof rawRegExp === 'string' ? JSON.parse(rawRegExp) : rawRegExp;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                finalWorkExp = parsed;
+              }
             } catch (e) {
               console.warn('Failed to parse quickReg workExperience:', e);
             }
           }
         }
+
+        // 2. If no quickReg experience found or empty, fallback to Musaned CV extracted experience
+        if ((!Array.isArray(finalWorkExp) || finalWorkExp.length === 0) && data.workExperience && Array.isArray(data.workExperience) && data.workExperience.length > 0) {
+          finalWorkExp = data.workExperience;
+        }
+
+        // 3. Fallback to previous experience or empty
         if (!Array.isArray(finalWorkExp) || finalWorkExp.length === 0) {
-          finalWorkExp = prev.workExperience || [];
+          finalWorkExp = prev.workExperience || [{ experienceStatus: 'New', country: '', yearsOfExperience: '' }];
         }
 
         return {

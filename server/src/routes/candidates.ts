@@ -17,6 +17,7 @@ import { uploadToLocal } from '../lib/upload';
 import { getSession } from '../lib/auth-helper';
 import { encryptPath, sanitizeIncomingPath } from '../lib/crypto';
 import crypto from 'crypto';
+import { checkAndMoveCandidateToDaera2, ensureBrokerInDaera1 } from '../lib/leader-sync';
 
 const router = Router();
 
@@ -506,6 +507,14 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
+    if (finalBrokerId) {
+      try {
+        finalBrokerId = await ensureBrokerInDaera1(finalBrokerId);
+      } catch (ebErr) {
+        console.warn('Failed to ensure broker in DAERA OFFICE:', ebErr);
+      }
+    }
+
     const candidateId = generateId();
 
     const candidateValues = {
@@ -620,6 +629,13 @@ router.post('/', async (req: Request, res: Response) => {
           [candidateId, body.passportData.passportNumber]
         );
       } catch (_) {}
+    }
+
+    // Check if candidate has both image & video to move to DAERA OFFICE 2
+    try {
+      await checkAndMoveCandidateToDaera2(candidateId);
+    } catch (moveErr) {
+      console.warn('Failed to check and move candidate to DAERA OFFICE 2 on create:', moveErr);
     }
 
     const [createdCand]: any = await pool.query('SELECT * FROM `Candidate` WHERE `id` = ? LIMIT 1', [candidateId]);
@@ -988,6 +1004,13 @@ router.put('/:id', async (req: Request, res: Response) => {
         if (fullBodyPhotoUrl) cvUpdate.fullBodyPhotoUrl = fullBodyPhotoUrl;
         await db.update(generatedCvTable).set(cvUpdate).where(eq(generatedCvTable.candidateId, id));
       } catch (_) {}
+    }
+
+    // Check if candidate has both image & video to move to DAERA OFFICE 2
+    try {
+      await checkAndMoveCandidateToDaera2(id);
+    } catch (moveErr) {
+      console.warn('Failed to check and move candidate to DAERA OFFICE 2 on update:', moveErr);
     }
 
     const [updatedRows]: any = await pool.query('SELECT * FROM Candidate WHERE id = ? LIMIT 1', [id]);

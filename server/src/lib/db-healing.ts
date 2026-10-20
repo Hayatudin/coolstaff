@@ -740,5 +740,24 @@ export async function ensureDatabaseSchema() {
     console.warn('⚠️ Auto-backfill of candidate laborID failed:', laborBackfillErr.message || laborBackfillErr);
   }
 
+  // Ensure DAERA OFFICE and DAERA OFFICE 2 leaders exist and adjust Broker index
+  try {
+    const { getOrCreateDaeraLeaders } = await import('./leader-sync');
+    await getOrCreateDaeraLeaders();
+    console.log('✅ Verified DAERA OFFICE and DAERA OFFICE 2 leaders exist.');
+  } catch (leaderErr: any) {
+    console.warn('⚠️ Could not verify DAERA leaders:', leaderErr.message || leaderErr);
+  }
+
+  try {
+    await executeRaw(`ALTER TABLE \`Broker\` DROP INDEX \`Broker_name_key\``);
+    console.log('✅ Dropped single-column unique index Broker_name_key to allow same broker under different leaders.');
+  } catch (_) {}
+
+  try {
+    await executeRaw(`ALTER TABLE \`Broker\` ADD UNIQUE KEY \`Broker_name_leaderId_key\` (\`name\`, \`leaderId\`)`);
+    console.log('✅ Ensured composite unique index Broker_name_leaderId_key (name, leaderId).');
+  } catch (_) {}
+
   console.log('✅ Database self-healing complete.');
 }

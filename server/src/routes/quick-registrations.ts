@@ -13,6 +13,7 @@ import { uploadToLocal } from '../lib/upload';
 import { exec } from 'child_process';
 import path from 'path';
 import { getSession } from '../lib/auth-helper';
+import { ensureBrokerInDaera1 } from '../lib/leader-sync';
 
 function formatDbError(error: any): string {
   if (!error) return 'Unknown error';
@@ -145,6 +146,15 @@ router.post('/', async (req: Request, res: Response) => {
 
     const qrId = generateId();
 
+    let resolvedBrokerId = body.brokerId || null;
+    if (resolvedBrokerId) {
+      try {
+        resolvedBrokerId = await ensureBrokerInDaera1(resolvedBrokerId);
+      } catch (ebErr) {
+        console.warn('Failed to ensure broker in DAERA OFFICE on quick registration:', ebErr);
+      }
+    }
+
     await db.insert(quickRegistrationTable).values({
       id: qrId,
       passportNumber: body.passportNumber || '',
@@ -162,7 +172,7 @@ router.post('/', async (req: Request, res: Response) => {
       numberOfChildren: parseInt(body.numberOfChildren) || 0,
       passportImageUrl,
       religion: body.religion || null,
-      brokerId: body.brokerId || null,
+      brokerId: resolvedBrokerId,
       cocDocumentUrl: cocDocumentUrl || null,
       labourIdUrl: labourIdUrl || null,
       laborID: body.laborID || null,
