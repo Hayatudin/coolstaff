@@ -38,8 +38,8 @@ router.get('/', async (req: Request, res: Response) => {
     const [users]: any = await pool.query('SELECT `id`, `name` FROM `User`').catch(() => [[]]);
     const userMap = new Map((users || []).map((u: any) => [u.id, u.name]));
 
-    const [brokers]: any = await pool.query('SELECT `id`, `name`, `isLocked` FROM `Broker`').catch(() => [[]]);
-    const brokerMap = new Map((brokers || []).map((b: any) => [b.id, { id: b.id, name: b.name, isLocked: b.isLocked === 1 || b.isLocked === true }]));
+    const [brokers]: any = await pool.query('SELECT b.`id`, b.`name`, b.`isLocked`, b.`leaderId`, l.`name` as `leaderName` FROM `Broker` b LEFT JOIN `Leader` l ON b.`leaderId` = l.`id`').catch(() => [[]]);
+    const brokerMap = new Map((brokers || []).map((b: any) => [b.id, { id: b.id, name: b.name, isLocked: b.isLocked === 1 || b.isLocked === true, leaderId: b.leaderId, leader: b.leaderId ? { id: b.leaderId, name: b.leaderName } : null }]));
 
     const candidateIds = (dbCandidates || []).map((c: any) => c.id).filter(Boolean);
     const passportNumbers = (dbCandidates || [])

@@ -136,7 +136,19 @@ router.get('/', async (req: Request, res: Response) => {
       ? await db.select().from(brokerTable).where(inArray(brokerTable.id, brokerIds))
       : [];
 
-    const brokerMap = new Map(brokersList.map(b => [b.id, b]));
+    // Fetch leader names for all brokers so client can distinguish DAERA OFFICE vs DAERA OFFICE 2
+    let leaderMap = new Map<string, { id: string; name: string }>();
+    try {
+      const [leaderRows]: any = await pool.query('SELECT id, name FROM Leader');
+      for (const l of leaderRows || []) {
+        leaderMap.set(l.id, { id: l.id, name: l.name });
+      }
+    } catch (_) {}
+
+    const brokerMap = new Map(brokersList.map(b => {
+      const leaderInfo = b.leaderId ? leaderMap.get(b.leaderId) : null;
+      return [b.id, { ...b, leader: leaderInfo || null }];
+    }));
     const candMap = new Map(candidatesList.map(c => {
       const pNum = (c.passportNumber || '').trim().toUpperCase();
       const profile = videoProfileMap.get(pNum);

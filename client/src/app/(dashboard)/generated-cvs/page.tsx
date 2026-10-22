@@ -353,6 +353,23 @@ function GeneratedCVsContent() {
 
   const isLoading = isQueryLoading && cvs.length === 0;
 
+  // "Old" / "New" category toggle — "New" (default) shows candidates in DAERA OFFICE 2
+  const [officeCategory, setOfficeCategory] = useState<'new' | 'old'>('new');
+
+  const isDaeraOffice2 = (cv: any): boolean => {
+    const leaderName = (cv.candidate?.broker?.leader?.name || '').toUpperCase().trim();
+    return leaderName === 'DAERA OFFICE 2' || leaderName === 'DAIRA OFFICE 2';
+  };
+
+  // Filter CVs based on Office Category
+  const categorizedCvs = useMemo(() => {
+    if (officeCategory === 'new') {
+      return cvs.filter(cv => isDaeraOffice2(cv));
+    } else {
+      return cvs.filter(cv => !isDaeraOffice2(cv));
+    }
+  }, [cvs, officeCategory]);
+
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [religionFilter, setReligionFilter] = useState<string>('');
   const [experienceFilter, setExperienceFilter] = useState<string>('');
@@ -401,7 +418,7 @@ const normalizeLanguageName = (lang: string): string => {
       langSet.add(clean);
     };
 
-    cvs.forEach(c => {
+    categorizedCvs.forEach(c => {
       const langs = c.candidate?.personalInfo?.languages || c.candidate?.languages;
       if (Array.isArray(langs)) {
         langs.forEach(addLang);
@@ -424,7 +441,7 @@ const normalizeLanguageName = (lang: string): string => {
     defaults.forEach(d => langSet.add(d));
 
     return Array.from(langSet).sort().map(l => ({ value: l, label: l }));
-  }, [cvs]);
+  }, [categorizedCvs]);
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
@@ -935,7 +952,7 @@ const normalizeLanguageName = (lang: string): string => {
 
   // ── Group by template and filter out locked broker candidates ─────────────
   const processedFolders = TEMPLATES.map(t => {
-    const folderCvs = cvs.filter(c => c.templateId === t.id && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
+    const folderCvs = categorizedCvs.filter(c => c.templateId === t.id && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
     return {
       ...t,
       cvs: folderCvs,
@@ -976,6 +993,32 @@ const normalizeLanguageName = (lang: string): string => {
             <Link href="/cv-generator">
               <Button className="flex items-center gap-2"><RefreshCw size={16} />Generate New CV</Button>
             </Link>
+          </div>
+
+          {/* Old / New Category Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-surface-hover border border-border rounded-xl w-fit">
+            <button
+              onClick={() => setOfficeCategory('new')}
+              className={cn(
+                'px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                officeCategory === 'new'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface'
+              )}
+            >
+              New
+            </button>
+            <button
+              onClick={() => setOfficeCategory('old')}
+              className={cn(
+                'px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                officeCategory === 'old'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-surface'
+              )}
+            >
+              Old
+            </button>
           </div>
 
           {isLoading ? (
@@ -1045,8 +1088,8 @@ const normalizeLanguageName = (lang: string): string => {
     : TEMPLATES.find(t => t.id === selectedFolder)!;
 
   const allFolderCVs = isBackupFolder
-    ? cvs.filter(c => c.candidate?.isLocked === true || c.candidate?.broker?.isLocked === true)
-    : cvs.filter(c => c.templateId === selectedFolder && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
+    ? categorizedCvs.filter(c => c.candidate?.isLocked === true || c.candidate?.broker?.isLocked === true)
+    : categorizedCvs.filter(c => c.templateId === selectedFolder && c.candidate?.isLocked !== true && c.candidate?.broker?.isLocked !== true);
 
   const activeCVs = allFolderCVs.filter(cv => {
     const matchesCvStatus = cvStatusFilter === 'cv-downloaded'
@@ -1472,6 +1515,34 @@ const normalizeLanguageName = (lang: string): string => {
                 )}
               >
                 CV Downloaded
+              </button>
+            </div>
+
+            {/* Old / New Category Toggle */}
+            <div className="flex items-center gap-1 p-1 bg-surface-hover border border-border rounded-xl ml-0 sm:ml-2">
+              <button
+                type="button"
+                onClick={() => setOfficeCategory('new')}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+                  officeCategory === 'new'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface'
+                )}
+              >
+                New
+              </button>
+              <button
+                type="button"
+                onClick={() => setOfficeCategory('old')}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+                  officeCategory === 'old'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface'
+                )}
+              >
+                Old
               </button>
             </div>
           </div>
