@@ -13,7 +13,7 @@ import { uploadToLocal } from '../lib/upload';
 import { exec } from 'child_process';
 import path from 'path';
 import { getSession } from '../lib/auth-helper';
-import { ensureBrokerInDaera1 } from '../lib/leader-sync';
+import { ensureBrokerInDaera2 } from '../lib/leader-sync';
 
 function formatDbError(error: any): string {
   if (!error) return 'Unknown error';
@@ -149,9 +149,9 @@ router.post('/', async (req: Request, res: Response) => {
     let resolvedBrokerId = body.brokerId || null;
     if (resolvedBrokerId) {
       try {
-        resolvedBrokerId = await ensureBrokerInDaera1(resolvedBrokerId);
+        resolvedBrokerId = await ensureBrokerInDaera2(resolvedBrokerId);
       } catch (ebErr) {
-        console.warn('Failed to ensure broker in DAERA OFFICE on quick registration:', ebErr);
+        console.warn('Failed to ensure broker in DAERA OFFICE 2 on quick registration:', ebErr);
       }
     }
 

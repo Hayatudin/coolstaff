@@ -121,10 +121,10 @@ router.post('/', async (req, res) => {
         let resolvedBrokerId = body.brokerId || null;
         if (resolvedBrokerId) {
             try {
-                resolvedBrokerId = await (0, leader_sync_1.ensureBrokerInDaera1)(resolvedBrokerId);
+                resolvedBrokerId = await (0, leader_sync_1.ensureBrokerInDaera2)(resolvedBrokerId);
             }
             catch (ebErr) {
-                console.warn('Failed to ensure broker in DAERA OFFICE on quick registration:', ebErr);
+                console.warn('Failed to ensure broker in DAERA OFFICE 2 on quick registration:', ebErr);
             }
         }
         await db_1.db.insert(db_1.quickRegistration).values({

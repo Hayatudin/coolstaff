@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrCreateDaeraLeaders = getOrCreateDaeraLeaders;
+exports.ensureBrokerInDaera2 = ensureBrokerInDaera2;
 exports.ensureBrokerInDaera1 = ensureBrokerInDaera1;
 exports.checkAndMoveCandidateToDaera2 = checkAndMoveCandidateToDaera2;
 exports.rebalanceDaeraOfficeCandidates = rebalanceDaeraOfficeCandidates;
@@ -27,7 +28,51 @@ async function getOrCreateDaeraLeaders() {
 }
 /**
  * Ensures that for newly registered candidates (or during quick registration),
- * the candidate's broker belongs to 'DAERA OFFICE' (not 'DAERA OFFICE 2').
+ * the candidate's broker belongs to 'DAERA OFFICE 2' (the 'new' category).
+ */
+async function ensureBrokerInDaera2(brokerId) {
+    if (!brokerId)
+        return brokerId;
+    try {
+        const { daera2LeaderId } = await getOrCreateDaeraLeaders();
+        const [bRows] = await db_1.pool.query('SELECT id, name, leaderId, isLocked FROM Broker WHERE id = ? LIMIT 1', [brokerId]);
+        if (!bRows || bRows.length === 0)
+            return brokerId;
+        const b = bRows[0];
+        // If broker is already in DAERA OFFICE 2, return directly
+        if (b.leaderId === daera2LeaderId) {
+            return brokerId;
+        }
+        // If broker has no leader, assign to DAERA OFFICE 2
+        if (!b.leaderId) {
+            await db_1.pool.query('UPDATE Broker SET leaderId = ? WHERE id = ?', [daera2LeaderId, brokerId]);
+            return brokerId;
+        }
+        // Find or create matching broker under DAERA OFFICE 2
+        const [d2Brokers] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [b.name, daera2LeaderId]);
+        if (d2Brokers && d2Brokers.length > 0) {
+            return d2Brokers[0].id;
+        }
+        const newD2BrokerId = 'cb' + (0, db_1.generateId)().slice(0, 23);
+        try {
+            await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)', [newD2BrokerId, b.name, daera2LeaderId, b.isLocked ? 1 : 0]);
+            return newD2BrokerId;
+        }
+        catch (dupErr) {
+            const [byName] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [b.name, daera2LeaderId]);
+            if (byName && byName.length > 0) {
+                return byName[0].id;
+            }
+            return brokerId;
+        }
+    }
+    catch (e) {
+        console.warn('[LEADER-SYNC] Failed to ensure broker in DAERA OFFICE 2:', e);
+        return brokerId;
+    }
+}
+/**
+ * Ensures that a broker belongs to 'DAERA OFFICE' (for legacy backward compatibility).
  */
 async function ensureBrokerInDaera1(brokerId) {
     if (!brokerId)
@@ -38,13 +83,10 @@ async function ensureBrokerInDaera1(brokerId) {
         if (!bRows || bRows.length === 0)
             return brokerId;
         const b = bRows[0];
-        // If broker has no leader, assign to DAERA OFFICE
         if (!b.leaderId) {
             await db_1.pool.query('UPDATE Broker SET leaderId = ? WHERE id = ?', [daeraLeaderId, brokerId]);
             return brokerId;
         }
-        // If the broker is assigned to DAERA OFFICE 2, this is a NEW non-updated candidate,
-        // so this candidate belongs in DAERA OFFICE:
         if (b.leaderId === daera2LeaderId) {
             const [d1Brokers] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [b.name, daeraLeaderId]);
             if (d1Brokers && d1Brokers.length > 0) {
@@ -57,7 +99,6 @@ async function ensureBrokerInDaera1(brokerId) {
                     return newD1BrokerId;
                 }
                 catch (dupErr) {
-                    // Fallback if unique constraint on name alone prevents duplicate name
                     return brokerId;
                 }
             }
@@ -70,20 +111,15 @@ async function ensureBrokerInDaera1(brokerId) {
     }
 }
 /**
- * Checks if a SINGLE candidate has both image and video updated.
- * If the candidate is currently in DAERA OFFICE:
- *   - Move ONLY this specific candidate to DAERA OFFICE 2 (not all candidates under the broker).
- *   - If broker still has other (non-updated) candidates in DAERA OFFICE, the broker is
- *     duplicated: original stays in DAERA OFFICE, a copy is created in DAERA OFFICE 2.
- *   - If broker has NO more candidates left in DAERA OFFICE after the move, clean up
- *     the empty broker from DAERA OFFICE.
+ * Moves a candidate to DAERA OFFICE 2 (the "New" category) and ensures their
+ * GeneratedCV record is present under their assigned agency.
  */
 async function checkAndMoveCandidateToDaera2(candidateId) {
     if (!candidateId)
         return;
     try {
         // 1. Fetch candidate with broker and leader details
-        const [cands] = await db_1.pool.query(`SELECT c.id, c.brokerId, c.facePhotoUrl, c.fullBodyPhotoUrl, c.Youtube_URL, c.quickVideoUrl,
+        const [cands] = await db_1.pool.query(`SELECT c.id, c.brokerId, c.facePhotoUrl, c.fullBodyPhotoUrl, c.Youtube_URL, c.quickVideoUrl, c.agency, c.passportNumber,
               b.name as brokerName, b.leaderId, b.isLocked,
               l.name as leaderName
        FROM Candidate c
@@ -93,68 +129,82 @@ async function checkAndMoveCandidateToDaera2(candidateId) {
         if (!cands || cands.length === 0)
             return;
         const cand = cands[0];
-        // Check if candidate has both image and video
-        const hasImage = Boolean(cand.facePhotoUrl || cand.fullBodyPhotoUrl);
-        const hasVideo = Boolean(cand.Youtube_URL || cand.quickVideoUrl);
-        if (!hasImage || !hasVideo) {
-            // Must have both image and video updated to be moved to DAERA OFFICE 2
-            return;
-        }
-        if (!cand.brokerId || !cand.leaderId) {
-            return;
-        }
-        const currentLeaderName = (cand.leaderName || '').toUpperCase().trim();
-        const isDaeraOffice1 = currentLeaderName === 'DAERA OFFICE' || currentLeaderName === 'DAIRA OFFICE';
-        if (!isDaeraOffice1) {
-            // Only candidates in DAERA OFFICE are moved to DAERA OFFICE 2
+        if (!cand.brokerId) {
             return;
         }
         const { daera2LeaderId } = await getOrCreateDaeraLeaders();
+        const currentLeaderName = (cand.leaderName || '').toUpperCase().trim();
+        const isAlreadyInD2 = currentLeaderName === 'DAERA OFFICE 2' || currentLeaderName === 'DAIRA OFFICE 2' || cand.leaderId === daera2LeaderId;
+        let targetBrokerId = cand.brokerId;
         const currentBrokerId = cand.brokerId;
-        const brokerName = cand.brokerName;
-        // Find or create a matching broker in DAERA OFFICE 2 for this candidate
-        let targetBrokerId;
-        const [existingBrokerInD2] = await db_1.pool.query(`SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1`, [brokerName, daera2LeaderId]);
-        if (existingBrokerInD2 && existingBrokerInD2.length > 0) {
-            targetBrokerId = existingBrokerInD2[0].id;
-        }
-        else {
-            targetBrokerId = 'cb' + (0, db_1.generateId)().slice(0, 23);
+        const brokerName = cand.brokerName || 'Independent';
+        if (!isAlreadyInD2) {
+            // Find or create matching broker in DAERA OFFICE 2
+            const [existingBrokerInD2] = await db_1.pool.query(`SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1`, [brokerName, daera2LeaderId]);
+            if (existingBrokerInD2 && existingBrokerInD2.length > 0) {
+                targetBrokerId = existingBrokerInD2[0].id;
+            }
+            else {
+                targetBrokerId = 'cb' + (0, db_1.generateId)().slice(0, 23);
+                try {
+                    await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)', [targetBrokerId, brokerName, daera2LeaderId, cand.isLocked ? 1 : 0]);
+                }
+                catch (insertErr) {
+                    const [byName] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [brokerName, daera2LeaderId]);
+                    if (byName && byName.length > 0) {
+                        targetBrokerId = byName[0].id;
+                    }
+                    else {
+                        throw insertErr;
+                    }
+                }
+            }
+            // Move ONLY THIS candidate to the broker in DAERA OFFICE 2
+            await db_1.pool.query('UPDATE Candidate SET brokerId = ? WHERE id = ?', [targetBrokerId, candidateId]);
+            console.log(`[LEADER-SYNC] Moved candidate ${candidateId} to broker "${brokerName}" in DAERA OFFICE 2 (${targetBrokerId})`);
+            // Update QuickRegistration if applicable
             try {
-                await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)', [targetBrokerId, brokerName, daera2LeaderId, cand.isLocked ? 1 : 0]);
+                await db_1.pool.query('UPDATE QuickRegistration SET brokerId = ? WHERE promotedCandidateId = ?', [targetBrokerId, candidateId]);
             }
-            catch (insertErr) {
-                // If unique constraint prevents duplicate, find existing
-                const [byName] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [brokerName, daera2LeaderId]);
-                if (byName && byName.length > 0) {
-                    targetBrokerId = byName[0].id;
-                }
-                else {
-                    throw insertErr;
+            catch (_) { }
+            // Clean up original broker in DAERA OFFICE if now empty
+            const [remainingInOld] = await db_1.pool.query('SELECT COUNT(id) as count FROM Candidate WHERE brokerId = ?', [currentBrokerId]);
+            if (remainingInOld && remainingInOld[0]?.count === 0) {
+                const [qrCount] = await db_1.pool.query('SELECT COUNT(id) as count FROM QuickRegistration WHERE brokerId = ? AND promotedCandidateId IS NULL', [currentBrokerId]);
+                if (!qrCount || qrCount[0]?.count === 0) {
+                    await db_1.pool.query('DELETE FROM Broker WHERE id = ?', [currentBrokerId]);
+                    console.log(`[LEADER-SYNC] Cleaned up empty broker "${brokerName}" (${currentBrokerId}) from DAERA OFFICE`);
                 }
             }
         }
-        // Move ONLY THIS candidate to the broker in DAERA OFFICE 2
-        await db_1.pool.query('UPDATE Candidate SET brokerId = ? WHERE id = ?', [targetBrokerId, candidateId]);
-        console.log(`[LEADER-SYNC] Moved candidate ${candidateId} to broker "${brokerName}" in DAERA OFFICE 2 (${targetBrokerId})`);
-        // Also update QuickRegistration for this specific candidate if applicable
+        // 2. Ensure GeneratedCV record exists for this candidate under their own agency
         try {
-            const [qrRows] = await db_1.pool.query('SELECT id FROM QuickRegistration WHERE promotedCandidateId = ?', [candidateId]);
-            for (const qr of qrRows || []) {
-                await db_1.pool.query('UPDATE QuickRegistration SET brokerId = ? WHERE id = ?', [targetBrokerId, qr.id]);
+            const [existingCvs] = await db_1.pool.query('SELECT id, templateId FROM GeneratedCV WHERE candidateId = ? LIMIT 1', [candidateId]);
+            const validTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+            let targetAgency = cand.agency;
+            if (!targetAgency || !validTemplates.includes(targetAgency.toLowerCase())) {
+                const [qr] = await db_1.pool.query('SELECT office, agency FROM QuickRegistration WHERE promotedCandidateId = ? OR UPPER(TRIM(passportNumber)) = UPPER(TRIM(?)) LIMIT 1', [candidateId, cand.passportNumber || '']);
+                if (qr && qr.length > 0) {
+                    const qrOffice = qr[0].office || qr[0].agency;
+                    if (qrOffice && validTemplates.includes(qrOffice.toLowerCase())) {
+                        targetAgency = qrOffice.toLowerCase();
+                    }
+                }
             }
+            const finalAgency = (targetAgency && validTemplates.includes(targetAgency.toLowerCase())) ? targetAgency.toLowerCase() : 'alm';
+            if (!existingCvs || existingCvs.length === 0) {
+                const newCvId = 'cv' + (0, db_1.generateId)().slice(0, 23);
+                await db_1.pool.query('INSERT INTO GeneratedCV (id, candidateId, templateId, facePhotoUrl, fullBodyPhotoUrl, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))', [newCvId, candidateId, finalAgency, cand.facePhotoUrl || null, cand.fullBodyPhotoUrl || null]);
+                console.log(`[LEADER-SYNC] Created GeneratedCV for candidate ${candidateId} under template "${finalAgency}"`);
+            }
+            else {
+                await db_1.pool.query('UPDATE GeneratedCV SET facePhotoUrl = COALESCE(?, facePhotoUrl), fullBodyPhotoUrl = COALESCE(?, fullBodyPhotoUrl), updatedAt = NOW(3) WHERE candidateId = ?', [cand.facePhotoUrl || null, cand.fullBodyPhotoUrl || null, candidateId]);
+            }
+            // Ensure candidate.agency matches
+            await db_1.pool.query('UPDATE Candidate SET agency = ? WHERE id = ?', [finalAgency, candidateId]);
         }
-        catch (_) { }
-        // Cleanup: Check if the original broker in DAERA OFFICE now has 0 candidates
-        const [remainingInOld] = await db_1.pool.query('SELECT COUNT(id) as count FROM Candidate WHERE brokerId = ?', [currentBrokerId]);
-        if (remainingInOld && remainingInOld[0]?.count === 0) {
-            // No candidates left in the original broker — check if QR references exist
-            const [qrCount] = await db_1.pool.query('SELECT COUNT(id) as count FROM QuickRegistration WHERE brokerId = ? AND promotedCandidateId IS NULL', [currentBrokerId]);
-            if (!qrCount || qrCount[0]?.count === 0) {
-                // Safe to remove empty broker from DAERA OFFICE
-                await db_1.pool.query('DELETE FROM Broker WHERE id = ?', [currentBrokerId]);
-                console.log(`[LEADER-SYNC] Cleaned up empty broker "${brokerName}" (${currentBrokerId}) from DAERA OFFICE`);
-            }
+        catch (cvErr) {
+            console.warn('[LEADER-SYNC] Error ensuring GeneratedCV:', cvErr);
         }
     }
     catch (err) {

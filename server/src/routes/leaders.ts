@@ -38,46 +38,19 @@ router.get('/', async (req: Request, res: Response) => {
       }
     });
 
-    // Counts of candidates who have BOTH photo (face or full body) AND video (Youtube_URL or quickVideoUrl)
-    const [updatedCountRows]: any = await pool.query(
-      `SELECT brokerId, COUNT(*) as count 
-       FROM Candidate 
-       WHERE brokerId IS NOT NULL 
-         AND ((facePhotoUrl IS NOT NULL AND TRIM(facePhotoUrl) != '') OR (fullBodyPhotoUrl IS NOT NULL AND TRIM(fullBodyPhotoUrl) != ''))
-         AND ((Youtube_URL IS NOT NULL AND TRIM(Youtube_URL) != '') OR (quickVideoUrl IS NOT NULL AND TRIM(quickVideoUrl) != ''))
-       GROUP BY brokerId`
-    );
-    const updatedCountMap: Record<string, number> = {};
-    (updatedCountRows || []).forEach((row: any) => {
-      if (row.brokerId) {
-        updatedCountMap[row.brokerId] = Number(row.count);
-      }
-    });
-
     const augmented = (leaders || []).map((leader: any) => {
-      const lName = (leader.name || '').toUpperCase().trim();
-      const isDaera2 = lName === 'DAERA OFFICE 2' || lName === 'DAIRA OFFICE 2';
-
       let leaderBrokers = (brokers || []).filter((b: any) => b.leaderId === leader.id);
 
-      let mappedBrokers = leaderBrokers.map((b: any) => {
-        const candCount = isDaera2 ? (updatedCountMap[b.id] || 0) : (countMap[b.id] || 0);
-        return {
-          id: b.id,
-          name: b.name,
-          leaderId: b.leaderId,
-          isLocked: lockMap[b.id] ?? false,
-          createdAt: typeof b.createdAt === 'string' ? b.createdAt : b.createdAt.toISOString(),
-          _count: {
-            candidates: candCount
-          }
-        };
-      });
-
-      if (isDaera2) {
-        // DAERA OFFICE 2 strictly lists brokers that have at least 1 candidate with both photo and video
-        mappedBrokers = mappedBrokers.filter((b: any) => b._count.candidates > 0);
-      }
+      let mappedBrokers = leaderBrokers.map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        leaderId: b.leaderId,
+        isLocked: lockMap[b.id] ?? false,
+        createdAt: typeof b.createdAt === 'string' ? b.createdAt : b.createdAt.toISOString(),
+        _count: {
+          candidates: countMap[b.id] || 0
+        }
+      }));
 
       const totalCandidates = mappedBrokers.reduce(
         (sum: number, b: any) => sum + b._count.candidates,

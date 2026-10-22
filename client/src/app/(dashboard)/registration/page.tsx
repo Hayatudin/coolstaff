@@ -757,6 +757,7 @@ function RegistrationContent() {
           visaSelected: isEditMode ? (candidates.find(c => c.id === editId)?.visaSelected || false) : false,
           registeredById: session?.user?.id || null,
           quickRegistrationId: quickRegistrationId || null,
+          agency: (personalInfo as any).agency || quickRegData?.agency || quickRegData?.office || 'alm',
         }),
       });
 

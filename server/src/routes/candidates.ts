@@ -17,7 +17,7 @@ import { uploadToLocal } from '../lib/upload';
 import { getSession } from '../lib/auth-helper';
 import { encryptPath, sanitizeIncomingPath } from '../lib/crypto';
 import crypto from 'crypto';
-import { checkAndMoveCandidateToDaera2, ensureBrokerInDaera1 } from '../lib/leader-sync';
+import { checkAndMoveCandidateToDaera2, ensureBrokerInDaera1, ensureBrokerInDaera2 } from '../lib/leader-sync';
 
 const router = Router();
 
@@ -509,11 +509,31 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (finalBrokerId) {
       try {
-        finalBrokerId = await ensureBrokerInDaera1(finalBrokerId);
+        finalBrokerId = await ensureBrokerInDaera2(finalBrokerId);
       } catch (ebErr) {
-        console.warn('Failed to ensure broker in DAERA OFFICE:', ebErr);
+        console.warn('Failed to ensure broker in DAERA OFFICE 2:', ebErr);
       }
     }
+
+    // Resolve agency for candidate (check body.agency, body.office, or quick registration)
+    let resolvedAgency = body.agency || body.office;
+    if (!resolvedAgency || resolvedAgency === 'daera') {
+      try {
+        if (body.quickRegistrationId) {
+          const [qr]: any = await pool.query('SELECT office, agency FROM QuickRegistration WHERE id = ? LIMIT 1', [body.quickRegistrationId]);
+          if (qr && qr.length > 0) {
+            resolvedAgency = qr[0].office || qr[0].agency;
+          }
+        } else if (body.passportData?.passportNumber) {
+          const [qr]: any = await pool.query('SELECT office, agency FROM QuickRegistration WHERE UPPER(TRIM(passportNumber)) = UPPER(TRIM(?)) LIMIT 1', [body.passportData.passportNumber]);
+          if (qr && qr.length > 0) {
+            resolvedAgency = qr[0].office || qr[0].agency;
+          }
+        }
+      } catch (_) {}
+    }
+    const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+    const finalAgency = (resolvedAgency && validAgencyTemplates.includes(resolvedAgency.toLowerCase())) ? resolvedAgency.toLowerCase() : 'alm';
 
     const candidateId = generateId();
 
@@ -569,7 +589,7 @@ router.post('/', async (req: Request, res: Response) => {
       laborID: laborIdVal || null,
       status: body.status || 'pending',
       salary: body.personalInfo?.salary || '1000SR',
-      agency: body.agency || 'daera',
+      agency: finalAgency,
       brokerId: finalBrokerId || null,
       registeredById: registeredById || null,
       allowVideo: body.allowVideo ?? false,
@@ -579,25 +599,21 @@ router.post('/', async (req: Request, res: Response) => {
 
     await db.insert(candidateTable).values(candidateValues);
 
-    if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
-      const templateId = body.office || body.templateId || body.agency || '';
-      const validTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
-      if (validTemplates.includes(templateId.toLowerCase())) {
-        try {
-          await db.insert(generatedCvTable).values({
-            candidateId: candidateId,
-            templateId: templateId.toLowerCase(),
-            facePhotoUrl: facePhotoUrl || null,
-            fullBodyPhotoUrl: null,
-          });
+    // Ensure candidate has initial GeneratedCV record under their agency
+    try {
+      const cvId = 'cv' + generateId().slice(0, 23);
+      await pool.query(
+        'INSERT INTO GeneratedCV (id, candidateId, templateId, facePhotoUrl, fullBodyPhotoUrl, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))',
+        [cvId, candidateId, finalAgency, facePhotoUrl || null, fullBodyPhotoUrl || null]
+      );
+    } catch (cvErr) {
+      console.warn('[AUTO-CV] Failed to create initial GeneratedCV:', cvErr);
+    }
 
-          const deadline = new Date();
-          deadline.setDate(deadline.getDate() + 30);
-          await db.update(candidateTable).set({ cvDeadline: deadline }).where(eq(candidateTable.id, candidateId));
-        } catch (cvErr) {
-          console.error('[AUTO-CV] Failed to create initial GeneratedCV:', cvErr);
-        }
-      }
+    if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + 30);
+      await db.update(candidateTable).set({ cvDeadline: deadline }).where(eq(candidateTable.id, candidateId));
     }
 
     if (body.quickRegistrationId) {
@@ -1124,8 +1140,33 @@ router.patch('/:id', async (req: Request, res: Response) => {
       updateFields.quickVideoUrl = sanitizeIncomingPath(quickVideoUrlVal) || null;
     }
 
+    if (body.facePhotoUrl) {
+      updateFields.facePhotoUrl = await uploadToLocal(body.facePhotoUrl, 'faces');
+    }
+    if (body.fullBodyPhotoUrl) {
+      updateFields.fullBodyPhotoUrl = await uploadToLocal(body.fullBodyPhotoUrl, 'fullbody');
+    }
+
     if (Object.keys(updateFields).length > 0) {
       await db.update(candidateTable).set(updateFields).where(eq(candidateTable.id, id));
+    }
+
+    if (updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl) {
+      try {
+        const cvUpdate: any = {};
+        if (updateFields.facePhotoUrl) cvUpdate.facePhotoUrl = updateFields.facePhotoUrl;
+        if (updateFields.fullBodyPhotoUrl) cvUpdate.fullBodyPhotoUrl = updateFields.fullBodyPhotoUrl;
+        await db.update(generatedCvTable).set(cvUpdate).where(eq(generatedCvTable.candidateId, id));
+      } catch (_) {}
+    }
+
+    const hasMediaUpdate = updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl || videoUrlVal !== undefined || quickVideoUrlVal !== undefined;
+    if (hasMediaUpdate) {
+      try {
+        await checkAndMoveCandidateToDaera2(id);
+      } catch (moveErr) {
+        console.warn('Failed to check and move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
+      }
     }
 
     if (cvDownloadedVal === true) {

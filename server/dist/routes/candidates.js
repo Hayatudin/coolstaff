@@ -435,12 +435,33 @@ router.post('/', async (req, res) => {
         }
         if (finalBrokerId) {
             try {
-                finalBrokerId = await (0, leader_sync_1.ensureBrokerInDaera1)(finalBrokerId);
+                finalBrokerId = await (0, leader_sync_1.ensureBrokerInDaera2)(finalBrokerId);
             }
             catch (ebErr) {
-                console.warn('Failed to ensure broker in DAERA OFFICE:', ebErr);
+                console.warn('Failed to ensure broker in DAERA OFFICE 2:', ebErr);
             }
         }
+        // Resolve agency for candidate (check body.agency, body.office, or quick registration)
+        let resolvedAgency = body.agency || body.office;
+        if (!resolvedAgency || resolvedAgency === 'daera') {
+            try {
+                if (body.quickRegistrationId) {
+                    const [qr] = await db_1.pool.query('SELECT office, agency FROM QuickRegistration WHERE id = ? LIMIT 1', [body.quickRegistrationId]);
+                    if (qr && qr.length > 0) {
+                        resolvedAgency = qr[0].office || qr[0].agency;
+                    }
+                }
+                else if (body.passportData?.passportNumber) {
+                    const [qr] = await db_1.pool.query('SELECT office, agency FROM QuickRegistration WHERE UPPER(TRIM(passportNumber)) = UPPER(TRIM(?)) LIMIT 1', [body.passportData.passportNumber]);
+                    if (qr && qr.length > 0) {
+                        resolvedAgency = qr[0].office || qr[0].agency;
+                    }
+                }
+            }
+            catch (_) { }
+        }
+        const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+        const finalAgency = (resolvedAgency && validAgencyTemplates.includes(resolvedAgency.toLowerCase())) ? resolvedAgency.toLowerCase() : 'alm';
         const candidateId = (0, db_1.generateId)();
         const candidateValues = {
             id: candidateId,
@@ -494,7 +515,7 @@ router.post('/', async (req, res) => {
             laborID: laborIdVal || null,
             status: body.status || 'pending',
             salary: body.personalInfo?.salary || '1000SR',
-            agency: body.agency || 'daera',
+            agency: finalAgency,
             brokerId: finalBrokerId || null,
             registeredById: registeredById || null,
             allowVideo: body.allowVideo ?? false,
@@ -502,25 +523,18 @@ router.post('/', async (req, res) => {
             quickVideoUrl: videoUrl && !videoUrl.startsWith('http') ? videoUrl : null,
         };
         await db_1.db.insert(db_1.candidate).values(candidateValues);
+        // Ensure candidate has initial GeneratedCV record under their agency
+        try {
+            const cvId = 'cv' + (0, db_1.generateId)().slice(0, 23);
+            await db_1.pool.query('INSERT INTO GeneratedCV (id, candidateId, templateId, facePhotoUrl, fullBodyPhotoUrl, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(3), NOW(3))', [cvId, candidateId, finalAgency, facePhotoUrl || null, fullBodyPhotoUrl || null]);
+        }
+        catch (cvErr) {
+            console.warn('[AUTO-CV] Failed to create initial GeneratedCV:', cvErr);
+        }
         if (userRole === 'calling' || body.personalInfo?.brokerId === 'calling-broker' || body.isCalling) {
-            const templateId = body.office || body.templateId || body.agency || '';
-            const validTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
-            if (validTemplates.includes(templateId.toLowerCase())) {
-                try {
-                    await db_1.db.insert(db_1.generatedCv).values({
-                        candidateId: candidateId,
-                        templateId: templateId.toLowerCase(),
-                        facePhotoUrl: facePhotoUrl || null,
-                        fullBodyPhotoUrl: null,
-                    });
-                    const deadline = new Date();
-                    deadline.setDate(deadline.getDate() + 30);
-                    await db_1.db.update(db_1.candidate).set({ cvDeadline: deadline }).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
-                }
-                catch (cvErr) {
-                    console.error('[AUTO-CV] Failed to create initial GeneratedCV:', cvErr);
-                }
-            }
+            const deadline = new Date();
+            deadline.setDate(deadline.getDate() + 30);
+            await db_1.db.update(db_1.candidate).set({ cvDeadline: deadline }).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
         }
         if (body.quickRegistrationId) {
             try {
@@ -1018,8 +1032,34 @@ router.patch('/:id', async (req, res) => {
         if (quickVideoUrlVal !== undefined) {
             updateFields.quickVideoUrl = (0, crypto_1.sanitizeIncomingPath)(quickVideoUrlVal) || null;
         }
+        if (body.facePhotoUrl) {
+            updateFields.facePhotoUrl = await (0, upload_1.uploadToLocal)(body.facePhotoUrl, 'faces');
+        }
+        if (body.fullBodyPhotoUrl) {
+            updateFields.fullBodyPhotoUrl = await (0, upload_1.uploadToLocal)(body.fullBodyPhotoUrl, 'fullbody');
+        }
         if (Object.keys(updateFields).length > 0) {
             await db_1.db.update(db_1.candidate).set(updateFields).where((0, drizzle_orm_1.eq)(db_1.candidate.id, id));
+        }
+        if (updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl) {
+            try {
+                const cvUpdate = {};
+                if (updateFields.facePhotoUrl)
+                    cvUpdate.facePhotoUrl = updateFields.facePhotoUrl;
+                if (updateFields.fullBodyPhotoUrl)
+                    cvUpdate.fullBodyPhotoUrl = updateFields.fullBodyPhotoUrl;
+                await db_1.db.update(db_1.generatedCv).set(cvUpdate).where((0, drizzle_orm_1.eq)(db_1.generatedCv.candidateId, id));
+            }
+            catch (_) { }
+        }
+        const hasMediaUpdate = updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl || videoUrlVal !== undefined || quickVideoUrlVal !== undefined;
+        if (hasMediaUpdate) {
+            try {
+                await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(id);
+            }
+            catch (moveErr) {
+                console.warn('Failed to check and move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
+            }
         }
         if (cvDownloadedVal === true) {
             const existingCVs = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.candidateId, id));

@@ -181,6 +181,7 @@ router.get('/', async (req: Request, res: Response) => {
       const existingCandidateIds = new Set(generatedCVs.map(cv => cv.candidateId));
       for (const cand of candidatesWithAgency) {
         if (!existingCandidateIds.has(cand.id)) {
+          existingCandidateIds.add(cand.id);
           const pNum = (cand.passportNumber || '').trim().toUpperCase();
           const profile = videoProfileMap.get(pNum);
           const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
@@ -198,6 +199,59 @@ router.get('/', async (req: Request, res: Response) => {
             templateId: cand.agency!.toLowerCase(),
             facePhotoUrl: facePhotoUrl,
             fullBodyPhotoUrl: fullBodyPhotoUrl,
+            createdAt: cand.registeredAt || new Date(),
+            updatedAt: cand.registeredAt || new Date(),
+            candidate: mergedCand
+          } as any);
+        }
+      }
+
+      // Also ensure ANY candidate in DAERA OFFICE 2 is included in generatedCVs under their agency
+      const [d2Candidates]: any = await pool.query(
+        `SELECT c.*, b.leaderId, l.name as leaderName 
+         FROM Candidate c 
+         JOIN Broker b ON c.brokerId = b.id 
+         JOIN Leader l ON b.leaderId = l.id 
+         WHERE UPPER(l.name) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2')`
+      ).catch(() => [[]]);
+
+      const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+      for (const cand of d2Candidates || []) {
+        if (!existingCandidateIds.has(cand.id)) {
+          existingCandidateIds.add(cand.id);
+          const pNum = (cand.passportNumber || '').trim().toUpperCase();
+          const profile = videoProfileMap.get(pNum);
+          const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
+          const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
+          const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
+          
+          let tId = (cand.agency && validAgencyTemplates.includes(cand.agency.toLowerCase())) ? cand.agency.toLowerCase() : null;
+          if (!tId) {
+            const [qr]: any = await pool.query(
+              'SELECT office, agency FROM QuickRegistration WHERE promotedCandidateId = ? OR UPPER(TRIM(passportNumber)) = UPPER(TRIM(?)) LIMIT 1',
+              [cand.id, pNum]
+            ).catch(() => [[]]);
+            if (qr && qr.length > 0) {
+              const qrOff = qr[0].office || qr[0].agency;
+              if (qrOff && validAgencyTemplates.includes(qrOff.toLowerCase())) {
+                tId = qrOff.toLowerCase();
+              }
+            }
+          }
+          if (!tId) tId = 'alm';
+
+          const mergedCand = {
+            ...cand,
+            facePhotoUrl: facePhotoUrl || '',
+            fullBodyPhotoUrl: fullBodyPhotoUrl || '',
+            broker: brokerObj
+          };
+          generatedCVs.push({
+            id: `d2-${cand.id}`,
+            candidateId: cand.id,
+            templateId: tId,
+            facePhotoUrl,
+            fullBodyPhotoUrl,
             createdAt: cand.registeredAt || new Date(),
             updatedAt: cand.registeredAt || new Date(),
             candidate: mergedCand
