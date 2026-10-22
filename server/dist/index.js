@@ -273,6 +273,14 @@ const server = app.listen(PORT, async () => {
     catch (dbErr) {
         console.error('❌ Failed to run database self-healing check on startup:', dbErr);
     }
+    // Automatically rebalance candidates in DAERA OFFICE 2 (ensure only photo+video updated are in DAERA 2)
+    try {
+        const { rebalanceDaeraOfficeCandidates } = await Promise.resolve().then(() => __importStar(require('./lib/leader-sync')));
+        await rebalanceDaeraOfficeCandidates();
+    }
+    catch (rebalanceErr) {
+        console.error('❌ Failed to run candidate rebalancing on startup:', rebalanceErr);
+    }
 });
 // Configure keep-alive timeout to prevent ECONNRESET / socket drop on desktop
 server.keepAliveTimeout = 65000;

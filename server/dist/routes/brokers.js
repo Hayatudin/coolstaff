@@ -195,8 +195,23 @@ router.get('/:id/candidates', async (req, res) => {
             return res.status(404).json({ error: 'Broker not found' });
         }
         const brokerObj = brokerRows[0];
+        // Check if this broker belongs to DAERA OFFICE 2
+        let isDaera2Broker = false;
+        if (brokerObj.leaderId) {
+            const [lRows] = await db_1.pool.query('SELECT name FROM Leader WHERE id = ? LIMIT 1', [brokerObj.leaderId]);
+            if (lRows && lRows.length > 0) {
+                const lName = (lRows[0].name || '').toUpperCase().trim();
+                if (lName === 'DAERA OFFICE 2' || lName === 'DAIRA OFFICE 2') {
+                    isDaera2Broker = true;
+                }
+            }
+        }
         let sqlQuery = 'SELECT * FROM Candidate WHERE brokerId = ?';
         const sqlParams = [id];
+        if (isDaera2Broker) {
+            sqlQuery += ` AND ((facePhotoUrl IS NOT NULL AND TRIM(facePhotoUrl) != '') OR (fullBodyPhotoUrl IS NOT NULL AND TRIM(fullBodyPhotoUrl) != ''))
+                    AND ((Youtube_URL IS NOT NULL AND TRIM(Youtube_URL) != '') OR (quickVideoUrl IS NOT NULL AND TRIM(quickVideoUrl) != ''))`;
+        }
         if (interval && interval !== 'ALL') {
             const now = new Date();
             let from = new Date(now);
