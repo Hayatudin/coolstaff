@@ -53,13 +53,7 @@ export async function ensureBrokerInDaera2(brokerId: string): Promise<string> {
       return brokerId;
     }
 
-    // If broker has no leader, assign to DAERA OFFICE 2
-    if (!b.leaderId) {
-      await pool.query('UPDATE Broker SET leaderId = ? WHERE id = ?', [daera2LeaderId, brokerId]);
-      return brokerId;
-    }
-
-    // Find or create matching broker under DAERA OFFICE 2
+    // Find or create matching broker under DAERA OFFICE 2 (never mutate existing broker in-place)
     const [d2Brokers]: any = await pool.query(
       'SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1',
       [b.name, daera2LeaderId]
@@ -287,29 +281,49 @@ export async function rebalanceDaeraOfficeCandidates(): Promise<{ movedBackCount
   try {
     const { daeraLeaderId, daera2LeaderId } = await getOrCreateDaeraLeaders();
 
-    // 1. Fetch all candidates under brokers assigned to DAERA OFFICE 2
+    // 1. Fetch all candidates under brokers assigned to ANY DAERA OFFICE 2 leader
     const [d2Cands]: any = await pool.query(
-      `SELECT c.id, c.brokerId, c.facePhotoUrl, c.fullBodyPhotoUrl, c.Youtube_URL, c.quickVideoUrl,
+      `SELECT c.id, c.brokerId, c.facePhotoUrl, c.fullBodyPhotoUrl, c.Youtube_URL, c.quickVideoUrl, c.passportNumber,
               b.name as brokerName, b.isLocked
        FROM Candidate c
        JOIN Broker b ON c.brokerId = b.id
-       WHERE b.leaderId = ?`,
-      [daera2LeaderId]
+       JOIN Leader l ON b.leaderId = l.id
+       WHERE UPPER(l.name) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2')`
     );
 
     let movedBackCount = 0;
 
     for (const cand of d2Cands || []) {
-      const hasPhoto = Boolean((cand.facePhotoUrl && cand.facePhotoUrl.trim()) || (cand.fullBodyPhotoUrl && cand.fullBodyPhotoUrl.trim()));
-      const hasVideo = Boolean((cand.Youtube_URL && cand.Youtube_URL.trim()) || (cand.quickVideoUrl && cand.quickVideoUrl.trim()));
+      const pNum = (cand.passportNumber || '').trim().toUpperCase();
+      let hasVp = false;
+      if (pNum) {
+        try {
+          const [vp]: any = await pool.query(
+            'SELECT videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile` WHERE UPPER(`passportNumber`) = ? LIMIT 1',
+            [pNum]
+          );
+          if (vp && vp.length > 0) {
+            hasVp = Boolean(vp[0].videoUrl || vp[0].facePhotoUrl || vp[0].fullBodyPhotoUrl);
+          }
+        } catch (_) {}
+      }
 
-      if (hasPhoto && hasVideo) {
-        // This candidate genuinely belongs in DAERA OFFICE 2!
+      const hasPhoto = Boolean(
+        (cand.facePhotoUrl && cand.facePhotoUrl.trim() !== '') ||
+        (cand.fullBodyPhotoUrl && cand.fullBodyPhotoUrl.trim() !== '')
+      );
+      const hasVideo = Boolean(
+        (cand.Youtube_URL && cand.Youtube_URL.trim() !== '') ||
+        (cand.quickVideoUrl && cand.quickVideoUrl.trim() !== '')
+      );
+
+      // Only candidates with photo or video stay in DAERA OFFICE 2
+      if (hasPhoto || hasVideo || hasVp) {
         continue;
       }
 
-      // Candidate does NOT have both photo and video — MUST move back to DAERA OFFICE
-      const brokerName = cand.brokerName;
+      // Candidate does NOT have updated photo or video — MUST move back to DAERA OFFICE
+      const brokerName = cand.brokerName || 'Independent';
 
       // Find or create broker with same name in DAERA OFFICE
       let targetD1BrokerId: string;
@@ -352,8 +366,10 @@ export async function rebalanceDaeraOfficeCandidates(): Promise<{ movedBackCount
 
     // 2. Clean up any brokers in DAERA OFFICE 2 that now have 0 candidates
     const [d2Brokers]: any = await pool.query(
-      'SELECT id, name FROM Broker WHERE leaderId = ?',
-      [daera2LeaderId]
+      `SELECT b.id, b.name 
+       FROM Broker b 
+       JOIN Leader l ON b.leaderId = l.id 
+       WHERE UPPER(l.name) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2')`
     );
 
     for (const b of d2Brokers || []) {

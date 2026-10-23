@@ -126,22 +126,36 @@ export async function resolveSessionToken(forceFresh = false): Promise<string | 
 }
 
 /**
- * Safely parses JSON from a Response and intercepts unexpected HTML responses
+ * Safely wraps a Response so that text() and json() can be called multiple times
+ * without triggering 'TypeError: body stream already read'.
  */
-async function safeParseResponseJson(response: Response): Promise<any> {
-  const text = await response.text();
-  if (!text || !text.trim()) {
-    return {};
-  }
-  const trimmed = text.trim();
-  if (trimmed.startsWith('<') || trimmed.toLowerCase().startsWith('<!doctype')) {
-    throw new Error('Server returned an unexpected HTML response instead of JSON. Please try again.');
-  }
-  try {
-    return JSON.parse(text);
-  } catch (err: any) {
-    throw new Error(`Invalid response format: ${err.message || 'JSON parse error'}`);
-  }
+function attachSafeBodyMethods(response: Response): Response {
+  let cachedTextPromise: Promise<string> | null = null;
+  const originalText = response.text.bind(response);
+
+  const getText = (): Promise<string> => {
+    if (!cachedTextPromise) {
+      cachedTextPromise = originalText().catch(() => '');
+    }
+    return cachedTextPromise;
+  };
+
+  response.text = getText;
+  response.json = async () => {
+    const text = await getText();
+    if (!text || !text.trim()) return {};
+    const trimmed = text.trim();
+    if (trimmed.startsWith('<') || trimmed.toLowerCase().startsWith('<!doctype')) {
+      throw new Error('Server returned an unexpected HTML response instead of JSON. Please try again.');
+    }
+    try {
+      return JSON.parse(text);
+    } catch (err: any) {
+      throw new Error(`Invalid response format: ${err.message || 'JSON parse error'}`);
+    }
+  };
+
+  return response;
 }
 
 export async function api(path: string, options: RequestInit = {}) {
@@ -185,6 +199,7 @@ export async function api(path: string, options: RequestInit = {}) {
         signal,
       });
       if (timeoutId) clearTimeout(timeoutId);
+      attachSafeBodyMethods(response);
       
       // Handle 401 Unauthorized with single auto-retry after forced live session refresh
       if (response.status === 401 && !retried401) {
@@ -194,10 +209,8 @@ export async function api(path: string, options: RequestInit = {}) {
         if (freshToken) {
           (requestOptions.headers as Record<string, string>)['Authorization'] = `Bearer ${freshToken}`;
           const retryResponse = await fetch(url, requestOptions);
+          attachSafeBodyMethods(retryResponse);
           if (retryResponse.ok) {
-            // Attach safe JSON parser
-            const originalRetryJson = retryResponse.json.bind(retryResponse);
-            retryResponse.json = () => safeParseResponseJson(retryResponse).catch(originalRetryJson);
             return retryResponse;
           }
         }
@@ -222,10 +235,6 @@ export async function api(path: string, options: RequestInit = {}) {
           errorData
         );
       }
-      
-      // Attach safe JSON parser to prevent "doctype is not valid JSON" errors
-      const originalJson = response.json.bind(response);
-      response.json = () => safeParseResponseJson(response).catch(originalJson);
 
       return response;
     } catch (err: any) {

@@ -171,7 +171,10 @@ router.post('/save', upload.fields([
         ]);
         try {
             await db_1.pool.query(`UPDATE \`Candidate\` 
-         SET \`Youtube_URL\` = ?, \`facePhotoUrl\` = ?, \`fullBodyPhotoUrl\` = ?, \`allowVideo\` = 1 
+         SET \`Youtube_URL\` = ?, 
+             \`facePhotoUrl\` = COALESCE(?, \`facePhotoUrl\`), 
+             \`fullBodyPhotoUrl\` = COALESCE(?, \`fullBodyPhotoUrl\`), 
+             \`allowVideo\` = 1 
          WHERE UPPER(\`passportNumber\`) = ?`, [finalVideoUrl, facePhoto || null, fullBodyPhoto || null, resolvedPassportNumber]);
             // Check and move candidate to DAERA OFFICE 2 if in DAERA OFFICE
             const [matchedCands] = await db_1.pool.query('SELECT id FROM `Candidate` WHERE UPPER(`passportNumber`) = ?', [resolvedPassportNumber]);
@@ -299,6 +302,10 @@ router.put('/:source/:id', async (req, res) => {
                 await db_1.pool.query('UPDATE `UploadedVideoProfile` SET `videoUrl` = ? WHERE `id` = ?', [sanitizedVideoUrl, id]);
                 try {
                     await db_1.pool.query('UPDATE `Candidate` SET `Youtube_URL` = ?, `allowVideo` = 1 WHERE UPPER(`passportNumber`) = ?', [sanitizedVideoUrl, pNum]);
+                    const [matchedCands] = await db_1.pool.query('SELECT id FROM `Candidate` WHERE UPPER(`passportNumber`) = ?', [pNum]);
+                    for (const mc of matchedCands || []) {
+                        await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(mc.id);
+                    }
                 }
                 catch (_) { }
                 try {
@@ -316,6 +323,10 @@ router.put('/:source/:id', async (req, res) => {
         }
         if (source === 'candidate') {
             await db_1.db.update(db_1.candidate).set({ videoUrl: sanitizedVideoUrl }).where((0, drizzle_orm_1.eq)(db_1.candidate.id, id));
+            try {
+                await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(id);
+            }
+            catch (_) { }
             return res.json({ success: true, message: 'Candidate video updated successfully' });
         }
         else if (source === 'quickRegistration') {

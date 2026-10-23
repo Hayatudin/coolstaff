@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../db");
@@ -127,23 +160,21 @@ router.get('/', async (req, res) => {
             }
         }
         catch (_) { }
-        const brokerIds = candidatesList.map(c => c.brokerId).filter(Boolean);
-        const brokersList = brokerIds.length > 0
-            ? await db_1.db.select().from(db_1.broker).where((0, drizzle_orm_1.inArray)(db_1.broker.id, brokerIds))
-            : [];
-        // Fetch leader names for all brokers so client can distinguish DAERA OFFICE vs DAERA OFFICE 2
-        let leaderMap = new Map();
+        // Fetch all brokers and their leaders so client can accurately distinguish DAERA OFFICE vs DAERA OFFICE 2
+        let brokerMap = new Map();
         try {
-            const [leaderRows] = await db_1.pool.query('SELECT id, name FROM Leader');
-            for (const l of leaderRows || []) {
-                leaderMap.set(l.id, { id: l.id, name: l.name });
+            const [allBrokers] = await db_1.pool.query('SELECT b.id, b.name, b.leaderId, b.isLocked, l.name as leaderName FROM Broker b LEFT JOIN Leader l ON b.leaderId = l.id');
+            for (const b of allBrokers || []) {
+                brokerMap.set(b.id, {
+                    id: b.id,
+                    name: b.name,
+                    leaderId: b.leaderId,
+                    isLocked: Boolean(b.isLocked),
+                    leader: b.leaderId ? { id: b.leaderId, name: b.leaderName || '' } : null,
+                });
             }
         }
         catch (_) { }
-        const brokerMap = new Map(brokersList.map(b => {
-            const leaderInfo = b.leaderId ? leaderMap.get(b.leaderId) : null;
-            return [b.id, { ...b, leader: leaderInfo || null }];
-        }));
         const candMap = new Map(candidatesList.map(c => {
             const pNum = (c.passportNumber || '').trim().toUpperCase();
             const profile = videoProfileMap.get(pNum);
@@ -197,7 +228,7 @@ router.get('/', async (req, res) => {
                     });
                 }
             }
-            // Also ensure ANY candidate in DAERA OFFICE 2 is included in generatedCVs under their agency
+            // Also ensure candidate in DAERA OFFICE 2 with photo/video is included in generatedCVs under their agency
             const [d2Candidates] = await db_1.pool.query(`SELECT c.*, b.leaderId, l.name as leaderName 
          FROM Candidate c 
          JOIN Broker b ON c.brokerId = b.id 
@@ -205,10 +236,21 @@ router.get('/', async (req, res) => {
          WHERE UPPER(l.name) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2')`).catch(() => [[]]);
             const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
             for (const cand of d2Candidates || []) {
+                const pNum = (cand.passportNumber || '').trim().toUpperCase();
+                const profile = videoProfileMap.get(pNum);
+                // Filter out candidates who haven't changed/updated photo or video
+                const hasPhoto = Boolean((cand.facePhotoUrl && cand.facePhotoUrl.trim()) ||
+                    (cand.fullBodyPhotoUrl && cand.fullBodyPhotoUrl.trim()) ||
+                    (profile?.facePhotoUrl && profile.facePhotoUrl.trim()) ||
+                    (profile?.fullBodyPhotoUrl && profile.fullBodyPhotoUrl.trim()));
+                const hasVideo = Boolean((cand.Youtube_URL && cand.Youtube_URL.trim()) ||
+                    (cand.quickVideoUrl && cand.quickVideoUrl.trim()) ||
+                    (profile?.videoUrl && profile.videoUrl.trim()));
+                if (!hasPhoto && !hasVideo) {
+                    continue;
+                }
                 if (!existingCandidateIds.has(cand.id)) {
                     existingCandidateIds.add(cand.id);
-                    const pNum = (cand.passportNumber || '').trim().toUpperCase();
-                    const profile = videoProfileMap.get(pNum);
                     const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
                     const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
                     const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
@@ -288,15 +330,26 @@ router.post('/', async (req, res) => {
         if (cands.length === 0) {
             return res.status(404).json({ error: 'Candidate not found' });
         }
+        const candidate = cands[0];
         const existingCvs = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.candidateId, candidateId));
         const duplicateCV = existingCvs[0];
         const deadline = new Date();
         deadline.setDate(deadline.getDate() + 30);
         const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
-        const [faceUrl, fullBodyUrl] = await Promise.all([
-            (0, upload_1.uploadToLocal)(facePhotoUrl, 'faces'),
-            (0, upload_1.uploadToLocal)(fullBodyPhotoUrl, 'fullbody')
-        ]);
+        // Safely attempt to upload photos — if they fail, fall back to existing URLs
+        let faceUrl = null;
+        let fullBodyUrl = null;
+        try {
+            [faceUrl, fullBodyUrl] = await Promise.all([
+                (0, upload_1.uploadToLocal)(facePhotoUrl, 'faces'),
+                (0, upload_1.uploadToLocal)(fullBodyPhotoUrl, 'fullbody')
+            ]);
+        }
+        catch (uploadErr) {
+            console.warn('[GENERATED-CVS] Photo upload failed, using existing URLs:', uploadErr);
+            faceUrl = candidate.facePhotoUrl || candidate.passportImageUrl || null;
+            fullBodyUrl = candidate.fullBodyPhotoUrl || null;
+        }
         if (duplicateCV) {
             const cvUpdate = { templateId };
             if (faceUrl)
@@ -310,6 +363,13 @@ router.post('/', async (req, res) => {
             if (fullBodyUrl)
                 candUpdate.fullBodyPhotoUrl = fullBodyUrl;
             await db_1.db.update(db_1.candidate).set(candUpdate).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
+            try {
+                const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
+                await checkAndMoveCandidateToDaera2(candidateId);
+            }
+            catch (moveErr) {
+                console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on update:', moveErr);
+            }
             const [updatedCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, duplicateCV.id));
             return res.json(updatedCV);
         }
@@ -327,6 +387,13 @@ router.post('/', async (req, res) => {
         if (fullBodyUrl)
             candUpdate.fullBodyPhotoUrl = fullBodyUrl;
         await db_1.db.update(db_1.candidate).set(candUpdate).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
+        try {
+            const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
+            await checkAndMoveCandidateToDaera2(candidateId);
+        }
+        catch (moveErr) {
+            console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on create:', moveErr);
+        }
         const [generatedCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, newCvId));
         res.json(generatedCV);
     }
@@ -362,6 +429,13 @@ router.patch('/:id', async (req, res) => {
                 fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || null
             });
             await db_1.db.update(db_1.candidate).set({ cvDeadline: deadline, agency: cleanTemplateId }).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
+            try {
+                const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
+                await checkAndMoveCandidateToDaera2(candidateId);
+            }
+            catch (moveErr) {
+                console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on dummy PATCH:', moveErr);
+            }
             const [newCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, newCvId));
             return res.json(newCV);
         }
@@ -372,11 +446,18 @@ router.patch('/:id', async (req, res) => {
         const existingCV = existingCVs[0];
         const duplicateCVs = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.and)((0, drizzle_orm_1.eq)(db_1.generatedCv.candidateId, existingCV.candidateId), (0, drizzle_orm_1.eq)(db_1.generatedCv.templateId, templateId), (0, drizzle_orm_1.ne)(db_1.generatedCv.id, id)));
         if (duplicateCVs.length > 0) {
-            return res.status(409).json({ error: 'Candidate already generated in that template' });
+            return res.json(duplicateCVs[0]);
         }
         const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
         await db_1.db.update(db_1.generatedCv).set({ templateId }).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, id));
         await db_1.pool.query('UPDATE `Candidate` SET `cvDownloaded` = 0, `agency` = ? WHERE `id` = ?', [cleanTemplateId, existingCV.candidateId]);
+        try {
+            const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
+            await checkAndMoveCandidateToDaera2(existingCV.candidateId);
+        }
+        catch (moveErr) {
+            console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
+        }
         const [updatedCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, id));
         res.json(updatedCV);
     }

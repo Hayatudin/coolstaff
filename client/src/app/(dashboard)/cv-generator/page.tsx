@@ -47,25 +47,21 @@ function CVGeneratorContent() {
   const { candidates, isLoading, mutate: setCandidates } = useCandidates();
   const nonCallingCandidates = React.useMemo(() => candidates.filter((c: Candidate) => c.broker?.name !== 'Calling' && !c.broker?.isLocked && !c.isLocked && c.personalInfo?.job !== 'Calling'), [candidates]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(urlCandidateId);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('alm');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('al-shablan');
   const [toast, setToast] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [generatedCvs, setGeneratedCvs] = useState<any[]>([]);
-  const [alreadyGeneratedTemplate, setAlreadyGeneratedTemplate] = useState<string | null>(null);
   const [facePhotoB64, setFacePhotoB64] = useState<string | null>(null);
   const [fullBodyPhotoB64, setFullBodyPhotoB64] = useState<string | null>(null);
   const [isPreloading, setIsPreloading] = useState(false);
-
-  const hasGeneratedCv = React.useMemo(() => {
-    if (!selectedCandidateId || generatedCvs.length === 0) return false;
-    return generatedCvs.some(cv => cv.candidateId === selectedCandidateId);
-  }, [selectedCandidateId, generatedCvs]);
 
   const visibleTemplates = React.useMemo(() => {
     return TEMPLATES;
   }, []);
 
+  // When candidate changes, pre-select their existing template or default
   React.useEffect(() => {
     if (selectedCandidateId && generatedCvs.length > 0) {
       const existingCv = generatedCvs.find(cv => cv.candidateId === selectedCandidateId);
@@ -79,6 +75,7 @@ function CVGeneratorContent() {
     }
   }, [selectedCandidateId, generatedCvs]);
 
+  // Fetch existing generated CVs on mount
   React.useEffect(() => {
     api('/api/generated-cvs')
       .then(res => res.json())
@@ -88,26 +85,10 @@ function CVGeneratorContent() {
       .catch(err => console.warn('Background fetch for generated CVs:', err.message || err));
   }, []);
 
-  React.useEffect(() => {
-    if (selectedCandidateId && generatedCvs.length > 0) {
-      const existingCv = generatedCvs.find(cv => cv.candidateId === selectedCandidateId);
-      if (existingCv) {
-        const templateName = TEMPLATES.find(t => t.id === existingCv.templateId)?.name || existingCv.templateId;
-        setAlreadyGeneratedTemplate(templateName);
-        setToast(`This candidate already has a CV generated in the ${templateName} template.`);
-      } else {
-        setAlreadyGeneratedTemplate(null);
-      }
-    } else {
-      setAlreadyGeneratedTemplate(null);
-    }
-  }, [selectedCandidateId, generatedCvs]);
-
   // Ref for the CV container to print or capture
   const cvRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    // Auto-select if candidateId was passed via URL and exists in data
     // Auto-select if candidateId was passed via URL and exists in data
     if (urlCandidateId && nonCallingCandidates.length > 0 && !selectedCandidateId) {
       if (nonCallingCandidates.some((c: Candidate) => c.id === urlCandidateId)) {
@@ -180,12 +161,14 @@ function CVGeneratorContent() {
     medicalDocumentUrl: getFileUrl(selectedCandidate.medicalDocumentUrl),
   } as Candidate : null;
 
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastType(type);
+    setToast(message);
+    setTimeout(() => setToast(null), 3500);
+  };
+
   const handleSave = async () => {
     if (!selectedCandidate) return;
-    if (alreadyGeneratedTemplate && !isSuperAdmin) {
-      setToast(`Template already saved as ${alreadyGeneratedTemplate}. Changing template is restricted to Super Admin.`);
-      return;
-    }
 
     setIsDownloading(true);
 
@@ -201,33 +184,32 @@ function CVGeneratorContent() {
         })
       });
 
-      if (response.status === 409) {
-        const errData = await response.json().catch(() => ({}));
-        const existingTemplateId = errData.templateId || 'another';
-        const templateName = TEMPLATES.find(t => t.id === existingTemplateId)?.name || existingTemplateId;
-        setToast(`Already saved in ${templateName} template.`);
-      } else if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Status ${response.status}: ${errText}`);
-      } else {
-        const data = await response.json();
-        setToast(`CV Saved in ${TEMPLATES.find(t => t.id === selectedTemplateId)?.name} template!`);
-        // Refresh generated list
+      // Read response safely
+      let data: any = {};
+      try {
+        const text = await response.text();
+        if (text && text.trim() && !text.trim().startsWith('<')) {
+          data = JSON.parse(text);
+        }
+      } catch (_) {}
+
+      const templateName = TEMPLATES.find(t => t.id === selectedTemplateId)?.name || selectedTemplateId;
+      showToast(`CV saved in ${templateName} template!`, 'success');
+
+      // Refresh generated CVs list in background
+      try {
         const refreshed = await api('/api/generated-cvs').then(r => r.json());
         if (Array.isArray(refreshed)) setGeneratedCvs(refreshed);
-      }
+      } catch (_) {}
     } catch (err: any) {
       console.warn('Save Error:', err.message || err);
-      alert(`Failed to save: ${err.message || 'Please try again.'}`);
+      showToast('Failed to save CV. Please try again.', 'error');
     } finally {
       setIsDownloading(false);
-      setTimeout(() => setToast(null), 3000);
     }
   };
 
   const isReady = selectedCandidate !== null;
-
-  const canSaveOrChangeTemplate = isSuperAdmin || !alreadyGeneratedTemplate;
 
   return (
     <div className="print:bg-white print:m-0 print:p-0">
@@ -267,25 +249,18 @@ function CVGeneratorContent() {
         </div>
         {isReady && (
           <div className="relative print:hidden">
-            {canSaveOrChangeTemplate ? (
-              <Button
-                onClick={handleSave}
-                className="flex items-center gap-2"
-                disabled={isDownloading || (!!alreadyGeneratedTemplate && !isSuperAdmin)}
-                title={alreadyGeneratedTemplate && !isSuperAdmin ? `Template Change (Super Admin Only)` : alreadyGeneratedTemplate ? `Already saved in ${alreadyGeneratedTemplate}` : ''}
-              >
-                {isDownloading ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <CheckCircle2 size={18} />
-                )}
-                {isDownloading ? 'Saving...' : 'Save Template'}
-              </Button>
-            ) : (
-              <span className="text-xs font-semibold text-text-tertiary bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
-                Template Change (Super Admin Only)
-              </span>
-            )}
+            <Button
+              onClick={handleSave}
+              className="flex items-center gap-2"
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <CheckCircle2 size={18} />
+              )}
+              {isDownloading ? 'Saving...' : 'Save Template'}
+            </Button>
           </div>
         )}
       </div>
@@ -311,7 +286,7 @@ function CVGeneratorContent() {
             <TemplateGrid
               templates={visibleTemplates}
               selectedId={selectedTemplateId}
-              onSelect={canSaveOrChangeTemplate ? setSelectedTemplateId : () => { }}
+              onSelect={setSelectedTemplateId}
             />
           </div>
         </div>
@@ -373,8 +348,8 @@ function CVGeneratorContent() {
       {/* Toast notification */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 animate-toast print:hidden">
-          <div className="flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl">
-            <CheckCircle2 size={18} className="text-success" />
+          <div className={`flex items-center gap-3 ${toastType === 'error' ? 'bg-red-600' : 'bg-gray-900'} text-white px-5 py-3 rounded-xl shadow-2xl`}>
+            <CheckCircle2 size={18} className={toastType === 'error' ? 'text-red-200' : 'text-success'} />
             <span className="text-sm font-medium">{toast}</span>
           </div>
         </div>

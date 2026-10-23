@@ -131,24 +131,23 @@ router.get('/', async (req: Request, res: Response) => {
       }
     } catch (_) {}
 
-    const brokerIds = candidatesList.map(c => c.brokerId).filter(Boolean) as string[];
-    const brokersList = brokerIds.length > 0
-      ? await db.select().from(brokerTable).where(inArray(brokerTable.id, brokerIds))
-      : [];
-
-    // Fetch leader names for all brokers so client can distinguish DAERA OFFICE vs DAERA OFFICE 2
-    let leaderMap = new Map<string, { id: string; name: string }>();
+    // Fetch all brokers and their leaders so client can accurately distinguish DAERA OFFICE vs DAERA OFFICE 2
+    let brokerMap = new Map<string, any>();
     try {
-      const [leaderRows]: any = await pool.query('SELECT id, name FROM Leader');
-      for (const l of leaderRows || []) {
-        leaderMap.set(l.id, { id: l.id, name: l.name });
+      const [allBrokers]: any = await pool.query(
+        'SELECT b.id, b.name, b.leaderId, b.isLocked, l.name as leaderName FROM Broker b LEFT JOIN Leader l ON b.leaderId = l.id'
+      );
+      for (const b of allBrokers || []) {
+        brokerMap.set(b.id, {
+          id: b.id,
+          name: b.name,
+          leaderId: b.leaderId,
+          isLocked: Boolean(b.isLocked),
+          leader: b.leaderId ? { id: b.leaderId, name: b.leaderName || '' } : null,
+        });
       }
     } catch (_) {}
 
-    const brokerMap = new Map(brokersList.map(b => {
-      const leaderInfo = b.leaderId ? leaderMap.get(b.leaderId) : null;
-      return [b.id, { ...b, leader: leaderInfo || null }];
-    }));
     const candMap = new Map(candidatesList.map(c => {
       const pNum = (c.passportNumber || '').trim().toUpperCase();
       const profile = videoProfileMap.get(pNum);
@@ -206,7 +205,7 @@ router.get('/', async (req: Request, res: Response) => {
         }
       }
 
-      // Also ensure ANY candidate in DAERA OFFICE 2 is included in generatedCVs under their agency
+      // Also ensure candidate in DAERA OFFICE 2 with photo/video is included in generatedCVs under their agency
       const [d2Candidates]: any = await pool.query(
         `SELECT c.*, b.leaderId, l.name as leaderName 
          FROM Candidate c 
@@ -217,10 +216,28 @@ router.get('/', async (req: Request, res: Response) => {
 
       const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
       for (const cand of d2Candidates || []) {
+        const pNum = (cand.passportNumber || '').trim().toUpperCase();
+        const profile = videoProfileMap.get(pNum);
+
+        // Filter out candidates who haven't changed/updated photo or video
+        const hasPhoto = Boolean(
+          (cand.facePhotoUrl && cand.facePhotoUrl.trim()) ||
+          (cand.fullBodyPhotoUrl && cand.fullBodyPhotoUrl.trim()) ||
+          (profile?.facePhotoUrl && profile.facePhotoUrl.trim()) ||
+          (profile?.fullBodyPhotoUrl && profile.fullBodyPhotoUrl.trim())
+        );
+        const hasVideo = Boolean(
+          (cand.Youtube_URL && cand.Youtube_URL.trim()) ||
+          (cand.quickVideoUrl && cand.quickVideoUrl.trim()) ||
+          (profile?.videoUrl && profile.videoUrl.trim())
+        );
+
+        if (!hasPhoto && !hasVideo) {
+          continue;
+        }
+
         if (!existingCandidateIds.has(cand.id)) {
           existingCandidateIds.add(cand.id);
-          const pNum = (cand.passportNumber || '').trim().toUpperCase();
-          const profile = videoProfileMap.get(pNum);
           const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
           const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
           const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
@@ -307,6 +324,7 @@ router.post('/', async (req: Request, res: Response) => {
     if (cands.length === 0) {
       return res.status(404).json({ error: 'Candidate not found' });
     }
+    const candidate = cands[0];
 
     const existingCvs = await db.select().from(generatedCvTable).where(eq(generatedCvTable.candidateId, candidateId));
     const duplicateCV = existingCvs[0];
@@ -315,10 +333,19 @@ router.post('/', async (req: Request, res: Response) => {
     deadline.setDate(deadline.getDate() + 30);
     const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
 
-    const [faceUrl, fullBodyUrl] = await Promise.all([
-      uploadToLocal(facePhotoUrl, 'faces'),
-      uploadToLocal(fullBodyPhotoUrl, 'fullbody')
-    ]);
+    // Safely attempt to upload photos — if they fail, fall back to existing URLs
+    let faceUrl: string | null = null;
+    let fullBodyUrl: string | null = null;
+    try {
+      [faceUrl, fullBodyUrl] = await Promise.all([
+        uploadToLocal(facePhotoUrl, 'faces'),
+        uploadToLocal(fullBodyPhotoUrl, 'fullbody')
+      ]);
+    } catch (uploadErr) {
+      console.warn('[GENERATED-CVS] Photo upload failed, using existing URLs:', uploadErr);
+      faceUrl = candidate.facePhotoUrl || candidate.passportImageUrl || null;
+      fullBodyUrl = candidate.fullBodyPhotoUrl || null;
+    }
 
     if (duplicateCV) {
       const cvUpdate: any = { templateId };
@@ -331,6 +358,13 @@ router.post('/', async (req: Request, res: Response) => {
       if (fullBodyUrl) candUpdate.fullBodyPhotoUrl = fullBodyUrl;
       await db.update(candidateTable).set(candUpdate).where(eq(candidateTable.id, candidateId));
       
+      try {
+        const { checkAndMoveCandidateToDaera2 } = await import('../lib/leader-sync');
+        await checkAndMoveCandidateToDaera2(candidateId);
+      } catch (moveErr) {
+        console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on update:', moveErr);
+      }
+
       const [updatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, duplicateCV.id));
       return res.json(updatedCV);
     }
@@ -349,6 +383,13 @@ router.post('/', async (req: Request, res: Response) => {
     if (fullBodyUrl) candUpdate.fullBodyPhotoUrl = fullBodyUrl;
     await db.update(candidateTable).set(candUpdate).where(eq(candidateTable.id, candidateId));
     
+    try {
+      const { checkAndMoveCandidateToDaera2 } = await import('../lib/leader-sync');
+      await checkAndMoveCandidateToDaera2(candidateId);
+    } catch (moveErr) {
+      console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on create:', moveErr);
+    }
+
     const [generatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, newCvId));
     res.json(generatedCV);
   } catch (error) {
@@ -390,6 +431,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
       await db.update(candidateTable).set({ cvDeadline: deadline, agency: cleanTemplateId }).where(eq(candidateTable.id, candidateId));
 
+      try {
+        const { checkAndMoveCandidateToDaera2 } = await import('../lib/leader-sync');
+        await checkAndMoveCandidateToDaera2(candidateId);
+      } catch (moveErr) {
+        console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on dummy PATCH:', moveErr);
+      }
+
       const [newCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, newCvId));
       return res.json(newCV);
     }
@@ -409,13 +457,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
     );
 
     if (duplicateCVs.length > 0) {
-      return res.status(409).json({ error: 'Candidate already generated in that template' });
+      return res.json(duplicateCVs[0]);
     }
 
     const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
     await db.update(generatedCvTable).set({ templateId }).where(eq(generatedCvTable.id, id));
     await pool.query('UPDATE `Candidate` SET `cvDownloaded` = 0, `agency` = ? WHERE `id` = ?', [cleanTemplateId, existingCV.candidateId]);
     
+    try {
+      const { checkAndMoveCandidateToDaera2 } = await import('../lib/leader-sync');
+      await checkAndMoveCandidateToDaera2(existingCV.candidateId);
+    } catch (moveErr) {
+      console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
+    }
+
     const [updatedCV] = await db.select().from(generatedCvTable).where(eq(generatedCvTable.id, id));
     res.json(updatedCV);
   } catch (error) {

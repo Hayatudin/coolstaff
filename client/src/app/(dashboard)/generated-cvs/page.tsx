@@ -358,7 +358,24 @@ function GeneratedCVsContent() {
 
   const isDaeraOffice2 = (cv: any): boolean => {
     const leaderName = (cv.candidate?.broker?.leader?.name || '').toUpperCase().trim();
-    return leaderName === 'DAERA OFFICE 2' || leaderName === 'DAIRA OFFICE 2';
+    const isLeaderD2 = leaderName === 'DAERA OFFICE 2' || leaderName === 'DAIRA OFFICE 2';
+    if (!isLeaderD2) return false;
+
+    // Filter out candidates who do not have updated photo or video
+    const c = cv.candidate;
+    if (!c) return false;
+    const hasPhoto = Boolean(
+      (c.facePhotoUrl && c.facePhotoUrl.trim()) ||
+      (c.fullBodyPhotoUrl && c.fullBodyPhotoUrl.trim()) ||
+      (cv.facePhotoUrl && cv.facePhotoUrl.trim()) ||
+      (cv.fullBodyPhotoUrl && cv.fullBodyPhotoUrl.trim())
+    );
+    const hasVideo = Boolean(
+      (c.videoUrl && c.videoUrl.trim()) ||
+      (c.Youtube_URL && c.Youtube_URL.trim()) ||
+      (c.quickVideoUrl && c.quickVideoUrl.trim())
+    );
+    return hasPhoto || hasVideo;
   };
 
   // Filter CVs based on Office Category

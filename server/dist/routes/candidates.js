@@ -1038,6 +1038,9 @@ router.patch('/:id', async (req, res) => {
         if (body.fullBodyPhotoUrl) {
             updateFields.fullBodyPhotoUrl = await (0, upload_1.uploadToLocal)(body.fullBodyPhotoUrl, 'fullbody');
         }
+        if (body.passportImageUrl && typeof body.passportImageUrl === 'string' && body.passportImageUrl.startsWith('data:')) {
+            updateFields.passportImageUrl = await (0, upload_1.uploadToLocal)(body.passportImageUrl, 'passports');
+        }
         if (Object.keys(updateFields).length > 0) {
             await db_1.db.update(db_1.candidate).set(updateFields).where((0, drizzle_orm_1.eq)(db_1.candidate.id, id));
         }
@@ -1052,7 +1055,7 @@ router.patch('/:id', async (req, res) => {
             }
             catch (_) { }
         }
-        const hasMediaUpdate = updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl || videoUrlVal !== undefined || quickVideoUrlVal !== undefined;
+        const hasMediaUpdate = updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl || updateFields.passportImageUrl || videoUrlVal !== undefined || quickVideoUrlVal !== undefined;
         if (hasMediaUpdate) {
             try {
                 await (0, leader_sync_1.checkAndMoveCandidateToDaera2)(id);

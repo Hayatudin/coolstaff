@@ -209,7 +209,10 @@ router.post('/save', upload.fields([
     try {
       await pool.query(
         `UPDATE \`Candidate\` 
-         SET \`Youtube_URL\` = ?, \`facePhotoUrl\` = ?, \`fullBodyPhotoUrl\` = ?, \`allowVideo\` = 1 
+         SET \`Youtube_URL\` = ?, 
+             \`facePhotoUrl\` = COALESCE(?, \`facePhotoUrl\`), 
+             \`fullBodyPhotoUrl\` = COALESCE(?, \`fullBodyPhotoUrl\`), 
+             \`allowVideo\` = 1 
          WHERE UPPER(\`passportNumber\`) = ?`,
         [finalVideoUrl, facePhoto || null, fullBodyPhoto || null, resolvedPassportNumber]
       );
@@ -371,6 +374,10 @@ router.put('/:source/:id', async (req: Request, res: Response) => {
 
         try {
           await pool.query('UPDATE `Candidate` SET `Youtube_URL` = ?, `allowVideo` = 1 WHERE UPPER(`passportNumber`) = ?', [sanitizedVideoUrl, pNum]);
+          const [matchedCands]: any = await pool.query('SELECT id FROM `Candidate` WHERE UPPER(`passportNumber`) = ?', [pNum]);
+          for (const mc of matchedCands || []) {
+            await checkAndMoveCandidateToDaera2(mc.id);
+          }
         } catch (_) {}
 
         try {
@@ -389,6 +396,9 @@ router.put('/:source/:id', async (req: Request, res: Response) => {
 
     if (source === 'candidate') {
       await db.update(candidateTable).set({ videoUrl: sanitizedVideoUrl }).where(eq(candidateTable.id, id));
+      try {
+        await checkAndMoveCandidateToDaera2(id);
+      } catch (_) {}
       return res.json({ success: true, message: 'Candidate video updated successfully' });
     } else if (source === 'quickRegistration') {
       await pool.query('UPDATE `QuickRegistration` SET `videoUrl` = ? WHERE `id` = ?', [sanitizedVideoUrl, id]);
