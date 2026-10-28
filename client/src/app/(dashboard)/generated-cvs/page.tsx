@@ -8,7 +8,7 @@ import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
   FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye, Search, Lock,
-  Loader2, Video
+  Loader2, Video, ArrowRightLeft
 } from 'lucide-react';
 import { cn, getFileUrl, convertImageToBase64 } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -60,6 +60,9 @@ function ActionMenu({
   cvDownloaded,
   onMarkAsCvAvailable,
   isSuperAdmin = true,
+  currentCategory,
+  onMoveCategory,
+  isMovingCategory = false,
 }: {
   cvId: string;
   currentTemplateId: string;
@@ -70,6 +73,9 @@ function ActionMenu({
   cvDownloaded?: boolean;
   onMarkAsCvAvailable?: () => void;
   isSuperAdmin?: boolean;
+  currentCategory?: 'new' | 'old';
+  onMoveCategory?: (target: 'new' | 'old') => void;
+  isMovingCategory?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -104,6 +110,25 @@ function ActionMenu({
           <LayoutTemplate size={14} className="text-primary" /> Change Template
         </button>
       )}
+
+      {onMoveCategory && (
+        <button
+          onClick={() => {
+            setOpen(false);
+            onMoveCategory(currentCategory === 'new' ? 'old' : 'new');
+          }}
+          disabled={isMovingCategory}
+          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-primary hover:bg-surface transition-colors disabled:opacity-50"
+        >
+          {isMovingCategory ? (
+            <Loader2 size={14} className="animate-spin text-primary" />
+          ) : (
+            <ArrowRightLeft size={14} className={currentCategory === 'new' ? 'text-amber-600' : 'text-blue-600'} />
+          )}
+          {currentCategory === 'new' ? 'Move to Old' : 'Move to New'}
+        </button>
+      )}
+
       <button onClick={() => { setOpen(false); onToggleFlag(); }}
         className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-text-primary hover:bg-red-50 transition-colors"
       >
@@ -358,24 +383,7 @@ function GeneratedCVsContent() {
 
   const isDaeraOffice2 = (cv: any): boolean => {
     const leaderName = (cv.candidate?.broker?.leader?.name || '').toUpperCase().trim();
-    const isLeaderD2 = leaderName === 'DAERA OFFICE 2' || leaderName === 'DAIRA OFFICE 2';
-    if (!isLeaderD2) return false;
-
-    // Filter out candidates who do not have updated photo or video
-    const c = cv.candidate;
-    if (!c) return false;
-    const hasPhoto = Boolean(
-      (c.facePhotoUrl && c.facePhotoUrl.trim()) ||
-      (c.fullBodyPhotoUrl && c.fullBodyPhotoUrl.trim()) ||
-      (cv.facePhotoUrl && cv.facePhotoUrl.trim()) ||
-      (cv.fullBodyPhotoUrl && cv.fullBodyPhotoUrl.trim())
-    );
-    const hasVideo = Boolean(
-      (c.videoUrl && c.videoUrl.trim()) ||
-      (c.Youtube_URL && c.Youtube_URL.trim()) ||
-      (c.quickVideoUrl && c.quickVideoUrl.trim())
-    );
-    return hasPhoto || hasVideo;
+    return leaderName === 'DAERA OFFICE 2' || leaderName === 'DAIRA OFFICE 2';
   };
 
   // Filter CVs based on Office Category
@@ -728,6 +736,93 @@ const normalizeLanguageName = (lang: string): string => {
       showToast(err.message || 'Failed to update candidates', 'error');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // ── Move Candidates Between Office Categories ("New" / DAERA OFFICE 2 <-> "Old" / DAERA OFFICE) ──
+  const [movingCandidateIds, setMovingCandidateIds] = useState<Set<string>>(new Set());
+
+  const handleMoveCategory = async (candidateIds: string[], targetCategory: 'new' | 'old') => {
+    const validIds = candidateIds.filter(Boolean);
+    if (validIds.length === 0) return;
+
+    setMovingCandidateIds(prev => {
+      const next = new Set(prev);
+      validIds.forEach(id => next.add(id));
+      return next;
+    });
+
+    try {
+      const res = await api('/api/generated-cvs/move-category', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateIds: validIds, targetCategory }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to move candidates');
+      }
+
+      const targetLeaderName = targetCategory === 'new' ? 'DAERA OFFICE 2' : 'DAERA OFFICE';
+      const label = targetCategory === 'new' ? 'New' : 'Old';
+
+      // Optimistically update local state
+      setCvs(prev =>
+        prev.map(c => {
+          if (validIds.includes(c.candidateId)) {
+            const currentBroker = c.candidate?.broker || {
+              id: 'b-temp',
+              name: 'Independent',
+            };
+            return {
+              ...c,
+              candidate: c.candidate
+                ? {
+                    ...c.candidate,
+                    broker: {
+                      ...currentBroker,
+                      leader: {
+                        ...(currentBroker.leader || {}),
+                        name: targetLeaderName,
+                      },
+                    },
+                  }
+                : c.candidate,
+            };
+          }
+          return c;
+        })
+      );
+
+      // Deselect moved candidates from selection
+      setSelectedCVIds(prev => {
+        const next = new Set(prev);
+        cvs.forEach(c => {
+          if (validIds.includes(c.candidateId)) {
+            next.delete(c.id);
+          }
+        });
+        return next;
+      });
+
+      clearCandidatesCache();
+      invalidateQueries('generatedCVs');
+      invalidateQueries('candidates');
+      refetch();
+
+      showToast(
+        `${validIds.length} candidate${validIds.length !== 1 ? 's' : ''} moved to ${label} (${targetLeaderName})`
+      );
+    } catch (err: any) {
+      console.error('[GENERATED-CVS] Error moving candidates category:', err);
+      showToast(err.message || 'Failed to move candidates', 'error');
+    } finally {
+      setMovingCandidateIds(prev => {
+        const next = new Set(prev);
+        validIds.forEach(id => next.delete(id));
+        return next;
+      });
     }
   };
 
@@ -1652,6 +1747,24 @@ const normalizeLanguageName = (lang: string): string => {
                   <LayoutTemplate size={13} /> Change Template
                 </button>
 
+                <button
+                  onClick={() => {
+                    const selectedCvsList = cvs.filter(c => selectedCVIds.has(c.id));
+                    const candIds = selectedCvsList.map(c => c.candidateId).filter(Boolean);
+                    handleMoveCategory(candIds, officeCategory === 'new' ? 'old' : 'new');
+                  }}
+                  disabled={actionLoading || isBackupFolder}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer text-white",
+                    officeCategory === 'new'
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  )}
+                  title={officeCategory === 'new' ? "Move selected candidates to Old (DAERA OFFICE)" : "Move selected candidates to New (DAERA OFFICE 2)"}
+                >
+                  <ArrowRightLeft size={13} /> {officeCategory === 'new' ? 'Move to Old' : 'Move to New'}
+                </button>
+
                 {cvStatusFilter === 'cv-downloaded' && (
                   <button
                     onClick={handleBulkMarkAsCvAvailable}
@@ -1877,29 +1990,60 @@ const normalizeLanguageName = (lang: string): string => {
                   </div>
                 </div>
 
-                {/* Candidate Name & Action Menu */}
+                {/* Candidate Name, Move Category Button & Action Menu */}
                 <div className="flex items-start justify-between gap-2 mt-4" onMouseDown={(e) => e.stopPropagation()}>
-                  <h3 className="font-black text-[#1e293b] text-[15px] uppercase leading-snug font-sans tracking-wide">
-                    {cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}
-                    {cv.candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500 inline-block ml-1 shrink-0" />}
-                  </h3>
-                  {isLocked ? (
-                    <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={cv.candidate.isLocked ? "Candidate is locked. No actions allowed." : `Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
-                      <Lock size={14} />
-                    </div>
-                  ) : (
-                    <ActionMenu
-                      cvId={cv.id}
-                      currentTemplateId={cv.templateId}
-                      onDelete={() => setDeleteTarget(cv)}
-                      onChangeTemplate={() => setChangeTarget(cv)}
-                      isFlagged={cv.candidate.isFlagged || false}
-                      onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
-                      cvDownloaded={cv.candidate?.cvDownloaded}
-                      onMarkAsCvAvailable={() => markAsCvAvailable(cv.candidateId)}
-                      isSuperAdmin={isSuperAdmin}
-                    />
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-[#1e293b] text-[15px] uppercase leading-snug font-sans tracking-wide truncate">
+                      {cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}
+                      {cv.candidate.isFlagged && <Flag size={14} className="text-red-500 fill-red-500 inline-block ml-1 shrink-0" />}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isNew = isDaeraOffice2(cv);
+                        handleMoveCategory([cv.candidateId], isNew ? 'old' : 'new');
+                      }}
+                      disabled={movingCandidateIds.has(cv.candidateId) || isLocked}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50",
+                        isDaeraOffice2(cv)
+                          ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200"
+                          : "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                      )}
+                      title={isDaeraOffice2(cv) ? "Move to Old (DAERA OFFICE)" : "Move to New (DAERA OFFICE 2)"}
+                    >
+                      {movingCandidateIds.has(cv.candidateId) ? (
+                        <Loader2 size={12} className="animate-spin shrink-0" />
+                      ) : (
+                        <ArrowRightLeft size={12} className="shrink-0" />
+                      )}
+                      <span>{isDaeraOffice2(cv) ? 'Move to Old' : 'Move to New'}</span>
+                    </button>
+
+                    {isLocked ? (
+                      <div className="p-1.5 text-red-500 bg-red-50 rounded-lg shrink-0 border border-red-100" title={cv.candidate.isLocked ? "Candidate is locked. No actions allowed." : `Broker "${cv.candidate.broker?.name}" is locked. No actions allowed.`}>
+                        <Lock size={14} />
+                      </div>
+                    ) : (
+                      <ActionMenu
+                        cvId={cv.id}
+                        currentTemplateId={cv.templateId}
+                        onDelete={() => setDeleteTarget(cv)}
+                        onChangeTemplate={() => setChangeTarget(cv)}
+                        isFlagged={cv.candidate.isFlagged || false}
+                        onToggleFlag={() => toggleFlag(cv.id, cv.candidateId, cv.candidate.isFlagged || false)}
+                        cvDownloaded={cv.candidate?.cvDownloaded}
+                        onMarkAsCvAvailable={() => markAsCvAvailable(cv.candidateId)}
+                        isSuperAdmin={isSuperAdmin}
+                        currentCategory={isDaeraOffice2(cv) ? 'new' : 'old'}
+                        onMoveCategory={(target) => handleMoveCategory([cv.candidateId], target)}
+                        isMovingCategory={movingCandidateIds.has(cv.candidateId)}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* Details list (two columns grid) */}

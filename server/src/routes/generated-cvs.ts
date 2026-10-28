@@ -503,4 +503,29 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/generated-cvs/move-category
+router.post('/move-category', async (req: Request, res: Response) => {
+  try {
+    const { candidateIds, candidateId, targetCategory } = req.body;
+    const ids: string[] = Array.isArray(candidateIds)
+      ? candidateIds.filter(Boolean)
+      : candidateId
+      ? [candidateId]
+      : [];
+
+    if (ids.length === 0 || (targetCategory !== 'new' && targetCategory !== 'old')) {
+      return res.status(400).json({
+        error: 'Valid candidateIds and targetCategory ("new" or "old") are required',
+      });
+    }
+
+    const { moveCandidatesCategory } = await import('../lib/leader-sync');
+    const results = await moveCandidatesCategory(ids, targetCategory);
+    res.json({ success: true, results, targetCategory });
+  } catch (error) {
+    console.error('Error moving candidates category:', error);
+    res.status(500).json({ error: 'Failed to move candidate category' });
+  }
+});
+
 export default router;
