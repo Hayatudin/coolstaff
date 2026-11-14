@@ -648,35 +648,6 @@ const normalizeLanguageName = (lang: string): string => {
   };
 
   // ── Change Template ────────────────────────────────────────────────────────
-  // Drag selection
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragAction, setDragAction] = useState<'select' | 'deselect' | null>(null);
-
-  useEffect(() => {
-    const handleMouseUp = () => { setIsDragging(false); setDragAction(null); };
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, []);
-
-  const handleCardMouseDown = (cvId: string, currentSelected: boolean) => {
-    setIsDragging(true);
-    const action = currentSelected ? 'deselect' : 'select';
-    setDragAction(action);
-    setSelectedCVIds(prev => {
-      const next = new Set(prev);
-      if (action === 'select') next.add(cvId); else next.delete(cvId);
-      return next;
-    });
-  };
-
-  const handleCardMouseEnter = (cvId: string) => {
-    if (!isDragging || !dragAction) return;
-    setSelectedCVIds(prev => {
-      const next = new Set(prev);
-      if (dragAction === 'select') next.add(cvId); else next.delete(cvId);
-      return next;
-    });
-  };
 
   const handleConfirmChange = async (newTemplateId: string) => {
     if (!changeTarget) return;
@@ -2082,18 +2053,16 @@ const normalizeLanguageName = (lang: string): string => {
               return (
               <div 
                 key={cv.id} 
-                className={`bg-white border-2 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col select-none ${
+                className={`bg-white border-2 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative flex flex-col ${
                   isSelected 
                     ? 'border-[#00A4EF] ring-2 ring-[#00A4EF]/20 bg-blue-50/5' 
                     : isLocked 
                       ? 'border-red-300 bg-red-50/5' 
                       : 'border-[#e2315a]'
                 }`}
-                onMouseDown={() => handleCardMouseDown(cv.id, isSelected)}
-                onMouseEnter={() => handleCardMouseEnter(cv.id)}
               >
                 {/* Selection Checkbox */}
-                <div className="absolute top-4 left-4" onMouseDown={(e) => e.stopPropagation()}>
+                <div className="absolute top-4 left-4 z-10">
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -2129,7 +2098,7 @@ const normalizeLanguageName = (lang: string): string => {
                       }}
                     />
                   </div>
-                  <div onMouseDown={(e) => e.stopPropagation()}>
+                  <div>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -2145,7 +2114,7 @@ const normalizeLanguageName = (lang: string): string => {
                 </div>
 
                 {/* Candidate Name, Move Category Button & Action Menu */}
-                <div className="flex items-start justify-between gap-2 mt-4" onMouseDown={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between gap-2 mt-4">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-black text-[#1e293b] text-[15px] uppercase leading-snug font-sans tracking-wide truncate">
                       {cv.candidate.passportData?.givenNames} {cv.candidate.passportData?.surname}
@@ -2262,7 +2231,7 @@ const normalizeLanguageName = (lang: string): string => {
                 </div>
 
                 {/* Watch Video / Preview CV and download format picker */}
-                <div className="mt-auto pt-4 border-t border-dashed border-pink-100 flex flex-col gap-3" onMouseDown={(e) => e.stopPropagation()}>
+                <div className="mt-auto pt-4 border-t border-dashed border-pink-100 flex flex-col gap-3">
                   {(() => {
                     const hasVideo = !!cv.candidate.videoUrl && cv.candidate.allowVideo === true;
                     if (hasVideo) {
