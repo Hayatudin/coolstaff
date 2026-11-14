@@ -8,8 +8,9 @@ import {
   FolderOpen, FileText, ChevronRight, ArrowLeft, Download,
   RefreshCw, Trash2, MoreVertical, LayoutTemplate, X, Check, AlertTriangle,
   FileDown, Image as ImageIcon, ChevronDown, PackageOpen, Flag, Eye, Search, Lock,
-  Loader2, Video, ArrowRightLeft
+  Loader2, Video, ArrowRightLeft, FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { cn, getFileUrl, convertImageToBase64 } from '@/lib/utils';
 import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
@@ -469,6 +470,8 @@ const normalizeLanguageName = (lang: string): string => {
   }, [categorizedCvs]);
   const [downloadAllOpen, setDownloadAllOpen] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [exportExcelOpen, setExportExcelOpen] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [previewCv, setPreviewCv] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [cvStatusFilter, setCvStatusFilter] = useState<'cv-available' | 'cv-downloaded'>('cv-available');
@@ -1279,6 +1282,81 @@ const normalizeLanguageName = (lang: string): string => {
 
   const allSelected = activeCVs.length > 0 && activeCVs.every(cv => selectedCVIds.has(cv.id));
 
+  // ── Export Candidates to Excel ─────────────────────────────────────────────
+  const handleExportExcel = (onlySelected = false) => {
+    try {
+      setIsExportingExcel(true);
+      const targetCvs = onlySelected && selectedCVIds.size > 0
+        ? activeCVs.filter(c => selectedCVIds.has(c.id))
+        : activeCVs;
+
+      if (targetCvs.length === 0) {
+        showToast('No candidates available to export', 'error');
+        return;
+      }
+
+      const rows = targetCvs.map((cv, index) => {
+        const cand = cv.candidate || {};
+        const pData = cand.passportData || {};
+        const givenNames = (pData.givenNames || cand.givenNames || '').trim();
+        const surname = (pData.surname || cand.surname || '').trim();
+        const fullName = `${givenNames} ${surname}`.trim().toUpperCase() || '—';
+        const passportNumber = (pData.passportNumber || cand.passportNumber || '').trim().toUpperCase() || '—';
+        const brokerName = (cand.broker?.name || cand.brokerName || '').trim() || '—';
+
+        return {
+          'No': index + 1,
+          'Name': fullName,
+          'Passport Number': passportNumber,
+          'Broker': brokerName,
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+
+      // Auto-fit column widths so no text overlaps or truncates
+      const columnDefs = [
+        { key: 'No', header: 'No', minWidth: 8 },
+        { key: 'Name', header: 'Name', minWidth: 32 },
+        { key: 'Passport Number', header: 'Passport Number', minWidth: 22 },
+        { key: 'Broker', header: 'Broker', minWidth: 24 },
+      ];
+
+      ws['!cols'] = columnDefs.map(col => {
+        let maxLength = col.header.length;
+        for (const row of rows) {
+          const val = row[col.key as keyof typeof row];
+          if (val !== undefined && val !== null) {
+            const len = String(val).length;
+            if (len > maxLength) {
+              maxLength = len;
+            }
+          }
+        }
+        return { wch: Math.max(col.minWidth, maxLength + 5) };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const sheetName = cvStatusFilter === 'cv-downloaded' ? 'CV Downloaded' : 'CV Available';
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      const safeTemplateName = activeTemplate.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const statusLabel = cvStatusFilter === 'cv-downloaded' ? 'CV_Downloaded' : 'CV_Available';
+      const categoryLabel = officeCategory === 'new' ? 'New' : 'Old';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const selectionSuffix = onlySelected && selectedCVIds.size > 0 ? `_Selected_${selectedCVIds.size}` : '';
+      const filename = `${safeTemplateName}_${statusLabel}_${categoryLabel}${selectionSuffix}_${dateStr}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+      showToast(`Exported ${rows.length} candidate${rows.length !== 1 ? 's' : ''} to Excel`, 'success');
+    } catch (err: any) {
+      console.error('Failed to export to Excel:', err);
+      showToast('Failed to export to Excel. Please try again.', 'error');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   // ── Download All as ZIP ────────────────────────────────────────────────────
   const handleDownloadAll = async (format: 'pdf' | 'jpg' | 'doc') => {
     let cvsToDownload = selectedCVIds.size > 0 
@@ -1659,8 +1737,75 @@ const normalizeLanguageName = (lang: string): string => {
             </div>
           </div>
 
-          {/* Download Button (Prominent & Always Visible) */}
+          {/* Download & Export Buttons */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Export as Excel Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedCVIds.size > 0) {
+                    setExportExcelOpen(p => !p);
+                  } else {
+                    handleExportExcel(false);
+                  }
+                }}
+                disabled={activeCVs.length === 0 || isExportingExcel}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border shadow-sm cursor-pointer whitespace-nowrap',
+                  activeCVs.length > 0
+                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 active:scale-98'
+                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                )}
+                title={
+                  selectedCVIds.size > 0
+                    ? `Click to choose export option (${selectedCVIds.size} selected)`
+                    : `Export all ${cvStatusFilter === 'cv-downloaded' ? 'CV Downloaded' : 'CV Available'} candidates to Excel`
+                }
+              >
+                {isExportingExcel ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <FileSpreadsheet size={16} />
+                )}
+                {selectedCVIds.size > 0
+                  ? `Export Excel (${selectedCVIds.size})`
+                  : 'Export as Excel'}
+                {selectedCVIds.size > 0 && (
+                  <ChevronDown size={14} className={cn('transition-transform', exportExcelOpen && 'rotate-180')} />
+                )}
+              </button>
+              {selectedCVIds.size > 0 && exportExcelOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setExportExcelOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border rounded-xl shadow-2xl overflow-hidden z-50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportExcelOpen(false);
+                        handleExportExcel(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-text-primary hover:bg-surface transition-colors whitespace-nowrap cursor-pointer"
+                    >
+                      <FileSpreadsheet size={14} className="text-emerald-600 shrink-0" />
+                      Export All in {cvStatusFilter === 'cv-downloaded' ? 'Downloaded' : 'Available'} ({activeCVs.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportExcelOpen(false);
+                        handleExportExcel(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-text-primary hover:bg-surface transition-colors border-t border-border whitespace-nowrap cursor-pointer"
+                    >
+                      <Check size={14} className="text-emerald-600 shrink-0" />
+                      Export Selected Only ({selectedCVIds.size})
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="relative">
               <button
                 onClick={() => setDownloadAllOpen(p => !p)}
@@ -1739,6 +1884,15 @@ const normalizeLanguageName = (lang: string): string => {
             {someSelected && (
               <div className="flex flex-wrap items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-3 py-1.5 w-full sm:w-auto">
                 <span className="text-xs font-bold text-primary">{selectedCVIds.size} selected</span>
+                <button
+                  type="button"
+                  onClick={() => handleExportExcel(true)}
+                  disabled={actionLoading || isExportingExcel}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                  title="Export selected candidates to Excel"
+                >
+                  <FileSpreadsheet size={13} /> Export to Excel
+                </button>
                 <button
                   onClick={() => setBulkChangeOpen(true)}
                   disabled={actionLoading || isBackupFolder}
