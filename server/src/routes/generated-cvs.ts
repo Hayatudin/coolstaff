@@ -109,9 +109,9 @@ async function getBrokerLockMap(): Promise<Record<string, boolean>> {
   }
 }
 
-// GET /api/generated-cvs
-router.get('/', async (req: Request, res: Response) => {
-  try {
+// Shared builder for the Generated CVs list (used by GET /api/generated-cvs and the
+// agency Available Candidates endpoint so both always show the same candidates).
+export async function buildGeneratedCvsList(): Promise<any[]> {
     const cvRowsList = await db.select().from(generatedCvTable);
     const candidateIds = cvRowsList.map(cv => cv.candidateId);
 
@@ -304,7 +304,13 @@ router.get('/', async (req: Request, res: Response) => {
         };
       });
     
-    res.json(mappedCVs);
+    return mappedCVs;
+}
+
+// GET /api/generated-cvs
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    res.json(await buildGeneratedCvsList());
   } catch (error) {
     console.error('Error fetching generated CVs:', error);
     res.status(500).json({ error: 'Failed to fetch generated CVs' });

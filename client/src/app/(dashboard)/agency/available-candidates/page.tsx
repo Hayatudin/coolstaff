@@ -8,7 +8,6 @@ import {
   Check, 
   X, 
   Loader2, 
-  Building, 
   User, 
   Video, 
   FileText, 
@@ -43,19 +42,6 @@ const TEMPLATES = [
   { id: 'ma', name: 'MA Standard', component: MATemplate },
   { id: 'ra', name: 'RAYAAT', component: RATemplate },
   { id: 'vision', name: 'Vision Layout', component: VisionTemplate },
-];
-
-const AGENCIES = [
-  { id: 'all', name: 'All Agencies' },
-  { id: 'ussus', name: 'USSUS' },
-  { id: 'al-shablan', name: 'AL-Shablan' },
-  { id: 'alm', name: 'ALMERSAH' },
-  { id: 'almala', name: 'ALMALA' },
-  { id: 'ka7', name: 'KAAFAAT' },
-  { id: 'ku2', name: 'KHUZAM' },
-  { id: 'ma', name: 'MA Standard' },
-  { id: 'ra', name: 'RAYAAT' },
-  { id: 'vision', name: 'Vision Layout' },
 ];
 
 const AGENCY_MAP: Record<string, string> = {
@@ -182,18 +168,15 @@ const getExperienceDisplay = (workExperience: any): string => {
 };
 
 export default function AvailableCandidatesPage() {
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
   const { data: session } = useSession();
   const userRole = ((session?.user as any)?.role ?? 'user') as string;
-  const isSuperAdmin = userRole === 'super_admin';
 
+  // Agency-only page: the server returns the candidates in this agency's CV template
+  // that are currently in the "New" category on the Generated CVs page.
   const { data: agencyCandidatesData, isLoading: isQueryLoading, refetch: refetchAgencyCandidates } = useQuery({
-    queryKey: ['agency-available-candidates', selectedAgency, isSuperAdmin],
+    queryKey: ['agency-available-candidates'],
     queryFn: async () => {
-      const url = isSuperAdmin && selectedAgency !== 'all' 
-        ? `/api/agency/available-candidates?agency=${selectedAgency}`
-        : '/api/agency/available-candidates';
-      const res = await api(url, { cache: 'no-store' });
+      const res = await api('/api/agency/available-candidates', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch candidates');
       return await res.json();
     },
@@ -230,6 +213,7 @@ export default function AvailableCandidatesPage() {
   const [inputSkills, setInputSkills] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [inputGender, setInputGender] = useState('all');
+  const [inputJob, setInputJob] = useState('all');
 
   // Selection state
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
@@ -315,6 +299,14 @@ export default function AvailableCandidatesPage() {
       }
     });
     return Array.from(cities).sort();
+  }, [candidates]);
+
+  const uniqueJobs = useMemo(() => {
+    const jobs = new Set<string>();
+    candidates.forEach(c => {
+      if (c.job && c.job.trim()) jobs.add(c.job.trim());
+    });
+    return Array.from(jobs).sort();
   }, [candidates]);
 
   // Helper to calculate candidate age
@@ -680,7 +672,7 @@ export default function AvailableCandidatesPage() {
 
   useEffect(() => {
     fetchCandidates();
-  }, [selectedAgency, isSuperAdmin]);
+  }, []);
   // Pre-load images as Base64 for the single previewing/downloading CV
   useEffect(() => {
     if (!previewCv) {
@@ -747,7 +739,7 @@ export default function AvailableCandidatesPage() {
   // Reset page number when any filter updates
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputCity, inputSkills, sortOrder, inputGender]);
+  }, [searchInput, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputCity, inputSkills, sortOrder, inputGender, inputJob]);
 
   const toggleSkillTag = (skill: string) => {
     setInputSkills(prev => {
@@ -769,6 +761,7 @@ export default function AvailableCandidatesPage() {
     setInputCity('all');
     setInputSkills([]);
     setInputGender('all');
+    setInputJob('all');
     setSearchInput('');
     setSearchQuery('');
     setCurrentPage(1);
@@ -866,6 +859,13 @@ export default function AvailableCandidatesPage() {
         }
       }
 
+      // Job Title Filter
+      if (inputJob !== 'all') {
+        if (!c.job || c.job.trim().toLowerCase() !== inputJob.toLowerCase()) {
+          return false;
+        }
+      }
+
       // 7. Skills Tag Filter
       if (inputSkills.length > 0) {
         const candidateSkills = getSkillsArray(c.skills);
@@ -894,7 +894,7 @@ export default function AvailableCandidatesPage() {
         return dateA - dateB;
       }
     });
-  }, [candidates, searchQuery, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputSkills, sortOrder, inputGender]);
+  }, [candidates, searchQuery, inputMinAge, inputMaxAge, inputReligion, inputExperience, inputEducation, inputMaritalStatus, inputCity, inputJob, inputSkills, sortOrder, inputGender]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE);
@@ -936,23 +936,6 @@ export default function AvailableCandidatesPage() {
           </h1>
           <p className="text-text-secondary text-sm font-medium mt-1">Sourced candidates with generated CVs awaiting selection.</p>
         </div>
-        {isSuperAdmin && (
-          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/20 shadow-sm shrink-0">
-            <Building className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold text-text-secondary">Agency:</span>
-            <select
-              value={selectedAgency}
-              onChange={(e) => setSelectedAgency(e.target.value)}
-              className="bg-transparent text-xs font-black text-text-primary focus:outline-none cursor-pointer border-0 p-0 pr-8"
-            >
-              {AGENCIES.map((agency) => (
-                <option key={agency.id} value={agency.id}>
-                  {agency.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {/* Error Banner */}
@@ -1036,6 +1019,20 @@ export default function AvailableCandidatesPage() {
             {uniqueReligions.map((r) => (
               <option key={r} value={r.toLowerCase()}>
                 {r}
+              </option>
+            ))}
+          </select>
+
+          {/* Job Title Select */}
+          <select
+            value={inputJob}
+            onChange={(e) => setInputJob(e.target.value)}
+            className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
+          >
+            <option value="all">All job titles</option>
+            {uniqueJobs.map((j) => (
+              <option key={j} value={j.toLowerCase()}>
+                {j}
               </option>
             ))}
           </select>

@@ -37,11 +37,14 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/users': ['super_admin'],
   '/video-uploads': ['super_admin', 'video_uploader'],
   '/uploaded-videos': ['super_admin', 'video_uploader', 'processor', 'coordinator', 'registrar', 'accountant'],
-  '/agency/available-candidates': ['super_admin', 'agency'],
+  '/agency/available-candidates': ['agency'],
   '/agency/contracts': ['super_admin', 'agency'],
   '/passport-registration': ['super_admin', 'genaral'],
   '/available-passport': ['super_admin', 'genaral'],
 };
+
+// Routes that are exclusive to the agency role (hidden from every other role, including super admin)
+export const AGENCY_ONLY_ROUTES: string[] = ['/agency/available-candidates'];
 
 // All valid roles in the system
 export const ALL_ROLES: Role[] = [
@@ -103,7 +106,9 @@ export const SYSTEM_PAGES: SystemPageInfo[] = [
 // Helper to compute system default allowed routes for each role
 export const DEFAULT_ROLE_PERMISSIONS: Record<Role, string[]> = ALL_ROLES.reduce((acc, role) => {
   if (role === 'super_admin') {
-    acc[role] = SYSTEM_PAGES.map(p => p.path);
+    acc[role] = SYSTEM_PAGES
+      .filter(p => !AGENCY_ONLY_ROUTES.includes(p.path))
+      .map(p => p.path);
   } else {
     acc[role] = SYSTEM_PAGES
       .filter(p => ROUTE_ACCESS[p.path]?.includes(role))
@@ -118,11 +123,16 @@ export function canRoleAccessRoute(
   route: string,
   customPermissions?: Record<string, string[]> | null
 ): boolean {
-  // Super admin always retains unrestricted access
-  if (role === 'super_admin') return true;
-
   // Clean path to ignore query parameters
   const cleanRoute = route.split('?')[0].split('#')[0];
+
+  // Agency-exclusive pages: only the agency role may access them (not even super admin)
+  if (AGENCY_ONLY_ROUTES.some(p => cleanRoute === p || (cleanRoute.startsWith(p) && cleanRoute.charAt(p.length) === '/'))) {
+    return role === 'agency';
+  }
+
+  // Super admin always retains unrestricted access
+  if (role === 'super_admin') return true;
 
   // If custom permissions are provided from the database
   if (customPermissions && Array.isArray(customPermissions[role])) {

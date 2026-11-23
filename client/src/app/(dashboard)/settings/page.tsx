@@ -35,6 +35,7 @@ import {
   ALL_ROLES, 
   SYSTEM_PAGES, 
   DEFAULT_ROLE_PERMISSIONS, 
+  AGENCY_ONLY_ROUTES,
   ROLE_CONFIG, 
   type Role 
 } from '@/lib/role-config';
@@ -273,9 +274,11 @@ export default function SettingsPage() {
     const merged: Record<string, string[]> = {};
     for (const r of ALL_ROLES) {
       if (r === 'super_admin') {
-        merged[r] = SYSTEM_PAGES.map(p => p.path);
+        merged[r] = SYSTEM_PAGES
+          .filter(p => !AGENCY_ONLY_ROUTES.includes(p.path))
+          .map(p => p.path);
       } else if (serverPermissions && Array.isArray(serverPermissions[r])) {
-        merged[r] = [...serverPermissions[r]];
+        merged[r] = serverPermissions[r].filter(p => r === 'agency' || !AGENCY_ONLY_ROUTES.includes(p));
       } else if (DEFAULT_ROLE_PERMISSIONS[r]) {
         merged[r] = [...DEFAULT_ROLE_PERMISSIONS[r]];
       } else {
@@ -287,6 +290,7 @@ export default function SettingsPage() {
 
   const handleTogglePageRoute = (role: Role, pagePath: string) => {
     if (role === 'super_admin') return;
+    if (role !== 'agency' && AGENCY_ONLY_ROUTES.includes(pagePath)) return;
     setPermissionsState(prev => {
       const current = prev[role] || DEFAULT_ROLE_PERMISSIONS[role] || [];
       const exists = current.includes(pagePath);
@@ -299,7 +303,9 @@ export default function SettingsPage() {
     if (role === 'super_admin') return;
     setPermissionsState(prev => ({
       ...prev,
-      [role]: SYSTEM_PAGES.map(p => p.path),
+      [role]: SYSTEM_PAGES
+        .filter(p => role === 'agency' || !AGENCY_ONLY_ROUTES.includes(p.path))
+        .map(p => p.path),
     }));
   };
 
@@ -569,9 +575,12 @@ export default function SettingsPage() {
                   {ALL_ROLES.map((r) => {
                     const isSelected = selectedRole === r;
                     const rConfig = ROLE_CONFIG[r];
-                    const currentPages = permissionsState[r] ?? DEFAULT_ROLE_PERMISSIONS[r] ?? [];
-                    const pageCount = r === 'super_admin' ? SYSTEM_PAGES.length : currentPages.length;
-                    const totalPages = SYSTEM_PAGES.length;
+                    const currentPages = (permissionsState[r] ?? DEFAULT_ROLE_PERMISSIONS[r] ?? [])
+                      .filter(p => r === 'agency' || !AGENCY_ONLY_ROUTES.includes(p));
+                    const totalPages = r === 'agency'
+                      ? SYSTEM_PAGES.length
+                      : SYSTEM_PAGES.filter(p => !AGENCY_ONLY_ROUTES.includes(p.path)).length;
+                    const pageCount = r === 'super_admin' ? totalPages : currentPages.length;
                     const percent = Math.round((pageCount / totalPages) * 100);
 
                     return (
@@ -647,10 +656,16 @@ export default function SettingsPage() {
                           {ROLE_CONFIG[selectedRole]?.label || selectedRole}
                         </span>
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white border border-border text-text-secondary">
-                          {(selectedRole === 'super_admin' 
-                            ? SYSTEM_PAGES.length 
-                            : (permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? []).length
-                          )} of {SYSTEM_PAGES.length} pages allowed
+                          {(() => {
+                            const roleAssignableCount = selectedRole === 'agency'
+                              ? SYSTEM_PAGES.length
+                              : SYSTEM_PAGES.filter(p => !AGENCY_ONLY_ROUTES.includes(p.path)).length;
+                            const enabledCount = selectedRole === 'super_admin'
+                              ? roleAssignableCount
+                              : (permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? [])
+                                  .filter(p => selectedRole === 'agency' || !AGENCY_ONLY_ROUTES.includes(p)).length;
+                            return `${enabledCount} of ${roleAssignableCount} pages allowed`;
+                          })()}
                         </span>
                       </div>
                       <p className="text-xs text-text-secondary mt-1 max-w-2xl">
@@ -736,7 +751,10 @@ export default function SettingsPage() {
                 {/* Page Access Categorized Groups */}
                 <div className="space-y-6">
                   {(() => {
-                    const filteredPages = SYSTEM_PAGES.filter(p => {
+                    const roleAssignablePages = SYSTEM_PAGES.filter(
+                      p => selectedRole === 'agency' || !AGENCY_ONLY_ROUTES.includes(p.path)
+                    );
+                    const filteredPages = roleAssignablePages.filter(p => {
                       const matchesSearch = 
                         p.name.toLowerCase().includes(rolePageSearch.toLowerCase()) ||
                         p.path.toLowerCase().includes(rolePageSearch.toLowerCase()) ||
@@ -848,14 +866,22 @@ export default function SettingsPage() {
                 {/* Bottom Bar for Role */}
                 <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="text-xs text-text-secondary">
-                    Role &apos;<strong className="text-text-primary">{ROLE_CONFIG[selectedRole]?.label || selectedRole}</strong>&apos; currently has{' '}
-                    <strong className="text-primary font-bold">
-                      {selectedRole === 'super_admin' 
-                        ? SYSTEM_PAGES.length 
-                        : (permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? []).length
-                      }
-                    </strong>{' '}
-                    out of {SYSTEM_PAGES.length} pages accessible.
+                    {(() => {
+                      const roleAssignableCount = selectedRole === 'agency'
+                        ? SYSTEM_PAGES.length
+                        : SYSTEM_PAGES.filter(p => !AGENCY_ONLY_ROUTES.includes(p.path)).length;
+                      const enabledCount = selectedRole === 'super_admin'
+                        ? roleAssignableCount
+                        : (permissionsState[selectedRole] ?? DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? [])
+                            .filter(p => selectedRole === 'agency' || !AGENCY_ONLY_ROUTES.includes(p)).length;
+                      return (
+                        <>
+                          Role &apos;<strong className="text-text-primary">{ROLE_CONFIG[selectedRole]?.label || selectedRole}</strong>&apos; currently has{' '}
+                          <strong className="text-primary font-bold">{enabledCount}</strong>{' '}
+                          out of {roleAssignableCount} pages accessible.
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

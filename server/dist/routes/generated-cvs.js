@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildGeneratedCvsList = buildGeneratedCvsList;
 const express_1 = require("express");
 const db_1 = require("../db");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -142,177 +143,182 @@ async function getBrokerLockMap() {
         return {};
     }
 }
-// GET /api/generated-cvs
-router.get('/', async (req, res) => {
+// Shared builder for the Generated CVs list (used by GET /api/generated-cvs and the
+// agency Available Candidates endpoint so both always show the same candidates).
+async function buildGeneratedCvsList() {
+    const cvRowsList = await db_1.db.select().from(db_1.generatedCv);
+    const candidateIds = cvRowsList.map(cv => cv.candidateId);
+    const candidatesList = candidateIds.length > 0
+        ? await db_1.db.select().from(db_1.candidate).where((0, drizzle_orm_1.inArray)(db_1.candidate.id, candidateIds))
+        : [];
+    let videoProfileMap = new Map();
     try {
-        const cvRowsList = await db_1.db.select().from(db_1.generatedCv);
-        const candidateIds = cvRowsList.map(cv => cv.candidateId);
-        const candidatesList = candidateIds.length > 0
-            ? await db_1.db.select().from(db_1.candidate).where((0, drizzle_orm_1.inArray)(db_1.candidate.id, candidateIds))
-            : [];
-        let videoProfileMap = new Map();
-        try {
-            const [videoProfiles] = await db_1.pool.query('SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile`');
-            for (const vp of videoProfiles || []) {
-                if (vp.passportNumber) {
-                    videoProfileMap.set(vp.passportNumber.trim().toUpperCase(), vp);
-                }
+        const [videoProfiles] = await db_1.pool.query('SELECT passportNumber, videoUrl, facePhotoUrl, fullBodyPhotoUrl FROM `UploadedVideoProfile`');
+        for (const vp of videoProfiles || []) {
+            if (vp.passportNumber) {
+                videoProfileMap.set(vp.passportNumber.trim().toUpperCase(), vp);
             }
         }
-        catch (_) { }
-        // Fetch all brokers and their leaders so client can accurately distinguish DAERA OFFICE vs DAERA OFFICE 2
-        let brokerMap = new Map();
-        try {
-            const [allBrokers] = await db_1.pool.query('SELECT b.id, b.name, b.leaderId, b.isLocked, l.name as leaderName FROM Broker b LEFT JOIN Leader l ON b.leaderId = l.id');
-            for (const b of allBrokers || []) {
-                brokerMap.set(b.id, {
-                    id: b.id,
-                    name: b.name,
-                    leaderId: b.leaderId,
-                    isLocked: Boolean(b.isLocked),
-                    leader: b.leaderId ? { id: b.leaderId, name: b.leaderName || '' } : null,
+    }
+    catch (_) { }
+    // Fetch all brokers and their leaders so client can accurately distinguish DAERA OFFICE vs DAERA OFFICE 2
+    let brokerMap = new Map();
+    try {
+        const [allBrokers] = await db_1.pool.query('SELECT b.id, b.name, b.leaderId, b.isLocked, l.name as leaderName FROM Broker b LEFT JOIN Leader l ON b.leaderId = l.id');
+        for (const b of allBrokers || []) {
+            brokerMap.set(b.id, {
+                id: b.id,
+                name: b.name,
+                leaderId: b.leaderId,
+                isLocked: Boolean(b.isLocked),
+                leader: b.leaderId ? { id: b.leaderId, name: b.leaderName || '' } : null,
+            });
+        }
+    }
+    catch (_) { }
+    const candMap = new Map(candidatesList.map(c => {
+        const pNum = (c.passportNumber || '').trim().toUpperCase();
+        const profile = videoProfileMap.get(pNum);
+        const facePhotoUrl = profile?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl || '';
+        const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || c.fullBodyPhotoUrl || '';
+        return [c.id, {
+                ...c,
+                facePhotoUrl,
+                fullBodyPhotoUrl,
+                broker: c.brokerId ? brokerMap.get(c.brokerId) || null : null
+            }];
+    }));
+    const generatedCVs = cvRowsList.map(cv => {
+        const candObj = candMap.get(cv.candidateId) || null;
+        return {
+            ...cv,
+            facePhotoUrl: cv.facePhotoUrl || candObj?.facePhotoUrl || candObj?.passportImageUrl || null,
+            fullBodyPhotoUrl: cv.fullBodyPhotoUrl || candObj?.fullBodyPhotoUrl || null,
+            candidate: candObj,
+        };
+    });
+    try {
+        const candidatesWithAgency = await db_1.db
+            .select()
+            .from(db_1.candidate)
+            .where((0, drizzle_orm_1.inArray)(db_1.candidate.agency, ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision']));
+        const existingCandidateIds = new Set(generatedCVs.map(cv => cv.candidateId));
+        for (const cand of candidatesWithAgency) {
+            if (!existingCandidateIds.has(cand.id)) {
+                existingCandidateIds.add(cand.id);
+                const pNum = (cand.passportNumber || '').trim().toUpperCase();
+                const profile = videoProfileMap.get(pNum);
+                const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
+                const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
+                const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
+                const mergedCand = {
+                    ...cand,
+                    facePhotoUrl: facePhotoUrl || '',
+                    fullBodyPhotoUrl: fullBodyPhotoUrl || '',
+                    broker: brokerObj
+                };
+                generatedCVs.push({
+                    id: `dummy-${cand.id}`,
+                    candidateId: cand.id,
+                    templateId: cand.agency.toLowerCase(),
+                    facePhotoUrl: facePhotoUrl,
+                    fullBodyPhotoUrl: fullBodyPhotoUrl,
+                    createdAt: cand.registeredAt || new Date(),
+                    updatedAt: cand.registeredAt || new Date(),
+                    candidate: mergedCand
                 });
             }
         }
-        catch (_) { }
-        const candMap = new Map(candidatesList.map(c => {
-            const pNum = (c.passportNumber || '').trim().toUpperCase();
-            const profile = videoProfileMap.get(pNum);
-            const facePhotoUrl = profile?.facePhotoUrl || c.facePhotoUrl || c.passportImageUrl || '';
-            const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || c.fullBodyPhotoUrl || '';
-            return [c.id, {
-                    ...c,
-                    facePhotoUrl,
-                    fullBodyPhotoUrl,
-                    broker: c.brokerId ? brokerMap.get(c.brokerId) || null : null
-                }];
-        }));
-        const generatedCVs = cvRowsList.map(cv => {
-            const candObj = candMap.get(cv.candidateId) || null;
-            return {
-                ...cv,
-                facePhotoUrl: cv.facePhotoUrl || candObj?.facePhotoUrl || candObj?.passportImageUrl || null,
-                fullBodyPhotoUrl: cv.fullBodyPhotoUrl || candObj?.fullBodyPhotoUrl || null,
-                candidate: candObj,
-            };
-        });
-        try {
-            const candidatesWithAgency = await db_1.db
-                .select()
-                .from(db_1.candidate)
-                .where((0, drizzle_orm_1.inArray)(db_1.candidate.agency, ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision']));
-            const existingCandidateIds = new Set(generatedCVs.map(cv => cv.candidateId));
-            for (const cand of candidatesWithAgency) {
-                if (!existingCandidateIds.has(cand.id)) {
-                    existingCandidateIds.add(cand.id);
-                    const pNum = (cand.passportNumber || '').trim().toUpperCase();
-                    const profile = videoProfileMap.get(pNum);
-                    const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
-                    const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
-                    const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
-                    const mergedCand = {
-                        ...cand,
-                        facePhotoUrl: facePhotoUrl || '',
-                        fullBodyPhotoUrl: fullBodyPhotoUrl || '',
-                        broker: brokerObj
-                    };
-                    generatedCVs.push({
-                        id: `dummy-${cand.id}`,
-                        candidateId: cand.id,
-                        templateId: cand.agency.toLowerCase(),
-                        facePhotoUrl: facePhotoUrl,
-                        fullBodyPhotoUrl: fullBodyPhotoUrl,
-                        createdAt: cand.registeredAt || new Date(),
-                        updatedAt: cand.registeredAt || new Date(),
-                        candidate: mergedCand
-                    });
-                }
-            }
-            // Also ensure candidate in DAERA OFFICE 2 with photo/video is included in generatedCVs under their agency
-            const [d2Candidates] = await db_1.pool.query(`SELECT c.*, b.leaderId, l.name as leaderName 
+        // Also ensure candidate in DAERA OFFICE 2 with photo/video is included in generatedCVs under their agency
+        const [d2Candidates] = await db_1.pool.query(`SELECT c.*, b.leaderId, l.name as leaderName 
          FROM Candidate c 
          JOIN Broker b ON c.brokerId = b.id 
          JOIN Leader l ON b.leaderId = l.id 
          WHERE UPPER(l.name) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2')`).catch(() => [[]]);
-            const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
-            for (const cand of d2Candidates || []) {
-                const pNum = (cand.passportNumber || '').trim().toUpperCase();
-                const profile = videoProfileMap.get(pNum);
-                // Filter out candidates who haven't changed/updated photo or video
-                const hasPhoto = Boolean((cand.facePhotoUrl && cand.facePhotoUrl.trim()) ||
-                    (cand.fullBodyPhotoUrl && cand.fullBodyPhotoUrl.trim()) ||
-                    (profile?.facePhotoUrl && profile.facePhotoUrl.trim()) ||
-                    (profile?.fullBodyPhotoUrl && profile.fullBodyPhotoUrl.trim()));
-                const hasVideo = Boolean((cand.Youtube_URL && cand.Youtube_URL.trim()) ||
-                    (cand.quickVideoUrl && cand.quickVideoUrl.trim()) ||
-                    (profile?.videoUrl && profile.videoUrl.trim()));
-                if (!hasPhoto && !hasVideo) {
-                    continue;
-                }
-                if (!existingCandidateIds.has(cand.id)) {
-                    existingCandidateIds.add(cand.id);
-                    const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
-                    const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
-                    const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
-                    let tId = (cand.agency && validAgencyTemplates.includes(cand.agency.toLowerCase())) ? cand.agency.toLowerCase() : null;
-                    if (!tId) {
-                        const [qr] = await db_1.pool.query('SELECT office, agency FROM QuickRegistration WHERE promotedCandidateId = ? OR UPPER(TRIM(passportNumber)) = UPPER(TRIM(?)) LIMIT 1', [cand.id, pNum]).catch(() => [[]]);
-                        if (qr && qr.length > 0) {
-                            const qrOff = qr[0].office || qr[0].agency;
-                            if (qrOff && validAgencyTemplates.includes(qrOff.toLowerCase())) {
-                                tId = qrOff.toLowerCase();
-                            }
+        const validAgencyTemplates = ['ussus', 'al-shablan', 'alm', 'almala', 'ka7', 'ku2', 'ma', 'ra', 'vision'];
+        for (const cand of d2Candidates || []) {
+            const pNum = (cand.passportNumber || '').trim().toUpperCase();
+            const profile = videoProfileMap.get(pNum);
+            // Filter out candidates who haven't changed/updated photo or video
+            const hasPhoto = Boolean((cand.facePhotoUrl && cand.facePhotoUrl.trim()) ||
+                (cand.fullBodyPhotoUrl && cand.fullBodyPhotoUrl.trim()) ||
+                (profile?.facePhotoUrl && profile.facePhotoUrl.trim()) ||
+                (profile?.fullBodyPhotoUrl && profile.fullBodyPhotoUrl.trim()));
+            const hasVideo = Boolean((cand.Youtube_URL && cand.Youtube_URL.trim()) ||
+                (cand.quickVideoUrl && cand.quickVideoUrl.trim()) ||
+                (profile?.videoUrl && profile.videoUrl.trim()));
+            if (!hasPhoto && !hasVideo) {
+                continue;
+            }
+            if (!existingCandidateIds.has(cand.id)) {
+                existingCandidateIds.add(cand.id);
+                const facePhotoUrl = profile?.facePhotoUrl || cand.facePhotoUrl || cand.passportImageUrl || null;
+                const fullBodyPhotoUrl = profile?.fullBodyPhotoUrl || cand.fullBodyPhotoUrl || null;
+                const brokerObj = cand.brokerId ? brokerMap.get(cand.brokerId) || null : null;
+                let tId = (cand.agency && validAgencyTemplates.includes(cand.agency.toLowerCase())) ? cand.agency.toLowerCase() : null;
+                if (!tId) {
+                    const [qr] = await db_1.pool.query('SELECT office, agency FROM QuickRegistration WHERE promotedCandidateId = ? OR UPPER(TRIM(passportNumber)) = UPPER(TRIM(?)) LIMIT 1', [cand.id, pNum]).catch(() => [[]]);
+                    if (qr && qr.length > 0) {
+                        const qrOff = qr[0].office || qr[0].agency;
+                        if (qrOff && validAgencyTemplates.includes(qrOff.toLowerCase())) {
+                            tId = qrOff.toLowerCase();
                         }
                     }
-                    if (!tId)
-                        tId = 'alm';
-                    const mergedCand = {
-                        ...cand,
-                        facePhotoUrl: facePhotoUrl || '',
-                        fullBodyPhotoUrl: fullBodyPhotoUrl || '',
-                        broker: brokerObj
-                    };
-                    generatedCVs.push({
-                        id: `d2-${cand.id}`,
-                        candidateId: cand.id,
-                        templateId: tId,
-                        facePhotoUrl,
-                        fullBodyPhotoUrl,
-                        createdAt: cand.registeredAt || new Date(),
-                        updatedAt: cand.registeredAt || new Date(),
-                        candidate: mergedCand
-                    });
                 }
+                if (!tId)
+                    tId = 'alm';
+                const mergedCand = {
+                    ...cand,
+                    facePhotoUrl: facePhotoUrl || '',
+                    fullBodyPhotoUrl: fullBodyPhotoUrl || '',
+                    broker: brokerObj
+                };
+                generatedCVs.push({
+                    id: `d2-${cand.id}`,
+                    candidateId: cand.id,
+                    templateId: tId,
+                    facePhotoUrl,
+                    fullBodyPhotoUrl,
+                    createdAt: cand.registeredAt || new Date(),
+                    updatedAt: cand.registeredAt || new Date(),
+                    candidate: mergedCand
+                });
             }
         }
-        catch (err) {
-            console.warn('[GENERATED-CVS] Could not fetch missing candidates dynamically:', err);
+    }
+    catch (err) {
+        console.warn('[GENERATED-CVS] Could not fetch missing candidates dynamically:', err);
+    }
+    const lockMap = await getBrokerLockMap();
+    let cvDownloadedMap = {};
+    try {
+        const [rawRows] = await db_1.pool.query('SELECT id, cvDownloaded FROM `Candidate`');
+        for (const row of rawRows) {
+            cvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
         }
-        const lockMap = await getBrokerLockMap();
-        let cvDownloadedMap = {};
-        try {
-            const [rawRows] = await db_1.pool.query('SELECT id, cvDownloaded FROM `Candidate`');
-            for (const row of rawRows) {
-                cvDownloadedMap[row.id] = row.cvDownloaded === 1 || row.cvDownloaded === true;
+    }
+    catch (e) { }
+    const mappedCVs = generatedCVs
+        .filter((cv) => cv.candidate?.broker?.name !== 'Calling' && cv.candidate?.job !== 'Calling')
+        .map((cv) => {
+        const formattedCandidateObj = formatCandidate(cv.candidate);
+        if (formattedCandidateObj) {
+            formattedCandidateObj.cvDownloaded = cvDownloadedMap[formattedCandidateObj.id] ?? false;
+            if (formattedCandidateObj.broker) {
+                formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
             }
         }
-        catch (e) { }
-        const mappedCVs = generatedCVs
-            .filter((cv) => cv.candidate?.broker?.name !== 'Calling' && cv.candidate?.job !== 'Calling')
-            .map((cv) => {
-            const formattedCandidateObj = formatCandidate(cv.candidate);
-            if (formattedCandidateObj) {
-                formattedCandidateObj.cvDownloaded = cvDownloadedMap[formattedCandidateObj.id] ?? false;
-                if (formattedCandidateObj.broker) {
-                    formattedCandidateObj.broker.isLocked = lockMap[formattedCandidateObj.broker.id] ?? false;
-                }
-            }
-            return {
-                ...cv,
-                candidate: formattedCandidateObj
-            };
-        });
-        res.json(mappedCVs);
+        return {
+            ...cv,
+            candidate: formattedCandidateObj
+        };
+    });
+    return mappedCVs;
+}
+// GET /api/generated-cvs
+router.get('/', async (req, res) => {
+    try {
+        res.json(await buildGeneratedCvsList());
     }
     catch (error) {
         console.error('Error fetching generated CVs:', error);

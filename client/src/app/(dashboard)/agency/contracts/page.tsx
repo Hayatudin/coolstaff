@@ -166,20 +166,11 @@ export default function AgencyContractsPage() {
 
   // Agency Filter States
   const [filterReligion, setFilterReligion] = useState<string>('all');
-  const [filterJob, setFilterJob] = useState<string>('all');
   const [filterMinAge, setFilterMinAge] = useState<string>('');
   const [filterMaxAge, setFilterMaxAge] = useState<string>('');
   const [filterDate, setFilterDate] = useState<string>('all');
 
-  // Dynamically compute unique jobs and religions from candidates list
-  const uniqueJobs = useMemo(() => {
-    const jobs = new Set<string>();
-    candidates.forEach(c => {
-      if (c.job) jobs.add(c.job.trim());
-    });
-    return Array.from(jobs).sort();
-  }, [candidates]);
-
+  // Dynamically compute unique religions from candidates list
   const uniqueReligions = useMemo(() => {
     const religions = new Set<string>();
     candidates.forEach(c => {
@@ -355,7 +346,7 @@ export default function AgencyContractsPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, selectedAgency, filterDate]);
+  }, [searchQuery, activeTabs, filterReligion, filterMinAge, filterMaxAge, selectedAgency, filterDate]);
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -495,7 +486,6 @@ export default function AgencyContractsPage() {
     setSearchQuery('');
     setActiveTabs(['In Process']);
     setFilterReligion('all');
-    setFilterJob('all');
     setFilterMinAge('');
     setFilterMaxAge('');
     setFilterDate('all');
@@ -561,9 +551,6 @@ export default function AgencyContractsPage() {
       if (filterReligion && filterReligion !== 'all') {
         list = list.filter(c => c.religion?.toLowerCase() === filterReligion.toLowerCase());
       }
-      if (filterJob && filterJob !== 'all') {
-        list = list.filter(c => c.job?.toLowerCase() === filterJob.toLowerCase());
-      }
       if (filterMinAge.trim() !== '') {
         const minAgeVal = parseInt(filterMinAge, 10);
         if (!isNaN(minAgeVal)) {
@@ -603,7 +590,7 @@ export default function AgencyContractsPage() {
     }
 
     return list;
-  }, [candidates, searchQuery, activeTabs, filterReligion, filterJob, filterMinAge, filterMaxAge, isSuperAdmin, filterDate]);
+  }, [candidates, searchQuery, activeTabs, filterReligion, filterMinAge, filterMaxAge, isSuperAdmin, filterDate]);
 
   const totalPages = Math.ceil(filteredCandidates.length / ITEMS_PER_PAGE) || 1;
   const paginatedCandidates = useMemo(() => {
@@ -736,7 +723,7 @@ export default function AgencyContractsPage() {
 
       {/* Agency-Only Filters */}
       {!isSuperAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm animate-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white/60 backdrop-blur-md p-4 rounded-3xl border border-white/20 shadow-sm animate-fade-in">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-black text-text-secondary">Religion</label>
             <select
@@ -748,22 +735,6 @@ export default function AgencyContractsPage() {
               {uniqueReligions.map((r) => (
                 <option key={r} value={r.toLowerCase()}>
                   {r}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-black text-text-secondary">Job Title</label>
-            <select
-              value={filterJob}
-              onChange={(e) => setFilterJob(e.target.value)}
-              className="bg-white px-4 py-2.5 rounded-2xl border border-gray-200/80 text-xs font-bold text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
-            >
-              <option value="all">All Jobs</option>
-              {uniqueJobs.map((j) => (
-                <option key={j} value={j.toLowerCase()}>
-                  {j}
                 </option>
               ))}
             </select>

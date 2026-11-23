@@ -12,6 +12,7 @@ import {
 import { eq, count, inArray } from 'drizzle-orm';
 import { getSession } from '../lib/auth-helper';
 import { encryptPath } from '../lib/crypto';
+import { buildGeneratedCvsList } from './generated-cvs';
 
 const router = Router();
 
@@ -245,56 +246,66 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
     }
 
     const role = session.user.role;
-    if (role !== 'agency' && role !== 'super_admin') {
-      return res.status(403).json({ error: 'Forbidden' });
+    // Available Candidates is exclusive to the agency role
+    if (role !== 'agency') {
+      return res.status(403).json({ error: 'Forbidden: Available Candidates is only accessible to agency accounts' });
     }
 
     const agencyName = await resolveAndHealAgency(session.user);
-    if (role === 'agency' && !agencyName) {
+    if (!agencyName) {
       return res.status(400).json({ error: 'User is not assigned to any agency' });
     }
 
-    const { agency } = req.query;
-    
-    let sqlQuery = 'SELECT c.*, b.name as brokerName FROM `Candidate` c LEFT JOIN `Broker` b ON c.brokerId = b.id WHERE c.`agencySelected` = 0 AND (c.`id` IN (SELECT DISTINCT `candidateId` FROM `GeneratedCV`) OR UPPER(c.`passportNumber`) IN (SELECT DISTINCT UPPER(`passportNumber`) FROM `UploadedVideoProfile` WHERE `videoUrl` IS NOT NULL AND `videoUrl` != \'\'))';
-    const sqlParams: any[] = [];
-    const whereClauses: string[] = [];
-    
-    if (role === 'agency') {
-      const agencyStr = agencyName!.toLowerCase();
-      whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
-      whereClauses.push('(c.`isFlagged` IS NULL OR c.`isFlagged` = 0)');
-      whereClauses.push('(b.`isLocked` IS NULL OR b.`isLocked` = 0)');
-      sqlParams.push(agencyStr, `%${agencyStr}%`);
-    } else {
-      if (agency && agency !== 'all') {
-        const agencyStr = String(agency).toLowerCase();
-        whereClauses.push('(LOWER(c.`agency`) = ? OR c.`id` IN (SELECT `candidateId` FROM `GeneratedCV` WHERE LOWER(`templateId`) LIKE ?))');
-        sqlParams.push(agencyStr, `%${agencyStr}%`);
-      }
+    // Mirror the Generated CVs page "New" folder for this agency's template so the counts always match
+    const agencyTemplateId = agencyName.replace(/^tmpl-/i, '').toLowerCase().trim();
+    const allGeneratedCvs = await buildGeneratedCvsList();
+
+    // Candidates already selected by an agency live on the Contracts page instead
+    let agencySelectedIds = new Set<string>();
+    try {
+      const [selRows]: any = await pool.query('SELECT `id` FROM `Candidate` WHERE `agencySelected` = 1');
+      agencySelectedIds = new Set((selRows || []).map((r: any) => r.id));
+    } catch (_) {}
+
+    const cvByCandidate = new Map<string, any>();
+    for (const cv of allGeneratedCvs) {
+      const cand = cv.candidate;
+      if (!cand) continue;
+      // Same base filters as the Generated CVs page
+      if (cand.isRequested) continue;
+      if (cand.personalInfo?.medicalStatus === 'Unfit' || cand.medicalStatus === 'Unfit') continue;
+      if (cand.visaSelected) continue;
+      if (cand.isFlagged) continue;
+      // "New" category = broker belongs to DAERA OFFICE 2
+      const leaderName = String(cand.broker?.leader?.name || '').toUpperCase().trim();
+      if (leaderName !== 'DAERA OFFICE 2' && leaderName !== 'DAIRA OFFICE 2') continue;
+      // Folder for this agency's CV template
+      const normalizedTemplateId = String(cv.templateId || '').replace(/^tmpl-/i, '').toLowerCase().trim();
+      if (normalizedTemplateId !== agencyTemplateId) continue;
+      if (cand.isLocked === true || cand.broker?.isLocked === true) continue;
+      if (agencySelectedIds.has(cand.id)) continue;
+      if (!cvByCandidate.has(cand.id)) cvByCandidate.set(cand.id, cv);
     }
-    
-    if (whereClauses.length > 0) {
-      sqlQuery += ' AND ' + whereClauses.join(' AND ');
-    }
-    
-    sqlQuery += ' ORDER BY c.`registeredAt` DESC';
-    
-    const [rawCands]: any = await pool.query(sqlQuery, sqlParams);
+
+    const matchedIds = Array.from(cvByCandidate.keys());
     let dbCandidates: any[] = [];
-    
-    if (rawCands.length > 0) {
-      const candidateIds = rawCands.map((c: any) => c.id);
-      const allCVs = await db
-        .select({ id: generatedCvTable.id, templateId: generatedCvTable.templateId, candidateId: generatedCvTable.candidateId })
-        .from(generatedCvTable)
-        .where(inArray(generatedCvTable.candidateId, candidateIds));
-      
-      dbCandidates = rawCands.map((c: any) => ({
-        ...c,
-        generatedCVs: allCVs.filter(cv => cv.candidateId === c.id),
-        broker: c.brokerName ? { name: c.brokerName } : null
-      }));
+
+    if (matchedIds.length > 0) {
+      const placeholders = matchedIds.map(() => '?').join(',');
+      const [rawCands]: any = await pool.query(
+        `SELECT c.*, b.name as brokerName FROM \`Candidate\` c LEFT JOIN \`Broker\` b ON c.brokerId = b.id WHERE c.\`id\` IN (${placeholders}) ORDER BY c.\`registeredAt\` DESC`,
+        matchedIds
+      );
+      dbCandidates = (rawCands || []).map((c: any) => {
+        const cv = cvByCandidate.get(c.id);
+        return {
+          ...c,
+          facePhotoUrl: c.facePhotoUrl || cv?.facePhotoUrl || null,
+          fullBodyPhotoUrl: c.fullBodyPhotoUrl || cv?.fullBodyPhotoUrl || null,
+          generatedCVs: cv ? [{ id: cv.id, templateId: cv.templateId, candidateId: c.id }] : [],
+          broker: c.brokerName ? { name: c.brokerName } : null
+        };
+      });
     }
 
     let videoProfileMap = new Map<string, any>();

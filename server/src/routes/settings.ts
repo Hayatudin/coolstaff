@@ -102,6 +102,12 @@ router.put('/role-permissions', async (req: Request, res: Response) => {
 
     const { permissions, role, allowedRoutes } = req.body;
 
+    const AGENCY_ONLY_ROUTES = ['/agency/available-candidates'];
+    const sanitizeRoutes = (targetRole: string, routes: string[]) =>
+      targetRole === 'agency'
+        ? routes
+        : routes.filter(r => !AGENCY_ONLY_ROUTES.includes(r));
+
     // Batch update multiple roles
     if (permissions && typeof permissions === 'object') {
       for (const [r, routes] of Object.entries(permissions)) {
@@ -109,7 +115,7 @@ router.put('/role-permissions', async (req: Request, res: Response) => {
         // Super admin permissions cannot be restricted to avoid lockout
         if (r === 'super_admin') continue;
 
-        const jsonStr = JSON.stringify(routes);
+        const jsonStr = JSON.stringify(sanitizeRoutes(r, routes));
         await pool.query(
           `INSERT INTO \`RolePermission\` (\`role\`, \`allowedRoutes\`, \`updatedAt\`)
            VALUES (?, ?, NOW())
@@ -126,7 +132,7 @@ router.put('/role-permissions', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Super Admin permissions cannot be restricted' });
       }
 
-      const jsonStr = JSON.stringify(allowedRoutes);
+      const jsonStr = JSON.stringify(sanitizeRoutes(role, allowedRoutes));
       await pool.query(
         `INSERT INTO \`RolePermission\` (\`role\`, \`allowedRoutes\`, \`updatedAt\`)
          VALUES (?, ?, NOW())
