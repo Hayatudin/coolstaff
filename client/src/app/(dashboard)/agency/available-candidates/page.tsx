@@ -1187,7 +1187,7 @@ export default function AvailableCandidatesPage() {
       ) : paginatedCandidates.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedCandidates.map((c) => {
-            const hasVideo = !!c.videoUrl && c.allowVideo === true;
+            const hasVideo = Boolean(c.videoUrl);
             return (
               <div 
                 key={c.id} 
@@ -1273,48 +1273,36 @@ export default function AvailableCandidatesPage() {
                   </div>
                 </div>
 
-                {/* View CV and Watch Video Buttons */}
-                {hasVideo ? (
-                  <div className="flex items-center gap-2 mt-5">
-                    <button
-                      type="button"
-                      disabled={loadingCvId === c.id}
-                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate || 'alm')}
-                      className="flex-1 bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      {loadingCvId === c.id ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <FileText size={14} />
-                      )}
-                      View CV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPlayVideoUrl(c.videoUrl)}
-                      className="flex-1 bg-[#e2315a] hover:bg-[#c9244c] text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Video size={14} />
-                      Watch Video
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-5">
-                    <button
-                      type="button"
-                      disabled={loadingCvId === c.id}
-                      onClick={() => handlePreviewCV(c.id, c.latestCVTemplate || 'alm')}
-                      className="w-full bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      {loadingCvId === c.id ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <FileText size={14} />
-                      )}
-                      View CV
-                    </button>
-                  </div>
-                )}
+                {/* View CV and Watch Video Buttons (50/50 split) */}
+                <div className="grid grid-cols-2 gap-2 mt-5">
+                  <button
+                    type="button"
+                    disabled={loadingCvId === c.id}
+                    onClick={() => handlePreviewCV(c.id, c.latestCVTemplate || 'alm')}
+                    className="w-full bg-[#00A4EF] hover:bg-[#008bcb] disabled:opacity-50 text-white text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {loadingCvId === c.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <FileText size={14} />
+                    )}
+                    View CV
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!hasVideo}
+                    onClick={() => hasVideo && setPlayVideoUrl(c.videoUrl)}
+                    title={hasVideo ? 'Watch candidate video' : 'No video available for this candidate'}
+                    className={`w-full text-[12px] font-black py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 ${
+                      hasVideo
+                        ? 'bg-[#e2315a] hover:bg-[#c9244c] text-white cursor-pointer'
+                        : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed shadow-none'
+                    }`}
+                  >
+                    <Video size={14} />
+                    Watch Video
+                  </button>
+                </div>
 
                 {/* Green Select Button at the bottom of the card */}
                 {userRole === 'agency' && (
@@ -1510,9 +1498,11 @@ export default function AvailableCandidatesPage() {
                 } else {
                   return (
                     <video
+                      key={playVideoUrl}
                       src={getFileUrl(playVideoUrl)}
                       controls
                       autoPlay
+                      crossOrigin="anonymous"
                       className="max-w-full max-h-full rounded-xl"
                     />
                   );

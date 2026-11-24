@@ -409,10 +409,9 @@ export default function CandidateDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Candidate Video */}
           {(() => {
-            const hasUploadedVideo = !!c.videoUrl;
-            const hasEntryVideo = !!c.quickVideoUrl;
-            
-            if (!hasUploadedVideo && !hasEntryVideo) {
+            const activeVideoUrl = c.videoUrl || c.quickVideoUrl || null;
+
+            if (!activeVideoUrl) {
               return (
                 <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 text-center py-12 flex flex-col items-center">
                   <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -420,7 +419,7 @@ export default function CandidateDetailPage() {
                   </svg>
                   <p className="text-text-secondary font-semibold text-sm mb-4">Video is not uploaded</p>
                   <button
-                    onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
+                    onClick={() => { setInsertVideoInput(''); setInsertVideoModalOpen(true); }}
                     className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-sm transition-all hover:bg-primary/95 cursor-pointer"
                   >
                     <Video size={14} /> Insert Video Path / Token
@@ -429,63 +428,59 @@ export default function CandidateDetailPage() {
               );
             }
 
-            return (
-              <div className="space-y-6">
-                {hasUploadedVideo && (
-                  <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                        <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Candidate Uploaded Video
-                      </h2>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setInsertVideoInput(c.videoUrl || ''); setInsertVideoModalOpen(true); }}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
-                        >
-                          <Video size={13} /> Replace Video Path
-                        </button>
-                        <button
-                          onClick={handleDeleteVideo}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-650 rounded-xl text-xs font-bold transition-all border border-red-100 hover:border-red-200 cursor-pointer"
-                        >
-                          <Trash2 size={13} /> Delete Video
-                        </button>
-                      </div>
-                    </div>
-                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
-                      <video
-                        src={getFileUrl(c.videoUrl!)}
-                        controls
-                        className="w-full h-full object-contain"
-                        crossOrigin="anonymous"
-                      />
-                    </div>
-                  </div>
-                )}
+            const isYouTube = activeVideoUrl.includes('youtube.com') || activeVideoUrl.includes('youtu.be');
+            const getYouTubeEmbedUrl = (url: string) => {
+              const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+              const match = url.match(regExp);
+              if (match && match[2].length === 11) {
+                return `https://www.youtube.com/embed/${match[2]}`;
+              }
+              return url;
+            };
 
-                {hasEntryVideo && (
-                  <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                        <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Entry Page Video Profile
-                      </h2>
-                    </div>
-                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
-                      <video
-                        src={getFileUrl(c.quickVideoUrl!)}
-                        controls
-                        className="w-full h-full object-contain"
-                        crossOrigin="anonymous"
-                      />
-                    </div>
+            return (
+              <div className="bg-surface rounded-[2rem] border border-border/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                  <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                    <svg className="w-5 h-5 text-primary animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Candidate Video
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setInsertVideoInput(activeVideoUrl || ''); setInsertVideoModalOpen(true); }}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Video size={13} /> Replace Video Path
+                    </button>
+                    <button
+                      onClick={handleDeleteVideo}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-all border border-red-100 hover:border-red-200 cursor-pointer"
+                    >
+                      <Trash2 size={13} /> Delete Video
+                    </button>
                   </div>
-                )}
+                </div>
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-border bg-black shadow-sm group">
+                  {isYouTube ? (
+                    <iframe
+                      key={activeVideoUrl}
+                      src={getYouTubeEmbedUrl(activeVideoUrl)}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      key={activeVideoUrl}
+                      src={getFileUrl(activeVideoUrl)}
+                      controls
+                      className="w-full h-full object-contain"
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                </div>
               </div>
             );
           })()}

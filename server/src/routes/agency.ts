@@ -322,10 +322,11 @@ router.get('/available-candidates', async (req: Request, res: Response) => {
       const pNum = (c.passportNumber || '').trim().toUpperCase();
       const profile = videoProfileMap.get(pNum);
       
-      const videoUrlVal = profile ? profile.videoUrl : (c.videoUrl || (c as any).Youtube_URL || null);
+      const candidateVideo = (c as any).Youtube_URL || c.videoUrl || null;
+      const videoUrlVal = candidateVideo || profile?.videoUrl || c.quickVideoUrl || null;
       const facePhotoUrlVal = profile ? (profile.facePhotoUrl || c.facePhotoUrl) : c.facePhotoUrl;
       const fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
-      const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true || !!c.videoUrl);
+      const allowVideoVal = Boolean(videoUrlVal);
 
       return {
         id: c.id,

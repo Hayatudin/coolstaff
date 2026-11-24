@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button';
 import { ArrowRight, ArrowLeft, CheckCircle2, UserPlus, ScanLine, Upload, FileText, UploadCloud, Loader2 } from 'lucide-react';
 import { useCandidates, clearCandidatesCache } from '@/hooks/useCandidates';
 import { authClient } from '@/lib/auth-client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const preprocessImageForOcr = (dataUrl: string): Promise<string> => {
   return new Promise((resolve) => {
@@ -102,6 +103,7 @@ function RegistrationContent() {
 
   const { data: session } = authClient.useSession();
   const { candidates } = useCandidates();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     async function fetchBrokers() {
@@ -284,8 +286,8 @@ function RegistrationContent() {
           setPassportImage(c.passportImageUrl || null);
           setFacePhoto(c.facePhotoUrl || null);
           setFullBodyPhoto(c.fullBodyPhotoUrl || null);
-          setVideoUrl(c.videoUrl || '');
-          setAllowVideo(c.allowVideo || false);
+          setVideoUrl(c.videoUrl || c.quickVideoUrl || '');
+          setAllowVideo(c.allowVideo || Boolean(c.videoUrl || c.quickVideoUrl));
           setProcessingComplete(true);
           initializedRef.current = editId;
           return;
@@ -302,8 +304,8 @@ function RegistrationContent() {
           setPassportImage(c.passportImageUrl || null);
           setFacePhoto(c.facePhotoUrl || null);
           setFullBodyPhoto(c.fullBodyPhotoUrl || null);
-          setVideoUrl(c.videoUrl || '');
-          setAllowVideo(c.allowVideo || false);
+          setVideoUrl(c.videoUrl || c.quickVideoUrl || '');
+          setAllowVideo(c.allowVideo || Boolean(c.videoUrl || c.quickVideoUrl));
           setProcessingComplete(true);
           initializedRef.current = editId;
         }
@@ -751,7 +753,7 @@ function RegistrationContent() {
           facePhotoUrl: compressedFace,
           fullBodyPhotoUrl: compressedFullBody,
           videoUrl: videoUrl || null,
-          allowVideo: allowVideo,
+          allowVideo: videoUrl ? true : allowVideo,
           status: isEditMode ? (candidates.find(c => c.id === editId)?.status || 'pending') : 'pending',
           isRequested: isEditMode ? (candidates.find(c => c.id === editId)?.isRequested || false) : false,
           visaSelected: isEditMode ? (candidates.find(c => c.id === editId)?.visaSelected || false) : false,
@@ -768,6 +770,12 @@ function RegistrationContent() {
 
       const data = await response.json();
       clearCandidatesCache();
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['generated-cvs'] });
+      queryClient.invalidateQueries({ queryKey: ['agency-available-candidates'] });
+      if (editId) {
+        queryClient.invalidateQueries({ queryKey: ['candidate', editId] });
+      }
       window.dispatchEvent(new Event('app-refresh'));
       setRegisteredCandidateId(data.id);
       setSubmitted(true);
@@ -785,19 +793,27 @@ function RegistrationContent() {
         <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle2 size={40} className="text-success" />
         </div>
-        <h2 className="text-2xl font-bold text-text-primary mb-2">Registration Complete!</h2>
+        <h2 className="text-2xl font-bold text-text-primary mb-2">
+          {isEditMode ? 'Profile Updated!' : 'Registration Complete!'}
+        </h2>
         <p className="text-text-secondary mb-8">
-          Candidate <strong>{passportData.givenNames} {passportData.surname}</strong> has been successfully registered.
+          Candidate <strong>{passportData.givenNames} {passportData.surname}</strong> has been successfully {isEditMode ? 'updated' : 'registered'}.
         </p>
-        <div className="flex items-center justify-center gap-4">
-          <Button variant="outline" onClick={() => {
-            setSubmitted(false); setStep(1); setPassportImage(null); setFacePhoto(null); setFullBodyPhoto(null);
-            setProcessingComplete(false); setPassportData(emptyPassportData);
-            setPersonalInfo(emptyPersonalInfo); setMusanedSuccess(false);
-            setImportMethod('musaned'); setVideoUrl(''); setAllowVideo(false);
-          }}>
-            Add Another Candidate
-          </Button>
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          {isEditMode && (registeredCandidateId || editId) ? (
+            <Button variant="outline" onClick={() => router.push(`/candidates/${registeredCandidateId || editId}`)}>
+              View Candidate Profile
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => {
+              setSubmitted(false); setStep(1); setPassportImage(null); setFacePhoto(null); setFullBodyPhoto(null);
+              setProcessingComplete(false); setPassportData(emptyPassportData);
+              setPersonalInfo(emptyPersonalInfo); setMusanedSuccess(false);
+              setImportMethod('musaned'); setVideoUrl(''); setAllowVideo(false);
+            }}>
+              Add Another Candidate
+            </Button>
+          )}
           <a href={`/cv-generator${registeredCandidateId ? `?candidateId=${registeredCandidateId}` : ''}`}>
             <Button variant="primary">Generate CV</Button>
           </a>

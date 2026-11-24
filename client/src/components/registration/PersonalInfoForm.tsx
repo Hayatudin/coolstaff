@@ -266,7 +266,7 @@ export default function PersonalInfoForm({
           {/* Candidate Video */}
           {onVideoUrlChange && (
             <div className="w-full sm:w-64 space-y-2">
-              {isLinkMode || (videoUrl && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://') || videoUrl.startsWith('ENC-'))) ? (
+              {isLinkMode || (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be'))) ? (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Candidate Video <span className="text-red-500">*</span></label>
                   <div className="relative">
@@ -285,7 +285,7 @@ export default function PersonalInfoForm({
                       setIsLinkMode(false);
                       onVideoUrlChange('');
                     }}
-                    className="text-xs font-bold text-red-650 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block cursor-pointer"
+                    className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider hover:underline block cursor-pointer"
                   >
                     Clear & Upload File Instead
                   </button>
@@ -303,13 +303,24 @@ export default function PersonalInfoForm({
                     helperText="MP4, WebM or MOV — Max 50MB"
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setIsLinkMode(true)}
-                    className="text-[11px] font-semibold text-primary hover:underline transition-colors block cursor-pointer"
-                  >
-                    Enter video URL / token instead
-                  </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsLinkMode(true)}
+                      className="text-[11px] font-semibold text-primary hover:underline transition-colors cursor-pointer"
+                    >
+                      Enter video URL / token instead
+                    </button>
+                    {videoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => onVideoUrlChange('')}
+                        className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline transition-colors cursor-pointer"
+                      >
+                        Replace Video
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

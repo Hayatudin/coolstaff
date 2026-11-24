@@ -149,7 +149,7 @@ router.get('/', async (req: Request, res: Response) => {
       }
       
       let fullBodyPhotoUrlVal = profile ? (profile.fullBodyPhotoUrl || c.fullBodyPhotoUrl) : c.fullBodyPhotoUrl;
-      let videoUrlVal = profile ? profile.videoUrl : (c.videoUrl || (c as any).Youtube_URL);
+      let videoUrlVal = (c as any).Youtube_URL || c.videoUrl || (profile ? profile.videoUrl : null);
       
       let laborIdText = c.laborID || qrData?.laborID || null;
       let actualLabourIdUrl = c.labourIdUrl || qrData?.labourIdUrl || null;
@@ -161,7 +161,7 @@ router.get('/', async (req: Request, res: Response) => {
       if (videoUrlVal && videoUrlVal.startsWith('data:') && videoUrlVal.length > 50000) {
         videoUrlVal = '';
       }
-      const allowVideoVal = profile ? true : (c.allowVideo === 1 || c.allowVideo === true);
+      const allowVideoVal = (profile || videoUrlVal) ? true : (c.allowVideo === 1 || c.allowVideo === true);
 
       const sanitizeDataUrl = (val: any) => {
         if (typeof val === 'string' && val.startsWith('data:') && val.length > 20000) {
@@ -862,8 +862,8 @@ router.get('/:id', async (req: Request, res: Response) => {
       status: c.status || 'pending',
       isRequested: c.isRequested === 1 || c.isRequested === true,
       visaOrContractNumber: c.visaOrContractNumber || null,
-      videoUrl: encryptPath(uploadedVideoUrl || youtubeUrl || c.videoUrl || null),
-      Youtube_URL: uploadedVideoUrl || youtubeUrl || null,
+      videoUrl: encryptPath(youtubeUrl || uploadedVideoUrl || c.videoUrl || null),
+      Youtube_URL: youtubeUrl || uploadedVideoUrl || null,
       quickVideoUrl: encryptPath(c.quickVideoUrl || null),
       deployedDate: candidateDeployedDate,
       registeredAt: c.registeredAt ? new Date(c.registeredAt).toISOString() : new Date().toISOString(),
@@ -877,7 +877,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       latestCVTemplate: generatedCVs?.[0]?.templateId || null,
       registeredBy: registeredByName,
       agency: c.agency || 'daera',
-      allowVideo: uploadedVideoUrl ? true : (c.allowVideo === 1 || c.allowVideo === true),
+      allowVideo: (youtubeUrl || uploadedVideoUrl) ? true : (c.allowVideo === 1 || c.allowVideo === true),
       price: isSuperAdmin ? candidatePrice : null,
     };
     res.json(candidate);
@@ -929,7 +929,10 @@ router.put('/:id', async (req: Request, res: Response) => {
       uploadToLocal(body.videoUrl, 'videos')
     ]);
 
-    const [existingRows]: any = await pool.query('SELECT visaDate, registeredById FROM Candidate WHERE id = ? LIMIT 1', [id]);
+    const [existingRows]: any = await pool.query(
+      'SELECT passportNumber, visaDate, registeredById, Youtube_URL, quickVideoUrl FROM Candidate WHERE id = ? LIMIT 1',
+      [id]
+    );
     const existingCandidate = existingRows?.[0];
 
     let visaDateVal = existingCandidate?.visaDate;
@@ -984,7 +987,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       visaSelected: body.visaSelected,
       agency: body.agency || 'daera',
       salary: body.personalInfo?.salary || '1000SR',
-      allowVideo: body.allowVideo ?? false,
+      allowVideo: videoUrl ? true : (body.allowVideo ?? false),
       visaDate: visaDateVal,
     };
 
@@ -1000,10 +1003,22 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (laborIdVal !== undefined) updateFields.laborID = laborIdVal || null;
     if (!existingCandidate?.registeredById && registeredById) updateFields.registeredById = registeredById;
 
-    if (videoUrl && videoUrl.startsWith('http')) {
-      updateFields.videoUrl = videoUrl;
-    } else if (videoUrl) {
-      updateFields.quickVideoUrl = videoUrl;
+    let replacedCandidateVideoUrl: string | null | undefined = undefined;
+    if (videoUrl) {
+      const isUnchangedEntryVideo =
+        !existingCandidate?.Youtube_URL &&
+        existingCandidate?.quickVideoUrl &&
+        videoUrl === existingCandidate.quickVideoUrl;
+
+      if (!isUnchangedEntryVideo) {
+        // Save added/replaced video directly to Candidate.Youtube_URL so it overrides the entry page video
+        updateFields.videoUrl = videoUrl;
+        updateFields.allowVideo = true;
+        replacedCandidateVideoUrl = videoUrl;
+      }
+    } else if (body.videoUrl === null || body.videoUrl === '') {
+      updateFields.videoUrl = null;
+      replacedCandidateVideoUrl = null;
     }
 
     if (body.isFlagged !== undefined) {
@@ -1012,6 +1027,17 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     await db.update(candidateTable).set(updateFields).where(eq(candidateTable.id, id));
+
+    // Keep UploadedVideoProfile in sync when a video is replaced or cleared via Edit Profile
+    if (replacedCandidateVideoUrl !== undefined) {
+      const syncPassport = (body.passportData?.passportNumber || existingCandidate?.passportNumber || '').trim().toUpperCase();
+      if (syncPassport) {
+        await pool.query(
+          'UPDATE `UploadedVideoProfile` SET `videoUrl` = ? WHERE UPPER(TRIM(`passportNumber`)) = ?',
+          [replacedCandidateVideoUrl || '', syncPassport]
+        ).catch(() => {});
+      }
+    }
 
     if (facePhotoUrl || fullBodyPhotoUrl) {
       try {
@@ -1129,10 +1155,24 @@ router.patch('/:id', async (req: Request, res: Response) => {
     if (allowVideoVal !== undefined) updateFields.allowVideo = Boolean(allowVideoVal);
     if (deployedDateVal !== undefined) updateFields.deployedDate = deployedDateVal ? new Date(deployedDateVal) : null;
 
+    let syncedPatchVideoUrl: string | null | undefined = undefined;
     if (videoUrlVal !== undefined) {
-      const sanitizedVideoUrl = sanitizeIncomingPath(videoUrlVal);
-      if (sanitizedVideoUrl && sanitizedVideoUrl.startsWith('http')) {
-        updateFields.videoUrl = sanitizedVideoUrl;
+      if (!videoUrlVal) {
+        updateFields.videoUrl = null;
+        syncedPatchVideoUrl = null;
+      } else if (typeof videoUrlVal === 'string' && videoUrlVal.startsWith('data:')) {
+        const uploadedVid = await uploadToLocal(videoUrlVal, 'videos');
+        if (uploadedVid) {
+          updateFields.videoUrl = uploadedVid;
+          updateFields.allowVideo = true;
+          syncedPatchVideoUrl = uploadedVid;
+        }
+      } else {
+        const sanitizedVideoUrl = sanitizeIncomingPath(videoUrlVal);
+        if (sanitizedVideoUrl) {
+          updateFields.videoUrl = sanitizedVideoUrl;
+          syncedPatchVideoUrl = sanitizedVideoUrl;
+        }
       }
     }
 
@@ -1152,6 +1192,19 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     if (Object.keys(updateFields).length > 0) {
       await db.update(candidateTable).set(updateFields).where(eq(candidateTable.id, id));
+    }
+
+    if (syncedPatchVideoUrl !== undefined) {
+      try {
+        const [pRows]: any = await pool.query('SELECT passportNumber FROM `Candidate` WHERE `id` = ? LIMIT 1', [id]);
+        const pNum = (pRows?.[0]?.passportNumber || '').trim().toUpperCase();
+        if (pNum) {
+          await pool.query(
+            'UPDATE `UploadedVideoProfile` SET `videoUrl` = ? WHERE UPPER(TRIM(`passportNumber`)) = ?',
+            [syncedPatchVideoUrl || '', pNum]
+          );
+        }
+      } catch (_) {}
     }
 
     if (updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl) {
