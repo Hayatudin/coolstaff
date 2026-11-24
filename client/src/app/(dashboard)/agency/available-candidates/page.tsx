@@ -268,17 +268,6 @@ export default function AvailableCandidatesPage() {
     return Array.from(religions).sort();
   }, [candidates]);
 
-  const uniqueEducationLevels = useMemo(() => {
-    const edu = new Set<string>();
-    candidates.forEach(c => {
-      if (c.educationLevel) {
-        const clean = c.educationLevel.trim();
-        edu.add(clean.charAt(0).toUpperCase() + clean.slice(1));
-      }
-    });
-    return Array.from(edu).sort();
-  }, [candidates]);
-
   const uniqueMaritalStatuses = useMemo(() => {
     const status = new Set<string>();
     candidates.forEach(c => {
@@ -838,10 +827,25 @@ export default function AvailableCandidatesPage() {
         }
       }
 
-      // 5. Education Filter
+      // 5. Education Filter (consolidated into High School [incl. Preparatory] and Primary School)
       if (inputEducation !== 'all') {
-        if (!c.educationLevel || c.educationLevel.toLowerCase() !== inputEducation.toLowerCase()) {
-          return false;
+        const rawEdu = (c.educationLevel || '').trim().toLowerCase();
+        if (!rawEdu) return false;
+        const eduParts = rawEdu.split(',').map(p => p.trim().replace(/\s+/g, ' ')).filter(Boolean);
+        if (inputEducation === 'high school') {
+          const isHighOrPrep = eduParts.some(
+            p =>
+              p.includes('high school') ||
+              p.includes('highschool') ||
+              p.includes('preparatory') ||
+              p.includes('secondary')
+          );
+          if (!isHighOrPrep) return false;
+        } else if (inputEducation === 'primary school') {
+          const isPrimary = eduParts.some(
+            p => p === 'primary' || p.includes('primary') || p.includes('elementary')
+          );
+          if (!isPrimary) return false;
         }
       }
 
@@ -1065,12 +1069,9 @@ export default function AvailableCandidatesPage() {
             onChange={(e) => setInputEducation(e.target.value)}
             className="bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00A4EF]/20 cursor-pointer"
           >
-            <option value="all">All education</option>
-            {uniqueEducationLevels.map((e) => (
-              <option key={e} value={e.toLowerCase()}>
-                {e}
-              </option>
-            ))}
+            <option value="all">All Education</option>
+            <option value="high school">High School</option>
+            <option value="primary school">Primary School</option>
           </select>
 
           {/* Marital Status Select */}
