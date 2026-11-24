@@ -279,6 +279,12 @@ export default function QuickRegistrationPage() {
       return;
     }
 
+    if (!passportData.gender) {
+      setError('Gender is required.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (!maritalStatus) {
       setError('Marital Status is required.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -567,12 +573,32 @@ export default function QuickRegistrationPage() {
                     key={r}
                     type="button"
                     onClick={() => setReligion(r)}
-                    className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all ${religion === r
+                    className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all cursor-pointer ${religion === r
                       ? 'bg-primary text-white border-primary shadow-sm'
                       : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
                       }`}
                   >
                     {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">Gender <span className="text-red-500">*</span></label>
+              <div className="flex gap-2 pt-1">
+                {['Female', 'Male'].map(g => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => handlePassportChange('gender', g)}
+                    className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-all cursor-pointer ${passportData.gender === g
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white text-text-secondary border-border hover:border-primary/30 hover:bg-primary/5'
+                      }`}
+                  >
+                    {g}
                   </button>
                 ))}
               </div>

@@ -333,7 +333,7 @@ function RegistrationContent() {
           surname: data.surname || '',
           givenNames: data.givenNames || '',
           dateOfBirth: '',
-          gender: '',
+          gender: data.gender || '',
           nationality: '',
           issuingCountry: '',
           dateOfIssue: '',

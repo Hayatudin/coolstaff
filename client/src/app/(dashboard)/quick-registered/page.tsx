@@ -1056,6 +1056,22 @@ export default function QuickRegisteredPage() {
                       </select>
                     </div>
 
+                    {/* Gender */}
+                    <div>
+                      <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
+                        Gender
+                      </label>
+                      <select
+                        value={editForm.gender}
+                        onChange={e => setEditForm(prev => ({ ...prev, gender: e.target.value }))}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Female">Female</option>
+                        <option value="Male">Male</option>
+                      </select>
+                    </div>
+
                     {/* Labor ID */}
                     <div>
                       <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
