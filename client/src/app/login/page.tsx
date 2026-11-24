@@ -2,12 +2,20 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail, User, Loader2, AlertCircle, Home, LogIn, UserPlus } from 'lucide-react';
-import { signIn, signUp, saveSessionToCache } from '@/lib/auth-client';
-import { DASHBOARD_ROLES } from '@/lib/role-config';
+import { signIn, signUp, getSession, saveSessionToCache } from '@/lib/auth-client';
+import { DASHBOARD_ROLES, getFirstAllowedRoute, type Role } from '@/lib/role-config';
 
 export const dynamic = 'force-dynamic';
+
+const getPostLoginRoute = (role?: string): string => {
+  if (role === 'agency') return '/agency/available-candidates';
+  if (role === 'super_admin') return '/dashboard';
+  if (role && DASHBOARD_ROLES.includes(role as Role)) {
+    return getFirstAllowedRoute(role);
+  }
+  return '/';
+};
 
 const withTimeout = <T,>(promise: Promise<T>, timeoutMs = 12000): Promise<T> => {
   let timer: any;
@@ -22,10 +30,6 @@ const withTimeout = <T,>(promise: Promise<T>, timeoutMs = 12000): Promise<T> => 
 };
 
 function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard';
-
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -81,23 +85,21 @@ function LoginForm() {
 
         if (res.data) {
           saveSessionToCache(res.data);
-          const user = res.data.user as any;
-          const role = user?.role;
+          let role = (res.data.user as any)?.role as string | undefined;
 
-          let targetUrl = '/dashboard';
-          if (callbackUrl && callbackUrl !== '/dashboard' && callbackUrl.startsWith('/')) {
-            targetUrl = callbackUrl;
-          } else if (role === 'agency') {
-            targetUrl = '/agency/contracts';
-          } else if (role === 'video_uploader') {
-            targetUrl = '/video-uploads';
-          } else if (DASHBOARD_ROLES.includes(role)) {
-            targetUrl = '/dashboard';
-          } else {
-            targetUrl = '/';
+          if (!role) {
+            try {
+              const sessionRes = await withTimeout(getSession(), 5000);
+              if (sessionRes?.data?.user) {
+                saveSessionToCache(sessionRes.data);
+                role = (sessionRes.data.user as any)?.role;
+              }
+            } catch {
+              // Fallback to default route if session fetch times out
+            }
           }
 
-          window.location.href = targetUrl;
+          window.location.href = getPostLoginRoute(role);
           return;
         }
       } else {
@@ -135,11 +137,8 @@ function LoginForm() {
 
         if (res.data) {
           saveSessionToCache(res.data);
-          let targetUrl = '/dashboard';
-          if (callbackUrl && callbackUrl.startsWith('/') && callbackUrl !== '/') {
-            targetUrl = callbackUrl;
-          }
-          window.location.href = targetUrl;
+          const role = (res.data.user as any)?.role as string | undefined;
+          window.location.href = getPostLoginRoute(role);
           return;
         }
       }

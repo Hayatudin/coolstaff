@@ -22,13 +22,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Authentication & Role Authorization Guard
   useEffect(() => {
-    if (isPending || isPermissionsLoading) return;
+    if (isPending) return;
 
     if (!session?.user) {
-      // User is unauthenticated — redirect to login page
-      router.replace(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+      // User is unauthenticated — redirect cleanly to login without carrying over the previous page
+      router.replace('/login');
       return;
     }
+
+    if (isPermissionsLoading) return;
 
     const role = ((session.user as any)?.role as Role) || 'user';
 

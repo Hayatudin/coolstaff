@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from '@/lib/auth-client';
 import { LogOut, LayoutDashboard, User, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DASHBOARD_ROLES } from '@/lib/role-config';
+import { DASHBOARD_ROLES, getFirstAllowedRoute } from '@/lib/role-config';
 
 const BRAND = '#2A276C';
 
@@ -148,7 +148,7 @@ export default function HomePage() {
                       <p className="text-[10px] text-gray-400 truncate">{session.user.email}</p>
                     </div>
                     {canAccessDashboard && (
-                      <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2 text-[13px] text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition-colors">
+                      <Link href={getFirstAllowedRoute(role)} className="flex items-center gap-2 px-4 py-2 text-[13px] text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition-colors">
                         <LayoutDashboard size={14} /> Dashboard
                       </Link>
                     )}
@@ -213,7 +213,7 @@ export default function HomePage() {
                 </div>
                 {canAccessDashboard && (
                   <Link
-                    href="/dashboard"
+                    href={getFirstAllowedRoute(role)}
                     onClick={() => setMobileMenu(false)}
                     className="block w-full text-center py-3.5 bg-white/10 text-white rounded-2xl text-sm font-bold border border-white/10"
                   >

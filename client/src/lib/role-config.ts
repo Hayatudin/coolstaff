@@ -170,12 +170,13 @@ export function getFirstAllowedRoute(
   customPermissions?: Record<string, string[]> | null
 ): string {
   if (role === 'super_admin') return '/dashboard';
-  if (role === 'agency') return '/agency/contracts';
+  if (role === 'agency') return '/agency/available-candidates';
   if (role === 'video_uploader') return '/video-uploads';
 
   if (customPermissions && Array.isArray(customPermissions[role]) && customPermissions[role].length > 0) {
-    if (customPermissions[role].includes('/dashboard')) return '/dashboard';
-    return customPermissions[role][0];
+    const allowed = customPermissions[role].filter(p => !AGENCY_ONLY_ROUTES.includes(p));
+    if (allowed.includes('/dashboard')) return '/dashboard';
+    if (allowed.length > 0) return allowed[0];
   }
 
   const defaults = DEFAULT_ROLE_PERMISSIONS[role as Role] || [];
