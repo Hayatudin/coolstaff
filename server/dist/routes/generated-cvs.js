@@ -356,6 +356,8 @@ router.post('/', async (req, res) => {
             faceUrl = candidate.facePhotoUrl || candidate.passportImageUrl || null;
             fullBodyUrl = candidate.fullBodyPhotoUrl || null;
         }
+        const hasPhotoChanged = Boolean((faceUrl && faceUrl !== (candidate.facePhotoUrl || '')) ||
+            (fullBodyUrl && fullBodyUrl !== (candidate.fullBodyPhotoUrl || '')));
         if (duplicateCV) {
             const cvUpdate = { templateId };
             if (faceUrl)
@@ -369,12 +371,15 @@ router.post('/', async (req, res) => {
             if (fullBodyUrl)
                 candUpdate.fullBodyPhotoUrl = fullBodyUrl;
             await db_1.db.update(db_1.candidate).set(candUpdate).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
-            try {
-                const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
-                await checkAndMoveCandidateToDaera2(candidateId);
-            }
-            catch (moveErr) {
-                console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on update:', moveErr);
+            // Only move to "New" (DAERA OFFICE 2) if a photo was actually changed
+            if (hasPhotoChanged) {
+                try {
+                    const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
+                    await checkAndMoveCandidateToDaera2(candidateId);
+                }
+                catch (moveErr) {
+                    console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on photo update:', moveErr);
+                }
             }
             const [updatedCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, duplicateCV.id));
             return res.json(updatedCV);
@@ -393,12 +398,15 @@ router.post('/', async (req, res) => {
         if (fullBodyUrl)
             candUpdate.fullBodyPhotoUrl = fullBodyUrl;
         await db_1.db.update(db_1.candidate).set(candUpdate).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
-        try {
-            const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
-            await checkAndMoveCandidateToDaera2(candidateId);
-        }
-        catch (moveErr) {
-            console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on create:', moveErr);
+        // Only move to "New" (DAERA OFFICE 2) if a photo was actually changed
+        if (hasPhotoChanged) {
+            try {
+                const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
+                await checkAndMoveCandidateToDaera2(candidateId);
+            }
+            catch (moveErr) {
+                console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on photo update:', moveErr);
+            }
         }
         const [generatedCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, newCvId));
         res.json(generatedCV);
@@ -416,8 +424,8 @@ router.patch('/:id', async (req, res) => {
         if (!templateId) {
             return res.status(400).json({ error: 'Missing templateId' });
         }
-        if (id.startsWith('dummy-')) {
-            const candidateId = id.replace('dummy-', '');
+        if (id.startsWith('dummy-') || id.startsWith('d2-')) {
+            const candidateId = id.replace(/^(dummy|d2)-/, '');
             const cands = await db_1.db.select().from(db_1.candidate).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
             if (cands.length === 0) {
                 return res.status(404).json({ error: 'Candidate not found' });
@@ -435,13 +443,6 @@ router.patch('/:id', async (req, res) => {
                 fullBodyPhotoUrl: candidate.fullBodyPhotoUrl || null
             });
             await db_1.db.update(db_1.candidate).set({ cvDeadline: deadline, agency: cleanTemplateId }).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
-            try {
-                const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
-                await checkAndMoveCandidateToDaera2(candidateId);
-            }
-            catch (moveErr) {
-                console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on dummy PATCH:', moveErr);
-            }
             const [newCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, newCvId));
             return res.json(newCV);
         }
@@ -457,13 +458,6 @@ router.patch('/:id', async (req, res) => {
         const cleanTemplateId = templateId.replace('tmpl-', '').toLowerCase();
         await db_1.db.update(db_1.generatedCv).set({ templateId }).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, id));
         await db_1.pool.query('UPDATE `Candidate` SET `cvDownloaded` = 0, `agency` = ? WHERE `id` = ?', [cleanTemplateId, existingCV.candidateId]);
-        try {
-            const { checkAndMoveCandidateToDaera2 } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
-            await checkAndMoveCandidateToDaera2(existingCV.candidateId);
-        }
-        catch (moveErr) {
-            console.warn('[GENERATED-CVS] Failed to move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
-        }
         const [updatedCV] = await db_1.db.select().from(db_1.generatedCv).where((0, drizzle_orm_1.eq)(db_1.generatedCv.id, id));
         res.json(updatedCV);
     }
@@ -476,8 +470,8 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        if (id.startsWith('dummy-')) {
-            const candidateId = id.replace('dummy-', '');
+        if (id.startsWith('dummy-') || id.startsWith('d2-')) {
+            const candidateId = id.replace(/^(dummy|d2)-/, '');
             await db_1.db.update(db_1.candidate).set({ agency: 'daera' }).where((0, drizzle_orm_1.eq)(db_1.candidate.id, candidateId));
             return res.json({ success: true });
         }
@@ -509,7 +503,25 @@ router.post('/move-category', async (req, res) => {
         }
         const { moveCandidatesCategory } = await Promise.resolve().then(() => __importStar(require('../lib/leader-sync')));
         const results = await moveCandidatesCategory(ids, targetCategory);
-        res.json({ success: true, results, targetCategory });
+        const succeededIds = results.filter(r => r.success).map(r => r.candidateId);
+        const failedIds = results.filter(r => !r.success).map(r => r.candidateId);
+        if (succeededIds.length === 0 && failedIds.length > 0) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to move candidates between categories',
+                results,
+                succeededIds,
+                failedIds,
+                targetCategory,
+            });
+        }
+        res.json({
+            success: failedIds.length === 0,
+            results,
+            succeededIds,
+            failedIds,
+            targetCategory,
+        });
     }
     catch (error) {
         console.error('Error moving candidates category:', error);
