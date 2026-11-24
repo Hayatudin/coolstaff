@@ -930,7 +930,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     ]);
 
     const [existingRows]: any = await pool.query(
-      'SELECT passportNumber, visaDate, registeredById, Youtube_URL, quickVideoUrl FROM Candidate WHERE id = ? LIMIT 1',
+      'SELECT passportNumber, visaDate, registeredById, Youtube_URL, quickVideoUrl, facePhotoUrl, fullBodyPhotoUrl FROM Candidate WHERE id = ? LIMIT 1',
       [id]
     );
     const existingCandidate = existingRows?.[0];
@@ -1028,13 +1028,45 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     await db.update(candidateTable).set(updateFields).where(eq(candidateTable.id, id));
 
-    // Keep UploadedVideoProfile in sync when a video is replaced or cleared via Edit Profile
-    if (replacedCandidateVideoUrl !== undefined) {
-      const syncPassport = (body.passportData?.passportNumber || existingCandidate?.passportNumber || '').trim().toUpperCase();
-      if (syncPassport) {
+    // Detect whether face photo, full-body photo, or video was actually changed
+    const isFacePhotoChanged = Boolean(
+      facePhotoUrl &&
+      ((typeof body.facePhotoUrl === 'string' && body.facePhotoUrl.startsWith('data:')) ||
+        facePhotoUrl !== (existingCandidate?.facePhotoUrl || ''))
+    );
+    const isFullBodyPhotoChanged = Boolean(
+      fullBodyPhotoUrl &&
+      ((typeof body.fullBodyPhotoUrl === 'string' && body.fullBodyPhotoUrl.startsWith('data:')) ||
+        fullBodyPhotoUrl !== (existingCandidate?.fullBodyPhotoUrl || ''))
+    );
+    const isVideoChanged = Boolean(
+      replacedCandidateVideoUrl &&
+      replacedCandidateVideoUrl !== (existingCandidate?.Youtube_URL || '') &&
+      replacedCandidateVideoUrl !== (existingCandidate?.quickVideoUrl || '')
+    );
+
+    // Keep UploadedVideoProfile in sync when video or photos are replaced via Edit Profile
+    const syncPassport = (body.passportData?.passportNumber || existingCandidate?.passportNumber || '').trim().toUpperCase();
+    if (syncPassport && (replacedCandidateVideoUrl !== undefined || isFacePhotoChanged || isFullBodyPhotoChanged)) {
+      const vpSetClauses: string[] = [];
+      const vpParams: any[] = [];
+      if (replacedCandidateVideoUrl !== undefined) {
+        vpSetClauses.push('`videoUrl` = ?');
+        vpParams.push(replacedCandidateVideoUrl || '');
+      }
+      if (isFacePhotoChanged && facePhotoUrl) {
+        vpSetClauses.push('`facePhotoUrl` = ?');
+        vpParams.push(facePhotoUrl);
+      }
+      if (isFullBodyPhotoChanged && fullBodyPhotoUrl) {
+        vpSetClauses.push('`fullBodyPhotoUrl` = ?');
+        vpParams.push(fullBodyPhotoUrl);
+      }
+      if (vpSetClauses.length > 0) {
+        vpParams.push(syncPassport);
         await pool.query(
-          'UPDATE `UploadedVideoProfile` SET `videoUrl` = ? WHERE UPPER(TRIM(`passportNumber`)) = ?',
-          [replacedCandidateVideoUrl || '', syncPassport]
+          `UPDATE \`UploadedVideoProfile\` SET ${vpSetClauses.join(', ')} WHERE UPPER(TRIM(\`passportNumber\`)) = ?`,
+          vpParams
         ).catch(() => {});
       }
     }
@@ -1048,11 +1080,13 @@ router.put('/:id', async (req: Request, res: Response) => {
       } catch (_) {}
     }
 
-    // Check if candidate has both image & video to move to DAERA OFFICE 2
-    try {
-      await checkAndMoveCandidateToDaera2(id);
-    } catch (moveErr) {
-      console.warn('Failed to check and move candidate to DAERA OFFICE 2 on update:', moveErr);
+    // Only move candidate to "New" (DAERA OFFICE 2) when their photo or video was actually changed
+    if (isFacePhotoChanged || isFullBodyPhotoChanged || isVideoChanged) {
+      try {
+        await checkAndMoveCandidateToDaera2(id);
+      } catch (moveErr) {
+        console.warn('Failed to move candidate to DAERA OFFICE 2 on photo/video update:', moveErr);
+      }
     }
 
     const [updatedRows]: any = await pool.query('SELECT * FROM Candidate WHERE id = ? LIMIT 1', [id]);
@@ -1155,6 +1189,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
     if (allowVideoVal !== undefined) updateFields.allowVideo = Boolean(allowVideoVal);
     if (deployedDateVal !== undefined) updateFields.deployedDate = deployedDateVal ? new Date(deployedDateVal) : null;
 
+    const [existingPatchRows]: any = await pool.query(
+      'SELECT passportNumber, facePhotoUrl, fullBodyPhotoUrl, Youtube_URL, quickVideoUrl FROM `Candidate` WHERE `id` = ? LIMIT 1',
+      [id]
+    );
+    const existingBeforePatch = existingPatchRows?.[0];
+
     let syncedPatchVideoUrl: string | null | undefined = undefined;
     if (videoUrlVal !== undefined) {
       if (!videoUrlVal) {
@@ -1194,17 +1234,47 @@ router.patch('/:id', async (req: Request, res: Response) => {
       await db.update(candidateTable).set(updateFields).where(eq(candidateTable.id, id));
     }
 
-    if (syncedPatchVideoUrl !== undefined) {
-      try {
-        const [pRows]: any = await pool.query('SELECT passportNumber FROM `Candidate` WHERE `id` = ? LIMIT 1', [id]);
-        const pNum = (pRows?.[0]?.passportNumber || '').trim().toUpperCase();
-        if (pNum) {
-          await pool.query(
-            'UPDATE `UploadedVideoProfile` SET `videoUrl` = ? WHERE UPPER(TRIM(`passportNumber`)) = ?',
-            [syncedPatchVideoUrl || '', pNum]
-          );
-        }
-      } catch (_) {}
+    const isFacePhotoChanged = Boolean(
+      updateFields.facePhotoUrl &&
+      ((typeof body.facePhotoUrl === 'string' && body.facePhotoUrl.startsWith('data:')) ||
+        updateFields.facePhotoUrl !== (existingBeforePatch?.facePhotoUrl || ''))
+    );
+    const isFullBodyPhotoChanged = Boolean(
+      updateFields.fullBodyPhotoUrl &&
+      ((typeof body.fullBodyPhotoUrl === 'string' && body.fullBodyPhotoUrl.startsWith('data:')) ||
+        updateFields.fullBodyPhotoUrl !== (existingBeforePatch?.fullBodyPhotoUrl || ''))
+    );
+    const isNewVideoChanged = Boolean(
+      (syncedPatchVideoUrl &&
+        syncedPatchVideoUrl !== (existingBeforePatch?.Youtube_URL || '') &&
+        syncedPatchVideoUrl !== (existingBeforePatch?.quickVideoUrl || '')) ||
+      (updateFields.quickVideoUrl &&
+        updateFields.quickVideoUrl !== (existingBeforePatch?.quickVideoUrl || ''))
+    );
+
+    const pNum = (existingBeforePatch?.passportNumber || '').trim().toUpperCase();
+    if (pNum && (syncedPatchVideoUrl !== undefined || isFacePhotoChanged || isFullBodyPhotoChanged)) {
+      const vpSetClauses: string[] = [];
+      const vpParams: any[] = [];
+      if (syncedPatchVideoUrl !== undefined) {
+        vpSetClauses.push('`videoUrl` = ?');
+        vpParams.push(syncedPatchVideoUrl || '');
+      }
+      if (isFacePhotoChanged && updateFields.facePhotoUrl) {
+        vpSetClauses.push('`facePhotoUrl` = ?');
+        vpParams.push(updateFields.facePhotoUrl);
+      }
+      if (isFullBodyPhotoChanged && updateFields.fullBodyPhotoUrl) {
+        vpSetClauses.push('`fullBodyPhotoUrl` = ?');
+        vpParams.push(updateFields.fullBodyPhotoUrl);
+      }
+      if (vpSetClauses.length > 0) {
+        vpParams.push(pNum);
+        await pool.query(
+          `UPDATE \`UploadedVideoProfile\` SET ${vpSetClauses.join(', ')} WHERE UPPER(TRIM(\`passportNumber\`)) = ?`,
+          vpParams
+        ).catch(() => {});
+      }
     }
 
     if (updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl) {
@@ -1216,12 +1286,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
       } catch (_) {}
     }
 
-    const hasMediaUpdate = updateFields.facePhotoUrl || updateFields.fullBodyPhotoUrl || updateFields.passportImageUrl || videoUrlVal !== undefined || quickVideoUrlVal !== undefined;
-    if (hasMediaUpdate) {
+    // Only move candidate to "New" (DAERA OFFICE 2) when face/full-body photo or video was actually added/changed
+    if (isFacePhotoChanged || isFullBodyPhotoChanged || isNewVideoChanged) {
       try {
         await checkAndMoveCandidateToDaera2(id);
       } catch (moveErr) {
-        console.warn('Failed to check and move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
+        console.warn('Failed to move candidate to DAERA OFFICE 2 on PATCH:', moveErr);
       }
     }
 

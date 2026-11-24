@@ -733,61 +733,79 @@ const normalizeLanguageName = (lang: string): string => {
         body: JSON.stringify({ candidateIds: validIds, targetCategory }),
       });
 
+      const resultData = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to move candidates');
+        throw new Error(resultData.error || 'Failed to move candidates');
       }
+
+      const succeededIds: string[] = Array.isArray(resultData.succeededIds)
+        ? resultData.succeededIds
+        : validIds;
+      const failedIds: string[] = Array.isArray(resultData.failedIds)
+        ? resultData.failedIds
+        : [];
 
       const targetLeaderName = targetCategory === 'new' ? 'DAERA OFFICE 2' : 'DAERA OFFICE';
       const label = targetCategory === 'new' ? 'New' : 'Old';
 
-      // Optimistically update local state
-      setCvs(prev =>
-        prev.map(c => {
-          if (validIds.includes(c.candidateId)) {
-            const currentBroker = c.candidate?.broker || {
-              id: 'b-temp',
-              name: 'Independent',
-            };
-            return {
-              ...c,
-              candidate: c.candidate
-                ? {
-                    ...c.candidate,
-                    broker: {
-                      ...currentBroker,
-                      leader: {
-                        ...(currentBroker.leader || {}),
-                        name: targetLeaderName,
+      // Optimistically update local state ONLY for candidates that actually succeeded on the server
+      if (succeededIds.length > 0) {
+        setCvs(prev =>
+          prev.map(c => {
+            if (succeededIds.includes(c.candidateId)) {
+              const currentBroker = c.candidate?.broker || {
+                id: 'b-temp',
+                name: 'Independent',
+              };
+              return {
+                ...c,
+                candidate: c.candidate
+                  ? {
+                      ...c.candidate,
+                      broker: {
+                        ...currentBroker,
+                        leader: {
+                          ...(currentBroker.leader || {}),
+                          name: targetLeaderName,
+                        },
                       },
-                    },
-                  }
-                : c.candidate,
-            };
-          }
-          return c;
-        })
-      );
+                    }
+                  : c.candidate,
+              };
+            }
+            return c;
+          })
+        );
 
-      // Deselect moved candidates from selection
-      setSelectedCVIds(prev => {
-        const next = new Set(prev);
-        cvs.forEach(c => {
-          if (validIds.includes(c.candidateId)) {
-            next.delete(c.id);
-          }
+        // Deselect moved candidates from selection
+        setSelectedCVIds(prev => {
+          const next = new Set(prev);
+          cvs.forEach(c => {
+            if (succeededIds.includes(c.candidateId)) {
+              next.delete(c.id);
+            }
+          });
+          return next;
         });
-        return next;
-      });
+      }
 
       clearCandidatesCache();
       invalidateQueries('generatedCVs');
       invalidateQueries('candidates');
+      invalidateQueries('brokers');
+      invalidateQueries('leaders');
       refetch();
 
-      showToast(
-        `${validIds.length} candidate${validIds.length !== 1 ? 's' : ''} moved to ${label} (${targetLeaderName})`
-      );
+      if (failedIds.length > 0) {
+        showToast(
+          `Moved ${succeededIds.length} candidate${succeededIds.length !== 1 ? 's' : ''} to ${label}, but ${failedIds.length} failed. Please retry.`,
+          'error'
+        );
+      } else {
+        showToast(
+          `${succeededIds.length} candidate${succeededIds.length !== 1 ? 's' : ''} moved to ${label} (${targetLeaderName})`
+        );
+      }
     } catch (err: any) {
       console.error('[GENERATED-CVS] Error moving candidates category:', err);
       showToast(err.message || 'Failed to move candidates', 'error');

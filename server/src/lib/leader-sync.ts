@@ -166,7 +166,7 @@ export async function checkAndMoveCandidateToDaera2(candidateId: string): Promis
     if (!cand.brokerId || !isAlreadyInD2) {
       // Find or create matching broker in DAERA OFFICE 2
       const [existingBrokerInD2]: any = await pool.query(
-        `SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1`,
+        `SELECT id FROM Broker WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND leaderId = ? LIMIT 1`,
         [brokerName, daera2LeaderId]
       );
 
@@ -177,11 +177,11 @@ export async function checkAndMoveCandidateToDaera2(candidateId: string): Promis
         try {
           await pool.query(
             'INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)',
-            [targetBrokerId, brokerName, daera2LeaderId, cand.isLocked ? 1 : 0]
+            [targetBrokerId, brokerName.trim(), daera2LeaderId, cand.isLocked ? 1 : 0]
           );
         } catch (insertErr: any) {
           const [byName]: any = await pool.query(
-            'SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1',
+            'SELECT id FROM Broker WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND leaderId = ? LIMIT 1',
             [brokerName, daera2LeaderId]
           );
           if (byName && byName.length > 0) {
@@ -202,18 +202,20 @@ export async function checkAndMoveCandidateToDaera2(candidateId: string): Promis
       } catch (_) {}
 
       // Clean up original broker in DAERA OFFICE if now empty
-      const [remainingInOld]: any = await pool.query(
-        'SELECT COUNT(id) as count FROM Candidate WHERE brokerId = ?',
-        [currentBrokerId]
-      );
-      if (remainingInOld && remainingInOld[0]?.count === 0) {
-        const [qrCount]: any = await pool.query(
-          'SELECT COUNT(id) as count FROM QuickRegistration WHERE brokerId = ? AND promotedCandidateId IS NULL',
+      if (currentBrokerId && currentBrokerId !== targetBrokerId) {
+        const [remainingInOld]: any = await pool.query(
+          'SELECT COUNT(id) as count FROM Candidate WHERE brokerId = ?',
           [currentBrokerId]
         );
-        if (!qrCount || qrCount[0]?.count === 0) {
-          await pool.query('DELETE FROM Broker WHERE id = ?', [currentBrokerId]);
-          console.log(`[LEADER-SYNC] Cleaned up empty broker "${brokerName}" (${currentBrokerId}) from DAERA OFFICE`);
+        if (remainingInOld && Number(remainingInOld[0]?.count) === 0) {
+          const [qrCount]: any = await pool.query(
+            'SELECT COUNT(id) as count FROM QuickRegistration WHERE brokerId = ? AND promotedCandidateId IS NULL',
+            [currentBrokerId]
+          );
+          if (!qrCount || Number(qrCount[0]?.count) === 0) {
+            await pool.query('DELETE FROM Broker WHERE id = ?', [currentBrokerId]);
+            console.log(`[LEADER-SYNC] Cleaned up empty broker "${brokerName}" (${currentBrokerId}) from DAERA OFFICE`);
+          }
         }
       }
     }
@@ -264,6 +266,7 @@ export async function checkAndMoveCandidateToDaera2(candidateId: string): Promis
     }
   } catch (err) {
     console.error('[LEADER-SYNC] Error in checkAndMoveCandidateToDaera2:', err);
+    throw err;
   }
 }
 
@@ -288,7 +291,7 @@ export async function moveCandidateToDaera1(candidateId: string): Promise<void> 
     if (!cands || cands.length === 0) return;
     const cand = cands[0];
 
-    const { daeraLeaderId, daera2LeaderId } = await getOrCreateDaeraLeaders();
+    const { daeraLeaderId } = await getOrCreateDaeraLeaders();
     const currentLeaderName = (cand.leaderName || '').toUpperCase().trim();
     const isAlreadyInD1 = currentLeaderName === 'DAERA OFFICE' || currentLeaderName === 'DAIRA OFFICE' || cand.leaderId === daeraLeaderId;
 
@@ -299,7 +302,7 @@ export async function moveCandidateToDaera1(candidateId: string): Promise<void> 
     if (!cand.brokerId || !isAlreadyInD1) {
       // Find or create matching broker in DAERA OFFICE
       const [existingBrokerInD1]: any = await pool.query(
-        `SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1`,
+        `SELECT id FROM Broker WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND leaderId = ? LIMIT 1`,
         [brokerName, daeraLeaderId]
       );
 
@@ -310,11 +313,11 @@ export async function moveCandidateToDaera1(candidateId: string): Promise<void> 
         try {
           await pool.query(
             'INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)',
-            [targetBrokerId, brokerName, daeraLeaderId, cand.isLocked ? 1 : 0]
+            [targetBrokerId, brokerName.trim(), daeraLeaderId, cand.isLocked ? 1 : 0]
           );
         } catch (insertErr: any) {
           const [byName]: any = await pool.query(
-            'SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1',
+            'SELECT id FROM Broker WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND leaderId = ? LIMIT 1',
             [brokerName, daeraLeaderId]
           );
           if (byName && byName.length > 0) {
@@ -340,12 +343,12 @@ export async function moveCandidateToDaera1(candidateId: string): Promise<void> 
           'SELECT COUNT(id) as count FROM Candidate WHERE brokerId = ?',
           [currentBrokerId]
         );
-        if (remainingInD2 && remainingInD2[0]?.count === 0) {
+        if (remainingInD2 && Number(remainingInD2[0]?.count) === 0) {
           const [qrCount]: any = await pool.query(
             'SELECT COUNT(id) as count FROM QuickRegistration WHERE brokerId = ? AND promotedCandidateId IS NULL',
             [currentBrokerId]
           );
-          if (!qrCount || qrCount[0]?.count === 0) {
+          if (!qrCount || Number(qrCount[0]?.count) === 0) {
             await pool.query('DELETE FROM Broker WHERE id = ?', [currentBrokerId]);
             console.log(`[LEADER-SYNC] Cleaned up empty broker "${brokerName}" (${currentBrokerId}) from DAERA OFFICE 2`);
           }
@@ -354,32 +357,32 @@ export async function moveCandidateToDaera1(candidateId: string): Promise<void> 
     }
   } catch (err) {
     console.error('[LEADER-SYNC] Error in moveCandidateToDaera1:', err);
+    throw err;
   }
 }
 
 /**
- * Moves multiple candidates to 'new' (DAERA OFFICE 2) or 'old' (DAERA OFFICE) concurrently.
+ * Moves multiple candidates to 'new' (DAERA OFFICE 2) or 'old' (DAERA OFFICE) sequentially
+ * to prevent concurrent broker INSERT/DELETE race conditions on the (name, leaderId) index.
  */
 export async function moveCandidatesCategory(
   candidateIds: string[],
   targetCategory: 'new' | 'old'
-): Promise<{ success: boolean; candidateId: string }[]> {
+): Promise<{ success: boolean; candidateId: string; error?: string }[]> {
   if (!candidateIds || candidateIds.length === 0) return [];
 
   const moveFn = targetCategory === 'new' ? checkAndMoveCandidateToDaera2 : moveCandidateToDaera1;
+  const results: { success: boolean; candidateId: string; error?: string }[] = [];
 
-  // Process all moves concurrently with Promise.all
-  const results = await Promise.all(
-    candidateIds.map(async (candidateId) => {
-      try {
-        await moveFn(candidateId);
-        return { success: true, candidateId };
-      } catch (err) {
-        console.error(`[LEADER-SYNC] Error moving candidate ${candidateId} to ${targetCategory}:`, err);
-        return { success: false, candidateId };
-      }
-    })
-  );
+  for (const candidateId of candidateIds) {
+    try {
+      await moveFn(candidateId);
+      results.push({ success: true, candidateId });
+    } catch (err: any) {
+      console.error(`[LEADER-SYNC] Error moving candidate ${candidateId} to ${targetCategory}:`, err);
+      results.push({ success: false, candidateId, error: err?.message || String(err) });
+    }
+  }
 
   return results;
 }

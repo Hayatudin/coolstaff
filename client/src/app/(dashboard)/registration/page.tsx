@@ -771,7 +771,7 @@ function RegistrationContent() {
       const data = await response.json();
       clearCandidatesCache();
       queryClient.invalidateQueries({ queryKey: ['candidates'] });
-      queryClient.invalidateQueries({ queryKey: ['generated-cvs'] });
+      queryClient.invalidateQueries({ queryKey: ['generatedCVs'] });
       queryClient.invalidateQueries({ queryKey: ['agency-available-candidates'] });
       if (editId) {
         queryClient.invalidateQueries({ queryKey: ['candidate', editId] });
