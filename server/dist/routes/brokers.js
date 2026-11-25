@@ -96,6 +96,10 @@ router.get('/', async (req, res) => {
                 },
             });
         }
+        augmented.sort((a, b) => (a.name || '').trim().localeCompare((b.name || '').trim(), 'en', {
+            sensitivity: 'base',
+            numeric: true,
+        }));
         res.json(augmented);
     }
     catch (error) {

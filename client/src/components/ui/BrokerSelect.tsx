@@ -56,6 +56,8 @@ export default function BrokerSelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const pendingJumpLetterRef = useRef<string | null>(null);
+  const typeBufferRef = useRef('');
+  const typeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [coords, setCoords] = useState<{
     top?: number;
@@ -78,7 +80,7 @@ export default function BrokerSelect({
       }
     }
     return Array.from(byName.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      a.name.localeCompare(b.name, 'en', { sensitivity: 'base', numeric: true })
     );
   }, [brokers]);
 
@@ -139,6 +141,28 @@ export default function BrokerSelect({
       const char = rawChar.toLowerCase();
       if (filteredBrokers.length === 0) return;
 
+      const prevBuffer = typeBufferRef.current;
+      const nextBuffer = prevBuffer + char;
+
+      if (typeTimeoutRef.current) clearTimeout(typeTimeoutRef.current);
+      typeTimeoutRef.current = setTimeout(() => {
+        typeBufferRef.current = '';
+      }, 700);
+
+      // 1. Try multi-letter spelling prefix first (e.g. typing "mi" jumps to "MILKESAA")
+      if (nextBuffer.length > 1) {
+        const prefixIdx = filteredBrokers.findIndex((b) =>
+          b.name.trim().toLowerCase().startsWith(nextBuffer)
+        );
+        if (prefixIdx !== -1) {
+          typeBufferRef.current = nextBuffer;
+          setHighlightedIndex(prefixIdx);
+          requestAnimationFrame(() => scrollItemIntoView(prefixIdx, 'start'));
+          return;
+        }
+      }
+
+      // 2. Single-letter jump (cycles if pressing the same letter repeatedly)
       const matchingIndices: number[] = [];
       for (let i = 0; i < filteredBrokers.length; i++) {
         if (filteredBrokers[i].name.trim().toLowerCase().startsWith(char)) {
@@ -154,6 +178,7 @@ export default function BrokerSelect({
           ? matchingIndices[(currentPosInMatches + 1) % matchingIndices.length]
           : matchingIndices[0];
 
+      typeBufferRef.current = char;
       setHighlightedIndex(targetIndex);
       requestAnimationFrame(() => {
         scrollItemIntoView(targetIndex, currentPosInMatches !== -1 ? 'nearest' : 'start');
@@ -166,6 +191,8 @@ export default function BrokerSelect({
     setIsOpen(false);
     setSearch('');
     setHighlightedIndex(-1);
+    typeBufferRef.current = '';
+    if (typeTimeoutRef.current) clearTimeout(typeTimeoutRef.current);
     if (returnFocus) {
       requestAnimationFrame(() => triggerRef.current?.focus());
     }

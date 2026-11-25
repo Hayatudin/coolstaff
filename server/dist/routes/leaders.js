@@ -43,6 +43,9 @@ router.get('/', async (req, res) => {
                 _count: {
                     candidates: countMap[b.id] || 0
                 }
+            })).sort((a, b) => (a.name || '').trim().localeCompare((b.name || '').trim(), 'en', {
+                sensitivity: 'base',
+                numeric: true,
             }));
             const totalCandidates = mappedBrokers.reduce((sum, b) => sum + b._count.candidates, 0);
             return {
@@ -56,6 +59,10 @@ router.get('/', async (req, res) => {
                 totalCandidates
             };
         });
+        augmented.sort((a, b) => (a.name || '').trim().localeCompare((b.name || '').trim(), 'en', {
+            sensitivity: 'base',
+            numeric: true,
+        }));
         res.json(augmented);
     }
     catch (error) {

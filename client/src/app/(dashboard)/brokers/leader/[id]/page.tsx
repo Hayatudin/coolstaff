@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -15,6 +15,14 @@ import { Broker, Leader } from '@/types';
 import { useSession } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 import { useLeadersQuery, useBrokersQuery, useInvalidateQueries } from '@/hooks/useQueryHooks';
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const compareBrokerNames = (a: { name: string }, b: { name: string }) =>
+  (a.name || '').trim().localeCompare((b.name || '').trim(), 'en', {
+    sensitivity: 'base',
+    numeric: true,
+  });
 
 export default function LeaderBrokersPage() {
   const params = useParams();
@@ -130,7 +138,89 @@ export default function LeaderBrokersPage() {
     fetchData();
   }, [leaderId]);
 
-  // Keyboard navigation spelling search
+  // Alphabetical & spelling jump state
+  const [activeJumpLetter, setActiveJumpLetter] = useState<string | null>(null);
+  const [highlightedBrokerId, setHighlightedBrokerId] = useState<string | null>(null);
+  const [spellingToast, setSpellingToast] = useState<{ query: string; matchName: string } | null>(null);
+  const typeBufferRef = useRef('');
+  const typeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastJumpBrokerIdRef = useRef<string | null>(null);
+
+  const sortedAllBrokers = useMemo(() => {
+    return [...brokers].sort(compareBrokerNames);
+  }, [brokers]);
+
+  const currentLeaderBrokers = useMemo(() => {
+    return sortedAllBrokers.filter(b => b.leaderId === leaderId);
+  }, [sortedAllBrokers, leaderId]);
+
+  const filteredBrokers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return currentLeaderBrokers;
+    return currentLeaderBrokers.filter(b =>
+      (b.name || '').trim().toLowerCase().includes(query)
+    );
+  }, [currentLeaderBrokers, searchQuery]);
+
+  const availableLetters = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of filteredBrokers) {
+      const first = (b.name || '').trim().charAt(0).toUpperCase();
+      if (first >= 'A' && first <= 'Z') {
+        set.add(first);
+      } else if (first) {
+        set.add('#');
+      }
+    }
+    return set;
+  }, [filteredBrokers]);
+
+  const scrollAndHighlightBroker = useCallback((targetBroker: Broker, displayQuery?: string) => {
+    const el = document.getElementById(`broker-card-${targetBroker.id}`);
+    if (!el) return;
+
+    const scrollContainer = document.getElementById('main-scroll-container');
+    if (scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const targetTop = scrollContainer.scrollTop + (elRect.top - containerRect.top) - 96;
+      scrollContainer.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    } else {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    const firstChar = (targetBroker.name || '').trim().charAt(0).toUpperCase();
+    const letterKey = firstChar >= 'A' && firstChar <= 'Z' ? firstChar : '#';
+
+    lastJumpBrokerIdRef.current = targetBroker.id;
+    setActiveJumpLetter(letterKey);
+    setHighlightedBrokerId(targetBroker.id);
+
+    if (displayQuery) {
+      setSpellingToast({ query: displayQuery.toUpperCase(), matchName: targetBroker.name.trim() });
+    }
+
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = setTimeout(() => {
+      setHighlightedBrokerId(null);
+      setSpellingToast(null);
+    }, 1800);
+  }, []);
+
+  const handleJumpToLetter = useCallback((letter: string) => {
+    const targetBroker = filteredBrokers.find(b => {
+      const first = (b.name || '').trim().charAt(0).toUpperCase();
+      if (letter === '#') return first !== '' && (first < 'A' || first > 'Z');
+      return first === letter;
+    });
+    if (targetBroker) {
+      typeBufferRef.current = '';
+      scrollAndHighlightBroker(targetBroker, letter);
+    }
+  }, [filteredBrokers, scrollAndHighlightBroker]);
+
+  // Keyboard navigation spelling search (operates on A-Z sorted filteredBrokers)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
@@ -143,31 +233,81 @@ export default function LeaderBrokersPage() {
         return;
       }
 
+      if (showAddForm || isEditModalOpen || moveTarget || moveBrokerTarget || deleteTarget || selectedBrokerForTemplate) {
+        return;
+      }
+
       if (e.ctrlKey || e.metaKey || e.altKey) {
         return;
       }
 
-      if (e.key.length === 1 && /[a-zA-Z]/i.test(e.key)) {
+      if (e.key.length === 1 && /^[a-zA-Z0-9]$/.test(e.key)) {
         const char = e.key.toLowerCase();
-        const targetBroker = brokers
-          .filter(b => b.leaderId === leaderId)
-          .find(b => b.name.trim().toLowerCase().startsWith(char));
-        if (targetBroker) {
-          const el = document.getElementById(`broker-card-${targetBroker.id}`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('ring-4', 'ring-primary/40');
-            setTimeout(() => {
-              el.classList.remove('ring-4', 'ring-primary/40');
-            }, 1500);
+        const prevBuffer = typeBufferRef.current;
+        const nextBuffer = prevBuffer + char;
+
+        if (typeTimeoutRef.current) clearTimeout(typeTimeoutRef.current);
+        typeTimeoutRef.current = setTimeout(() => {
+          typeBufferRef.current = '';
+        }, 750);
+
+        let targetBroker: Broker | undefined;
+        let usedQuery = nextBuffer;
+
+        // 1. Try multi-character spelling prefix match first
+        if (nextBuffer.length > 1) {
+          targetBroker = filteredBrokers.find(b =>
+            (b.name || '').trim().toLowerCase().startsWith(nextBuffer)
+          );
+          if (targetBroker) {
+            typeBufferRef.current = nextBuffer;
           }
+        }
+
+        // 2. If pressing the same letter repeatedly (and no double-letter prefix match), cycle through matches
+        if (!targetBroker && prevBuffer === char) {
+          const singleMatches = filteredBrokers.filter(b =>
+            (b.name || '').trim().toLowerCase().startsWith(char)
+          );
+          if (singleMatches.length > 0) {
+            const currentIdx = singleMatches.findIndex(b => b.id === lastJumpBrokerIdRef.current);
+            targetBroker = singleMatches[(currentIdx + 1) % singleMatches.length];
+            typeBufferRef.current = char;
+            usedQuery = char;
+          }
+        }
+
+        // 3. Otherwise jump to the first broker starting with the pressed key
+        if (!targetBroker) {
+          targetBroker = filteredBrokers.find(b =>
+            (b.name || '').trim().toLowerCase().startsWith(char)
+          );
+          typeBufferRef.current = char;
+          usedQuery = char;
+        }
+
+        if (targetBroker) {
+          scrollAndHighlightBroker(targetBroker, usedQuery);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [brokers, leaderId]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (typeTimeoutRef.current) clearTimeout(typeTimeoutRef.current);
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    };
+  }, [
+    filteredBrokers,
+    scrollAndHighlightBroker,
+    showAddForm,
+    isEditModalOpen,
+    moveTarget,
+    moveBrokerTarget,
+    deleteTarget,
+    selectedBrokerForTemplate,
+  ]);
 
   const getBrokerTemplates = (broker: Broker) => {
     const templatesSet = new Set<string>();
@@ -346,15 +486,11 @@ export default function LeaderBrokersPage() {
     }
   };
 
-  const currentLeaderBrokers = brokers.filter(b => b.leaderId === leaderId);
-  const filteredBrokers = currentLeaderBrokers.filter(b =>
-    b.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const totalCandidates = currentLeaderBrokers.reduce((sum, b) => sum + (b._count?.candidates || 0), 0);
 
   // Render a single Broker Card (used across lists/grids)
   const renderBrokerCard = (broker: Broker) => {
+    const isHighlighted = highlightedBrokerId === broker.id;
     return (
       <div
         key={broker.id}
@@ -363,7 +499,8 @@ export default function LeaderBrokersPage() {
           "group bg-surface rounded-[2rem] border p-6 transition-all duration-500 relative overflow-hidden flex flex-col min-h-[220px]",
           broker.isLocked
             ? "border-red-300 hover:border-red-400 bg-red-50/5 hover:shadow-red-500/5"
-            : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5"
+            : "border-border/50 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5",
+          isHighlighted && "ring-4 ring-primary/40 border-primary shadow-2xl shadow-primary/15"
         )}
       >
         {/* Background accent */}
@@ -371,7 +508,7 @@ export default function LeaderBrokersPage() {
 
         <div className="flex justify-between items-start mb-6 relative z-10">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center text-primary border border-primary/5 group-hover:scale-110 transition-transform duration-500">
-            <span className="text-2xl font-black">{broker.name.charAt(0).toUpperCase()}</span>
+            <span className="text-2xl font-black">{broker.name.trim().charAt(0).toUpperCase()}</span>
           </div>
           <div className="flex items-center gap-2">
             {broker.isLocked && (
@@ -686,6 +823,55 @@ export default function LeaderBrokersPage() {
         </div>
       )}
 
+      {/* ───── Alphabetical Quick-Jump Bar ───── */}
+      {!isLoading && filteredBrokers.length > 0 && (
+        <div className="bg-surface border border-border/50 rounded-2xl px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1">
+            {ALPHABET.map((letter) => {
+              const hasMatch = availableLetters.has(letter);
+              const isActive = activeJumpLetter === letter;
+              return (
+                <button
+                  key={letter}
+                  type="button"
+                  disabled={!hasMatch}
+                  onClick={() => handleJumpToLetter(letter)}
+                  className={cn(
+                    "w-7 h-7 rounded-lg text-xs font-bold transition-all flex items-center justify-center",
+                    hasMatch
+                      ? isActive
+                        ? "bg-primary text-white shadow-sm cursor-pointer"
+                        : "text-text-primary hover:bg-primary/10 hover:text-primary cursor-pointer"
+                      : "text-text-tertiary/30 cursor-not-allowed"
+                  )}
+                  title={hasMatch ? `Jump to ${letter}` : `No brokers starting with ${letter}`}
+                >
+                  {letter}
+                </button>
+              );
+            })}
+            {availableLetters.has('#') && (
+              <button
+                type="button"
+                onClick={() => handleJumpToLetter('#')}
+                className={cn(
+                  "w-7 h-7 rounded-lg text-xs font-bold transition-all flex items-center justify-center cursor-pointer",
+                  activeJumpLetter === '#'
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-text-primary hover:bg-primary/10 hover:text-primary"
+                )}
+                title="Jump to other symbols/numbers"
+              >
+                #
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] font-medium text-text-tertiary hidden sm:inline">
+            Sorted A–Z · Click a letter or type to jump
+          </span>
+        </div>
+      )}
+
       {/* ───── Brokers Grid ───── */}
       <div className="space-y-12 animate-fade-in">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -704,6 +890,18 @@ export default function LeaderBrokersPage() {
           )}
         </div>
       </div>
+
+      {/* Floating Keyboard Spelling Jump Indicator */}
+      {spellingToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900/90 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-md flex items-center gap-3 animate-fade-in pointer-events-none">
+          <span className="px-2 py-0.5 rounded-lg bg-primary text-white font-black text-xs tracking-wider">
+            {spellingToast.query}
+          </span>
+          <span className="text-xs font-semibold truncate max-w-[200px]">
+            {spellingToast.matchName}
+          </span>
+        </div>
+      )}
 
       {/* ═══════════ Move Candidates Modal ═══════════ */}
       {moveTarget && (
@@ -746,7 +944,7 @@ export default function LeaderBrokersPage() {
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {brokers
+                {sortedAllBrokers
                   .filter(b => b.id !== moveTarget.id)
                   .filter(b => b.name.toLowerCase().includes(brokerSearchQuery.toLowerCase()))
                   .map(otherBroker => (

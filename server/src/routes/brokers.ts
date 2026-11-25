@@ -113,6 +113,13 @@ router.get('/', async (req: Request, res: Response) => {
       });
     }
 
+    augmented.sort((a, b) =>
+      (a.name || '').trim().localeCompare((b.name || '').trim(), 'en', {
+        sensitivity: 'base',
+        numeric: true,
+      })
+    );
+
     res.json(augmented);
   } catch (error: any) {
     console.error('Error fetching brokers:', error);
