@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrCreateDaeraLeaders = getOrCreateDaeraLeaders;
+exports.findOrCreateBrokerInDaera2ByName = findOrCreateBrokerInDaera2ByName;
 exports.ensureBrokerInDaera2 = ensureBrokerInDaera2;
 exports.ensureBrokerInDaera1 = ensureBrokerInDaera1;
 exports.checkAndMoveCandidateToDaera2 = checkAndMoveCandidateToDaera2;
@@ -29,39 +30,96 @@ async function getOrCreateDaeraLeaders() {
     return { daeraLeaderId, daera2LeaderId };
 }
 /**
+ * Finds an existing broker by name (trimmed, case-insensitive) under 'DAERA OFFICE 2'
+ * or creates one under 'DAERA OFFICE 2' if it does not exist yet.
+ */
+async function findOrCreateBrokerInDaera2ByName(name, isLocked = false) {
+    const cleanName = (name || '').trim();
+    const { daera2LeaderId } = await getOrCreateDaeraLeaders();
+    const [existingRows] = await db_1.pool.query(`SELECT b.id, b.name, b.leaderId, b.createdAt, b.isLocked, l.name as leaderName
+     FROM Broker b
+     JOIN Leader l ON b.leaderId = l.id
+     WHERE UPPER(TRIM(b.name)) = UPPER(TRIM(?))
+       AND (b.leaderId = ? OR UPPER(TRIM(l.name)) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2'))
+     ORDER BY (b.leaderId = ?) DESC, b.createdAt ASC
+     LIMIT 1`, [cleanName, daera2LeaderId, daera2LeaderId]);
+    if (existingRows && existingRows.length > 0) {
+        const row = existingRows[0];
+        return {
+            id: row.id,
+            name: row.name,
+            leaderId: row.leaderId,
+            createdAt: row.createdAt,
+            isLocked: row.isLocked === 1 || row.isLocked === true,
+            leader: { id: row.leaderId, name: row.leaderName || 'DAERA OFFICE 2' },
+        };
+    }
+    const newBrokerId = 'cb' + (0, db_1.generateId)().slice(0, 23);
+    try {
+        await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)', [newBrokerId, cleanName, daera2LeaderId, isLocked ? 1 : 0]);
+    }
+    catch (dupErr) {
+        const [retryRows] = await db_1.pool.query(`SELECT b.id, b.name, b.leaderId, b.createdAt, b.isLocked, l.name as leaderName
+       FROM Broker b
+       JOIN Leader l ON b.leaderId = l.id
+       WHERE UPPER(TRIM(b.name)) = UPPER(TRIM(?))
+         AND (b.leaderId = ? OR UPPER(TRIM(l.name)) IN ('DAERA OFFICE 2', 'DAIRA OFFICE 2'))
+       LIMIT 1`, [cleanName, daera2LeaderId]);
+        if (retryRows && retryRows.length > 0) {
+            const row = retryRows[0];
+            return {
+                id: row.id,
+                name: row.name,
+                leaderId: row.leaderId,
+                createdAt: row.createdAt,
+                isLocked: row.isLocked === 1 || row.isLocked === true,
+                leader: { id: row.leaderId, name: row.leaderName || 'DAERA OFFICE 2' },
+            };
+        }
+        throw dupErr;
+    }
+    const [createdRows] = await db_1.pool.query(`SELECT b.id, b.name, b.leaderId, b.createdAt, b.isLocked, l.name as leaderName
+     FROM Broker b
+     LEFT JOIN Leader l ON b.leaderId = l.id
+     WHERE b.id = ? LIMIT 1`, [newBrokerId]);
+    const created = createdRows?.[0];
+    return {
+        id: created?.id || newBrokerId,
+        name: created?.name || cleanName,
+        leaderId: created?.leaderId || daera2LeaderId,
+        createdAt: created?.createdAt || new Date(),
+        isLocked: created?.isLocked === 1 || created?.isLocked === true,
+        leader: { id: created?.leaderId || daera2LeaderId, name: created?.leaderName || 'DAERA OFFICE 2' },
+    };
+}
+/**
  * Ensures that for newly registered candidates (or during quick registration),
  * the candidate's broker belongs to 'DAERA OFFICE 2' (the 'new' category).
+ * If a matching broker already exists in DAERA OFFICE 2, reuses it without duplicating;
+ * otherwise creates it in DAERA OFFICE 2.
  */
 async function ensureBrokerInDaera2(brokerId) {
     if (!brokerId)
         return brokerId;
     try {
         const { daera2LeaderId } = await getOrCreateDaeraLeaders();
-        const [bRows] = await db_1.pool.query('SELECT id, name, leaderId, isLocked FROM Broker WHERE id = ? LIMIT 1', [brokerId]);
+        const [bRows] = await db_1.pool.query(`SELECT b.id, b.name, b.leaderId, b.isLocked, l.name as leaderName
+       FROM Broker b
+       LEFT JOIN Leader l ON b.leaderId = l.id
+       WHERE b.id = ? LIMIT 1`, [brokerId]);
         if (!bRows || bRows.length === 0)
             return brokerId;
         const b = bRows[0];
+        const currentLeaderName = (b.leaderName || '').trim().toUpperCase();
         // If broker is already in DAERA OFFICE 2, return directly
-        if (b.leaderId === daera2LeaderId) {
+        if (b.leaderId === daera2LeaderId ||
+            currentLeaderName === 'DAERA OFFICE 2' ||
+            currentLeaderName === 'DAIRA OFFICE 2') {
             return brokerId;
         }
-        // Find or create matching broker under DAERA OFFICE 2 (never mutate existing broker in-place)
-        const [d2Brokers] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [b.name, daera2LeaderId]);
-        if (d2Brokers && d2Brokers.length > 0) {
-            return d2Brokers[0].id;
-        }
-        const newD2BrokerId = 'cb' + (0, db_1.generateId)().slice(0, 23);
-        try {
-            await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), ?)', [newD2BrokerId, b.name, daera2LeaderId, b.isLocked ? 1 : 0]);
-            return newD2BrokerId;
-        }
-        catch (dupErr) {
-            const [byName] = await db_1.pool.query('SELECT id FROM Broker WHERE UPPER(name) = UPPER(?) AND leaderId = ? LIMIT 1', [b.name, daera2LeaderId]);
-            if (byName && byName.length > 0) {
-                return byName[0].id;
-            }
-            return brokerId;
-        }
+        // Reuse existing matching broker in DAERA OFFICE 2 or create one there
+        const targetBroker = await findOrCreateBrokerInDaera2ByName(b.name || '', b.isLocked === 1 || b.isLocked === true);
+        return targetBroker.id;
     }
     catch (e) {
         console.warn('[LEADER-SYNC] Failed to ensure broker in DAERA OFFICE 2:', e);

@@ -4,6 +4,7 @@ const express_1 = require("express");
 const db_1 = require("../db");
 const drizzle_orm_1 = require("drizzle-orm");
 const auth_helper_1 = require("../lib/auth-helper");
+const leader_sync_1 = require("../lib/leader-sync");
 const router = (0, express_1.Router)();
 // Helper: fetch isLocked values for all brokers via raw SQL
 async function getBrokerLockMap() {
@@ -108,11 +109,20 @@ router.get('/', async (req, res) => {
 // POST /api/brokers
 router.post('/', async (req, res) => {
     try {
-        const { name, leaderId } = req.body;
-        if (!name)
+        const { name, leaderId, leaderName } = req.body;
+        const cleanName = typeof name === 'string' ? name.trim() : '';
+        if (!cleanName)
             return res.status(400).json({ error: 'Broker name is required' });
+        const normalizedLeaderName = typeof leaderName === 'string' ? leaderName.trim().toUpperCase() : '';
+        if (!leaderId && (normalizedLeaderName === 'DAERA OFFICE 2' || normalizedLeaderName === 'DAIRA OFFICE 2')) {
+            const brokerObj = await (0, leader_sync_1.findOrCreateBrokerInDaera2ByName)(cleanName);
+            return res.json({
+                ...brokerObj,
+                _count: { candidates: 0 },
+            });
+        }
         const brokerId = 'cb' + (0, db_1.generateId)().slice(0, 23);
-        await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), 0)', [brokerId, name.trim(), leaderId || null]);
+        await db_1.pool.query('INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), 0)', [brokerId, cleanName, leaderId || null]);
         const [brokerRows] = await db_1.pool.query('SELECT id, name, leaderId, createdAt, isLocked FROM Broker WHERE id = ?', [brokerId]);
         if (!brokerRows || brokerRows.length === 0) {
             throw new Error('Failed to retrieve newly created broker.');
