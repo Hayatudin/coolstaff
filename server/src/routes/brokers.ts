@@ -11,6 +11,7 @@ import {
 } from '../db';
 import { eq, inArray, count } from 'drizzle-orm';
 import { getSession } from '../lib/auth-helper';
+import { findOrCreateBrokerInDaera2ByName } from '../lib/leader-sync';
 
 const router = Router();
 
@@ -125,14 +126,24 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/brokers
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { name, leaderId } = req.body;
-    if (!name) return res.status(400).json({ error: 'Broker name is required' });
+    const { name, leaderId, leaderName } = req.body;
+    const cleanName = typeof name === 'string' ? name.trim() : '';
+    if (!cleanName) return res.status(400).json({ error: 'Broker name is required' });
+
+    const normalizedLeaderName = typeof leaderName === 'string' ? leaderName.trim().toUpperCase() : '';
+    if (!leaderId && (normalizedLeaderName === 'DAERA OFFICE 2' || normalizedLeaderName === 'DAIRA OFFICE 2')) {
+      const brokerObj = await findOrCreateBrokerInDaera2ByName(cleanName);
+      return res.json({
+        ...brokerObj,
+        _count: { candidates: 0 },
+      });
+    }
 
     const brokerId = 'cb' + generateId().slice(0, 23);
 
     await pool.query(
       'INSERT INTO Broker (id, name, leaderId, createdAt, isLocked) VALUES (?, ?, ?, NOW(3), 0)',
-      [brokerId, name.trim(), leaderId || null]
+      [brokerId, cleanName, leaderId || null]
     );
 
     const [brokerRows]: any = await pool.query(

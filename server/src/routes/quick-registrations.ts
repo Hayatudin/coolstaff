@@ -247,7 +247,17 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (body.numberOfChildren !== undefined) updateFields.numberOfChildren = parseInt(body.numberOfChildren) || 0;
     if (passportImageUrl !== undefined) updateFields.passportImageUrl = passportImageUrl;
     if (body.religion !== undefined) updateFields.religion = body.religion;
-    if (body.brokerId !== undefined) updateFields.brokerId = body.brokerId || null;
+    if (body.brokerId !== undefined) {
+      let resolvedBrokerId = body.brokerId || null;
+      if (resolvedBrokerId) {
+        try {
+          resolvedBrokerId = await ensureBrokerInDaera2(resolvedBrokerId);
+        } catch (ebErr) {
+          console.warn('Failed to ensure broker in DAERA OFFICE 2 on quick registration update:', ebErr);
+        }
+      }
+      updateFields.brokerId = resolvedBrokerId;
+    }
     if (cocDocumentUrl !== undefined) updateFields.cocDocumentUrl = cocDocumentUrl;
     if (labourIdUrl !== undefined) updateFields.labourIdUrl = labourIdUrl;
     if (candidateIdImageUrl !== undefined) updateFields.candidateIdImageUrl = candidateIdImageUrl;

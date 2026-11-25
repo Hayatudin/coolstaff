@@ -60,11 +60,24 @@ const isNumberMismatch = (val1?: number | null, val2?: number | null) => {
   return Number(val1 || 0) !== Number(val2);
 };
 
-const isBrokerMismatch = (val1?: string | null, quickRegObj?: any) => {
+const isBrokerMismatch = (val1?: string | null, quickRegObj?: any, brokers?: Broker[]) => {
   if (!quickRegObj) return false;
   const quickBrokerId = quickRegObj.brokerId || quickRegObj.broker?.id;
   if (!quickBrokerId) return false;
-  return String(val1 || '') !== String(quickBrokerId);
+  if (String(val1 || '') === String(quickBrokerId)) return false;
+
+  if (brokers && brokers.length > 0) {
+    const normalize = (s?: string | null) => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const currentBrokerName = normalize(brokers.find(b => b.id === val1)?.name);
+    const quickBrokerName = normalize(
+      quickRegObj.broker?.name || quickRegObj.brokerName || brokers.find(b => b.id === quickBrokerId)?.name
+    );
+    if (currentBrokerName && quickBrokerName && currentBrokerName === quickBrokerName) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 const isLanguagesMismatch = (fieldLangs?: string[], quickLangs?: string[]) => {
@@ -465,7 +478,7 @@ export default function PersonalInfoForm({
               placeholder="Select broker"
               onCreate={onBrokerCreate}
             />
-            {isBrokerMismatch(data.brokerId, quickRegistrationData) && <MismatchAlert />}
+            {isBrokerMismatch(data.brokerId, quickRegistrationData, brokers) && <MismatchAlert />}
           </div>
         </div>
       </section>

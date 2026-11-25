@@ -253,11 +253,14 @@ function RegistrationContent() {
       const res = await api('/api/brokers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name: name.trim(), leaderName: 'DAERA OFFICE 2' })
       });
       if (res.ok) {
         const newBroker = await res.json();
-        setBrokers(prev => [...prev, newBroker].sort((a, b) => a.name.localeCompare(b.name)));
+        setBrokers(prev => {
+          const filtered = prev.filter(b => b.id !== newBroker.id);
+          return [...filtered, newBroker].sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
+        });
         setPersonalInfo(prev => ({ ...prev, brokerId: newBroker.id }));
       } else {
         alert('Failed to create broker');

@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Copy, Check, ArrowLeft, Loader2, User, Calendar, Globe, Briefcase, GraduationCap, Heart, Baby, Phone, BookOpen, Users, Upload, Image as ImageIcon, FileText, Save, RefreshCw, AlertCircle, Trash2, Video, Edit2, Plus, X, CheckCircle2, Download, FileDown } from 'lucide-react';
 import { useSession } from '@/lib/auth-client';
 import { getFileUrl } from '@/lib/utils';
+import BrokerSelect from '@/components/ui/BrokerSelect';
 
 interface QuickRegistration {
   id: string;
@@ -1326,18 +1327,12 @@ export default function QuickRegistrationPreviewPage({ params }: { params: Promi
                       <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">
                         Broker Connection
                       </label>
-                      <select
+                      <BrokerSelect
+                        brokers={brokers}
                         value={editForm.brokerId}
-                        onChange={e => setEditForm(prev => ({ ...prev, brokerId: e.target.value }))}
-                        className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 bg-white text-text-primary"
-                      >
-                        <option value="">Direct / No Broker</option>
-                        {brokers.map(b => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={v => setEditForm(prev => ({ ...prev, brokerId: v }))}
+                        placeholder="Direct / No Broker"
+                      />
                     </div>
 
                     {/* Languages Section */}
